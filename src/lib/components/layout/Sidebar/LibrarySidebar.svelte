@@ -175,14 +175,18 @@
 										<BookmarkedIcon />
 									</div>
 								{/if}
-								<img
-									class="rounded-md"
-									src={model?.meta?.profile_image_url
-										? model?.meta?.profile_image_url
-										: $company?.profile_image_url}
-									draggable="false"
-									alt={model?.name}
-								/>
+								{#if !model?.meta?.profile_image_url || model?.meta?.profile_image_url?.length > 5}
+									<img
+										class="rounded-md"
+										src={model?.meta?.profile_image_url
+											? model?.meta?.profile_image_url
+											: $company?.profile_image_url}
+										draggable="false"
+										alt={model?.name}
+									/>
+								{:else}
+									<div class="text-[3.5rem]">{model?.meta?.profile_image_url}</div>
+								{/if}
 							</button>
 						</Tooltip>
 					{/each}
@@ -233,7 +237,7 @@
 						{#each taggedPrompts[tag] as prompt}
 							<div class="flex items-center py-1">
 								<div class="w-4 shrink-0">
-									{#if prompt?.bookmarked}
+									{#if prompt?.bookmarked_by_user}
 										<BookmarkedIcon className="size-3" />
 									{/if}
 								</div>
