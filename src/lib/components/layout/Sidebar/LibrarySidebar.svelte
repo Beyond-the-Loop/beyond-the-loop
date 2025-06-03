@@ -15,6 +15,7 @@
 	import PrivateIcon from '$lib/components/icons/PrivateIcon.svelte';
 	import GroupIcon from '$lib/components/icons/GroupIcon.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
+	import { theme } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 	let models = null;
@@ -41,8 +42,8 @@
 
 	let taggedPrompts = {};
 
-	const tagColors = ['#272A6A', '#044B49', '#2F074F', '#27456A', '#0C2E18', '#47074F', '#6A2738'];
-
+	const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14', '#556111', '#112550', '#12595A', '#114558', '#340E56', '#4D123D', '#591626'];
+	const tagColorsLight = ['#D6F1D9', '#DCFFCA', '#D1FCE4', '#FDF2C8', '#FDE3C8', '#F5FDC8', '#E4ECFD', '#CFF6F2', '#CFEBF6', '#E4CFF6', '#F6CFEB', '#F6CFD8'];
 	$: {
 		if (prompts) {
 			filteredItems = prompts?.filter((p) => {
@@ -118,6 +119,8 @@
 			}
 		};
 	}
+	
+	
 </script>
 
 {#if $showLibrary}
@@ -147,16 +150,16 @@
 			<Spinner />
 		</div>
 	{:else}
-		<div class="sticky top-0 z-10 pb-3">
+		<div class="sticky top-0 z-10 pb-3 pr-2">
 			<div
 				use:dragScroll
-				class="cursor-grab flex gap-5 overflow-x-scroll py-3.5 assistants-scrollbar min-h-[94px]"
+				class="cursor-grab flex gap-5 {models?.length < 5 ? 'overflow-visible' : 'overflow-x-scroll'} py-3.5 assistants-scrollbar min-h-[94px]"
 			>	
 				{#if models?.length < 1}
 					<div class="pt-4">{$i18n.t('No assistants added yet')}</div>
 				{:else}
 					{#each models as model}
-						<Tooltip className="tooltip" placement="bottom" content={isDragging ? '' : model?.name + '. ' + model?.meta?.description}>
+						<Tooltip className="tooltip" placement="bottom" content={model?.name}>
 							<button
 								on:click={async () => {
 									selectedChatId = null;
@@ -229,8 +232,10 @@
 				{#each Object.keys(taggedPrompts) as tag, i}
 					<Accordeon
 						hideBorder={true}
-						tagColor={tagColors[i % tagColors?.length]}
-						titleClassName={`text-xs text-white rounded-lg px-2 py-1`}
+						tagColors={tagColors}
+						tagColorsLight={tagColorsLight}
+						i={i}
+						titleClassName={`text-xs text-lightGray100 font-medium dark:text-white rounded-lg px-2 py-1`}
 						id={tag}
 					>
 						<span class="capitalize font-medium" slot="title">{tag} </span>
@@ -252,7 +257,7 @@
 									class="line-clamp-1 font-medium text-sm text-lightGray-100 dark:text-customGray-100 cursor-pointer"
 									on:click={() => onPromptClick(prompt)}
 								>
-									{prompt?.title}. {prompt?.description}
+									{prompt?.title} • {prompt?.description}
 								</div>
 							</div>
 						{/each}
