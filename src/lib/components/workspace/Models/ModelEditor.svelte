@@ -386,7 +386,6 @@
 	};
 
 	let showAddKnowledge = false;
-	$: console.log(info.meta.profile_image_url);
 
 	let organizations = mapModelsToOrganizations(modelsInfo);
 	const desiredOrder = Object.values(organizations).flat();
