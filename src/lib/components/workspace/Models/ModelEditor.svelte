@@ -42,6 +42,8 @@
 	import EmojiMenu from './EmojiMenu.svelte';
 	import { modelsInfo, mapModelsToOrganizations } from '../../../../data/modelsInfo';
 	
+	import { getUserTagsForModels } from '$lib/apis/models';
+
 
 	const i18n = getContext('i18n');
 
@@ -64,6 +66,15 @@
 
 	let loaded = false;
 	let showEmojiMenu = false;
+
+	let userTags = [];
+	const getTags = async () => {
+		userTags = await getUserTagsForModels(localStorage.token);
+	}
+
+	onMount(async () => {
+		await getTags();
+	})
 
 	// ///////////
 	// model
@@ -844,7 +855,7 @@
 									</div>
 									<div class="py-3">
 										<div class="mb-2">
-											<TagSelect bind:selected={info.meta.tags} placeholder="Add category..." />
+											<TagSelect bind:selected={info.meta.tags} {userTags} placeholder="Add category..." />
 										</div>
 										<AccessSelect bind:accessControl accessRoles={['read', 'write']} />
 									</div>
