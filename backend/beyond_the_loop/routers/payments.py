@@ -26,28 +26,28 @@ SUBSCRIPTION_PLANS = {
         "name": "Free",
         "price_monthly": 0,
         "credits_per_month": 5,
-        "stripe_price_id": "price_1RSIfGBBwyxb4MZjoc5Oz8zJ",
+        "stripe_price_id": "price_1RSbapBBwyxb4MZjWrs4tTNW",
         "seats": 1
     },
     "starter": {
         "name": "Starter",
         "price_monthly": 2500,  # 25€ in cents
         "credits_per_month": 5,
-        "stripe_price_id": "price_1RNqhyBBwyxb4MZjNJU4b13w",
+        "stripe_price_id": "price_1RNq8xBBwyxb4MZjy1k0SneL",
         "seats": 5
     },
     "team": {
         "name": "Team",
         "price_monthly": 14900,  # 149€ in cents
         "credits_per_month": 50,
-        "stripe_price_id": "price_1RNqiZBBwyxb4MZj6bXjHenV",
+        "stripe_price_id": "price_1RNqAcBBwyxb4MZjAGivhdo7",
         "seats": 25
     },
     "growth": {
         "name": "Growth",
         "price_monthly": 84900,  # 849€ in cents
         "credits_per_month": 150,
-        "stripe_price_id": "price_1RNqj4BBwyxb4MZjz4vVypid",
+        "stripe_price_id": "price_1RNqIXBBwyxb4MZjUY83qDes",
         "seats": 1000
     }
 }
@@ -182,7 +182,12 @@ async def create_subscription_session(request: CreateSubscriptionRequest, user=D
 
 # Get all available subscription plans
 @router.get("/subscription-plans/")
-async def get_subscription_plans():
+async def get_subscription_plans(user=Depends(get_verified_user)):
+    company = Companies.get_company_by_id(user.company_id)
+
+    if company.subscription_not_required:
+        return []
+
     """Get all available subscription plans"""
     plans = []
     for plan_id, plan_details in SUBSCRIPTION_PLANS.items():
@@ -203,6 +208,14 @@ async def get_subscription(user=Depends(get_verified_user)):
     """Get the current subscription details for the company"""
     try:
         company = Companies.get_company_by_id(user.company_id)
+
+        if company.subscription_not_required:
+            return {
+                "plan": "unlimited",
+                "flex_credits_remaining": company.flex_credit_balance,
+                "seats": "unlimited",
+                "auto_recharge": company.auto_recharge
+            }
 
         if company.stripe_customer_id is None:
             return {
@@ -286,6 +299,10 @@ async def cancel_subscription(user=Depends(get_verified_user)):
     """Cancel the current subscription"""
     try:
         company = Companies.get_company_by_id(user.company_id)
+
+        if company.subscription_not_required:
+            raise HTTPException(status_code=404, detail="No active subscription found")
+
         if not company.stripe_customer_id:
             raise HTTPException(status_code=404, detail="No active subscription found")
             
@@ -675,6 +692,9 @@ def handle_payment_intent_succeeded(data):
 async def customer_billing_page(user=Depends(get_verified_user)):
     try:
         company = Companies.get_company_by_id(user.company_id)
+
+        if company.subscription_not_required:
+            raise HTTPException(status_code=400, detail="No stripe customer method found for company")
         
         if not company.stripe_customer_id:
             raise HTTPException(status_code=400, detail="No stripe customer method found for company")
