@@ -52,8 +52,6 @@
 		workspaceModels = await getBaseModels(localStorage.token);
 		baseModels = await getModels(localStorage.token, true);
 
-		console.log("ONITIT MODELS", workspaceModels, baseModels);
-
 		models = baseModels.map((m) => {
 			const workspaceModel = workspaceModels.find((wm) => wm.id === m.id);
 
@@ -81,15 +79,11 @@
 		const modelOrderList = config.MODEL_ORDER_LIST || [];
 		const allModelIds = $storeModels.map((model) => model.id);
 
-		console.log("STORED MODELS", $storeModels);
-
 		if (config?.DEFAULT_MODELS) {
 			defaultModelIds = (config?.DEFAULT_MODELS ?? '').split(',').filter(Boolean).map((id) => $storeModels.find((m) => m.id === id)?.name ?? '');
 		} else {
 			defaultModelIds = [];
 		}
-
-		console.log("HALLOO", modelOrderList, allModelIds);
 
 		// Create a Set for quick lookup of ordered IDs
 		const orderedSet = new Set(modelOrderList);
@@ -278,7 +272,6 @@
 					</div>
 					{#each models?.filter((m) => organizations[organization]
 							.map((item) => {
-								console.log(item, m);
 								return item.toLowerCase()
 							})
 							.includes(m.name.toLowerCase())) as model (model.name)}
@@ -295,7 +288,7 @@
 							</div>
 							<div class="border-r border-lightGray-400 dark:border-customGray-700 flex justify-center items-center dark:text-customGray-100">
 								<div class="text-xs dark:text-white">
-									{#if (modelsInfo[model.name]?.credit_multiple) && (modelsInfo[model.name]?.resarch || modelsInfo[model.name]?.reasoning)}
+									{#if (modelsInfo[model.name]?.credit_multiple) && (modelsInfo[model.name]?.research || modelsInfo[model.name]?.reasoning)}
 									    <div>{$i18n.t('from')}</div>
 										<div class="flex items-center">{modelsInfo[model.name]?.credit_multiple}x
 											<Tooltip content={$i18n?.t('Costs for research and reasoning models are variable. As a result, pricing may fluctuate based on the complexity of the task.')}>

@@ -1138,16 +1138,16 @@ export function getPeriodRange(period) {
 	let start;
 
 	switch (period) {
-		case 'last_30_days':
+		case 'this_month':
+			start = end.startOf('month');
+			break;
+		case 'past_30_days':
 			start = end.subtract(30, 'day');
 			break;
-		case 'last_3_months':
+		case 'past_3_months':
 			start = end.subtract(3, 'month');
 			break;
-		case 'last_6_months':
-			start = end.subtract(6, 'month');
-			break;
-		case 'last_year':
+		case 'past_year':
 			start = end.subtract(1, 'year');
 			break;
 		default:
@@ -1164,3 +1164,5 @@ export const emojiToBase64 = (emoji) => {
 	return emoji;
 };
 
+export const tagColorsLight = ['#D6F1D9', '#DCFFCA', '#D1FCE4', '#FDF2C8', '#FDE3C8', '#F5FDC8', '#E4ECFD', '#CFF6F2', '#CFEBF6', '#E4CFF6', '#F6CFEB', '#F6CFD8'];
+export const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14', '#556111', '#112550', '#12595A', '#114558', '#340E56', '#4D123D', '#591626'];
