@@ -2,7 +2,7 @@ import json
 import logging
 
 import requests
-from open_webui.config import WEBUI_FAVICON_URL, WEBUI_NAME
+from beyond_the_loop.config import WEBUI_FAVICON_URL, WEBUI_NAME
 from open_webui.env import SRC_LOG_LEVELS, VERSION
 
 log = logging.getLogger(__name__)

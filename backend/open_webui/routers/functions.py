@@ -9,7 +9,7 @@ from open_webui.models.functions import (
     Functions,
 )
 from open_webui.utils.plugin import load_function_module_by_id, replace_imports
-from open_webui.config import CACHE_DIR
+from beyond_the_loop.config import CACHE_DIR
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from open_webui.utils.auth import get_admin_user, get_verified_user
