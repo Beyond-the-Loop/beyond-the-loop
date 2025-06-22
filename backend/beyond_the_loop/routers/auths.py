@@ -445,7 +445,7 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
 @router.post("/signup", response_model=SessionUserResponse)
 async def signup(request: Request, response: Response, form_data: SignupForm):
     if not form_data.is_invited:
-        user = Users.get_user_by_registration_code(form_data.registration_code)
+        user = Users.get_user_by_registration_code(form_data.signup_token)
     else:
         user = Users.get_user_by_invite_token(form_data.signup_token)
 
