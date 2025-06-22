@@ -232,7 +232,7 @@
 			{$i18n.t(`Don’t have an account?`)}
 			<a href="/signup" class="font-medium text-customBlue-500">{$i18n.t('Register now')}</a>
 		</div>
-        <!-- <hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
+        <hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
         <div class="text-xs dark:text-customGray-300 text-center font-medium mb-2.5">Or</div>
         <div class="flex flex-col space-y-2">
             {#if $config?.oauth?.providers?.google}
@@ -285,7 +285,7 @@
                     <span>{$i18n.t('Continue with {{provider}}', { provider: 'Microsoft' })}</span>
                 </button>
             {/if}
-		</div> -->
+		</div>
 	</form>
     
     <div class="self-center text-xs text-customGray-300 dark:text-customGray-100 pb-5 text-center">By using this service, you agree to our <a href="/">Terms</a> and <a href="/">Conditions</a>.</div>
