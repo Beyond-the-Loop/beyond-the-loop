@@ -882,7 +882,7 @@ export const completeRegistration = async (
 			first_name,
 			last_name,
 			password,
-			registration_code,
+			signup_token: registration_code,
 			profile_image_url: profile_image_url?.length ? profile_image_url : null,
 			is_invited: false
 		})
