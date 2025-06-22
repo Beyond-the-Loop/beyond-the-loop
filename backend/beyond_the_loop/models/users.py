@@ -232,6 +232,16 @@ class UsersTable:
                 return UserModel.model_validate(user)
         except Exception:
             return None
+        
+    def update_company_by_id(self, id: str, company_id: str) -> Optional[UserModel]:
+        try:
+            with get_db() as db:
+                db.query(User).filter_by(id=id).update({"company_id": company_id})
+                db.commit()
+                user = db.query(User).filter_by(id=id).first()
+                return UserModel.model_validate(user) if user else None
+        except Exception:
+            return None
 
     def get_user_by_api_key(self, api_key: str) -> Optional[UserModel]:
         try:

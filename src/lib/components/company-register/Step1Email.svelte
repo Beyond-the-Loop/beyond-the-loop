@@ -37,9 +37,10 @@
 	let loading = false;
 
 	async function registerEmail() {
+		loading = true;
 		const user = await createUser(email).catch(error => {
 			showToast('error', error);
-		});
+		}).finally(() => loading = false);
 		dispatch('next', { email: user.email });
 	}
 	let logoSrc = '/logo_light.png';
