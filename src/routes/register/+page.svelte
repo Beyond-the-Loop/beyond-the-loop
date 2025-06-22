@@ -41,7 +41,7 @@
 		if ($page.url.searchParams.get('inviteToken')) {
 			inviteToken = $page.url.searchParams.get('inviteToken')
 		}else{
-			goto('/company-register')
+			goto('/signup')
 		}
 	})
 

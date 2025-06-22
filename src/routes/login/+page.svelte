@@ -43,7 +43,6 @@
 			$socket.emit('user-join', { auth: { token: sessionUser.token } });
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
-			goto('/');
 		}
 	};
 
@@ -69,6 +68,10 @@
 			})
 		]);
 
+		if(!companyInfo) {
+			goto('/create-company');
+		}
+
 		if (companyInfo) {
 			company.set(companyInfo);
 		}
@@ -77,6 +80,7 @@
 			console.log(companyConfigInfo);
 			companyConfig.set(companyConfigInfo);
 		}
+		goto('/');
         loading = false;
 	};
 
@@ -105,9 +109,9 @@
 	};
 
 	onMount(async () => {
-        if ($user !== undefined) {
+        if ($user !== undefined && $company) {
 			await goto('/');
-		}
+		} 
 		await checkOauthCallback();
     });
 	let logoSrc = '/logo_dark_transparent.png';
@@ -224,9 +228,9 @@
 				</div>
 			{/if}
 		</button>
-		<div class="mt-5 text-xs dark:text-customGray-300">
+		<div class="mt-5 text-xs text-lightGray-100 dark:text-customGray-300">
 			{$i18n.t(`Don’t have an account?`)}
-			<a href="/company-register" class="font-medium text-customBlue-500">{$i18n.t('Register now')}</a>
+			<a href="/signup" class="font-medium text-customBlue-500">{$i18n.t('Register now')}</a>
 		</div>
         <!-- <hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
         <div class="text-xs dark:text-customGray-300 text-center font-medium mb-2.5">Or</div>

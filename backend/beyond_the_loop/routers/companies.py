@@ -21,6 +21,7 @@ from beyond_the_loop.models.companies import (
 from open_webui.utils.auth import get_current_user, get_admin_user
 from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.config import save_config, get_config
+from beyond_the_loop.models.users import Users
 
 router = APIRouter()
 
@@ -262,7 +263,7 @@ async def create_company(
                         access_control=None,  # None means public access
                     ),
                     user_id=None,
-                    company_id=user.company_id,
+                    company_id=company_id,
                 )
 
         # Create Stripe customer for the new company
@@ -297,6 +298,8 @@ async def create_company(
                 "user_email": user.email,
             },
         )
+
+        Users.update_company_by_id(user.id, company_id)
 
         return company
 
