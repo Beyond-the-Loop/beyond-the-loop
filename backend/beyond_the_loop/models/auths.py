@@ -96,8 +96,7 @@ class SignupForm(BaseModel):
     first_name: str
     last_name: str
     password: str
-    signup_token: Optional[str] = None
-    registration_code: Optional[str] = None
+    signup_token: str
     profile_image_url: Optional[str] = "/user.png"
     is_invited: bool = False
 
