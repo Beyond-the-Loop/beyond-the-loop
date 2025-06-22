@@ -236,10 +236,10 @@ async def create_company(
                 "profile_image_url": form_data.company_profile_image_url,
             }
         )
+        Users.update_company_by_id(user.id, company_id)
 
         # Save default config for the new company
         from beyond_the_loop.config import save_config, DEFAULT_CONFIG
-
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
@@ -262,7 +262,7 @@ async def create_company(
                         params=ModelParams(),
                         access_control=None,  # None means public access
                     ),
-                    user_id=None,
+                    user_id=user.id,
                     company_id=company_id,
                 )
 
@@ -298,8 +298,6 @@ async def create_company(
                 "user_email": user.email,
             },
         )
-
-        Users.update_company_by_id(user.id, company_id)
 
         return company
 
