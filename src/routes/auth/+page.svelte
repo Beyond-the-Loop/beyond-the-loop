@@ -108,6 +108,7 @@
 	let onboarding = false;
 
 	onMount(async () => {
+		goto('/login');
 		if ($user !== undefined) {
 			await goto('/');
 		}

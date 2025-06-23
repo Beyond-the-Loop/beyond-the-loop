@@ -2,7 +2,7 @@ import black
 import markdown
 
 from open_webui.models.chats import ChatTitleMessagesForm
-from open_webui.config import DATA_DIR, ENABLE_ADMIN_EXPORT
+from beyond_the_loop.config import DATA_DIR, ENABLE_ADMIN_EXPORT
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel

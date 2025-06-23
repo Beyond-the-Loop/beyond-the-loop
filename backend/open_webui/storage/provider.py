@@ -6,7 +6,7 @@ from typing import BinaryIO, Tuple
 
 import boto3
 from botocore.exceptions import ClientError
-from open_webui.config import (
+from beyond_the_loop.config import (
     S3_ACCESS_KEY_ID,
     S3_BUCKET_NAME,
     S3_ENDPOINT_URL,

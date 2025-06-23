@@ -25,6 +25,7 @@
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import { toast } from 'svelte-sonner';
 	import { getCompanyDetails, getCompanyConfig } from '$lib/apis/auths';
+	import { goto } from '$app/navigation';
 
 	let step = 1;
 
@@ -34,11 +35,8 @@
 	let registration_code = '';
 	let password = '';
 	let profile_image_url = '';
-	let company_name = '';
-	let company_size = '';
-	let company_industry = '';
-	let company_team_function = '';
-	let company_profile_image_url = '';
+
+	let loading = false;
 
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
@@ -56,50 +54,67 @@
 		if (step === 1) {
 			email = event.detail.email;
 		}
-		
-		if (step === 4) {
-			if(!company_name || !company_size || !company_industry || !company_team_function) {
-				showToast('error', "To continue, please provide full information about your company and team.")
-				return;
-			}
+		if(step === 3) {
+			loading = true;
 			const user = await completeRegistration(
 				first_name,
 				last_name,
 				registration_code?.trim(),
 				password,
-				profile_image_url ? profile_image_url : generateInitialsImage(first_name),
-				company_name,
-				company_size,
-				company_industry,
-				company_team_function,
-				company_profile_image_url ? company_profile_image_url : ''
+				profile_image_url ? profile_image_url : generateInitialsImage(`${first_name} ${last_name}`),
 			).catch(error => showToast('error', error));
 			console.log(user)
 			if(user) {
 				await setSessionUser(user);
-				step = step + 1;
-				const [companyInfo, companyConfigInfo] = await Promise.all([
-					getCompanyDetails(user.token).catch((error) => {
-						toast.error(`${error}`);
-						return null;
-					}),
-					getCompanyConfig(user.token).catch((error) => {
-						toast.error(`${error}`);
-						return null;
-					})
-				]);
-
-				if (companyInfo) {
-					company.set(companyInfo);
-				}
-
-				if (companyConfigInfo) {
-					console.log(companyConfigInfo);
-					companyConfig.set(companyConfigInfo);
-				}
+				goto('/create-company');
 			}
+			loading = false;
 		}
-		if (step < 4) step += 1;	
+		if (step < 3) step += 1;
+		
+		// if (step === 4) {
+		// 	if(!company_name || !company_size || !company_industry || !company_team_function) {
+		// 		showToast('error', "To continue, please provide full information about your company and team.")
+		// 		return;
+		// 	}
+		// 	const user = await completeRegistration(
+		// 		first_name,
+		// 		last_name,
+		// 		registration_code?.trim(),
+		// 		password,
+		// 		profile_image_url ? profile_image_url : generateInitialsImage(first_name),
+		// 		company_name,
+		// 		company_size,
+		// 		company_industry,
+		// 		company_team_function,
+		// 		company_profile_image_url ? company_profile_image_url : ''
+		// 	).catch(error => showToast('error', error));
+		// 	console.log(user)
+		// 	if(user) {
+		// 		await setSessionUser(user);
+		// 		step = step + 1;
+		// 		const [companyInfo, companyConfigInfo] = await Promise.all([
+		// 			getCompanyDetails(user.token).catch((error) => {
+		// 				toast.error(`${error}`);
+		// 				return null;
+		// 			}),
+		// 			getCompanyConfig(user.token).catch((error) => {
+		// 				toast.error(`${error}`);
+		// 				return null;
+		// 			})
+		// 		]);
+
+		// 		if (companyInfo) {
+		// 			company.set(companyInfo);
+		// 		}
+
+		// 		if (companyConfigInfo) {
+		// 			console.log(companyConfigInfo);
+		// 			companyConfig.set(companyConfigInfo);
+		// 		}
+		// 	}
+		// }
+			
 	}
 
 	const goBack = () => {
@@ -115,7 +130,7 @@
 	{#if step === 1}
 		<Step1Email on:next={goNext} bind:email />
 	{:else if step === 2}
-		<Step2Verify {email} on:next={goNext} on:back={goBack} bind:registration_code/>
+		<Step2Verify {email} on:next={goNext} on:back={goBack} bind:registration_code />
 	{:else if step === 3}
 		<Step3Personal
 			on:next={goNext}
@@ -124,19 +139,8 @@
 			bind:first_name
 			bind:last_name
 			bind:password
+			{loading}
 		/>
-	{:else if step === 4}
-		<Step4Company
-			on:next={goNext}
-			on:back={goBack}
-			bind:company_profile_image_url
-			bind:company_name
-			bind:company_size
-			bind:company_industry
-			bind:company_team_function
-		/>
-	{:else if step === 5}
-		<Step5Invite on:back={goBack} />
 	{/if}
 
 	<ProgressIndicator {step} />
