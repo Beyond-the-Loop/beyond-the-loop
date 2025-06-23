@@ -28,12 +28,6 @@
 
 	let step = 4;
 
-	let email = '';
-	let first_name = '';
-	let last_name = '';
-	let registration_code = '';
-	let password = '';
-	let profile_image_url = '';
 	let company_name = '';
 	let company_size = '';
 	let company_industry = '';
@@ -41,18 +35,6 @@
 	let company_profile_image_url = '';
 
 	let loading = false;
-
-	const setSessionUser = async (sessionUser) => {
-		if (sessionUser) {
-			if (sessionUser.token) {
-				localStorage.token = sessionUser.token;
-			}
-
-			$socket.emit('user-join', { auth: { token: sessionUser.token } });
-			await user.set(sessionUser);
-			await config.set(await getBackendConfig());
-		}
-	};
 
 	async function goNext(event) {
 	
@@ -74,7 +56,7 @@
 				loading = false;
 		});
 			company.set(companyInfo)
-			if(company) {
+			if(companyInfo) {
 				step = step + 1;
 				const companyConfigInfo = await getCompanyConfig(localStorage.token).catch((error) => {
 						toast.error(`${error}`);

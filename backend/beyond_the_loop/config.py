@@ -389,7 +389,9 @@ OAUTH_MERGE_ACCOUNTS_BY_EMAIL = PersistentConfig(
     os.environ.get("OAUTH_MERGE_ACCOUNTS_BY_EMAIL", "False").lower() == "true",
 )
 
-OAUTH_PROVIDERS = {}
+OAUTH_PROVIDERS = {
+    "google": {}
+}
 
 GOOGLE_CLIENT_ID = PersistentConfig(
     "GOOGLE_CLIENT_ID",
@@ -928,7 +930,7 @@ MODEL_ORDER_LIST = PersistentConfig(
 DEFAULT_USER_ROLE = PersistentConfig(
     "DEFAULT_USER_ROLE",
     "ui.default_user_role",
-    os.getenv("DEFAULT_USER_ROLE", "pending"),
+    os.getenv("DEFAULT_USER_ROLE", "admin"),
 )
 
 USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS = (

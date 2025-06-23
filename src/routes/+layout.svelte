@@ -402,11 +402,11 @@
 
 					const [companyInfo, companyConfigInfo] = await Promise.all([
 						getCompanyDetails(localStorage.token).catch((error) => {
-							toast.error(`${error}`);
+							// toast.error(`${error}`);
 							return null;
 						}),
 						getCompanyConfig(localStorage.token).catch((error) => {
-							toast.error(`${error}`);
+							// toast.error(`${error}`);
 							return null;
 						})
 					]);
@@ -436,8 +436,8 @@
 				} else {
 					// Don't redirect if we're already on the auth page
 					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/auth') {
-						// await goto('/auth');
+					if ($page.url.pathname !== '/login') {
+						await goto('/login');
 					}
 				}
 			}

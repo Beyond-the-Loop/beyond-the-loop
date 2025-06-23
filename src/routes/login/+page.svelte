@@ -35,7 +35,7 @@
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
 			console.log(sessionUser);
-			showToast('success', `You're now logged in.`);
+			// showToast('success', `You're now logged in.`);
 			if (sessionUser.token) {
 				localStorage.token = sessionUser.token;
 			}
@@ -59,17 +59,18 @@
 		
 		const [companyInfo, companyConfigInfo] = await Promise.all([
 			getCompanyDetails(sessionUser.token).catch((error) => {
-				toast.error(`${error}`);
+				showToast('error', error);
 				return null;
 			}),
 			getCompanyConfig(sessionUser.token).catch((error) => {
-				toast.error(`${error}`);
+				showToast('error', error);
 				return null;
 			})
 		]);
 
 		if(!companyInfo) {
 			goto('/create-company');
+			return;
 		}
 
 		if (companyInfo) {
@@ -80,6 +81,7 @@
 			console.log(companyConfigInfo);
 			companyConfig.set(companyConfigInfo);
 		}
+		showToast('success', `You're now logged in.`);
 		goto('/');
         loading = false;
 	};
@@ -98,7 +100,7 @@
 			return;
 		}
 		const sessionUser = await getSessionUser(token).catch((error) => {
-			toast.error(`${error}`);
+			showToast('error', error);
 			return null;
 		});
 		if (!sessionUser) {
@@ -106,6 +108,32 @@
 		}
 		localStorage.token = token;
 		await setSessionUser(sessionUser);
+		const [companyInfo, companyConfigInfo] = await Promise.all([
+			getCompanyDetails(sessionUser.token).catch((error) => {
+				// showToast('error', error);
+				return null;
+			}),
+			getCompanyConfig(sessionUser.token).catch((error) => {
+				// showToast('error', error);
+				return null;
+			})
+		]);
+
+		if(!companyInfo) {
+			goto('/create-company');
+			return;
+		}
+
+		if (companyInfo) {
+			company.set(companyInfo);
+		}
+
+		if (companyConfigInfo) {
+			console.log(companyConfigInfo);
+			companyConfig.set(companyConfigInfo);
+		}
+		showToast('success', `You're now logged in.`);
+		goto('/');
 	};
 
 	onMount(async () => {
@@ -237,7 +265,8 @@
         <div class="flex flex-col space-y-2">
             {#if $config?.oauth?.providers?.google}
                 <button
-                    class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-customGray-700"
+					type="button"
+                    class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
                     on:click={() => {
                         window.location.href = `${WEBUI_BASE_URL}/oauth/google/login`;
                     }}

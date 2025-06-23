@@ -77,6 +77,7 @@
 			await goto('/signup');
 		} else if (!$company) {
 			goto('/create-company');
+			return;
 		} else if (['user', 'admin'].includes($user.role)) {
 			try {
 				// Check if IndexedDB exists
