@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import ProgressIndicator from '$lib/components/company-register/ProgressIndicator.svelte';
 	import Step1Email from '$lib/components/company-register/Step1Email.svelte';
 	import Step2Verify from '$lib/components/company-register/Step2Verify.svelte';
@@ -25,6 +26,8 @@
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import { toast } from 'svelte-sonner';
 	import { getCompanyDetails, getCompanyConfig } from '$lib/apis/auths';
+
+	const i18n = getContext('i18n');
 
 	let step = 4;
 
@@ -96,5 +99,16 @@
 		<Step5Invite on:back={goBack} />
 	{/if}
 
-	<ProgressIndicator {step} />
+	<div class="flex flex-col justify-center">
+		<ProgressIndicator {step} />
+		<div class="self-center text-xs text-customGray-300 dark:text-customGray-100 pb-5 text-center">
+			{$i18n.t('By using this service, you agree to our')}
+			<a
+				href="https://drive.google.com/file/d/1--HSBhHR8JSkz6q-qDgjJZWXvHWa6sh-/view?usp=sharing"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="underline">{$i18n.t('Terms and Conditions')}</a
+			>.
+		</div>
+	</div>
 </div>
