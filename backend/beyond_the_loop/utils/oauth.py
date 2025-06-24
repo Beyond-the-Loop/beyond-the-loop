@@ -273,10 +273,12 @@ class OAuthManager:
                     user_data.get("email", "").lower()
                 )
                 if existing_user:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=ERROR_MESSAGES.EMAIL_TAKEN
-                    )
+                    redirect_url = f"{request.base_url}login#error=email_taken"
+                    return RedirectResponse(url=redirect_url)
+                    # raise HTTPException(
+                    #     status_code=status.HTTP_400_BAD_REQUEST,
+                    #     detail=ERROR_MESSAGES.EMAIL_TAKEN
+                    # )
 
                 picture_claim = auth_manager_config.OAUTH_PICTURE_CLAIM
                 picture_url = user_data.get(

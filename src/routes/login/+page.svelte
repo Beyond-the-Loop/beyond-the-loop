@@ -81,7 +81,7 @@
 			console.log(companyConfigInfo);
 			companyConfig.set(companyConfigInfo);
 		}
-		showToast('success', `You're now logged in.`);
+		showToast('success', $i18n.t(`You're now logged in.`));
 		goto('/');
         loading = false;
 	};
@@ -95,6 +95,11 @@
 			return;
 		}
 		const params = new URLSearchParams(hash);
+		const error = params.get('error');
+		if(error === "email_taken") {
+			showToast('error', $i18n.t('Uh-oh! This email is already registered. Sign in with your existing account or choose another email to start anew.'));
+			return;
+		}
 		const token = params.get('token');
 		if (!token) {
 			return;
