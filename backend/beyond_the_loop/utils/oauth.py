@@ -64,7 +64,15 @@ auth_manager_config.OAUTH_ALLOWED_DOMAINS = OAUTH_ALLOWED_DOMAINS
 auth_manager_config.WEBHOOK_URL = WEBHOOK_URL
 auth_manager_config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
+class OAUTH_ERROR_CODES:
+    INVALID_CREDENTIALS = "invalid_credentials"
+    EMAIL_TAKEN = "email_taken"
+    ACCESS_PROHIBITED = "access_prohibited"
+    NOT_FOUND = "not_found"
 
+def redirect_with_error(request, error_code: str):
+    redirect_url = f"{request.base_url}login#error={error_code}"
+    return RedirectResponse(url=redirect_url)
 class OAuthManager:
     def __init__(self):
         self.oauth = OAuth()
@@ -178,64 +186,71 @@ class OAuthManager:
 
     async def handle_login(self, provider, request):
         if provider not in OAUTH_PROVIDERS:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=ERROR_MESSAGES.NOT_FOUND,
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
+            # raise HTTPException(
+            #     status_code=status.HTTP_404_NOT_FOUND,
+            #     detail=ERROR_MESSAGES.NOT_FOUND,
+            # )
         # If the provider has a custom redirect URL, use that, otherwise automatically generate one
         redirect_uri = OAUTH_PROVIDERS[provider].get("redirect_uri") or request.url_for(
             "oauth_callback", provider=provider
         )
         client = self.get_client(provider)
         if client is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=ERROR_MESSAGES.NOT_FOUND,
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
+            # raise HTTPException(
+            #     status_code=status.HTTP_404_NOT_FOUND,
+            #     detail=ERROR_MESSAGES.NOT_FOUND,
+            # )
         return await client.authorize_redirect(request, redirect_uri)
 
     async def handle_callback(self, provider, request, response):
         if provider not in OAUTH_PROVIDERS:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=ERROR_MESSAGES.NOT_FOUND,
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
+            # raise HTTPException(
+            #     status_code=status.HTTP_404_NOT_FOUND,
+            #     detail=ERROR_MESSAGES.NOT_FOUND,
+            # )
         client = self.get_client(provider)
         try:
             token = await client.authorize_access_token(request)
         except Exception as e:
             log.warning(f"OAuth callback error: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.INVALID_CRED
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+            # raise HTTPException(
+            #     status_code=status.HTTP_400_BAD_REQUEST,
+            #     detail=ERROR_MESSAGES.INVALID_CRED
+            # )
         user_data: UserInfo = token.get("userinfo")
         if not user_data:
             user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.INVALID_CRED
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+            # raise HTTPException(
+            #     status_code=status.HTTP_400_BAD_REQUEST,
+            #     detail=ERROR_MESSAGES.INVALID_CRED
+            # )
 
         sub = user_data.get(OAUTH_PROVIDERS[provider].get("sub_claim", "sub"))
         if not sub:
             log.warning(f"OAuth callback failed, sub is missing: {user_data}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.INVALID_CRED
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+            # raise HTTPException(
+            #     status_code=status.HTTP_400_BAD_REQUEST,
+            #     detail=ERROR_MESSAGES.INVALID_CRED
+            # )
         provider_sub = f"{provider}@{sub}"
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "").lower()
         # We currently mandate that email addresses are provided
         if not email:
             log.warning(f"OAuth callback failed, email is missing: {user_data}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.INVALID_CRED
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+            # raise HTTPException(
+            #     status_code=status.HTTP_400_BAD_REQUEST,
+            #     detail=ERROR_MESSAGES.INVALID_CRED
+            # )
         if (
             "*" not in auth_manager_config.OAUTH_ALLOWED_DOMAINS
             and email.split("@")[-1] not in auth_manager_config.OAUTH_ALLOWED_DOMAINS
@@ -243,10 +258,11 @@ class OAuthManager:
             log.warning(
                 f"OAuth callback failed, e-mail domain is not in the list of allowed domains: {user_data}"
             )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.INVALID_CRED
-            )
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+            # raise HTTPException(
+            #     status_code=status.HTTP_400_BAD_REQUEST,
+            #     detail=ERROR_MESSAGES.INVALID_CRED
+            # )
 
         # Check if the user exists
         user = Users.get_user_by_oauth_sub(provider_sub)
@@ -273,8 +289,7 @@ class OAuthManager:
                     user_data.get("email", "").lower()
                 )
                 if existing_user:
-                    redirect_url = f"{request.base_url}login#error=email_taken"
-                    return RedirectResponse(url=redirect_url)
+                    return redirect_with_error(request, OAUTH_ERROR_CODES.EMAIL_TAKEN)
                     # raise HTTPException(
                     #     status_code=status.HTTP_400_BAD_REQUEST,
                     #     detail=ERROR_MESSAGES.EMAIL_TAKEN
@@ -355,10 +370,11 @@ class OAuthManager:
                         },
                     )
             else:
-                raise HTTPException(
-                    status.HTTP_403_FORBIDDEN,
-                    detail=ERROR_MESSAGES.ACCESS_PROHIBITED
-                )
+                return redirect_with_error(request, OAUTH_ERROR_CODES.ACCESS_PROHIBITED)
+                # raise HTTPException(
+                #     status.HTTP_403_FORBIDDEN,
+                #     detail=ERROR_MESSAGES.ACCESS_PROHIBITED
+                # )
 
         jwt_token = create_token(
             data={"id": user.id},
