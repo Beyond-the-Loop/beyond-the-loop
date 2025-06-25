@@ -19,6 +19,7 @@
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
 	import HidePassIcon from '$lib/components/icons/HidePassIcon.svelte';
+	import Spinner from '$lib/components/common/Spinner.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -27,11 +28,14 @@
     let showPassword = false;
 	
 	let loading = false;
+	let oauthLoading = false;
 
-	onMount(() => {
-		
-	})
-
+	const oauthErrorCodes = {
+		"invalid_credentials": "The email or password provided is incorrect. Please check for typos and try logging in again.",
+		"email_taken": "Uh-oh! This email is already registered. Sign in with your existing account or choose another email to start anew.",
+		"access_prohibited": "You do not have permission to access this resource. Please contact your administrator for assistance.",
+		"not_found": "We could not find what you're looking for :/"
+	}
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
 			console.log(sessionUser);
@@ -90,14 +94,17 @@
 		if (!$page.url.hash) {
 			return;
 		}
+		oauthLoading = true;
 		const hash = $page.url.hash.substring(1);
 		if (!hash) {
 			return;
 		}
 		const params = new URLSearchParams(hash);
 		const error = params.get('error');
-		if(error === "email_taken") {
-			showToast('error', $i18n.t('Uh-oh! This email is already registered. Sign in with your existing account or choose another email to start anew.'));
+		if(error) {
+			const message = oauthErrorCodes[error] || "An unknown error occurred.";
+			showToast('error', $i18n.t(message));
+			oauthLoading = false;
 			return;
 		}
 		const token = params.get('token');
@@ -109,6 +116,7 @@
 			return null;
 		});
 		if (!sessionUser) {
+			oauthLoading = false;
 			return;
 		}
 		localStorage.token = token;
@@ -139,6 +147,7 @@
 		}
 		showToast('success', `You're now logged in.`);
 		goto('/');
+		oauthLoading = false;
 	};
 
 	onMount(async () => {
@@ -164,6 +173,11 @@
 </svelte:head>
 
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
+{#if oauthLoading}
+	<div class="fixed h-full w-full flex justify-center items-center z-20">
+		<Spinner />
+	</div>
+{/if}
 <div
 	class="flex flex-col justify-between w-full h-screen max-h-[100dvh] px-4 text-white relative bg-lightGray-300 dark:bg-customGray-900"
 >
