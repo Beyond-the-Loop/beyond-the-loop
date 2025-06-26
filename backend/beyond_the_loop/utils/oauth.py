@@ -26,6 +26,7 @@ from beyond_the_loop.config import (
     OAUTH_ROLES_CLAIM,
     OAUTH_GROUPS_CLAIM,
     OAUTH_EMAIL_CLAIM,
+    OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM,
     OAUTH_PICTURE_CLAIM,
     OAUTH_USERNAME_CLAIM,
     OAUTH_FIRST_NAME_CLAIM,
@@ -54,6 +55,7 @@ auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT = ENABLE_OAUTH_GROUP_MANAGEMEN
 auth_manager_config.OAUTH_ROLES_CLAIM = OAUTH_ROLES_CLAIM
 auth_manager_config.OAUTH_GROUPS_CLAIM = OAUTH_GROUPS_CLAIM
 auth_manager_config.OAUTH_EMAIL_CLAIM = OAUTH_EMAIL_CLAIM
+auth_manager_config.OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM = OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM
 auth_manager_config.OAUTH_PICTURE_CLAIM = OAUTH_PICTURE_CLAIM
 auth_manager_config.OAUTH_USERNAME_CLAIM = OAUTH_USERNAME_CLAIM
 auth_manager_config.OAUTH_FIRST_NAME_CLAIM = OAUTH_FIRST_NAME_CLAIM
@@ -221,9 +223,13 @@ class OAuthManager:
             #     status_code=status.HTTP_400_BAD_REQUEST,
             #     detail=ERROR_MESSAGES.INVALID_CRED
             # )
-        user_data: UserInfo = token.get("userinfo")
-        if not user_data:
+        if provider == "microsoft":
             user_data: UserInfo = await client.userinfo(token=token)
+        else:
+            user_data: UserInfo = token.get("userinfo")
+
+        # if not user_data:
+        #     user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
@@ -244,9 +250,12 @@ class OAuthManager:
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "").lower()
         # We currently mandate that email addresses are provided
-        if not email:
-            log.warning(f"OAuth callback failed, email is missing: {user_data}")
-            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+        if not email and provider == "microsoft":
+            email_claim = auth_manager_config.OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM
+            email = user_data.get(email_claim, "").lower()
+            if not email:
+                log.warning(f"OAuth callback failed, email is missing: {user_data}")
+                return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
             # raise HTTPException(
             #     status_code=status.HTTP_400_BAD_REQUEST,
             #     detail=ERROR_MESSAGES.INVALID_CRED

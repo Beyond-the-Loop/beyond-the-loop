@@ -679,24 +679,25 @@ async def signout(request: Request, response: Response):
     if ENABLE_OAUTH_SIGNUP.value:
         oauth_id_token = request.cookies.get("oauth_id_token")
         if oauth_id_token:
-            try:
-                async with ClientSession() as session:
-                    async with session.get(OPENID_PROVIDER_URL.value) as resp:
-                        if resp.status == 200:
-                            openid_data = await resp.json()
-                            logout_url = openid_data.get("end_session_endpoint")
-                            if logout_url:
-                                response.delete_cookie("oauth_id_token")
-                                return RedirectResponse(
-                                    url=f"{logout_url}?id_token_hint={oauth_id_token}"
-                                )
-                        else:
-                            raise HTTPException(
-                                status_code=resp.status,
-                                detail="Failed to fetch OpenID configuration",
-                            )
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
+            response.delete_cookie("oauth_id_token")
+            # try:
+            #     async with ClientSession() as session:
+            #         async with session.get(OPENID_PROVIDER_URL.value) as resp:
+            #             if resp.status == 200:
+            #                 openid_data = await resp.json()
+            #                 logout_url = openid_data.get("end_session_endpoint")
+            #                 if logout_url:
+            #                     response.delete_cookie("oauth_id_token")
+            #                     return RedirectResponse(
+            #                         url=f"{logout_url}?id_token_hint={oauth_id_token}"
+            #                     )
+            #             else:
+            #                 raise HTTPException(
+            #                     status_code=resp.status,
+            #                     detail="Failed to fetch OpenID configuration",
+            #                 )
+            # except Exception as e:
+            #     raise HTTPException(status_code=500, detail=str(e))
 
     return {"status": True}
 

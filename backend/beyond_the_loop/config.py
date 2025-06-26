@@ -538,6 +538,12 @@ OAUTH_EMAIL_CLAIM = PersistentConfig(
     os.environ.get("OAUTH_EMAIL_CLAIM", "email"),
 )
 
+OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM = PersistentConfig(
+    "OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM",
+    "oauth.oidc.microsoft_alternative_email_claim",
+    os.environ.get("OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM", "preferred_username"),
+)
+
 OAUTH_GROUPS_CLAIM = PersistentConfig(
     "OAUTH_GROUPS_CLAIM",
     "oauth.oidc.group_claim",
