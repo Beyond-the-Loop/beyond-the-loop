@@ -30,7 +30,7 @@
 	}
 </script>
 
-<div bind:this={container} class="flex mb-7 md:mx-auto overflow-x-auto">
+<div bind:this={container} class="flex mb-3 md:mx-auto overflow-x-auto">
 	{#each steps as s, index}
 		<div class="step-item pb-2.5 border-b font-medium {index + 1 <= step ? 'border-customBlue-500' : 'border-customGray-700'}">
 			<div

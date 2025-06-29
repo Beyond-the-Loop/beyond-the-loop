@@ -18,7 +18,7 @@ from open_webui.utils.plugin import load_function_module_by_id
 from open_webui.utils.access_control import has_access
 
 
-from open_webui.config import (
+from beyond_the_loop.config import (
     DEFAULT_ARENA_MODEL,
 )
 

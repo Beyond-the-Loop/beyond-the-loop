@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from open_webui.env import SRC_LOG_LEVELS
-from open_webui.config import CACHE_DIR
+from beyond_the_loop.config import CACHE_DIR
 
 from beyond_the_loop.routers.openai import get_all_models_responses
 

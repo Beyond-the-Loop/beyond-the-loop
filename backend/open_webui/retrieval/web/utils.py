@@ -10,7 +10,7 @@ from langchain_core.documents import Document
 
 
 from open_webui.constants import ERROR_MESSAGES
-from open_webui.config import ENABLE_RAG_LOCAL_WEB_FETCH
+from beyond_the_loop.config import ENABLE_RAG_LOCAL_WEB_FETCH
 from open_webui.env import SRC_LOG_LEVELS
 
 import logging

@@ -5,7 +5,7 @@ import json
 from typing import Optional
 
 from open_webui.retrieval.vector.main import VectorItem, SearchResult, GetResult
-from open_webui.config import (
+from beyond_the_loop.config import (
     MILVUS_URI,
     MILVUS_DB,
     MILVUS_TOKEN,

@@ -15,7 +15,7 @@ from open_webui.models.folders import (
 )
 from open_webui.models.chats import Chats
 
-from open_webui.config import UPLOAD_DIR
+from beyond_the_loop.config import UPLOAD_DIR
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.constants import ERROR_MESSAGES
 
