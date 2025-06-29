@@ -26,11 +26,12 @@ from beyond_the_loop.config import (
     OAUTH_ROLES_CLAIM,
     OAUTH_GROUPS_CLAIM,
     OAUTH_EMAIL_CLAIM,
-    OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM,
     OAUTH_PICTURE_CLAIM,
     OAUTH_USERNAME_CLAIM,
     OAUTH_FIRST_NAME_CLAIM,
     OAUTH_LAST_NAME_CLAIM,
+    OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM,
+    OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM,
     OAUTH_ALLOWED_ROLES,
     OAUTH_ADMIN_ROLES,
     OAUTH_ALLOWED_DOMAINS,
@@ -55,11 +56,12 @@ auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT = ENABLE_OAUTH_GROUP_MANAGEMEN
 auth_manager_config.OAUTH_ROLES_CLAIM = OAUTH_ROLES_CLAIM
 auth_manager_config.OAUTH_GROUPS_CLAIM = OAUTH_GROUPS_CLAIM
 auth_manager_config.OAUTH_EMAIL_CLAIM = OAUTH_EMAIL_CLAIM
-auth_manager_config.OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM = OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM
 auth_manager_config.OAUTH_PICTURE_CLAIM = OAUTH_PICTURE_CLAIM
 auth_manager_config.OAUTH_USERNAME_CLAIM = OAUTH_USERNAME_CLAIM
 auth_manager_config.OAUTH_FIRST_NAME_CLAIM = OAUTH_FIRST_NAME_CLAIM
 auth_manager_config.OAUTH_LAST_NAME_CLAIM = OAUTH_LAST_NAME_CLAIM
+auth_manager_config.OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM = OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM
+auth_manager_config.OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM = OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM
 auth_manager_config.OAUTH_ALLOWED_ROLES = OAUTH_ALLOWED_ROLES
 auth_manager_config.OAUTH_ADMIN_ROLES = OAUTH_ADMIN_ROLES
 auth_manager_config.OAUTH_ALLOWED_DOMAINS = OAUTH_ALLOWED_DOMAINS
@@ -213,9 +215,13 @@ class OAuthManager:
             #     status_code=status.HTTP_404_NOT_FOUND,
             #     detail=ERROR_MESSAGES.NOT_FOUND,
             # )
+        microsoft_personal_account = False
         client = self.get_client(provider)
         try:
-            token = await client.authorize_access_token(request)
+            if provider == "microsoft":
+                token = await client.authorize_access_token(request, claims_options={"iss": {"essential": False}})
+            else:
+                token = await client.authorize_access_token(request)
         except Exception as e:
             log.warning(f"OAuth callback error: {e}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
@@ -225,6 +231,8 @@ class OAuthManager:
             # )
         if provider == "microsoft":
             user_data: UserInfo = await client.userinfo(token=token)
+            if auth_manager_config.OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM in user_data and auth_manager_config.OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM in user_data:
+                microsoft_personal_account = True
         else:
             user_data: UserInfo = token.get("userinfo")
 
@@ -249,13 +257,9 @@ class OAuthManager:
         provider_sub = f"{provider}@{sub}"
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "").lower()
-        # We currently mandate that email addresses are provided
-        if not email and provider == "microsoft":
-            email_claim = auth_manager_config.OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM
-            email = user_data.get(email_claim, "").lower()
-            if not email:
-                log.warning(f"OAuth callback failed, email is missing: {user_data}")
-                return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+        if not email:
+            log.warning(f"OAuth callback failed, email is missing: {user_data}")
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
             # raise HTTPException(
             #     status_code=status.HTTP_400_BAD_REQUEST,
             #     detail=ERROR_MESSAGES.INVALID_CRED
@@ -341,13 +345,13 @@ class OAuthManager:
                 # if not isinstance(user, str):
                 #     name = email
 
-                first_name_claim = auth_manager_config.OAUTH_FIRST_NAME_CLAIM
+                first_name_claim = auth_manager_config.OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM if microsoft_personal_account else auth_manager_config.OAUTH_FIRST_NAME_CLAIM
                 first_name = user_data.get(first_name_claim)
                 if not first_name:
                     log.warning("Firstname claim is missing, using email as firstname")
                     first_name = email
 
-                last_name_claim = auth_manager_config.OAUTH_LAST_NAME_CLAIM
+                last_name_claim = auth_manager_config.OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM if microsoft_personal_account else auth_manager_config.OAUTH_LAST_NAME_CLAIM
                 last_name = user_data.get(last_name_claim)
                 if not last_name:
                     log.warning("Lastname claim is missing, using email as lastname")
