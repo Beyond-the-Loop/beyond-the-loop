@@ -436,23 +436,6 @@ MICROSOFT_CLIENT_TENANT_ID = PersistentConfig(
     os.environ.get("MICROSOFT_CLIENT_TENANT_ID", ""),
 )
 
-MICROSOFT_CLIENT_LOGIN_BASE_URL = PersistentConfig(
-    "MICROSOFT_CLIENT_LOGIN_BASE_URL",
-    "oauth.microsoft.login_base_url",
-    os.environ.get(
-        "MICROSOFT_CLIENT_LOGIN_BASE_URL", "https://login.microsoftonline.com"
-    ),
-)
-
-MICROSOFT_CLIENT_PICTURE_URL = PersistentConfig(
-    "MICROSOFT_CLIENT_PICTURE_URL",
-    "oauth.microsoft.picture_url",
-    os.environ.get(
-        "MICROSOFT_CLIENT_PICTURE_URL",
-        "https://graph.microsoft.com/v1.0/me/photo/$value",
-    ),
-)
-
 MICROSOFT_OAUTH_SCOPE = PersistentConfig(
     "MICROSOFT_OAUTH_SCOPE",
     "oauth.microsoft.scope",
@@ -555,26 +538,16 @@ OAUTH_EMAIL_CLAIM = PersistentConfig(
     os.environ.get("OAUTH_EMAIL_CLAIM", "email"),
 )
 
+OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM = PersistentConfig(
+    "OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM",
+    "oauth.oidc.microsoft.preferred_email_claim",
+    os.environ.get("OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM", "preferred_username"),
+)
+
 OAUTH_GROUPS_CLAIM = PersistentConfig(
     "OAUTH_GROUPS_CLAIM",
     "oauth.oidc.group_claim",
     os.environ.get("OAUTH_GROUP_CLAIM", "groups"),
-)
-
-OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM = PersistentConfig(
-    "OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM",
-    "oauth.microsoft_personal.first_name_claim",
-    os.environ.get(
-        "OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM", "givenname"
-    ),
-)
-
-OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM = PersistentConfig(
-    "OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM",
-    "oauth.microsoft_personal.last_name_claim",
-    os.environ.get(
-        "OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM", "familyname"
-    ),
 )
 
 ENABLE_OAUTH_ROLE_MANAGEMENT = PersistentConfig(
