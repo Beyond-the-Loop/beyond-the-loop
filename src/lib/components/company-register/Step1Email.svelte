@@ -136,7 +136,8 @@
 		{/if}
 		{#if $config?.oauth?.providers?.microsoft}
 			<button
-				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-customGray-700"
+				type="button"
+				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
 				on:click={() => {
 					window.location.href = `${WEBUI_BASE_URL}/oauth/microsoft/login`;
 				}}
