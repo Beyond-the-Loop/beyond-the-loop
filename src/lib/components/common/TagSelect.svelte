@@ -37,8 +37,6 @@
 		return $theme === 'dark' ? tagColorMap.get(tagName) : tagColorMapLight.get(tagName);
 	}
 
-	$: console.log(userTags)
-
 	$: available = userTags?.filter(
 		(tag) => {
 		const tagName = tag.is_system ? $i18n.t(tag.name) : tag.name;
