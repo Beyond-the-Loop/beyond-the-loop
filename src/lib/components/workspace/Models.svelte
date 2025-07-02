@@ -79,7 +79,7 @@
 
 	const getTags = async () => {
 		const res = await getUserTagsForModels(localStorage.token);
-		tags = res.filter((tag) => tag.is_system).map((tag) => tag.name);
+		tags = res.map((tag) => tag.name);
 	};
 
 	onMount(async () => {
