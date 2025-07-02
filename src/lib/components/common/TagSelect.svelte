@@ -4,7 +4,7 @@
     import { getContext } from 'svelte';
     import { onClickOutside } from '$lib/utils';
 	import { tagColorsLight } from '$lib/utils';
-	import { theme } from "$lib/stores";
+	import { theme, systemTheme } from "$lib/stores";
 
     const i18n = getContext('i18n');
 
@@ -33,6 +33,9 @@
 		if (!tagColorMapLight.has(tagName)) {
 			const color = tagColorsLight[tagColorMapLight.size % tagColorsLight.length];
 			tagColorMapLight.set(tagName, color);
+		}
+		if($theme === 'system') {
+			return $systemTheme === 'dark' ? tagColorMap.get(tagName) : tagColorMapLight.get(tagName);
 		}
 		return $theme === 'dark' ? tagColorMap.get(tagName) : tagColorMapLight.get(tagName);
 	}
