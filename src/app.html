@@ -32,7 +32,7 @@
 			// Set logo image sources before the app hydrates
 			window.addEventListener('DOMContentLoaded', () => {
 				const isDarkLS = localStorage.getItem('theme') === 'dark';
-				const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const isDark = localStorage.getItem('theme') === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 				const animationPath = isDarkLS || isDark ? 'b-logo-white.json' : 'b-logo-black.json';
 				const container = document.getElementById('lottie-animation');
@@ -148,7 +148,7 @@
 		filter: invert(1);
 	} */
 
-	html.her #splash-screen {
+	/* html.her #splash-screen {
 		background: #983724;
 	}
 
@@ -199,5 +199,5 @@
 
 	.animate-pulse-fast {
 		animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-	}
+	} */
 </style>
