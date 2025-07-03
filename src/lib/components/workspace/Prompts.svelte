@@ -12,7 +12,8 @@
 		user,
 		showSidebar,
 		mobile,
-		theme
+		theme,
+		systemTheme
 	} from '$lib/stores';
 
 	import {
@@ -312,9 +313,9 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										$theme === 'light' ? tagColorsLight[i % tagColorsLight.length] : ''
+										($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
 									}`}
-									class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-customViolet-200' : 'bg-lightGray-400 dark:bg-customGray-800'} dark:text-white`}
+									class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 dark:bg-customGray-800'} dark:text-white`}
 									on:click={() => {
 										selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
 										selectedTags = new Set(selectedTags);
@@ -335,9 +336,9 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									$theme === 'light' ? tagColorsLight[i % tagColorsLight.length] : ''
+									($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
 								}`}
-								class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-customViolet-200' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customBlue-800'} dark:text-white`}
+								class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customBlue-800'} dark:text-white`}
 								on:click={() => {
 									selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
 									selectedTags = new Set(selectedTags);

@@ -277,7 +277,7 @@
 												>{$i18n.t('User')}</span
 											>
 										{:else}
-											<span class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] py-[3px] text-xs text-white dark:text-[#7147CD] px-2 w-fit"
+											<span class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] py-[3px] text-xs dark:text-[#7147CD] px-2 w-fit"
 												>{$i18n.t('Admin')}</span
 											>
 										{/if}

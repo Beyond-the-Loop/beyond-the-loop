@@ -28,6 +28,7 @@
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
 	import ArrowLeft from '$lib/components/icons/ArrowLeft.svelte';
+	import { theme, systemTheme } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -50,7 +51,8 @@
 	let logoSrc = '/logo_light.png';
 
 	onMount(() => {
-		const isDark = localStorage.getItem('theme') === 'dark';
+		const theme = $theme === "system" ? $systemTheme : $theme;
+		const isDark = theme === 'dark';
 		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
 	});
 
@@ -84,7 +86,7 @@
 	>
 		<div class="self-center flex flex-col items-center mb-5">
 			<div>
-				<img crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
+				<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
 			</div>
 			<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">
 				{$i18n.t('Reset password')}

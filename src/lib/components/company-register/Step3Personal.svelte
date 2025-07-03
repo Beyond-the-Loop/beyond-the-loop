@@ -28,6 +28,7 @@
     import HidePassIcon from '../icons/HidePassIcon.svelte';
     import InfoIcon from '../icons/InfoIcon.svelte';
     import Tooltip from '../common/Tooltip.svelte';
+	import { theme, systemTheme } from '$lib/stores';
 
 	const dispatch = createEventDispatcher();
 
@@ -70,7 +71,8 @@
 	let logoSrc = '/logo_light.png';
 
 	onMount(() => {
-		const isDark = localStorage.getItem('theme') === 'dark';
+		const theme = $theme === "system" ? $systemTheme : $theme;
+		const isDark = theme === 'dark';
 		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
 	});
 
@@ -93,7 +95,7 @@
 >
     <div class="self-center flex flex-col items-center mb-5">
         <div>
-            <img crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
+            <img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
         </div>
         <div class="text-center text-lightGray-100 dark:text-customGray-100 font-medium">{$i18n.t('Add personal information')}</div>
     </div>

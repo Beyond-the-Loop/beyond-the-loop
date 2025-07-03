@@ -27,7 +27,8 @@
 		isApp,
 		appInfo,
 		company,
-		companyConfig
+		companyConfig,
+		systemTheme
 	} from '$lib/stores';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -482,6 +483,28 @@
 			window.removeEventListener('resize', onResize);
 		};
 	});
+	
+	let systemThemeQuery;
+
+	onMount(() => {
+		let colorSchema = ''
+		systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+		colorSchema = systemThemeQuery.matches ? 'dark' : 'light';
+		systemTheme.set(colorSchema);
+
+		const handleSystemThemeChange = (e) => {
+			colorSchema = e.matches ? 'dark' : 'light';
+			systemTheme.set(colorSchema);
+		};
+
+		systemThemeQuery.addEventListener('change', handleSystemThemeChange);
+
+		return () => {
+			systemThemeQuery.removeEventListener('change', handleSystemThemeChange);
+		}	
+	});
+ 
 </script>
 
 <svelte:head>

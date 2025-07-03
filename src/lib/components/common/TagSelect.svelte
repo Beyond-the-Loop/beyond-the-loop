@@ -3,6 +3,8 @@
 	import CloseTagIcon from '../icons/CloseTagIcon.svelte';
     import { getContext } from 'svelte';
     import { onClickOutside } from '$lib/utils';
+	import { tagColorsLight } from '$lib/utils';
+	import { theme, systemTheme } from "$lib/stores";
 
     const i18n = getContext('i18n');
 
@@ -21,15 +23,22 @@
 	const tagColors = ['#272A6A', '#044B49', '#2F074F', '#27456A', '#0C2E18', '#47074F', '#6A2738'];
 
 	const tagColorMap = new Map();
+	const tagColorMapLight = new Map();
 
 	function getTagColor(tagName: string) {
 		if (!tagColorMap.has(tagName)) {
 			const color = tagColors[tagColorMap.size % tagColors.length];
 			tagColorMap.set(tagName, color);
 		}
-		return tagColorMap.get(tagName);
+		if (!tagColorMapLight.has(tagName)) {
+			const color = tagColorsLight[tagColorMapLight.size % tagColorsLight.length];
+			tagColorMapLight.set(tagName, color);
+		}
+		if($theme === 'system') {
+			return $systemTheme === 'dark' ? tagColorMap.get(tagName) : tagColorMapLight.get(tagName);
+		}
+		return $theme === 'dark' ? tagColorMap.get(tagName) : tagColorMapLight.get(tagName);
 	}
-	$: console.log(userTags)
 
 	$: available = userTags?.filter(
 		(tag) => {
@@ -87,7 +96,7 @@
 			{#each selected as tag, i}
 				<span
 					style="background-color: {getTagColor(tag.name)}"
-					class="px-2 py-1 rounded-lg text-sm leading-none text-white dark:text-customGray-100 flex items-center"
+					class="px-2 py-1 rounded-lg text-sm leading-none text-lightGray100 dark:text-customGray-100 flex items-center"
 				>
 					{$i18n.t(tag.name)}
 					<button
@@ -131,7 +140,7 @@
         <div class="px-3">
 			{#each available as tag}
 				<div
-					class="px-2 py-1 rounded-lg text-sm w-fit cursor-pointer mb-2 text-white dark:text-customGray-100"
+					class="px-2 py-1 rounded-lg text-sm w-fit cursor-pointer mb-2 text-lightGray100 dark:text-customGray-100"
 					style="background-color: {getTagColor(tag.name)}"
 					on:click={() => addTag(tag.name)}
 				>

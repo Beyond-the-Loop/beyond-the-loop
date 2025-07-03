@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { theme } from "$lib/stores";
-	
+	import { theme, systemTheme } from '$lib/stores';
+
 	let open = false;
 	export let id;
 	export let titleClassName = '';
@@ -8,19 +8,36 @@
 	export let tagColorsLight = [];
 	export let i = 0;
 
-	$: tagColor = $theme === 'dark'
-		? tagColors[i % tagColors.length]
-		: tagColorsLight[i % tagColorsLight.length];
+	let tagColor = '';
+
+	$: {
+		let colorScheme = 'light';
+		if ($theme === 'system') {
+			colorScheme = $systemTheme;
+		} else {
+			colorScheme = $theme;
+		}
+		tagColor =
+			colorScheme === 'dark'
+				? tagColors[i % tagColors.length]
+				: tagColorsLight[i % tagColorsLight.length];
+	}
 	$: style = tagColor ? `background-color: ${tagColor}` : '';
 	export let hideBorder = false;
-	
 </script>
 
 <div class="mb-1">
 	<div
-		class="flex justify-between items-center w-full text-left py-2 text-xs dark:text-customGray-300 {hideBorder ? '' : 'border-b'} dark:border-customGray-700"
+		class="flex justify-between items-center w-full text-left py-2 text-xs dark:text-customGray-300 {hideBorder
+			? ''
+			: 'border-b'} dark:border-customGray-700"
 	>
-		<button style={style} class=" flex items-center {titleClassName}" id={`group-${id}`} on:click={() => (open = !open)}>
+		<button
+			{style}
+			class=" flex items-center {titleClassName}"
+			id={`group-${id}`}
+			on:click={() => (open = !open)}
+		>
 			<svg
 				width="4"
 				height="6"
