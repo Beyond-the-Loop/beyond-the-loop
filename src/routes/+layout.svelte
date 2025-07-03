@@ -474,6 +474,7 @@
 
 			loaded = true;
 		} else {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
 			document.getElementById('splash-screen')?.remove();
 			loaded = true;
 		}
