@@ -386,6 +386,8 @@ class ModelsTable:
                 for model in models:
                     meta = model.meta
                     tags = meta.get("tags", [])
+                    if tags is None:
+                        tags = []
 
                     for tag in tags:
                         name = tag.get("name")
