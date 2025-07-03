@@ -78,20 +78,11 @@
 	let accessFilter = 'all';
 	let groupsForModels;
 
-	const getTags = async () => {
-		const res = await getUserTagsForModels(localStorage.token);
-		tags = res.map((tag) => tag.name);
-	};
-
-	onMount(async () => {
-		await getTags();
-	});
-
-	// $: if (models) {
-	// 	tags = Array.from(
-	// 		new Set(models.flatMap((m) => m.meta?.tags?.map((t) => t.name.toLowerCase()) || []))
-	// 	);
-	// }
+	$: if (models) {
+		tags = Array.from(
+			new Set(models.flatMap((m) => m.meta?.tags?.map((t) => t.name.toLowerCase()) || []))
+		);
+	}
 
 	$: if (models) {
 		filteredModels = models.filter((m) => {
@@ -133,6 +124,7 @@
 
 		await _models.set(await getModels(localStorage.token));
 		models = await getWorkspaceModels(localStorage.token);
+		selectedTags.clear();
 	};
 
 	const cloneModelHandler = async (model) => {
