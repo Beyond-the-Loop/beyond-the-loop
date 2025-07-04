@@ -14,7 +14,7 @@ import requests
 from fastapi import Depends, HTTPException, Request, APIRouter
 from pydantic import BaseModel
 
-from open_webui.config import CACHE_DIR
+from beyond_the_loop.config import CACHE_DIR
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS, ENABLE_FORWARD_USER_INFO_HEADERS
 

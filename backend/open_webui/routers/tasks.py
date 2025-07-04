@@ -22,7 +22,7 @@ from open_webui.constants import TASKS
 from open_webui.routers.pipelines import process_pipeline_inlet_filter
 from open_webui.utils.task import get_task_model_id
 
-from open_webui.config import (
+from beyond_the_loop.config import (
     DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,

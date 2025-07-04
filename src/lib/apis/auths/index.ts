@@ -333,7 +333,7 @@ export const completeInvite = async (
 ) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/completeInvite`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/signup`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -343,8 +343,9 @@ export const completeInvite = async (
 			first_name: firstName,
 			last_name: lastName,
 			password: password,
-			invite_token: inviteToken,
-			profile_image_url: profileImageUrl.length ? profileImageUrl : null
+			signup_token: inviteToken,
+			profile_image_url: profileImageUrl.length ? profileImageUrl : null,
+			is_invited: true
 		})
 	})
 		.then(async (res) => {
@@ -868,15 +869,10 @@ export const completeRegistration = async (
 	registration_code: string,
 	password: string,
 	profile_image_url: string,
-	company_name:string,
-	company_size: string,
-	company_industry: string,
-	company_team_function: string,
-	company_profile_image_url: string
 ) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/completeRegistration`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/signup`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -886,8 +882,46 @@ export const completeRegistration = async (
 			first_name,
 			last_name,
 			password,
-			registration_code,
+			signup_token: registration_code,
 			profile_image_url: profile_image_url?.length ? profile_image_url : null,
+			is_invited: false
+		})
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+
+export const createCompany = async (
+	token: string,
+	company_name: string,
+    company_size: string,
+    company_industry: string,
+    company_team_function: string,
+    company_profile_image_url: string,
+) => {
+	let error = null;
+
+	const res = await fetch(`${WEBUI_API_BASE_URL}/companies/create`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		},
+		// credentials: 'include',
+		body: JSON.stringify({
 			company_name,
 			company_size,
 			company_industry,

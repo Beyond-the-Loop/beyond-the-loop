@@ -22,7 +22,7 @@ from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.services.credit_service import CreditService
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
 
-from open_webui.config import (
+from beyond_the_loop.config import (
     CACHE_DIR,
 )
 from open_webui.env import (

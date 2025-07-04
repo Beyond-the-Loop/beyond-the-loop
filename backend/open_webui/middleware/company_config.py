@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from open_webui.utils.auth import decode_token
-from open_webui.config import Config, get_config, get_db
+from beyond_the_loop.config import Config, get_config, get_db
 
 
 class CompanyConfigMiddleware(BaseHTTPMiddleware):
