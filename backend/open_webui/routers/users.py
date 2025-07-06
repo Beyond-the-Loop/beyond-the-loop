@@ -37,9 +37,7 @@ router = APIRouter()
 
 @router.post("/invite")
 async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
-    successful_invites = []
-    failed_invites = []
-    groups = []
+    validation_errors = []
     
     try:
         # Get the active subscription to check seat limits
@@ -66,6 +64,40 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                     detail=f"Not enough seats available in your subscription. You have {available_seats} seats available but are trying to invite {len(form_data.invitees)} users. Please upgrade your plan or remove some users."
                 )
 
+        # Validate all invitees first
+        if not form_data.invitees:
+            raise HTTPException(
+                status_code=400,
+                detail="No invitees provided"
+            )
+            
+        # First pass: validate all emails without making any changes
+        for invitee in form_data.invitees:
+            email = invitee.email.lower()
+            
+            # Validate email format
+            if not validate_email_format(email):
+                validation_errors.append({"reason": ERROR_MESSAGES.INVALID_EMAIL_FORMAT})
+                continue
+
+            # Check if user already exists
+            existing_user = Users.get_user_by_email(email)
+            if existing_user and not existing_user.registration_code:
+                validation_errors.append({"reason": f"{email} is already taken"})
+                
+        # If any validation errors, throw exception with details
+        if validation_errors:
+            error_details = [f"{item['reason']}" for item in validation_errors]
+            error_message = "No users were invited. The following emails have issues:\n" + ", ".join(error_details)
+            
+            raise HTTPException(
+                status_code=400,
+                detail=error_message
+            )
+        
+        # Only create groups if all invitees can be invited
+        groups = []
+        
         # Create new groups
         for group_name in form_data.group_names or []:
             try:
@@ -94,57 +126,46 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                     status_code=400,
                     detail=f"Failed to get group with ID {group_id}"
                 )
-        
-        # Invite users
+                
+        # Second pass: actually invite the users (all should succeed)
+        successful_invites = []
         for invitee in form_data.invitees:
-            try:
-                email = invitee.email.lower()
+            email = invitee.email.lower()
+            
+            # Check if user already exists and is not fully registered
+            existing_user = Users.get_user_by_email(email)
+            if existing_user and existing_user.registration_code:
+                # Generate invite token
+                invite_token = hashlib.sha256(email.encode()).hexdigest()
                 
-                # Validate email format
-                if not validate_email_format(email):
-                    failed_invites.append({"email": email, "reason": ERROR_MESSAGES.INVALID_EMAIL_FORMAT})
-                    continue
-
-                # Check if user already exists
-                existing_user = Users.get_user_by_email(email)
+                # Send welcome email
+                email_service = EmailService()
+                email_service.send_invite_mail(
+                    to_email=email,
+                    invite_token=invite_token
+                )
                 
-                # Check if user already exists and is not fully registered
-                if existing_user and existing_user.registration_code:
-                    # Generate invite token
-                    invite_token = hashlib.sha256(email.encode()).hexdigest()
-                    
-                    # Send welcome email
-                    email_service = EmailService()
-                    email_service.send_invite_mail(
-                        to_email=email,
-                        invite_token=invite_token
-                    )
-                    
-                    # Update existing user with invite information
-                    updated_user = Users.update_user_by_id(
-                        existing_user.id,
-                        {
-                            "first_name": "INVITED",
-                            "last_name": "INVITED",
-                            "role": invitee.role,
-                            "registration_code": None,
-                            "company_id": user.company_id,
-                            "invite_token": invite_token
-                        }
-                    )
-                    
-                    # Add user to groups
-                    for group in groups:
-                        if updated_user.id not in group.user_ids:
-                            group.user_ids.append(updated_user.id)
-                            Groups.update_group_by_id(group.id, group)
-                    
-                    successful_invites.append(email)
-                    continue
-                elif existing_user:
-                    failed_invites.append({"email": email, "reason": f"Email {email} is already taken"})
-                    continue
+                # Update existing user with invite information
+                updated_user = Users.update_user_by_id(
+                    existing_user.id,
+                    {
+                        "first_name": "INVITED",
+                        "last_name": "INVITED",
+                        "role": invitee.role,
+                        "registration_code": None,
+                        "company_id": user.company_id,
+                        "invite_token": invite_token
+                    }
+                )
                 
+                # Add user to groups
+                for group in groups:
+                    if updated_user.id not in group.user_ids:
+                        group.user_ids.append(updated_user.id)
+                        Groups.update_group_by_id(group.id, group)
+                
+                successful_invites.append(email)
+            else:
                 # Generate invite token
                 invite_token = hashlib.sha256(email.encode()).hexdigest()
                 
@@ -173,35 +194,11 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                         Groups.update_group_by_id(group.id, group)
                 
                 successful_invites.append(email)
-                
-            except Exception as e:
-                log.error(f"Failed to invite user {invitee.email}: {str(e)}")
-                failed_invites.append({"email": invitee.email, "reason": str(e)})
         
-        # Determine overall success
-        if not form_data.invitees:
-            raise HTTPException(
-                status_code=400,
-                detail="No invitees provided"
-            )
-        
-        if len(successful_invites) == len(form_data.invitees):
-            return {"success": True, "message": "All users invited successfully"}
-        elif len(successful_invites) > 0:
-            return {
-                "success": True,
-                "message": f"Invited {len(successful_invites)} out of {len(form_data.invitees)} users",
-                "successful_invites": successful_invites,
-                "failed_invites": failed_invites
-            }
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="Failed to invite any users"
-            )
+        # All invitations were successful
+        return {"success": True, "message": "All users invited successfully"}
             
     except Exception as e:
-        log.error(f"Error in invite_user: {str(e)}")
         raise HTTPException(
             status_code=400,
             detail=f"An error occurred: {str(e)}"
