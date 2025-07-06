@@ -79,7 +79,7 @@
 
 	$: if (models) {
 		tags = Array.from(
-			new Set(models.flatMap((m) => m.meta?.tags?.map((t) => t.name.toLowerCase()) || []))
+			new Set(models.flatMap((m) => m.meta?.tags?.map((t) => t.name) || []))
 		);
 	}
 
