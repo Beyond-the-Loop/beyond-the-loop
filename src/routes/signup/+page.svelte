@@ -74,50 +74,6 @@
 			loading = false;
 		}
 		if (step < 3) step += 1;
-		
-		// if (step === 4) {
-		// 	if(!company_name || !company_size || !company_industry || !company_team_function) {
-		// 		showToast('error', "To continue, please provide full information about your company and team.")
-		// 		return;
-		// 	}
-		// 	const user = await completeRegistration(
-		// 		first_name,
-		// 		last_name,
-		// 		registration_code?.trim(),
-		// 		password,
-		// 		profile_image_url ? profile_image_url : generateInitialsImage(first_name),
-		// 		company_name,
-		// 		company_size,
-		// 		company_industry,
-		// 		company_team_function,
-		// 		company_profile_image_url ? company_profile_image_url : ''
-		// 	).catch(error => showToast('error', error));
-		// 	console.log(user)
-		// 	if(user) {
-		// 		await setSessionUser(user);
-		// 		step = step + 1;
-		// 		const [companyInfo, companyConfigInfo] = await Promise.all([
-		// 			getCompanyDetails(user.token).catch((error) => {
-		// 				toast.error(`${error}`);
-		// 				return null;
-		// 			}),
-		// 			getCompanyConfig(user.token).catch((error) => {
-		// 				toast.error(`${error}`);
-		// 				return null;
-		// 			})
-		// 		]);
-
-		// 		if (companyInfo) {
-		// 			company.set(companyInfo);
-		// 		}
-
-		// 		if (companyConfigInfo) {
-		// 			console.log(companyConfigInfo);
-		// 			companyConfig.set(companyConfigInfo);
-		// 		}
-		// 	}
-		// }
-			
 	}
 
 	const goBack = () => {

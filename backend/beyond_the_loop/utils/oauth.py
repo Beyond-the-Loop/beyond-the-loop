@@ -6,10 +6,6 @@ import uuid
 import aiohttp
 from authlib.integrations.starlette_client import OAuth
 from authlib.oidc.core import UserInfo
-from fastapi import (
-    HTTPException,
-    status,
-)
 from starlette.responses import RedirectResponse
 
 from beyond_the_loop.models.auths import Auths
@@ -189,10 +185,7 @@ class OAuthManager:
     async def handle_login(self, provider, request):
         if provider not in OAUTH_PROVIDERS:
             return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
-            # raise HTTPException(
-            #     status_code=status.HTTP_404_NOT_FOUND,
-            #     detail=ERROR_MESSAGES.NOT_FOUND,
-            # )
+
         # If the provider has a custom redirect URL, use that, otherwise automatically generate one
         redirect_uri = OAUTH_PROVIDERS[provider].get("redirect_uri") or request.url_for(
             "oauth_callback", provider=provider
@@ -200,19 +193,13 @@ class OAuthManager:
         client = self.get_client(provider)
         if client is None:
             return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
-            # raise HTTPException(
-            #     status_code=status.HTTP_404_NOT_FOUND,
-            #     detail=ERROR_MESSAGES.NOT_FOUND,
-            # )
+
         return await client.authorize_redirect(request, redirect_uri)
 
     async def handle_callback(self, provider, request, response):
         if provider not in OAUTH_PROVIDERS:
             return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
-            # raise HTTPException(
-            #     status_code=status.HTTP_404_NOT_FOUND,
-            #     detail=ERROR_MESSAGES.NOT_FOUND,
-            # )
+
         client = self.get_client(provider)
         try:
             if provider == "microsoft":
@@ -222,35 +209,18 @@ class OAuthManager:
         except Exception as e:
             log.warning(f"OAuth callback error: {e}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
-            # raise HTTPException(
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     detail=ERROR_MESSAGES.INVALID_CRED
-            # )
-        # if provider == "microsoft":
-        #     user_data: UserInfo = await client.userinfo(token=token)
-        #     if auth_manager_config.OAUTH_MICROSOFT_PERSONAL_FIRST_NAME_CLAIM in user_data and auth_manager_config.OAUTH_MICROSOFT_PERSONAL_LAST_NAME_CLAIM in user_data:
-        #         microsoft_personal_account = True
-        # else:
+
         user_data: UserInfo = token.get("userinfo")
 
-        # if not user_data:
-        #     user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
-            # raise HTTPException(
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     detail=ERROR_MESSAGES.INVALID_CRED
-            # )
 
         sub = user_data.get(OAUTH_PROVIDERS[provider].get("sub_claim", "sub"))
         if not sub:
             log.warning(f"OAuth callback failed, sub is missing: {user_data}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
-            # raise HTTPException(
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     detail=ERROR_MESSAGES.INVALID_CRED
-            # )
+
         provider_sub = f"{provider}@{sub}"
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "").lower()
@@ -260,10 +230,7 @@ class OAuthManager:
         if not email:
             log.warning(f"OAuth callback failed, email is missing: {user_data}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
-            # raise HTTPException(
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     detail=ERROR_MESSAGES.INVALID_CRED
-            # )
+
         if (
             "*" not in auth_manager_config.OAUTH_ALLOWED_DOMAINS
             and email.split("@")[-1] not in auth_manager_config.OAUTH_ALLOWED_DOMAINS
@@ -272,10 +239,6 @@ class OAuthManager:
                 f"OAuth callback failed, e-mail domain is not in the list of allowed domains: {user_data}"
             )
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
-            # raise HTTPException(
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     detail=ERROR_MESSAGES.INVALID_CRED
-            # )
 
         # Check if the user exists
         user = Users.get_user_by_oauth_sub(provider_sub)
@@ -303,10 +266,6 @@ class OAuthManager:
                 )
                 if existing_user:
                     return redirect_with_error(request, OAUTH_ERROR_CODES.EMAIL_TAKEN)
-                    # raise HTTPException(
-                    #     status_code=status.HTTP_400_BAD_REQUEST,
-                    #     detail=ERROR_MESSAGES.EMAIL_TAKEN
-                    # )
 
                 picture_claim = auth_manager_config.OAUTH_PICTURE_CLAIM
                 picture_url = user_data.get(
@@ -339,11 +298,6 @@ class OAuthManager:
                         picture_url = "/user.png"
                 if not picture_url:
                     picture_url = "/user.png"
-
-                # username_claim = auth_manager_config.OAUTH_USERNAME_CLAIM
-                # name = user_data.get(username_claim)
-                # if not isinstance(user, str):
-                #     name = email
 
                 first_name_claim = auth_manager_config.OAUTH_FIRST_NAME_CLAIM
                 first_name = user_data.get(first_name_claim)
@@ -384,10 +338,6 @@ class OAuthManager:
                     )
             else:
                 return redirect_with_error(request, OAUTH_ERROR_CODES.ACCESS_PROHIBITED)
-                # raise HTTPException(
-                #     status.HTTP_403_FORBIDDEN,
-                #     detail=ERROR_MESSAGES.ACCESS_PROHIBITED
-                # )
 
         jwt_token = create_token(
             data={"id": user.id},

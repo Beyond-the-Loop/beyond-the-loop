@@ -100,26 +100,6 @@ class SignupForm(BaseModel):
     profile_image_url: Optional[str] = "/user.png"
     is_invited: bool = False
 
-# class CompleteRegistrationForm(BaseModel):
-#     first_name: str
-#     last_name: str
-#     password: str
-#     registration_code: str
-#     profile_image_url: Optional[str] = "/user.png"
-#     company_name: str
-#     company_size: str
-#     company_industry: str
-#     company_team_function: str
-#     company_profile_image_url: Optional[str] = "/user.png"
-
-# class SignupForm(BaseModel):
-#     name: str
-#     email: str
-#     password: str
-#     company_name: str
-#     profile_image_url: Optional[str] = "/user.png"
-
-
 class AuthsTable:
     def insert_new_auth(
         self,
