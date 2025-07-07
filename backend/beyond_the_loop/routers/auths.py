@@ -295,11 +295,7 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
             user = Users.get_user_by_email(mail)
             if not user:
                 try:
-                    role = (
-                        "admin"
-                        if Users.get_num_users() == 0
-                        else request.app.state.config.DEFAULT_USER_ROLE
-                    )
+                    role = "admin"
 
                     user = Auths.insert_new_auth(
                         email=mail, password=str(uuid.uuid4()), first_name=cn, last_name=cn, company_id=NO_COMPANY, role=role
@@ -376,17 +372,6 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
                 WEBUI_AUTH_TRUSTED_NAME_HEADER, trusted_email
             )
         user = Auths.authenticate_user_by_trusted_header(trusted_email)
-    elif WEBUI_AUTH == False:
-        admin_email = "admin@localhost"
-        admin_password = "admin"
-
-        if Users.get_user_by_email(admin_email.lower()):
-            user = Auths.authenticate_user(admin_email.lower(), admin_password)
-        else:
-            if Users.get_num_users() != 0:
-                raise HTTPException(400, detail=ERROR_MESSAGES.EXISTING_USERS)
-
-            user = Auths.authenticate_user(admin_email.lower(), admin_password)
     else:
         user = Auths.authenticate_user(form_data.email.lower(), form_data.password)
 
@@ -635,7 +620,7 @@ async def update_admin_config(
 
     request.app.state.config.ENABLE_CHANNELS = form_data.ENABLE_CHANNELS
 
-    if form_data.DEFAULT_USER_ROLE in ["pending", "user", "admin"]:
+    if form_data.DEFAULT_USER_ROLE in ["user", "admin"]:
         request.app.state.config.DEFAULT_USER_ROLE = form_data.DEFAULT_USER_ROLE
 
     pattern = r"^(-1|0|(-?\d+(\.\d+)?)(ms|s|m|h|d|w))$"
