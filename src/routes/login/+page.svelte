@@ -35,8 +35,9 @@
 		"invalid_credentials": "The email or password provided is incorrect. Please check for typos and try logging in again.",
 		"email_taken": "Uh-oh! This email is already registered. Sign in with your existing account or choose another email to start anew.",
 		"access_prohibited": "You do not have permission to access this resource. Please contact your administrator for assistance.",
-		"not_found": "We could not find what you're looking for :/"
-	}
+		"not_found": "We could not find what you're looking for :/",
+		"incomplete_invitation": "Your invitation is incomplete. Please complete the invitation process before signing in with OAuth."
+	};
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
 			console.log(sessionUser);

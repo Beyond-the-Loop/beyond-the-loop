@@ -67,6 +67,7 @@ class OAUTH_ERROR_CODES:
     EMAIL_TAKEN = "email_taken"
     ACCESS_PROHIBITED = "access_prohibited"
     NOT_FOUND = "not_found"
+    INCOMPLETE_INVITATION = "incomplete_invitation"
 
 def redirect_with_error(request, error_code: str):
     redirect_url = f"{request.base_url}login#error={error_code}"
@@ -81,10 +82,10 @@ class OAuthManager:
         return self.oauth.create_client(provider_name)
 
     def get_user_role(self, user, user_data):
-        if user and Users.get_num_users() == 1:
+        if user and Users.get_num_users_by_company_id(company_id=user.company_id) == 1:
             # If the user is the only user, assign the role "admin" - actually repairs role for single user on login
             return "admin"
-        if not user and Users.get_num_users() == 0:
+        if not user:
             # If there are no users, assign the role "admin", as the first user will be an admin
             return "admin"
 
@@ -239,6 +240,11 @@ class OAuthManager:
                 f"OAuth callback failed, e-mail domain is not in the list of allowed domains: {user_data}"
             )
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+
+        user = Users.get_user_by_email(email)
+        if not user.invite_token is None:
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INCOMPLETE_INVITATION)
+
 
         # Check if the user exists
         user = Users.get_user_by_oauth_sub(provider_sub)

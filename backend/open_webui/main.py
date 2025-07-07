@@ -925,7 +925,7 @@ async def get_app_config(request: Request):
 
     onboarding = False
     if user is None:
-        user_count = Users.get_num_users()
+        user_count = 0
         onboarding = user_count == 0
 
     return {

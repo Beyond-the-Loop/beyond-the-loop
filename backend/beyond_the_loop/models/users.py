@@ -304,9 +304,9 @@ class UsersTable:
             users = db.query(User).filter(User.id.in_(user_ids)).all()
             return [UserModel.model_validate(user) for user in users]
 
-    def get_num_users(self) -> Optional[int]:
+    def get_num_users_by_company_id(self, company_id: str) -> Optional[int]:
         with get_db() as db:
-            return db.query(User).count()
+            return db.query(User).filter(User.company_id == company_id).count()
 
     def get_first_user(self) -> UserModel:
         try:
