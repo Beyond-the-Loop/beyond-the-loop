@@ -66,11 +66,11 @@
 
 	let loadingBookmark = null;
 
-	// $: if (prompts) {
-	// 	tags = Array.from(
-	// 		new Set(prompts.flatMap((p) => p.meta?.tags?.map((t) => t.name) || []))
-	// 	);
-	// }
+	$: if (prompts) {
+		tags = Array.from(
+			new Set(prompts.flatMap((p) => p.meta?.tags?.map((t) => t.name) || []))
+		);
+	}
 
 	onMount(async () => {
 		groupsForPrompts = await getGroups(localStorage.token);
@@ -135,6 +135,7 @@
 	const deleteHandler = async (prompt) => {
 		const command = prompt.command;
 		await deletePromptByCommand(localStorage.token, command);
+		selectedTags.clear();
 		await init();
 	};
 
@@ -143,14 +144,8 @@
 		await _prompts.set(await getPrompts(localStorage.token));
 	};
 
-	const getTags = async () => {
-		const res = await getUserTagsForPrompts(localStorage.token);
-		tags = res.filter((tag) => tag.is_system).map((tag) => tag.name);
-	};
-
 	onMount(async () => {
 		await init();
-		await getTags();
 		loaded = true;
 	});
 
