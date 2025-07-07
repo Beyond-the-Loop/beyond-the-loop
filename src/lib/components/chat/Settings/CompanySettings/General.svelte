@@ -504,14 +504,20 @@
 		</div>
 	</div>
 	<div class="flex justify-between items-start pt-3 pb-5">
-		<button type="button" class="flex items-center text-xs text-[#F65351]" on:click={() => {
+		<!-- <button type="button" class="flex items-center text-xs text-[#F65351]" on:click={() => {
 			showDeleteConfirm = true;
 		}}>
 			<DeleteIcon className="mr-1 size-4" />
 			{$i18n.t('Delete account')}
-		</button>
+		</button> -->
+		<a
+			href="https://thoreduecker.notion.site/208a1ab099c980c1905eeccd32ea53cd"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="underline">{$i18n.t('Contact us')}</a
+		>
 		<div class="shrink-0 w-[180px] md:w-[218px] dark:text-customGray-100/50 text-xs">
-			{$i18n.t('This action is not reversible, so please continue with caution.')}
+			{$i18n.t('To delete your account, please contact us.')}
 		</div>
 	</div>
 </div>

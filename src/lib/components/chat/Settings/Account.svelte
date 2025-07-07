@@ -607,7 +607,7 @@
 		{/if} -->
 	</div>
 
-	<div class="flex justify-end pt-3 text-sm font-medium">
+	<div class="flex justify-end pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
 		<button
 			class=" text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg {loading
 				? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border border-lightGray-400 dark:border-customGray-700'
@@ -625,20 +625,24 @@
 			{$i18n.t('Save')}
 		</button>
 	</div>
-	<div class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2">
-		<div class="flex w-full justify-between items-center">
-			<div class="text-xs dark:text-customGray-300">{$i18n.t('Delete account')}</div>
+	{#if $user.role === 'user'}
+		<div class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2">
+			<div class="flex w-full justify-between items-center">
+				<div class="text-xs dark:text-customGray-300">{$i18n.t('Delete account')}</div>
+			</div>
 		</div>
-	</div>
-	<div class="flex justify-between items-start pt-3 pb-5">
-		<button type="button" class="flex items-center text-xs text-[#F65351]" on:click={() => {
-			showDeleteConfirm = true;
-		}}>
-			<DeleteIcon className="mr-1 size-4" />
-			{$i18n.t('Delete account')}
-		</button>
-		<div class="shrink-0 w-[218px] dark:text-customGray-100/50 text-xs">
-			{$i18n.t('This action is not reversible, so please continue with caution.')}
+	
+		<div class="flex justify-between items-start pt-3 pb-5">
+			<a
+				href="https://thoreduecker.notion.site/208a1ab099c980c1905eeccd32ea53cd"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="underline">{$i18n.t('Contact us')}</a
+			>
+			<div class="shrink-0 w-[180px] md:w-[218px] dark:text-customGray-100/50 text-xs">
+				{$i18n.t('To delete your account, please contact us.')}
+			</div>
 		</div>
-	</div>
+	{/if}
 </div>
+	
