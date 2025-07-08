@@ -759,10 +759,12 @@ async def process_chat_payload(request, form_data, metadata, user, model):
                     }
                 )
             else:
-                knowledge_files.append(item)
+                print(item)
+                knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
 
         files = form_data.get("files", [])
         files.extend(knowledge_files)
+
         form_data["files"] = files
 
     if model_files:
