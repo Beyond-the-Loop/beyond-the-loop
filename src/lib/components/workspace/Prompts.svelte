@@ -535,7 +535,7 @@
 								<div
 									class="text-xs line-clamp-1 text-lightGray-1200 dark:text-customGray-100/50 text-left"
 								>
-									{prompt.description}
+									{prompt.description ? prompt.description : prompt.content}
 								</div>
 							</button>
 						</div>
