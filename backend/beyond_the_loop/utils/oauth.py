@@ -242,9 +242,9 @@ class OAuthManager:
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
 
         user = Users.get_user_by_email(email)
-        if not user.invite_token is None:
-            return redirect_with_error(request, OAUTH_ERROR_CODES.INCOMPLETE_INVITATION)
 
+        if user and not user.invite_token is None:
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INCOMPLETE_INVITATION)
 
         # Check if the user exists
         user = Users.get_user_by_oauth_sub(provider_sub)
