@@ -284,7 +284,7 @@
 									class="font-medium text-sm text-lightGray-100 dark:text-customGray-100 cursor-pointer"
 									on:click={() => onPromptClick(prompt)}
 								>
-									<Tooltip className="w-full line-clamp-1" content={prompt?.description}>{prompt?.title} • {prompt?.description}</Tooltip>
+									<Tooltip className="w-full line-clamp-1" content={prompt?.description}>{prompt?.title} • {prompt?.description ? prompt?.description : prompt?.content}</Tooltip>
 								</div>
 							</div>
 						{/each}
