@@ -17,6 +17,11 @@ router = APIRouter()
 webhook_secret = os.environ.get('WEBHOOK_SECRET')
 stripe.api_key = os.environ.get('STRIPE_API_KEY')
 
+stripe_price_id_free = os.environ.get('STRIPE_PRICE_ID_FREE', "price_1RSbapBBwyxb4MZjWrs4tTNW")
+stripe_price_id_starter = os.environ.get('STRIPE_PRICE_ID_STARTER', "price_1RNq8xBBwyxb4MZjy1k0SneL")
+stripe_price_id_team = os.environ.get('STRIPE_PRICE_ID_TEAM', "price_1RNqAcBBwyxb4MZjAGivhdo7")
+stripe_price_id_growth = os.environ.get('STRIPE_PRICE_ID_GROWTH', "price_1RNqIXBBwyxb4MZjUY83qDes")
+
 # Constants
 FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS = 2000 # Amount in cents (20 euro)
 
@@ -26,28 +31,28 @@ SUBSCRIPTION_PLANS = {
         "name": "Free",
         "price_monthly": 0,
         "credits_per_month": 5,
-        "stripe_price_id": "price_1RSbapBBwyxb4MZjWrs4tTNW",
+        "stripe_price_id": stripe_price_id_free,
         "seats": 5
     },
     "starter": {
         "name": "Starter",
         "price_monthly": 2500,  # 25€ in cents
         "credits_per_month": 5,
-        "stripe_price_id": "price_1RNq8xBBwyxb4MZjy1k0SneL",
+        "stripe_price_id": stripe_price_id_starter,
         "seats": 5
     },
     "team": {
         "name": "Team",
         "price_monthly": 14900,  # 149€ in cents
         "credits_per_month": 50,
-        "stripe_price_id": "price_1RNqAcBBwyxb4MZjAGivhdo7",
+        "stripe_price_id": stripe_price_id_team,
         "seats": 25
     },
     "growth": {
         "name": "Growth",
         "price_monthly": 84900,  # 849€ in cents
         "credits_per_month": 150,
-        "stripe_price_id": "price_1RNqIXBBwyxb4MZjUY83qDes",
+        "stripe_price_id": stripe_price_id_growth,
         "seats": 1000
     }
 }

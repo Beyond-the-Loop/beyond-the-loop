@@ -389,7 +389,9 @@ OAUTH_MERGE_ACCOUNTS_BY_EMAIL = PersistentConfig(
     os.environ.get("OAUTH_MERGE_ACCOUNTS_BY_EMAIL", "False").lower() == "true",
 )
 
-OAUTH_PROVIDERS = {}
+OAUTH_PROVIDERS = {
+    "google": {}
+}
 
 GOOGLE_CLIENT_ID = PersistentConfig(
     "GOOGLE_CLIENT_ID",
@@ -512,6 +514,18 @@ OAUTH_USERNAME_CLAIM = PersistentConfig(
     os.environ.get("OAUTH_USERNAME_CLAIM", "name"),
 )
 
+OAUTH_FIRST_NAME_CLAIM = PersistentConfig(
+    "OAUTH_FIRST_NAME_CLAIM",
+    "oauth.oidc.first_name_claim",
+    os.environ.get("OAUTH_FIRST_NAME_CLAIM", "given_name"),
+)
+
+OAUTH_LAST_NAME_CLAIM = PersistentConfig(
+    "OAUTH_LAST_NAME_CLAIM",
+    "oauth.oidc.last_name_claim",
+    os.environ.get("OAUTH_LAST_NAME_CLAIM", "family_name"),
+)
+
 OAUTH_PICTURE_CLAIM = PersistentConfig(
     "OAUTH_PICTURE_CLAIM",
     "oauth.oidc.avatar_claim",
@@ -522,6 +536,12 @@ OAUTH_EMAIL_CLAIM = PersistentConfig(
     "OAUTH_EMAIL_CLAIM",
     "oauth.oidc.email_claim",
     os.environ.get("OAUTH_EMAIL_CLAIM", "email"),
+)
+
+OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM = PersistentConfig(
+    "OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM",
+    "oauth.oidc.microsoft.preferred_email_claim",
+    os.environ.get("OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM", "preferred_username"),
 )
 
 OAUTH_GROUPS_CLAIM = PersistentConfig(
@@ -603,7 +623,7 @@ def load_oauth_providers():
                 name="microsoft",
                 client_id=MICROSOFT_CLIENT_ID.value,
                 client_secret=MICROSOFT_CLIENT_SECRET.value,
-                server_metadata_url=f"https://login.microsoftonline.com/{MICROSOFT_CLIENT_TENANT_ID.value}/v2.0/.well-known/openid-configuration",
+                server_metadata_url=f"https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration?appid={MICROSOFT_CLIENT_ID.value}",
                 client_kwargs={
                     "scope": MICROSOFT_OAUTH_SCOPE.value,
                 },
@@ -916,7 +936,7 @@ MODEL_ORDER_LIST = PersistentConfig(
 DEFAULT_USER_ROLE = PersistentConfig(
     "DEFAULT_USER_ROLE",
     "ui.default_user_role",
-    os.getenv("DEFAULT_USER_ROLE", "pending"),
+    os.getenv("DEFAULT_USER_ROLE", "user"),
 )
 
 USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS = (

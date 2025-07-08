@@ -3,7 +3,7 @@ from beyond_the_loop.models.users import Users, UserModel
 from beyond_the_loop.models.groups import Groups
 
 
-from open_webui.config import DEFAULT_USER_PERMISSIONS
+from beyond_the_loop.config import DEFAULT_USER_PERMISSIONS
 import json
 
 

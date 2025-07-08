@@ -36,7 +36,8 @@
 		showSettings,
 		showCompanySettings,
 		showChangelog,
-		temporaryChatEnabled
+		temporaryChatEnabled,
+		company
 	} from '$lib/stores';
 
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
@@ -73,7 +74,10 @@
 
 	onMount(async () => {
 		if ($user === undefined) {
-			await goto('/company-register');
+			await goto('/signup');
+		} else if (!$company) {
+			goto('/create-company');
+			return;
 		} else if (['user', 'admin'].includes($user.role)) {
 			try {
 				// Check if IndexedDB exists

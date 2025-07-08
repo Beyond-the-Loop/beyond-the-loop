@@ -6,17 +6,13 @@ import uuid
 import aiohttp
 from authlib.integrations.starlette_client import OAuth
 from authlib.oidc.core import UserInfo
-from fastapi import (
-    HTTPException,
-    status,
-)
 from starlette.responses import RedirectResponse
 
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import NO_COMPANY
 from beyond_the_loop.models.groups import Groups, GroupModel, GroupUpdateForm
-from open_webui.config import (
+from beyond_the_loop.config import (
     DEFAULT_USER_ROLE,
     ENABLE_OAUTH_SIGNUP,
     OAUTH_MERGE_ACCOUNTS_BY_EMAIL,
@@ -28,6 +24,9 @@ from open_webui.config import (
     OAUTH_EMAIL_CLAIM,
     OAUTH_PICTURE_CLAIM,
     OAUTH_USERNAME_CLAIM,
+    OAUTH_FIRST_NAME_CLAIM,
+    OAUTH_LAST_NAME_CLAIM,
+    OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM,
     OAUTH_ALLOWED_ROLES,
     OAUTH_ADMIN_ROLES,
     OAUTH_ALLOWED_DOMAINS,
@@ -54,13 +53,25 @@ auth_manager_config.OAUTH_GROUPS_CLAIM = OAUTH_GROUPS_CLAIM
 auth_manager_config.OAUTH_EMAIL_CLAIM = OAUTH_EMAIL_CLAIM
 auth_manager_config.OAUTH_PICTURE_CLAIM = OAUTH_PICTURE_CLAIM
 auth_manager_config.OAUTH_USERNAME_CLAIM = OAUTH_USERNAME_CLAIM
+auth_manager_config.OAUTH_FIRST_NAME_CLAIM = OAUTH_FIRST_NAME_CLAIM
+auth_manager_config.OAUTH_LAST_NAME_CLAIM = OAUTH_LAST_NAME_CLAIM
+auth_manager_config.OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM = OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM
 auth_manager_config.OAUTH_ALLOWED_ROLES = OAUTH_ALLOWED_ROLES
 auth_manager_config.OAUTH_ADMIN_ROLES = OAUTH_ADMIN_ROLES
 auth_manager_config.OAUTH_ALLOWED_DOMAINS = OAUTH_ALLOWED_DOMAINS
 auth_manager_config.WEBHOOK_URL = WEBHOOK_URL
 auth_manager_config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
+class OAUTH_ERROR_CODES:
+    INVALID_CREDENTIALS = "invalid_credentials"
+    EMAIL_TAKEN = "email_taken"
+    ACCESS_PROHIBITED = "access_prohibited"
+    NOT_FOUND = "not_found"
+    INCOMPLETE_INVITATION = "incomplete_invitation"
 
+def redirect_with_error(request, error_code: str):
+    redirect_url = f"{request.base_url}login#error={error_code}"
+    return RedirectResponse(url=redirect_url)
 class OAuthManager:
     def __init__(self):
         self.oauth = OAuth()
@@ -71,10 +82,10 @@ class OAuthManager:
         return self.oauth.create_client(provider_name)
 
     def get_user_role(self, user, user_data):
-        if user and Users.get_num_users() == 1:
+        if user and Users.get_num_users_by_company_id(company_id=user.company_id) == 1:
             # If the user is the only user, assign the role "admin" - actually repairs role for single user on login
             return "admin"
-        if not user and Users.get_num_users() == 0:
+        if not user:
             # If there are no users, assign the role "admin", as the first user will be an admin
             return "admin"
 
@@ -174,43 +185,53 @@ class OAuthManager:
 
     async def handle_login(self, provider, request):
         if provider not in OAUTH_PROVIDERS:
-            raise HTTPException(404)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
+
         # If the provider has a custom redirect URL, use that, otherwise automatically generate one
         redirect_uri = OAUTH_PROVIDERS[provider].get("redirect_uri") or request.url_for(
             "oauth_callback", provider=provider
         )
         client = self.get_client(provider)
         if client is None:
-            raise HTTPException(404)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
+
         return await client.authorize_redirect(request, redirect_uri)
 
     async def handle_callback(self, provider, request, response):
         if provider not in OAUTH_PROVIDERS:
-            raise HTTPException(404)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
+
         client = self.get_client(provider)
         try:
-            token = await client.authorize_access_token(request)
+            if provider == "microsoft":
+                token = await client.authorize_access_token(request, claims_options={"iss": {"essential": False}})
+            else:
+                token = await client.authorize_access_token(request)
         except Exception as e:
             log.warning(f"OAuth callback error: {e}")
-            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+
         user_data: UserInfo = token.get("userinfo")
-        if not user_data:
-            user_data: UserInfo = await client.userinfo(token=token)
+
         if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
-            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
 
         sub = user_data.get(OAUTH_PROVIDERS[provider].get("sub_claim", "sub"))
         if not sub:
             log.warning(f"OAuth callback failed, sub is missing: {user_data}")
-            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+
         provider_sub = f"{provider}@{sub}"
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "").lower()
-        # We currently mandate that email addresses are provided
+        if not email and provider == "microsoft":
+            email_claim = auth_manager_config.OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM
+            email = user_data.get(email_claim, "").lower()
         if not email:
             log.warning(f"OAuth callback failed, email is missing: {user_data}")
-            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+
         if (
             "*" not in auth_manager_config.OAUTH_ALLOWED_DOMAINS
             and email.split("@")[-1] not in auth_manager_config.OAUTH_ALLOWED_DOMAINS
@@ -218,7 +239,12 @@ class OAuthManager:
             log.warning(
                 f"OAuth callback failed, e-mail domain is not in the list of allowed domains: {user_data}"
             )
-            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+
+        user = Users.get_user_by_email(email)
+        if not user.invite_token is None:
+            return redirect_with_error(request, OAUTH_ERROR_CODES.INCOMPLETE_INVITATION)
+
 
         # Check if the user exists
         user = Users.get_user_by_oauth_sub(provider_sub)
@@ -245,7 +271,7 @@ class OAuthManager:
                     user_data.get("email", "").lower()
                 )
                 if existing_user:
-                    raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
+                    return redirect_with_error(request, OAUTH_ERROR_CODES.EMAIL_TAKEN)
 
                 picture_claim = auth_manager_config.OAUTH_PICTURE_CLAIM
                 picture_url = user_data.get(
@@ -279,11 +305,17 @@ class OAuthManager:
                 if not picture_url:
                     picture_url = "/user.png"
 
-                username_claim = auth_manager_config.OAUTH_USERNAME_CLAIM
+                first_name_claim = auth_manager_config.OAUTH_FIRST_NAME_CLAIM
+                first_name = user_data.get(first_name_claim)
+                if not first_name:
+                    log.warning("Firstname claim is missing, using email as firstname")
+                    first_name = email
 
-                name = user_data.get(username_claim)
-                if not isinstance(user, str):
-                    name = email
+                last_name_claim = auth_manager_config.OAUTH_LAST_NAME_CLAIM
+                last_name = user_data.get(last_name_claim)
+                if not last_name:
+                    log.warning("Lastname claim is missing, using email as lastname")
+                    last_name = email
 
                 role = self.get_user_role(None, user_data)
 
@@ -292,8 +324,8 @@ class OAuthManager:
                     password=get_password_hash(
                         str(uuid.uuid4())
                     ),  # Random password, not used
-                    first_name=name,
-                    last_name=name,
+                    first_name=first_name,
+                    last_name=last_name,
                     company_id=NO_COMPANY,
                     profile_image_url=picture_url,
                     role=role,
@@ -311,9 +343,7 @@ class OAuthManager:
                         },
                     )
             else:
-                raise HTTPException(
-                    status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED
-                )
+                return redirect_with_error(request, OAUTH_ERROR_CODES.ACCESS_PROHIBITED)
 
         jwt_token = create_token(
             data={"id": user.id},
@@ -346,7 +376,7 @@ class OAuthManager:
                 secure=WEBUI_AUTH_COOKIE_SECURE,
             )
         # Redirect back to the frontend with the JWT token
-        redirect_url = f"{request.base_url}auth#token={jwt_token}"
+        redirect_url = f"{request.base_url}login#token={jwt_token}"
         return RedirectResponse(url=redirect_url, headers=response.headers)
 
 

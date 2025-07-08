@@ -45,7 +45,7 @@
 
     let profileImageInputElement;
 
-	let loading = false;
+	export let loading = false;
 
 	const confirmHandler = async () => {
 		if (password !== confirmPassword) {

@@ -39,7 +39,7 @@
     export let company_industry = '';
 	export let company_team_function = '';
     
-	let loading = false;
+	export let loading = false;
 
 	const confirmHandler = async () => {
 		

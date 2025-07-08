@@ -237,6 +237,7 @@
 								src={profileImageUrl !== '' ? profileImageUrl : generateInitialsImage(firstName)}
 								alt="profile"
 								class=" rounded-full size-16 object-cover"
+								on:error={(e) => e.target.src = generateInitialsImage(firstName)} 
 							/>
 
 							<div

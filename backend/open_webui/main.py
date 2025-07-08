@@ -77,7 +77,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import auths
 from beyond_the_loop.routers import analytics
 
-from open_webui.config import (
+from beyond_the_loop.config import (
     # Ollama
     ENABLE_OLLAMA_API,
     OLLAMA_BASE_URLS,
@@ -282,7 +282,7 @@ from open_webui.utils.auth import (
     get_admin_user,
     get_verified_user,
 )
-from open_webui.utils.oauth import oauth_manager
+from beyond_the_loop.utils.oauth import oauth_manager
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
@@ -925,7 +925,7 @@ async def get_app_config(request: Request):
 
     onboarding = False
     if user is None:
-        user_count = Users.get_num_users()
+        user_count = 0
         onboarding = user_count == 0
 
     return {

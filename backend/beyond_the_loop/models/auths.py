@@ -92,32 +92,13 @@ class ResetPasswordForm(BaseModel):
     reset_token: str
     new_password: str
 
-class CompleteInviteForm(BaseModel):
-    first_name: str
-    last_name: str
-    password: str
-    invite_token: str
-    profile_image_url: Optional[str] = "/user.png"
-
-class CompleteRegistrationForm(BaseModel):
-    first_name: str
-    last_name: str
-    password: str
-    registration_code: str
-    profile_image_url: Optional[str] = "/user.png"
-    company_name: str
-    company_size: str
-    company_industry: str
-    company_team_function: str
-    company_profile_image_url: Optional[str] = "/user.png"
-
 class SignupForm(BaseModel):
-    name: str
-    email: str
+    first_name: str
+    last_name: str
     password: str
-    company_name: str
+    signup_token: str
     profile_image_url: Optional[str] = "/user.png"
-
+    is_invited: bool = False
 
 class AuthsTable:
     def insert_new_auth(
