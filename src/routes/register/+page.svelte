@@ -48,8 +48,6 @@
 
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
-			console.log(sessionUser);
-			showToast('success', `You're now logged in.`);
 			if (sessionUser.token) {
 				localStorage.token = sessionUser.token;
 			}
@@ -57,7 +55,7 @@
 			$socket.emit('user-join', { auth: { token: sessionUser.token } });
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
-			goto('/');
+			// goto('/');
 		}
 	};
 
@@ -93,15 +91,13 @@
 			})
 		]);
 
-		if (companyInfo) {
+		if (companyInfo && companyConfigInfo) {
+			showToast('success', `You're now logged in.`);
 			company.set(companyInfo);
-		}
-
-		if (companyConfigInfo) {
-			console.log(companyConfigInfo);
 			companyConfig.set(companyConfigInfo);
+			goto('/');
 		}
-		loading = false;
+		loading = false;	
 	}
 
 	onMount(async () => {});
