@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import ProgressIndicator from '$lib/components/company-register/ProgressIndicator.svelte';
 	import Step1Email from '$lib/components/company-register/Step1Email.svelte';
 	import Step2Verify from '$lib/components/company-register/Step2Verify.svelte';
@@ -27,6 +27,7 @@
 	import { toast } from 'svelte-sonner';
 	import { getCompanyDetails, getCompanyConfig } from '$lib/apis/auths';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let step = 1;
 
@@ -40,6 +41,13 @@
 	let profile_image_url = '';
 
 	let loading = false;
+
+	onMount(() => {
+		const emailFromUrl = $page.url.searchParams.get('email');
+		if (emailFromUrl) {
+			email = emailFromUrl;
+		}
+	})
 
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
