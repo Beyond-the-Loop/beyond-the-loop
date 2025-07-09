@@ -77,7 +77,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
             
             # Validate email format
             if not validate_email_format(email):
-                validation_errors.append({"reason": ERROR_MESSAGES.INVALID_EMAIL_FORMAT})
+                validation_errors.append({"reason": f"{email} is invalid. {ERROR_MESSAGES.INVALID_EMAIL_FORMAT}"})
                 continue
 
             # Check if user already exists
