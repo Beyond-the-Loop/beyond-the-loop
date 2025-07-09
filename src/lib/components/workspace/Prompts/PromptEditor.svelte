@@ -69,7 +69,7 @@
 
 	const validateCommandString = (inputString) => {
 		// Regular expression to match only alphanumeric characters and hyphen
-		const regex = /^[a-zA-Z0-9-]+$/;
+		const regex = /^[a-zA-Z0-9äöüÄÖÜß-]+$/;
 
 		// Test the input string against the regular expression
 		return regex.test(inputString);
@@ -165,7 +165,6 @@
 						class={`px-2.5 text-sm ${description ? "pt-2" : "pt-0"} w-full text-lightGray-100 placeholder:text-lightGray-100 h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
 						placeholder={$i18n.t('Description')}
 						bind:value={description}
-						required
 					/>
 				</div>
 			</div>
