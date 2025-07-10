@@ -273,7 +273,7 @@ async def create_company(
         stripe_customer = stripe.Customer.create(
             email=user.email,
             name=form_data.company_name,
-            metadata={"company_id": company_id, "user_id": user.id},
+            metadata={"company_id": company_id},
         )
 
         # Update company with Stripe customer ID
@@ -290,13 +290,7 @@ async def create_company(
                     "missing_payment_method": "cancel"  # Cancel when trial ends if no payment method
                 }
             },
-            items=[{"price": SUBSCRIPTION_PLANS["free"]["stripe_price_id"]}],
-            metadata={
-                "company_id": company_id,
-                "is_trial": "true",
-                "plan_id": "free",
-                "user_email": user.email,
-            },
+            items=[{"price": SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
         )
 
         return company
@@ -304,5 +298,5 @@ async def create_company(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ERROR_MESSAGES.DEFAULT(e),
+            detail=e,
         )
