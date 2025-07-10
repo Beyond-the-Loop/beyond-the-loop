@@ -12,6 +12,26 @@ db_engine = sqlalchemy.create_engine(DATABASE_URL)
 
 with db_engine.connect() as connection:
     new_models_object = {
+        "Claude Opus 4": {
+            "model_name": "Claude Opus 4",
+            "cost_per_million_input_tokens": 15,
+            "cost_per_million_output_tokens": 75,
+            "cost_per_image": None,
+            "cost_per_minute": None,
+            "cost_per_million_characters": None,
+            "cost_per_million_reasoning_tokens": None,
+            "cost_per_thousand_search_queries": None,
+        },
+        "Claude Sonnet 4": {
+            "model_name": "Claude Sonnet 4",
+            "cost_per_million_input_tokens": 3,
+            "cost_per_million_output_tokens": 15,
+            "cost_per_image": None,
+            "cost_per_minute": None,
+            "cost_per_million_characters": None,
+            "cost_per_million_reasoning_tokens": None,
+            "cost_per_thousand_search_queries": None,
+        },
         "Google 2.5 Pro": {
             "model_name": "Google 2.5 Pro",
             "cost_per_million_input_tokens": 1.25,
@@ -36,26 +56,6 @@ with db_engine.connect() as connection:
             "model_name": "Google 2.5 Flash-Lite",
             "cost_per_million_input_tokens": 0.1,
             "cost_per_million_output_tokens": 0.4,
-            "cost_per_image": None,
-            "cost_per_minute": None,
-            "cost_per_million_characters": None,
-            "cost_per_million_reasoning_tokens": None,
-            "cost_per_thousand_search_queries": None,
-        },
-        "Claude Opus 4": {
-            "model_name": "Claude Opus 4",
-            "cost_per_million_input_tokens": 15,
-            "cost_per_million_output_tokens": 75,
-            "cost_per_image": None,
-            "cost_per_minute": None,
-            "cost_per_million_characters": None,
-            "cost_per_million_reasoning_tokens": None,
-            "cost_per_thousand_search_queries": None,
-        },
-        "Claude Sonnet 4": {
-            "model_name": "Claude Sonnet 4",
-            "cost_per_million_input_tokens": 3,
-            "cost_per_million_output_tokens": 15,
             "cost_per_image": None,
             "cost_per_minute": None,
             "cost_per_million_characters": None,
@@ -112,6 +112,16 @@ with db_engine.connect() as connection:
             "cost_per_million_reasoning_tokens": None,
             "cost_per_thousand_search_queries": None,
         },
+        "Grok 4": {
+            "model_name": "Grok 4",
+            "cost_per_million_input_tokens": 3,
+            "cost_per_million_output_tokens": 15,
+            "cost_per_image": None,
+            "cost_per_minute": None,
+            "cost_per_million_characters": None,
+            "cost_per_million_reasoning_tokens": None,
+            "cost_per_thousand_search_queries": None,
+        },
         "Llama 4 Maverick": {
             "model_name": "Llama 4 Maverick",
             "cost_per_million_input_tokens": 0.17,
@@ -125,7 +135,9 @@ with db_engine.connect() as connection:
     }
 
     # add new models to model_cost table
+    changes_to_commit = False
     for model, model_data in new_models_object.items():
+        changes_to_commit = True
         print(f"Inserting model: {model} with data {model_data}")
         connection.execute(
             sqlalchemy.text(
@@ -153,6 +165,7 @@ with db_engine.connect() as connection:
                 ],
             },
         )
+    if changes_to_commit:
         connection.commit()
 
     replace_models_object = {
@@ -166,15 +179,21 @@ with db_engine.connect() as connection:
     }
 
     # delete old models from model_cost table
+    changes_to_commit = False
     for model in replace_models_object.keys():
+        changes_to_commit = True
         print(f"Deleting model: {model}")
         connection.execute(
             sqlalchemy.text("DELETE FROM model_cost WHERE model_name = :model_name"),
             {"model_name": model},
         )
+    if changes_to_commit:
         connection.commit()
+
     # update model names in model table
+    changes_to_commit = False
     for model, model_data in replace_models_object.items():
+        changes_to_commit = True
         print(f"Updating model: {model} to {model_data['replace_with']}")
         connection.execute(
             sqlalchemy.text(
@@ -185,13 +204,14 @@ with db_engine.connect() as connection:
                 "model_name": model,
             },
         )
+    if changes_to_commit:
         connection.commit()
 
     companies = connection.execute(sqlalchemy.text("SELECT id FROM company")).fetchall()
     models = connection.execute(
         sqlalchemy.text("SELECT model_name FROM model_cost")
     ).fetchall()
-    models_aditional_info = {
+    models_additional_info = {
         "Claude 3.5 Haiku": {"meta": {}, "params": {}},
         "Claude Opus 4": {"meta": {}, "params": {}},
         "Claude Sonnet 4": {"meta": {}, "params": {}},
@@ -205,6 +225,7 @@ with db_engine.connect() as connection:
         "GPT o4-mini": {"meta": {}, "params": {}},
         "GPT-4.1 mini": {"meta": {}, "params": {}},
         "GPT-4.1 nano": {"meta": {}, "params": {}},
+        "Grok 4": {"meta": {}, "params": {}},
         "Llama 4 Maverick": {"meta": {}, "params": {}},
         "Mistral Large 2.0": {"meta": {}, "params": {}},
         "Perplexity Sonar Deep Research": {"meta": {}, "params": {}},
@@ -217,6 +238,7 @@ with db_engine.connect() as connection:
         "whisper-1": {"meta": {}, "params": {}},
     }
     # add missing models to companies
+    changes_to_commit = False
     for company in companies:
         company_models = connection.execute(
             sqlalchemy.text("SELECT name FROM model WHERE company_id = :company_id"),
@@ -225,10 +247,19 @@ with db_engine.connect() as connection:
 
         missing_models = [model for model in models if model not in company_models]
         for model in missing_models:
+            changes_to_commit = True
             print(f"Adding missing model: {model.model_name} to company: {company.id}")
 
-            meta = models_aditional_info.get(model.model_name).get("meta") if models_aditional_info.get(model.model_name) else {}
-            params = models_aditional_info.get(model.model_name).get("params") if models_aditional_info.get(model.model_name) else {}
+            meta = (
+                models_additional_info.get(model.model_name).get("meta")
+                if models_additional_info.get(model.model_name)
+                else {}
+            )
+            params = (
+                models_additional_info.get(model.model_name).get("params")
+                if models_additional_info.get(model.model_name)
+                else {}
+            )
 
             connection.execute(
                 sqlalchemy.text(
@@ -244,4 +275,5 @@ with db_engine.connect() as connection:
                     "company_id": company.id,
                 },
             )
-            connection.commit()
+    if changes_to_commit:
+        connection.commit()
