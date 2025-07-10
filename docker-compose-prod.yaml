@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   traefik:
     image: traefik:v2.11
@@ -14,7 +12,7 @@ services:
 
   litellm:
     container_name: litellm
-    image: ghcr.io/berriai/litellm:main-v1.61.7
+    image: ghcr.io/berriai/litellm:v1.73.6-stable
     env_file:
       - .env
     restart: unless-stopped
