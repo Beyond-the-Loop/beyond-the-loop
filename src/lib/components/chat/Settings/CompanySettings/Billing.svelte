@@ -1,8 +1,5 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
-	import StarterPlanIcon from '$lib/components/icons/StarterPlanIcon.svelte';
-	import BusinessPlanIcon from '$lib/components/icons/BusinessPlanIcon.svelte';
-	import GrowthPlanIcon from '$lib/components/icons/GrowthPlanIcon.svelte';
 	import Switch from '$lib/components/common/Switch.svelte';
 	import { subscription } from '$lib/stores';
 	import {
@@ -17,6 +14,7 @@
 	import { goto } from '$app/navigation';
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
+	import UnlimitedPlanIcon from '$lib/components/icons/UnlimitedPlanIcon.svelte';
 
 	const i18n = getContext('i18n');
 	export let autoRecharge = false;
@@ -49,9 +47,9 @@
 		const sub = await getCurrentSubscription(localStorage.token)
 		.catch(error => {
 			console.log(error)
-			
+
 		});
-		subscription.set(sub);	
+		subscription.set(sub);
 	}
 
 	async function pollForCreditChange(previous, interval = 2000, timeout = 20000) {
@@ -87,19 +85,19 @@
 			toast.success($i18n.t(res.message))
 		}
 		await pollForCreditChange($subscription?.flex_credits_remaining, 2000, 20000);
-		
+
 	}
-	
+
 	$: currentPlan = plans?.find((item) => item.id === $subscription?.plan);
 
 	$: seatsWidth = $subscription?.seats ? $subscription?.seats_taken > $subscription?.seats ? '100%' : `${($subscription?.seats_taken/$subscription?.seats*100)}%` : '100%';
 	$: creditsWidth = $subscription?.credits_remaining ? `${(((currentPlan?.credits_per_month - $subscription?.credits_remaining)/currentPlan?.credits_per_month) * 100)}%` : '100%';
-	
+
 
 	$: {
 		if(showBuyFlexCredits === false && mounted){
 			const url = new URL(window.location.href);
-			url.searchParams.delete('recharge'); 
+			url.searchParams.delete('recharge');
 			window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 		}
 	}
@@ -112,7 +110,7 @@
 	on:confirm={recharge}
 	on:cancel={() => {
 		const url = new URL(window.location.href);
-		url.searchParams.delete('recharge'); 
+		url.searchParams.delete('recharge');
 		window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 	}}
 >
@@ -133,54 +131,33 @@
 		<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 mb-2.5">
 			<div class="flex items-center justify-between pb-2.5 {$subscription?.plan !== "unlimited" ?  "border-b" : ""} dark:border-customGray-700">
 				<div class="flex items-center gap-2.5">
-					{#if $subscription?.plan === 'starter' || $subscription?.plan === 'free'}
-						<div
-							class="flex justify-center items-center w-[50px] h-[50px] bg-[#2EA937] dark:bg-[#024D15] rounded-mdx text-[#AAE0AE] dark:text-[#0F8C18]"
-						>
-							<StarterPlanIcon className="size-6" />
-						</div>
-					{:else if $subscription?.plan === 'team'}
-						<div
-							class="flex justify-center items-center w-[50px] h-[50px] bg-[#A588EF] dark:bg-[#4621A5] rounded-mdx text-[#E7E1F7] dark:text-[#A588EF]"
-						>
-							<BusinessPlanIcon className="size-6" />
-						</div>
-					{:else if $subscription?.plan === 'growth'}
-						<div
-							class="flex justify-center items-center w-[50px] h-[50px] bg-[#E767D2] dark:bg-[#840E70] rounded-mdx text-[#FCEBF9] dark:text-[#F294E2]"
-						>
-							<GrowthPlanIcon className="size-6" />
-						</div>
+					{#if $subscription?.plan != "unlimited" && $subscription?.image_url}
+						<img src="{$subscription.image_url}" alt="" class="w-[50px] h-[50px] rounded-mdx" />
 					{:else if $subscription?.plan === 'unlimited'}
 					<div
 						class="flex justify-center items-center w-[50px] h-[50px] bg-[#DA702C] dark:bg-[#A54300] rounded-mdx text-[#FFD6A8] dark:text-[#FFD8A8]"
 					>
-						<StarterPlanIcon className="size-6" />
+						<UnlimitedPlanIcon className="size-6" />
 				</div>
 					{/if}
-					<div>
-						<div class="flex items-center gap-2.5">
-							<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
-								{$i18n.t($subscription?.plan.replace('_monthly', '').replace('_yearly', ''))}
+					<div class="flex items-center gap-2.5">
+						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
+							{$i18n.t($subscription?.plan.replace('_monthly', '').replace('_yearly', ''))}
+						</div>
+						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
+							<div
+								class="flex justify-center items-center text-xs dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
+							>
+								{$i18n.t('Monthly')}
 							</div>
-							{#if $subscription?.plan && $subscription.plan.includes("monthly")}
-								<div
-									class="flex justify-center items-center text-xs dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
-								>
-									{$i18n.t('Monthly')}
-								</div>
-							{/if}
-							{#if $subscription?.plan && $subscription.plan.includes("yearly")}
-								<div
-									class="flex justify-center items-center text-xs dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
-								>
-									{$i18n.t('Yearly')}
-								</div>
-							{/if}
-						</div>
-						<div class="text-xs text-lightGray-100 dark:text-customGray-100/50">
-							€{currentPlan?.price ? (currentPlan?.price / 100).toFixed(2) : '0.00'}/month
-						</div>
+						{/if}
+						{#if $subscription?.plan && $subscription.plan.includes("yearly")}
+							<div
+								class="flex justify-center items-center text-xs dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
+							>
+								{$i18n.t('Yearly')}
+							</div>
+						{/if}
 					</div>
 				</div>
 				{#if $subscription?.plan !== 'unlimited'}
@@ -226,10 +203,6 @@
 						<span class="text-xs text-lightGray-100 dark:text-customGray-100">{$subscription?.seats_taken} {$i18n.t('used')}</span><span
 							class="dark:text-customGray-590">/ {$subscription?.seats} {$i18n.t('included')}</span
 						>
-					<!-- {:else}
-						<span class="text-xs text-lightGray-100 dark:text-customGray-100">1 {$i18n.t('used')}</span><span
-							class="dark:text-customGray-590">/ 1 {$i18n.t('included')}</span
-						> -->
 					{/if}
 				</div>
 			</div>
@@ -297,7 +270,7 @@
 						<Tooltip content={$i18n.t('When enabled, 20€ in credits will be automatically purchased and added to your account once your balance drops to 80% of your base credit amount.')}>
 							<div class="text-xs dark:text-customGray-590 mr-2.5 cursor-pointer">{$i18n.t('Auto recharge')}</div>
 						</Tooltip>
-						
+
 						<Switch bind:state={autoRecharge} on:change={async (e) => {
 							const res = await updateAutoRecharge(localStorage.token, e.detail).catch(error => console.log(error))
 							toast.success($i18n.t(res.message))
@@ -315,7 +288,7 @@
 						on:click={() => {
 							showBuyFlexCredits = true;
 							const url = new URL(window.location.href);
-							url.searchParams.set('recharge', 'open'); 
+							url.searchParams.set('recharge', 'open');
 							window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 						}}
 						class="flex items-center justify-center rounded-[10px] bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-8 py-2 text-xs dark:text-customGray-200"
@@ -325,26 +298,6 @@
 				</div>
 			</div>
 		{/if}
-		<!-- {#if $subscription?.plan !== "free"}
-			<div
-				class="flex w-full justify-between items-center py-2.5 border-b border-customGray-700 mb-2.5 mt-2.5"
-			>
-				<div class="flex w-full justify-between items-center">
-					<div class="text-xs dark:text-customGray-300">{$i18n.t('Cancel Subscription')}</div>
-				</div>
-			</div>
-			<button
-				on:click={async () => {
-					await deleteCurrentSubscription(localStorage.token)
-					.then(res => toast.success($i18n.t(res?.message)))
-					.catch(error => toast.error(error));
-					fetchCurrentSubscription();
-				}}
-				class="flex items-center justify-center rounded-[10px] dark:bg-customGray-900 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-2 text-xs dark:text-customGray-200"
-			>
-				{$i18n.t('Cancel Subscription')}
-			</button>
-		{/if} -->
 	</div>
 {:else}
 	<div class="h-[20rem] w-full flex justify-center items-center">
