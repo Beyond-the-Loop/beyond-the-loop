@@ -144,6 +144,10 @@ async def get_subscription(user=Depends(get_verified_user)):
         # If there's an active trial subscription
         if trial_subscriptions.data and len(trial_subscriptions.data) > 0 and not subscriptions.data:
             trial_subscription = trial_subscriptions.data[0]
+
+            # Get the image url of the product
+            product = stripe.Product.retrieve(trial_subscription.plan.product)
+            image_url = product.images[0]
             
             # Calculate days remaining in trial
             current_time = int(time.time())
@@ -158,7 +162,8 @@ async def get_subscription(user=Depends(get_verified_user)):
                 "seats": 5,
                 "seats_taken": Users.count_users_by_company_id(user.company_id),
                 'trial_end': trial_end,
-                'days_remaining': days_remaining
+                'days_remaining': days_remaining,
+                'image_url': image_url
             }
 
         if not subscriptions.data:
@@ -175,6 +180,10 @@ async def get_subscription(user=Depends(get_verified_user)):
 
         plan = SUBSCRIPTION_PLANS[plan_id] or {}
 
+        # Get the image url of the product
+        product = stripe.Product.retrieve(subscription.plan.product)
+        image_url = product.images[0] if product.images and len(product.images) > 0 else None
+
         return {
             "plan": plan_id,
             "status": subscription.status,
@@ -188,7 +197,8 @@ async def get_subscription(user=Depends(get_verified_user)):
             "credits_remaining": company.credit_balance,
             "seats": plan.get("seats", 0),
             "seats_taken": Users.count_users_by_company_id(user.company_id),
-            "auto_recharge": company.auto_recharge
+            "auto_recharge": company.auto_recharge,
+            "image_url": image_url
         }
     except Exception as e:
         print(f"Error getting subscription: {e}")
