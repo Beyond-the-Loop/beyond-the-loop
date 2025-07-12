@@ -132,7 +132,7 @@
 			<div class="flex items-center justify-between pb-2.5 {$subscription?.plan !== "unlimited" ?  "border-b" : ""} dark:border-customGray-700">
 				<div class="flex items-center gap-2.5">
 					{#if $subscription?.plan != "unlimited" && $subscription?.image_url}
-						<img src="{$subscription.image_url}" alt="" class="w-[50px] h-[50px] rounded-mdx" />
+						<img src="{$subscription.image_url}" alt="" class="w-[50px] h-[50px] object-cover rounded-mdx" />
 					{:else if $subscription?.plan === 'unlimited'}
 					<div
 						class="flex justify-center items-center w-[50px] h-[50px] bg-[#DA702C] dark:bg-[#A54300] rounded-mdx text-[#FFD6A8] dark:text-[#FFD8A8]"
