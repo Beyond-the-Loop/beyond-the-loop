@@ -105,8 +105,6 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
             return_url=os.getenv('BACKEND_ADDRESS') + "?modal=company-settings&tab=billing",
         )
 
-        print(session.url)
-
         return {"url": session.url}
     except Exception as e:
         print(f"Error creating billing portal session: {e}")
@@ -283,7 +281,6 @@ def _update_company_credits_from_subscription(event_data, action_description="pr
 
         # If the billing reason is not subscription_create, ignore the event
         if billing_reason == 'subscription_create' or billing_reason == 'subscription_update':
-            print(f"Ignoring invoice with billing reason: {billing_reason}")
             return None, None, None
 
         # Extract subscription details
@@ -303,7 +300,6 @@ def _update_company_credits_from_subscription(event_data, action_description="pr
         company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
 
         if not company:
-            print(f"No company found for Stripe customer ID: {stripe_customer_id}")
             return None, None, None
         
         # For invoice events, we need to fetch the subscription to get items
