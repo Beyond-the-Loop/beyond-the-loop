@@ -131,10 +131,67 @@ class CreditService:
 
         return await self.subtract_credits_by_user_and_credits(user, credit_cost)
 
-    @staticmethod
-    async def recharge_flex_credits(user):
-        from beyond_the_loop.routers.payments import recharge_flex_credits
-        return await recharge_flex_credits(user)
+    async def recharge_flex_credits(self, user):
+        """
+        Recharge flex credits for a company using their default payment method.
+        
+        Args:
+            user: The user requesting the recharge
+            
+        Returns:
+            dict: Information about the payment intent
+            
+        Raises:
+            HTTPException: If there's an error with the payment or recharge process
+        """
+        try:
+            company = Companies.get_company_by_id(user.company_id)
+            
+            if not company.stripe_customer_id:
+                raise HTTPException(status_code=400, detail="No payment method found. Please add a payment method first.")
+            
+            # Get the customer's payment methods
+            payment_methods = stripe.PaymentMethod.list(
+                customer=company.stripe_customer_id,
+                type="card"
+            )
+            
+            # Check if the customer has any payment methods
+            if not payment_methods or len(payment_methods.data) == 0:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="No payment method found. Please add a payment method in your billing settings."
+                )
+                
+            # Use the first payment method
+            default_payment_method = payment_methods.data[0].id
+            
+            # Create a PaymentIntent
+            payment_intent = stripe.PaymentIntent.create(
+                amount=2500,  # Default price in cents (25 euro)
+                currency="eur",
+                customer=company.stripe_customer_id,
+                payment_method=default_payment_method,  # Specify the payment method
+                payment_method_types=["card"],
+                off_session=True,
+                confirm=True,
+                metadata={
+                    "company_id": company.id,
+                    "user_id": user.id,
+                    "user_email": user.email,
+                    "recharge_type": "auto" if Companies.get_auto_recharge(user.company_id) else "manual",
+                    "flex_credits_recharge": "true"
+                }
+            )
+            
+            return {"message": "Credits recharged successfully", "payment_intent": payment_intent.id}
+            
+        except stripe.error.CardError as e:
+            # Card declined
+            raise HTTPException(status_code=400, detail=f"Card declined: {e.error.message}")
+        except Exception as e:
+            print(f"Error recharging credits: {e}")
+            raise HTTPException(status_code=500, detail="Failed to recharge credits")
 
     def get_credit_balance(self, company_id: str) -> Optional[int]:
         """
@@ -192,11 +249,26 @@ class CreditService:
                 limit=1
             )
 
+            # Check for expired trials
+            expired_trials = stripe.Subscription.list(
+                customer=company.stripe_customer_id,
+                status='canceled',
+                limit=10  # Check a few recent subscriptions
+            )
+
+            has_expired_trial = any(sub.get('status') == 'canceled' and sub.get('metadata', {}).get('plan_id', "") == "free" for sub in expired_trials.data)
+
             if not subscriptions.data and not trails.data:
-                raise HTTPException(
-                    status_code=402,  # 402 Payment Required
-                    detail="No active subscription found. Please subscribe to a plan.",
-                )
+                if has_expired_trial:
+                    raise HTTPException(
+                        status_code=402,  # 402 Payment Required
+                        detail="Your trial period is over. To continue using the platform, please select a plan.",
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=402,  # 402 Payment Required
+                        detail="No active subscription found. Please subscribe to a plan.",
+                    )
         
         # Proceed with credit balance check
         current_balance = Companies.get_credit_balance(user.company_id)
