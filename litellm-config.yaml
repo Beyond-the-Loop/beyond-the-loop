@@ -78,7 +78,7 @@ model_list:
       model: 'vertex_ai/llama-4-maverick-17b-128e-instruct-maas'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
-  - model_name: "Mistral Large 2.0"
+  - model_name: "Mistral Large 2"
     litellm_params:
       model: 'vertex_ai/mistralai/mistral-large-2411@001'
       vertex_project: 'beyond-chat-1111'

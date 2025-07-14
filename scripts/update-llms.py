@@ -363,7 +363,7 @@ with db_engine.connect() as connection:
             "stats": "add",
             "visibility": "show",
         },
-        "Mistral Large 2.0": {
+        "Mistral Large 2": {
             "cost": {
                 "cost_per_million_input_tokens": 2,
                 "cost_per_million_output_tokens": 6,
