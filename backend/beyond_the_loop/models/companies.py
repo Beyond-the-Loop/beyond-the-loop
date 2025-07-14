@@ -314,7 +314,7 @@ class CompanyTable:
                     return 1  # No active subscription
                 
                 subscription = subscriptions.data[0]
-                plan_id = subscription.metadata.get('plan_id')
+                plan_id = subscription.metadata.get('plan_id', 'free')
                 
                 # Import here to avoid circular imports
                 from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS

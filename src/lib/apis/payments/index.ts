@@ -172,7 +172,7 @@ export const deleteCurrentSubscription = async (token: string) => {
 export const redirectToCustomerPortal = async (token: string) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/payments/create-billing-portal-session/`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/payments/customer-billing-page/`, {
 		method: 'GET',
 		headers: {
 			'Content-Type': 'application/json',
