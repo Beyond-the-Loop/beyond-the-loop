@@ -47,9 +47,9 @@
 		const sub = await getCurrentSubscription(localStorage.token)
 		.catch(error => {
 			console.log(error)
-			
+
 		});
-		subscription.set(sub);	
+		subscription.set(sub);
 	}
 
 	async function pollForCreditChange(previous, interval = 2000, timeout = 20000) {
@@ -85,19 +85,19 @@
 			toast.success($i18n.t(res.message))
 		}
 		await pollForCreditChange($subscription?.flex_credits_remaining, 2000, 20000);
-		
+
 	}
-	
+
 	$: currentPlan = plans?.find((item) => item.id === $subscription?.plan);
 
 	$: seatsWidth = $subscription?.seats ? $subscription?.seats_taken > $subscription?.seats ? '100%' : `${($subscription?.seats_taken/$subscription?.seats*100)}%` : '100%';
 	$: creditsWidth = $subscription?.credits_remaining ? `${(((currentPlan?.credits_per_month - $subscription?.credits_remaining)/currentPlan?.credits_per_month) * 100)}%` : '100%';
-	
+
 
 	$: {
 		if(showBuyFlexCredits === false && mounted){
 			const url = new URL(window.location.href);
-			url.searchParams.delete('recharge'); 
+			url.searchParams.delete('recharge');
 			window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 		}
 	}
@@ -110,7 +110,7 @@
 	on:confirm={recharge}
 	on:cancel={() => {
 		const url = new URL(window.location.href);
-		url.searchParams.delete('recharge'); 
+		url.searchParams.delete('recharge');
 		window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 	}}
 >
@@ -270,7 +270,7 @@
 						<Tooltip content={$i18n.t('When enabled, 20€ in credits will be automatically purchased and added to your account once your balance drops to 80% of your base credit amount.')}>
 							<div class="text-xs dark:text-customGray-590 mr-2.5 cursor-pointer">{$i18n.t('Auto recharge')}</div>
 						</Tooltip>
-						
+
 						<Switch bind:state={autoRecharge} on:change={async (e) => {
 							const res = await updateAutoRecharge(localStorage.token, e.detail).catch(error => console.log(error))
 							toast.success($i18n.t(res.message))
@@ -288,7 +288,7 @@
 						on:click={() => {
 							showBuyFlexCredits = true;
 							const url = new URL(window.location.href);
-							url.searchParams.set('recharge', 'open'); 
+							url.searchParams.set('recharge', 'open');
 							window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 						}}
 						class="flex items-center justify-center rounded-[10px] bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-8 py-2 text-xs dark:text-customGray-200"
