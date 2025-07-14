@@ -1275,7 +1275,7 @@
 															}}
 															type="button"
 															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {imageGenerationEnabled
-																? 'bg-gray-100 dark:bg-customBlue-700/60 text-gray-600 dark:text-white'
+																? 'bg-blue-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
 																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900 '}"
 														>
 															<ImageGenerateIcon />
