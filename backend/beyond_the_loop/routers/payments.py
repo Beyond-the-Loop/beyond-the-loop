@@ -145,7 +145,7 @@ async def get_subscription(user=Depends(get_verified_user)):
 
             # Get the image url of the product
             product = stripe.Product.retrieve(trial_subscription.plan.product)
-            image_url = product.images[0]
+            image_url = product.images[0] if product.images else None
             
             # Calculate days remaining in trial
             current_time = int(time.time())
