@@ -1087,7 +1087,7 @@ export function getModelIcon(label: string): string {
 		return '/chatgpt-icon.svg';
 	} else if (lower.includes('claude')) {
 		return '/claude-ai-icon.svg';
-	} else if (lower.includes('gemini')) {
+	} else if (lower.includes('gemini') || lower.includes('google')) {
 		return '/google-gemini-icon.svg';
 	} else if (lower.includes('mistral') || lower.includes('pixtral')) {
 		return '/mistral-color.svg';
@@ -1097,6 +1097,12 @@ export function getModelIcon(label: string): string {
 		} else {
 			return '/ollama-light.svg';
 		}	
+	} else if (lower.includes('grok')) {
+		if(isDark) {
+			return '/grok-dark.svg';
+		} else {
+			return '/grok.svg';
+		}
 	} else {
 		return '/favicon-icon.png';
 	}
