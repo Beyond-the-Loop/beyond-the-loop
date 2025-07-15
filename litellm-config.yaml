@@ -26,12 +26,12 @@ model_list:
       vertex_location: 'europe-west4'
   - model_name: "Google 2.5 Flash"
     litellm_params:
-      model: 'vertex_ai/google/gemini-2.5-flash'
+      model: 'gemini-2.5-flash'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
   - model_name: "Google 2.5 Pro"
     litellm_params:
-      model: 'vertex_ai/google/gemini-2.5-pro'
+      model: 'gemini-2.5-pro'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
   - model_name: "GPT 4.1"
@@ -77,10 +77,10 @@ model_list:
     litellm_params:
       model: 'vertex_ai/llama-4-maverick-17b-128e-instruct-maas'
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'europe-west4'
+      vertex_location: 'us-east5'
   - model_name: "Mistral Large 2"
     litellm_params:
-      model: 'vertex_ai/mistralai/mistral-large-2411@001'
+      model: 'vertex_ai/mistral-large-2411@001'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
   - model_name: "Perplexity Sonar Deep Research"

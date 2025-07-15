@@ -2,8 +2,11 @@ import datetime
 import sqlalchemy
 import uuid
 import json
+import os
 
-DATABASE_URL = "sqlite:///./backend/data/database.sqlite"
+# Get the project root directory (parent of the scripts directory)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATABASE_URL = f"sqlite:///{os.path.join(project_root, 'backend', 'data', 'database.sqlite')}"
 
 print("Updating LLMs")
 
