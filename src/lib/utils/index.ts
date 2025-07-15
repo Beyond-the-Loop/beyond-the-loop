@@ -1087,16 +1087,18 @@ export function getModelIcon(label: string): string {
 		return '/chatgpt-icon.svg';
 	} else if (lower.includes('claude')) {
 		return '/claude-ai-icon.svg';
-	} else if (lower.includes('gemini')) {
+	} else if (lower.includes('gemini') || lower.includes('google')) {
 		return '/google-gemini-icon.svg';
 	} else if (lower.includes('mistral') || lower.includes('pixtral')) {
 		return '/mistral-color.svg';
 	} else if (lower.includes('lama')) {
+		return '/meta-color.svg';
+	} else if (lower.includes('grok')) {
 		if(isDark) {
-			return '/ollama-1.svg';
+			return '/grok-dark.svg';
 		} else {
-			return '/ollama-light.svg';
-		}	
+			return '/grok.svg';
+		}
 	} else {
 		return '/favicon-icon.png';
 	}

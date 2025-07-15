@@ -283,7 +283,7 @@
 										<AdditionaModelInfo hoveredItem={model} />
 								</div>
 								<div class="text-xs text-[#8A8B8D] dark:text-customGray-590">
-									{modelsInfo[model.name].description}
+									{$i18n.t(modelsInfo[model.name].description)}
 								</div>
 							</div>
 							<div class="border-r border-lightGray-400 dark:border-customGray-700 flex justify-center items-center dark:text-customGray-100">
