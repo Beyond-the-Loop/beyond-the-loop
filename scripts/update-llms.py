@@ -713,4 +713,25 @@ with db_engine.connect() as connection:
     if should_commit:
         connection.commit()
 
+    # remove unassigned models from model_cost table
+    current_model_list_names = connection.execute(
+        sqlalchemy.text("SELECT model_name FROM model_cost"),
+    ).fetchall()
+    current_model_list_names = [model[0] for model in current_model_list_names]
+
+    to_remove_unassigned_models_list = [
+        model_name for model_name in current_model_list_names if model_name not in all_models_list
+    ]
+
+    should_commit = False
+    for model_name in to_remove_unassigned_models_list:
+        should_commit = True
+        print(f"Removing unassigned model: {model_name} from model_cost table")
+        connection.execute(
+            sqlalchemy.text("DELETE FROM model_cost WHERE model_name = :model_name"),
+            {"model_name": model_name},
+        )
+    if should_commit:
+        connection.commit()
+
 print("LLMs updated successfully")
