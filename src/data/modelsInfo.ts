@@ -15,7 +15,7 @@ export const modelsInfo = {
 	},
 	'Claude Opus 4': {
 		organization: 'Anthropic',
-		hosted_in: 'EU',
+		hosted_in: 'US',
 		description: "Anthropic's flagship model with superior coding capabilities and tool utilization. Excellent for complex, long-term tasks.",
 		context_window: '200K',
 		knowledge_cutoff: '2025-05-22',
@@ -29,7 +29,7 @@ export const modelsInfo = {
 	},
 	"Claude Sonnet 4": {
 		organization: 'Anthropic',
-		hosted_in: 'EU',
+		hosted_in: 'US',
 		description: "Balance of performance and efficiency. Strong coding and reasoning skills with tool support.",
 		context_window: '200K',
 		knowledge_cutoff: '2025-05-22',
@@ -85,7 +85,7 @@ export const modelsInfo = {
 	},
 	'Mistral Large 2': {
 		organization: 'Mistral',
-		hosted_in: 'France',
+		hosted_in: 'EU',
 		description: 'Great for basic tasks.',
 		context_window: '128K',
 		knowledge_cutoff: '2023-10-01',
@@ -99,7 +99,7 @@ export const modelsInfo = {
 	},
 	'Pixtral Large': {
 		organization: 'Mistral',
-		hosted_in: 'France',
+		hosted_in: 'EU',
 		description: 'Image-text multimodal integration.',
 		context_window: '128K',
 		knowledge_cutoff: null,
@@ -198,7 +198,7 @@ export const modelsInfo = {
 	},
 	"Llama 4 Maverick": {
 		organization: 'Meta',
-		hosted_in: 'EU',
+		hosted_in: 'US',
 		description: 'Multimodal model for text and images. Versatile for conversation, image analysis, and code generation.',
 		context_window: '1M',
 		knowledge_cutoff: '2024-08-01',
@@ -268,12 +268,12 @@ export const modelsInfo = {
 	},
 	"Grok 4": {
 		organization: 'xAI',
-		hosted_in: 'EU',
+		hosted_in: 'US',
 		description: "xAI's most advanced model with superior reasoning skills and distinctive communication style.",
 		context_window: '256K',
 		knowledge_cutoff: '2024-12-31',
-		intelligence_score: 3.0,
-		speed: 4.5,
+		intelligence_score: 4.5,
+		speed: 3.0,
 		multimodal: true,
 		reasoning: false,
 		included: true,
