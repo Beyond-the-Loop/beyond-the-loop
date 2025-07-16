@@ -234,7 +234,7 @@ with db_engine.connect() as connection:
             },
             "meta": {},
             "params": {},
-            "replace_with": "GPT o4-mini",  # after o3 is deployed, change to o3
+            "replace_with": "GPT o4-mini",
             "stats": "replace",
             "visibility": "show",
         },
