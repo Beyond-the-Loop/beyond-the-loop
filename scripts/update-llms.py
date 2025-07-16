@@ -126,22 +126,22 @@ with db_engine.connect() as connection:
             "stats": "add",
             "visibility": "show",
         },
-        "Google 2.5 Flash-Lite": {
-            "cost": {
-                "cost_per_million_input_tokens": 0.1,
-                "cost_per_million_output_tokens": 0.4,
-                "cost_per_image": None,
-                "cost_per_minute": None,
-                "cost_per_million_characters": None,
-                "cost_per_million_reasoning_tokens": None,
-                "cost_per_thousand_search_queries": None,
-            },
-            "meta": {},
-            "params": {},
-            "replace_with": None,
-            "stats": "add",
-            "visibility": "show",
-        },
+        # "Google 2.5 Flash-Lite": {
+        #     "cost": {
+        #         "cost_per_million_input_tokens": 0.1,
+        #         "cost_per_million_output_tokens": 0.4,
+        #         "cost_per_image": None,
+        #         "cost_per_minute": None,
+        #         "cost_per_million_characters": None,
+        #         "cost_per_million_reasoning_tokens": None,
+        #         "cost_per_thousand_search_queries": None,
+        #     },
+        #     "meta": {},
+        #     "params": {},
+        #     "replace_with": None,
+        #     "stats": "add",
+        #     "visibility": "show",
+        # },
         "Google 2.5 Pro": {
             "cost": {
                 "cost_per_million_input_tokens": 1.25,
@@ -234,7 +234,7 @@ with db_engine.connect() as connection:
             },
             "meta": {},
             "params": {},
-            "replace_with": "GPT o3-mini",  # after o3 is deployed, change to o3
+            "replace_with": "GPT o4-mini",  # after o3 is deployed, change to o3
             "stats": "replace",
             "visibility": "show",
         },
