@@ -24,11 +24,11 @@ model_list:
       model: 'gemini-2.5-flash'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
-  - model_name: "Google 2.5 Flash-Lite"
-    litellm_params:
-      model: 'gemini-2.5-flash-lite-preview-06-17'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'europe-west4'
+  # - model_name: "Google 2.5 Flash-Lite"
+  #   litellm_params:
+  #     model: 'gemini-2.5-flash-lite-preview-06-17'
+  #     vertex_project: 'beyond-chat-1111'
+  #     vertex_location: 'europe-west4'
   - model_name: "Google 2.5 Pro"
     litellm_params:
       model: 'gemini-2.5-pro'
