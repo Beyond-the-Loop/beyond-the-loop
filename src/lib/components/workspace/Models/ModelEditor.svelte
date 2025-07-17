@@ -91,7 +91,7 @@
 		}
 	}
 
-	const gptDefault = $models?.find((item) => item.name === 'GPT 4o-mini');
+	const gptDefault = $models?.find((item) => item.name === 'GPT-4.1 mini');
 	let info = {
 		id: '',
 		base_model_id: $companyConfig?.config?.models?.DEFAULT_MODELS
