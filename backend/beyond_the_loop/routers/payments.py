@@ -448,7 +448,9 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
             limit=1
         )
 
-        if not subscriptions or len(subscriptions.data) == 0:
+        print(subscriptions)
+
+        if not company.subscription_not_required and not subscriptions or len(subscriptions.data) == 0:
             raise HTTPException(status_code=400, detail="No active subscription found. Please subscribe first.")
 
         # Get the customer's payment methods
