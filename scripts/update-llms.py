@@ -6,7 +6,9 @@ import os
 
 # Get the project root directory (parent of the scripts directory)
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATABASE_URL = f"sqlite:///{os.path.join(project_root, 'backend', 'data', 'database.sqlite')}"
+DATABASE_URL = (
+    f"sqlite:///{os.path.join(project_root, 'backend', 'data', 'database.sqlite')}"
+)
 
 print("Updating LLMs")
 
@@ -679,9 +681,7 @@ with db_engine.connect() as connection:
     for company in companies:
         company_id = company[0]
         current_company_models = connection.execute(
-            sqlalchemy.text(
-                "SELECT name FROM model WHERE company_id = :company_id"
-            ),
+            sqlalchemy.text("SELECT name FROM model WHERE company_id = :company_id"),
             {"company_id": company_id},
         ).fetchall()
         current_company_models = [model[0] for model in current_company_models]
@@ -720,7 +720,9 @@ with db_engine.connect() as connection:
     current_model_list_names = [model[0] for model in current_model_list_names]
 
     to_remove_unassigned_models_list = [
-        model_name for model_name in current_model_list_names if model_name not in all_models_list
+        model_name
+        for model_name in current_model_list_names
+        if model_name not in all_models_list
     ]
 
     should_commit = False
@@ -731,6 +733,41 @@ with db_engine.connect() as connection:
             sqlalchemy.text("DELETE FROM model_cost WHERE model_name = :model_name"),
             {"model_name": model_name},
         )
+    if should_commit:
+        connection.commit()
+
+    # remove dupplicate "Claude Sonnet 4" models
+    should_commit = False
+    for company in companies:
+        company_id = company[0]
+        claude_sonnet_model_ids = connection.execute(
+            sqlalchemy.text(
+                "SELECT id FROM model WHERE name = 'Claude Sonnet 4' AND base_model_id IS NULL AND company_id = :company_id"
+            ),
+            {"company_id": company_id},
+        ).fetchall()
+
+        if len(claude_sonnet_model_ids) == 2:
+            should_commit = True
+            claude_sonnet_model_id_keep = claude_sonnet_model_ids[0][0]
+            claude_sonnet_model_id_remove = claude_sonnet_model_ids[1][0]
+
+            print(
+                f"Keeping Claude Sonnet 4 model with id {claude_sonnet_model_id_keep} and removing {claude_sonnet_model_id_remove}"
+            )
+            connection.execute(
+                sqlalchemy.text(
+                    "UPDATE model SET base_model_id = :claude_sonnet_model_id_keep WHERE base_model_id = :claude_sonnet_model_id_remove"
+                ),
+                {
+                    "claude_sonnet_model_id_remove": claude_sonnet_model_id_remove,
+                    "claude_sonnet_model_id_keep": claude_sonnet_model_id_keep,
+                },
+            )
+            connection.execute(
+                sqlalchemy.text("DELETE FROM model WHERE id = :model_id"),
+                {"model_id": claude_sonnet_model_id_remove},
+            )
     if should_commit:
         connection.commit()
 

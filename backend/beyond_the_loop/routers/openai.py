@@ -801,7 +801,7 @@ async def generate_chat_completion(
 async def generate_prompt(request: Request, form_data: dict, user=Depends(get_verified_user)):
     messages = magic_prompt_util.generate_magic_prompt_messages(form_data["prompt"])
 
-    model = Models.get_model_by_name_and_company("Gemini 2.0 Flash", user.company_id)
+    model = Models.get_model_by_name_and_company("Google 2.5 Flash", user.company_id)
 
     form_data = {
         "model": model.id,
