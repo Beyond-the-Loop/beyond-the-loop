@@ -101,10 +101,10 @@
 			{token.text}
 		{/if}
 	{:else if token.type === 'table'}
-		<div class="relative w-full group">
+		<div class="relative w-full group mb-5">
 			<div class="scrollbar-hidden relative overflow-x-auto max-w-full rounded-lg">
 				<table
-					class=" w-full text-sm text-left text-lightGray-100 dark:text-customGray-100 max-w-full"
+					class=" w-full text-sm text-left text-lightGray-100 dark:text-customGray-100 max-w-full border-collapse"
 				>
 					<thead
 						class="text-sm text-lightGray-100 dark:text-customGray-100 uppercase bg-lightGray-700 dark:bg-[#2d2f2f] border-none"
