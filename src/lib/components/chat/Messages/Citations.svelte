@@ -101,7 +101,7 @@
 				{#each citations as citation, idx}
 					<button
 						id={`source-${citation.source.name}`}
-						class="no-toggle outline-none flex dark:text-gray-300 p-1 bg-white dark:bg-gray-900 rounded-xl max-w-96"
+						class="no-toggle outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-white dark:bg-gray-900 rounded-xl max-w-96"
 						on:click={() => {
 							// In this case the citation comes from the LLM response
 							if (
@@ -123,7 +123,7 @@
 							</div>
 						{/if}
 						<div
-							class="flex-1 mx-1 line-clamp-1 text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white transition"
+							class="flex-1 mx-1 line-clamp-1 text-lightGray-100 dark:text-customGray-100  transition"
 						>
 							{citation.source.name}
 						</div>
@@ -133,7 +133,7 @@
 		{:else}
 			<Collapsible bind:open={isCollapsibleOpen} className="w-full">
 				<div
-					class="flex items-center gap-2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition cursor-pointer"
+					class="flex items-center gap-2 text-lightGray-100 dark:text-customGray-100 transition cursor-pointer"
 				>
 					<div class="flex flex-grow items-center justify-between gap-1 overflow-hidden">
 						<div>
@@ -142,7 +142,7 @@
 							<div class="text-xs font-medium items-center">
 								{#each citations.slice(0, 2) as citation, idx}
 									<button
-										class="no-toggle outline-none mb-1 flex dark:text-gray-300 p-1 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-850 transition rounded-xl max-w-96"
+										class="no-toggle outline-none mb-1 flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
 										on:click={() => {
 											// In this case the citation comes from the LLM response
 											if (
@@ -192,7 +192,7 @@
 					<div class="text-xs font-medium">
 						{#each citations.slice(2) as citation, idx}
 							<button
-								class="no-toggle mb-1 outline-none flex dark:text-gray-300 p-1 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-850 transition rounded-xl max-w-96"
+								class="no-toggle mb-1 outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
 								on:click={() => {
 									// In this case the citation comes from the LLM response
 									if (
