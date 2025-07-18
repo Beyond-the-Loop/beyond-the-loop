@@ -15,7 +15,6 @@ dayjs.extend(localizedFormat);
 
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { TTS_RESPONSE_SPLIT } from '$lib/types';
-
 //////////////////////////
 // Helper functions
 //////////////////////////
@@ -306,10 +305,29 @@ export const formatDate = (inputDate) => {
 	}
 };
 
-export const copyToClipboard = async (text) => {
-	let result = false;
+function linkifyCitations(content, sources) {
+	if (!content || !sources || sources.length === 0) return content;
+	
+	// Regex to match citation markers like [1], [2], etc.
+	const citationRegex = /\[(\d+)]/g;
+	
+	// Replace markers with special tokens that can be processed by the markdown renderer
+	return content.replace(citationRegex, (match, number) => {
+		const citationIndex = parseInt(number, 10) - 1; // Convert to 0-based index
+		if (sources[citationIndex]) {
+			// Create a special token with a data-citation attribute that will be recognized by the renderer
+			return ` [${match}](${sources[citationIndex].source.name} "citation")`;
+		}
+		return match; // If no citation exists, keep it as is
+	});
+}
 
-	const html = marked.parse(text); 
+export const copyToClipboard = async (text, sources) => {
+	let result = false;
+	
+	const processedText = sources ? linkifyCitations(text, sources) : text;
+
+	const html = marked.parse(processedText); 
 
 	if (navigator.clipboard && window.ClipboardItem) {
 		try {
