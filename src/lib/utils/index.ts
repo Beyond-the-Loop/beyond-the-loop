@@ -6,6 +6,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import isToday from 'dayjs/plugin/isToday';
 import isYesterday from 'dayjs/plugin/isYesterday';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
+import { marked } from 'marked';
 
 dayjs.extend(relativeTime);
 dayjs.extend(isToday);
@@ -14,7 +15,6 @@ dayjs.extend(localizedFormat);
 
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { TTS_RESPONSE_SPLIT } from '$lib/types';
-
 //////////////////////////
 // Helper functions
 //////////////////////////
@@ -305,6 +305,23 @@ export const formatDate = (inputDate) => {
 	}
 };
 
+function linkifyCitations(content, sources) {
+	if (!content || !sources || sources.length === 0) return content;
+	
+	// Regex to match citation markers like [1], [2], etc.
+	const citationRegex = /\[(\d+)]/g;
+	
+	// Replace markers with special tokens that can be processed by the markdown renderer
+	return content.replace(citationRegex, (match, number) => {
+		const citationIndex = parseInt(number, 10) - 1; // Convert to 0-based index
+		if (sources[citationIndex]) {
+			// Create a special token with a data-citation attribute that will be recognized by the renderer
+			return ` [${match}](${sources[citationIndex].source.name} "citation")`;
+		}
+		return match; // If no citation exists, keep it as is
+	});
+}
+
 export const copyToClipboard = async (text) => {
 	let result = false;
 	if (!navigator.clipboard) {
@@ -343,6 +360,54 @@ export const copyToClipboard = async (text) => {
 			console.error('Async: Could not copy text: ', error);
 			return false;
 		});
+
+	return result;
+};
+
+export const copyToClipboardResponse = async (text, sources) => {
+	let result = false;
+	
+	const processedText = sources ? linkifyCitations(text, sources) : text;
+
+	const html = marked.parse(processedText); 
+
+	if (navigator.clipboard && window.ClipboardItem) {
+		try {
+			const blobPlain = new Blob([text], { type: 'text/plain' });
+			const blobHtml = new Blob([html], { type: 'text/html' });
+
+			const clipboardItem = new ClipboardItem({
+				"text/plain": blobPlain,
+				"text/html": blobHtml,
+			});
+
+			await navigator.clipboard.write([clipboardItem]);
+			console.log('Clipboard write (with HTML) successful!');
+			result = true;
+		} catch (err) {
+			console.error('Failed to write to clipboard (with HTML)', err);
+		}
+	} else {
+		// Fallback: text-only copy
+		const textArea = document.createElement('textarea');
+		textArea.value = text;
+		textArea.style.top = '0';
+		textArea.style.left = '0';
+		textArea.style.position = 'fixed';
+		document.body.appendChild(textArea);
+		textArea.focus();
+		textArea.select();
+
+		try {
+			const successful = document.execCommand('copy');
+			console.log('Fallback copy was', successful ? 'successful' : 'unsuccessful');
+			result = true;
+		} catch (err) {
+			console.error('Fallback: Unable to copy', err);
+		}
+
+		document.body.removeChild(textArea);
+	}
 
 	return result;
 };
