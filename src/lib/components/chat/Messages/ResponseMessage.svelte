@@ -13,7 +13,7 @@
 	import { synthesizeOpenAISpeech } from '$lib/apis/audio';
 	import { imageGenerations } from '$lib/apis/images';
 	import {
-		copyToClipboard as _copyToClipboard,
+		copyToClipboardResponse,
 		approximateToHumanReadable,
 		getMessageContentParts,
 		sanitizeResponseContent,
@@ -155,7 +155,7 @@
 	let showRateComment = false;
 
 	const copyToClipboard = async (text, sources) => {
-		const res = await _copyToClipboard(text, sources);
+		const res = await copyToClipboardResponse(text, sources);
 		if (res) {
 			toast.success($i18n.t('Copying to clipboard was successful!'));
 		}
