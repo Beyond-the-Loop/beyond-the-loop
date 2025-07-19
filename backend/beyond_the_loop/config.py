@@ -174,26 +174,10 @@ DEFAULT_CONFIG = {
         },
     },
     "image_generation": {
-        "engine": "openai",
+        "engine": "flux",
         "enable": True,
-        "prompt": {"enable": True},
-        "openai": {
-            "api_base_url": "https://api.openai.com/v1",
-            "api_key": os.environ.get("OPENAI_API_KEY", ""),
-        },
-        "automatic1111": {"base_url": "", "api_auth": "", "cfg_scale": None, "sampler": None, "scheduler": None},
-        "comfyui": {"base_url": "", "workflow": "{\n  \"3\": {\n    \"inputs\": {\n      \"seed\": 0,\n      \"steps\": 20,\n      \"cfg\": 8,\n      \"sampler_name\": \"euler\",\n      \"scheduler\": \"normal\",\n      \"denoise\": 1,\n      \"model\": [\n        \"4\",\n        0\n      ],\n      \"positive\": [\n        \"6\",\n        0\n      ],\n      \"negative\": [\n        \"7\",\n        0\n      ],\n      \"latent_image\": [\n        \"5\",\n        0\n      ]\n    },\n    \"class_type\": \"KSampler\",\n    \"_meta\": {\n      \"title\": \"KSampler\"\n    }\n  },\n  \"4\": {\n    \"inputs\": {\n      \"ckpt_name\": \"model.safetensors\"\n    },\n    \"class_type\": \"CheckpointLoaderSimple\",\n    \"_meta\": {\n      \"title\": \"Load Checkpoint\"\n    }\n  },\n  \"5\": {\n    \"inputs\": {\n      \"width\": 512,\n      \"height\": 512,\n      \"batch_size\": 1\n    },\n    \"class_type\": \"EmptyLatentImage\",\n    \"_meta\": {\n      \"title\": \"Empty Latent Image\"\n    }\n  },\n  \"6\": {\n    \"inputs\": {\n      \"text\": \"Prompt\",\n      \"clip\": [\n        \"4\",\n        1\n      ]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": {\n      \"title\": \"CLIP Text Encode (Prompt)\"\n    }\n  },\n  \"7\": {\n    \"inputs\": {\n      \"text\": \"\",\n      \"clip\": [\n        \"4\",\n        1\n      ]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": {\n      \"title\": \"CLIP Text Encode (Prompt)\"\n    }\n  },\n  \"8\": {\n    \"inputs\": {\n      \"samples\": [\n        \"3\",\n        0\n      ],\n      \"vae\": [\n        \"4\",\n        2\n      ]\n    },\n    \"class_type\": \"VAEDecode\",\n    \"_meta\": {\n      \"title\": \"VAE Decode\"\n    }\n  },\n  \"9\": {\n    \"inputs\": {\n      \"filename_prefix\": \"ComfyUI\",\n      \"images\": [\n        \"8\",\n        0\n      ]\n    },\n    \"class_type\": \"SaveImage\",\n    \"_meta\": {\n      \"title\": \"Save Image\"\n    }\n  }\n}"},
-        "nodes": [
-            {"type": "prompt", "key": "text", "node_ids": []},
-            {"type": "model", "key": "ckpt_name", "node_ids": []},
-            {"type": "width", "key": "width", "node_ids": []},
-            {"type": "height", "key": "height", "node_ids": []},
-            {"type": "steps", "key": "steps", "node_ids": []},
-            {"type": "seed", "key": "seed", "node_ids": []},
-        ],
-        "model": "dall-e-3",
-        "size": "1024x1024",
-        "steps": 50,
+        "model": "flux-kontext-pro",
+        "size": "1024x1024"
         },
     }
 
@@ -2072,6 +2056,12 @@ IMAGE_GENERATION_MODEL = PersistentConfig(
     "IMAGE_GENERATION_MODEL",
     "image_generation.model",
     os.getenv("IMAGE_GENERATION_MODEL", ""),
+)
+
+BLACK_FOREST_LABS_API_KEY = PersistentConfig(
+    "BLACK_FOREST_LABS_API_KEY",
+    "image_generation.flux.api_key",
+    os.getenv("BLACK_FOREST_LABS_API_KEY", ""),
 )
 
 ####################################

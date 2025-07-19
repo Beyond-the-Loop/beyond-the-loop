@@ -509,7 +509,6 @@ async def chat_image_generation_handler(
     user_message = get_last_user_message(messages)
 
     prompt = user_message
-    negative_prompt = ""
 
     if request.app.state.config.ENABLE_IMAGE_PROMPT_GENERATION:
         try:
@@ -541,8 +540,6 @@ async def chat_image_generation_handler(
             log.exception(e)
             prompt = user_message
 
-    system_message_content = ""
-
     try:
         images = await image_generations(
             request=request,
@@ -557,6 +554,8 @@ async def chat_image_generation_handler(
             }
         )
 
+        print("Soze of gnerated images", len(images))
+        print(images)
         for image in images:
             await __event_emitter__(
                 {
@@ -565,7 +564,8 @@ async def chat_image_generation_handler(
                 }
             )
 
-        system_message_content = "<context>User is shown the generated image, tell the user that the image has been generated</context>"
+        system_message_content = "<context>An image has been generated and displayed above. Do not generate any image markdown. Simply acknowledge that the image has been generated.</context>"
+
     except Exception as e:
         log.exception(e)
         await __event_emitter__(
@@ -584,6 +584,8 @@ async def chat_image_generation_handler(
         form_data["messages"] = add_or_update_system_message(
             system_message_content, form_data["messages"]
         )
+
+    print(form_data["messages"])
 
     return form_data
 
