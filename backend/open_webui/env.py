@@ -81,7 +81,6 @@ if "cuda_error" in locals():
 
 log_sources = [
     "AUDIO",
-    "COMFYUI",
     "CONFIG",
     "DB",
     "IMAGES",
