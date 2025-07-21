@@ -36,7 +36,9 @@
 		"email_taken": "Uh-oh! This email is already registered. Sign in with your existing account or choose another email to start anew.",
 		"access_prohibited": "You do not have permission to access this resource. Please contact your administrator for assistance.",
 		"not_found": "We could not find what you're looking for :/",
-		"incomplete_invitation": "Your invitation is incomplete. Please complete the invitation process before signing in with OAuth."
+		"incomplete_invitation": "Your invitation is incomplete. Please complete the invitation process before signing in with OAuth.",
+		"no_seats_available": "No seats available for your company. Please contact your administrator to resolve this issue.",
+		"invalid_company_structure": "The company structure is invalid. Please contact support for assistance."
 	};
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
