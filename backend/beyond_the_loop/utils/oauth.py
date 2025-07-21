@@ -226,7 +226,7 @@ class OAuthManager:
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "").lower()
         if not email and provider == "microsoft":
-            email_claim = auth_manager_config.OAUTH_MICROSOFT_ALTERNATIVE_EMAIL_CLAIM
+            email_claim = auth_manager_config.OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM
             email = user_data.get(email_claim, "").lower()
         if not email:
             log.warning(f"OAuth callback failed, email is missing: {user_data}")
