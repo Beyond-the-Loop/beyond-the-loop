@@ -33,6 +33,8 @@ class Company(Base):
     budget_mail_80_sent = Column(Boolean, nullable=True)
     budget_mail_100_sent = Column(Boolean, nullable=True)
     subscription_not_required = Column(Boolean, nullable=True)
+    domain = Column(String, nullable=True)
+    auto_assign_sso_users = Column(Boolean, default=False)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
 
