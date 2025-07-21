@@ -334,4 +334,34 @@ class CompanyTable:
             print(f"Error calculating credit limit for company {company_id}: {e}")
             return 1  # Default fallback value
 
+    def get_company_by_domain(self, domain: str) -> Optional[CompanyModel]:
+        """
+        Get a company by its domain.
+        Returns None if no company is found.
+        """
+        try:
+            with get_db() as db:
+                company = db.query(Company).filter_by(domain=domain).one_or_none()
+                if company:
+                    return CompanyModel.model_validate(company)
+                return None
+        except Exception as e:
+            print(f"Error getting company by domain {domain}: {e}")
+            return None
+
+    def get_company_enabled_auto_assign_sso_users_by_domain(self, domain: str) -> bool:
+        """
+        Get the auto_assign_sso_users setting for a company by its domain.
+        Returns True if auto-assign is enabled, False otherwise.
+        """
+        try:
+            with get_db() as db:
+                company = db.query(Company).filter_by(domain=domain).one_or_none()
+                if company:
+                    return company.auto_assign_sso_users
+                return False
+        except Exception as e:
+            print(f"Error getting auto_assign_sso_users for domain {domain}: {e}")
+            return False  # Default fallback value
+
 Companies = CompanyTable()

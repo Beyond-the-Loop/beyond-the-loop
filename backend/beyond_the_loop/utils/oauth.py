@@ -10,7 +10,7 @@ from starlette.responses import RedirectResponse
 
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.users import Users
-from beyond_the_loop.models.companies import NO_COMPANY
+from beyond_the_loop.models.companies import NO_COMPANY, Companies
 from beyond_the_loop.models.groups import Groups, GroupModel, GroupUpdateForm
 from beyond_the_loop.config import (
     DEFAULT_USER_ROLE,
@@ -68,6 +68,8 @@ class OAUTH_ERROR_CODES:
     ACCESS_PROHIBITED = "access_prohibited"
     NOT_FOUND = "not_found"
     INCOMPLETE_INVITATION = "incomplete_invitation"
+    NO_SEATS_AVAILABLE = "no_seats_available"
+    INVALID_COMPANY_STRUCTURE = "invalid_company_structure"
 
 def redirect_with_error(request, error_code: str):
     redirect_url = f"{request.base_url}login#error={error_code}"
@@ -84,9 +86,6 @@ class OAuthManager:
     def get_user_role(self, user, user_data):
         if user and Users.get_num_users_by_company_id(company_id=user.company_id) == 1:
             # If the user is the only user, assign the role "admin" - actually repairs role for single user on login
-            return "admin"
-        if not user:
-            # If there are no users, assign the role "admin", as the first user will be an admin
             return "admin"
 
         if auth_manager_config.ENABLE_OAUTH_ROLE_MANAGEMENT:
@@ -317,16 +316,39 @@ class OAuthManager:
                     log.warning("Lastname claim is missing, using email as lastname")
                     last_name = email
 
+                domain = email.split("@")[-1]
+                company_id = NO_COMPANY
                 role = self.get_user_role(None, user_data)
+
+                if Companies.get_company_enabled_auto_assign_sso_users_by_domain(domain=domain):
+                    company = Companies.get_company_by_domain(domain=domain)
+
+                    if company:
+                        if not company.subscription_not_required:
+                            from beyond_the_loop.routers.payments import get_subscription
+
+                            admin_user = Users.get_admin_users_by_company(company_id=company.id)
+                            if len(admin_user) < 1:
+                                log.error(f"No admin user found for company {company.id} ({company.name})")
+                                return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_COMPANY_STRUCTURE)
+
+                            subscription_details = await get_subscription(user=admin_user[0])
+                            seats_limit = subscription_details.get("seats", 0)
+                            seats_taken = subscription_details.get("seats_taken", 0)
+                            available_seats = max(0, seats_limit - seats_taken)
+
+                            if available_seats == 0:
+                                log.error(f"No available seats for company {company.id} ({company.name}) for user {email}")
+                                return redirect_with_error(request, OAUTH_ERROR_CODES.NO_SEATS_AVAILABLE)
+
+                        company_id = company.id
 
                 user = Auths.insert_new_auth(
                     email=email,
-                    password=get_password_hash(
-                        str(uuid.uuid4())
-                    ),  # Random password, not used
+                    password=get_password_hash(str(uuid.uuid4())),
                     first_name=first_name,
                     last_name=last_name,
-                    company_id=NO_COMPANY,
+                    company_id=company_id,
                     profile_image_url=picture_url,
                     role=role,
                     oauth_sub=provider_sub,
