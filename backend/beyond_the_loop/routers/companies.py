@@ -4,6 +4,7 @@ import uuid
 from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+import validators
 
 from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
@@ -202,7 +203,15 @@ async def update_company_details(
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
-        
+
+        # make sure domain is unique
+        if "domain" in update_data:
+            if not validators.domain(update_data["domain"]):
+                raise HTTPException(status_code=400, detail="Invalid domain format")
+
+            if Companies.get_company_by_domain(domain=update_data["domain"]):
+                raise HTTPException(status_code=400, detail="Domain already exists for another company")
+
         updated_company = Companies.update_company_by_id(company_id, update_data)
         if not updated_company:
             raise HTTPException(status_code=404, detail="Company not found or update failed")

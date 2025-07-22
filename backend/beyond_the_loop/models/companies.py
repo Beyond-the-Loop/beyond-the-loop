@@ -341,7 +341,7 @@ class CompanyTable:
         """
         try:
             with get_db() as db:
-                company = db.query(Company).filter_by(domain=domain).one_or_none()
+                company = db.query(Company).filter_by(domain=domain).first()
                 if company:
                     return CompanyModel.model_validate(company)
                 return None
@@ -356,7 +356,7 @@ class CompanyTable:
         """
         try:
             with get_db() as db:
-                company = db.query(Company).filter_by(domain=domain).one_or_none()
+                company = db.query(Company).filter_by(domain=domain).first()
                 if company:
                     return company.auto_assign_sso_users
                 return False
