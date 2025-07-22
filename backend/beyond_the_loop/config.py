@@ -1404,6 +1404,11 @@ DEFAULT_CODE_INTERPRETER_PROMPT = """
 
 Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user."""
 
+DEFAULT_AGENT_MODEL = PersistentConfig(
+    "DEFAULT_AGENT_MODEL",
+    "default_agent_model",
+    os.getenv("DEFAULT_AGENT_MODEL", ""),
+)
 
 ####################################
 # Vector Database

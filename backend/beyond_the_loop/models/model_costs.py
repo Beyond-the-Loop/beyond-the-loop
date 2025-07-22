@@ -43,7 +43,6 @@ class ModelCostTable:
 
     def get_cost_per_million_input_tokens_by_model_name(self, model_name: str):
         with get_db() as db:
-            print("MODEL NAAAME", model_name)
             model_cost = db.query(ModelCost).filter_by(model_name=model_name).first()
 
             return model_cost.cost_per_million_input_tokens
