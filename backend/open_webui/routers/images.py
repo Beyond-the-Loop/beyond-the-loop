@@ -36,6 +36,7 @@ class GenerateImageForm(BaseModel):
     size: Optional[str] = None
     n: int = 1
     negative_prompt: Optional[str] = None
+    input_image_data: Optional[str] = None
 
 
 def save_b64_image(b64_str):
@@ -116,8 +117,6 @@ async def image_generations(
 
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
-        print("DIIIIIESE", request.app.state.config.IMAGE_GENERATION_ENGINE)
-
         if request.app.state.config.IMAGE_GENERATION_ENGINE == "flux":
             # Black Forest Labs Flux Kontext Pro
             headers = {
@@ -132,12 +131,13 @@ async def image_generations(
                 from math import gcd
                 ratio_gcd = gcd(w, h)
                 return f"{w // ratio_gcd}:{h // ratio_gcd}"
-            
+
             data = {
                 "prompt": form_data.prompt,
                 "aspect_ratio": calculate_aspect_ratio(width, height),
                 "output_format": "jpeg",
                 "safety_tolerance": 2,
+                "input_image": form_data.input_image_data,
             }
 
             # Add optional parameters if provided
@@ -198,8 +198,6 @@ async def image_generations(
                     credit_service = CreditService()
 
                     await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-pro")
-
-                    print("returned url", [{"url": f"/cache/image/generations/{image_filename}"}])
 
                     return [{"url": f"/cache/image/generations/{image_filename}"}]
 
