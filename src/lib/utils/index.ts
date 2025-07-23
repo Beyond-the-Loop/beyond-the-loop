@@ -308,17 +308,14 @@ export const formatDate = (inputDate) => {
 function linkifyCitations(content, sources) {
 	if (!content || !sources || sources.length === 0) return content;
 	
-	// Regex to match citation markers like [1], [2], etc.
 	const citationRegex = /\[(\d+)]/g;
 	
-	// Replace markers with special tokens that can be processed by the markdown renderer
 	return content.replace(citationRegex, (match, number) => {
-		const citationIndex = parseInt(number, 10) - 1; // Convert to 0-based index
+		const citationIndex = parseInt(number, 10) - 1; 
 		if (sources[citationIndex]) {
-			// Create a special token with a data-citation attribute that will be recognized by the renderer
 			return ` [${match}](${sources[citationIndex].source.name} "citation")`;
 		}
-		return match; // If no citation exists, keep it as is
+		return match; 
 	});
 }
 
@@ -366,10 +363,12 @@ export const copyToClipboard = async (text) => {
 
 export const copyToClipboardResponse = async (text, sources) => {
 	let result = false;
+	console.log(text)
 	
 	const processedText = sources ? linkifyCitations(text, sources) : text;
 
-	const html = marked.parse(processedText); 
+	let html = marked.parse(processedText);
+	html = html.replace(/<table>/g, '<table border="1" style="border-collapse: collapse;">');
 
 	if (navigator.clipboard && window.ClipboardItem) {
 		try {
@@ -404,6 +403,108 @@ export const copyToClipboardResponse = async (text, sources) => {
 			result = true;
 		} catch (err) {
 			console.error('Fallback: Unable to copy', err);
+		}
+
+		document.body.removeChild(textArea);
+	}
+
+	return result;
+};
+
+
+function getTextFromTokens(tokens) {
+	return tokens.map(t => t.raw ?? t.text ?? '').join(' ').trim();
+}
+
+function generateMarkdownTable(token) {
+	const headerTexts = token.header.map((cell) => getTextFromTokens(cell.tokens));
+	const alignments = token.align ?? [];
+	const rows = token.rows ?? [];
+
+	const alignRow = alignments.map((align) => {
+		if (align === 'left') return ':---';
+		if (align === 'center') return ':---:';
+		if (align === 'right') return '---:';
+		return '---';
+	});
+
+	const bodyRows = rows.map((row) => row.map((cell) => getTextFromTokens(cell.tokens)));
+
+	let markdown = `| ${headerTexts.join(' | ')} |\n`;
+	markdown += `| ${alignRow.join(' | ')} |\n`;
+	for (const row of bodyRows) {
+		markdown += `| ${row.join(' | ')} |\n`;
+	}
+
+	return markdown;
+}
+
+function generateTableHTML(token) {
+	let html = `<table border="1" style="border-collapse: collapse;">`;
+
+	html += `<thead><tr>`;
+	for (let i = 0; i < token.header.length; i++) {
+		const cell = token.header[i];
+		const align = token.align?.[i] ?? 'left';
+		const content = getTextFromTokens(cell.tokens);
+		html += `<th style="text-align:${align}; padding: 4px;">${marked.parseInline(content)}</th>`;
+	}
+	html += `</tr></thead>`;
+
+	html += `<tbody>`;
+	for (const row of token.rows ?? []) {
+		html += `<tr>`;
+		for (let i = 0; i < row.length; i++) {
+			const cell = row[i];
+			const align = token.align?.[i] ?? 'left';
+			const content = getTextFromTokens(cell.tokens);
+			html += `<td style="text-align:${align}; padding: 4px;">${marked.parseInline(content)}</td>`;
+		}
+		html += `</tr>`;
+	}
+	html += `</tbody></table>`;
+	return html;
+}
+
+export const copyTableToClipboard = async (token) => {
+	let result = false;
+
+	const markdown = generateMarkdownTable(token);
+	const html = generateTableHTML(token);
+
+	if (navigator.clipboard && window.ClipboardItem) {
+		try {
+			const blobPlain = new Blob([markdown], { type: 'text/plain' });
+			const blobHtml = new Blob([html], { type: 'text/html' });
+
+			const clipboardItem = new ClipboardItem({
+				'text/plain': blobPlain,
+				'text/html': blobHtml
+			});
+
+			await navigator.clipboard.write([clipboardItem]);
+			console.log('Clipboard write (table with HTML) successful!');
+			result = true;
+		} catch (err) {
+			console.error('Failed to copy table (with HTML)', err);
+		}
+	} else {
+		// Fallback: text-only copy
+		const textArea = document.createElement('textarea');
+		textArea.value = plainText;
+		textArea.style.top = '0';
+		textArea.style.left = '0';
+		textArea.style.position = 'fixed';
+		document.body.appendChild(textArea);
+		textArea.focus();
+		textArea.select();
+
+		try {
+			const successful = document.execCommand('copy');
+			console.log('Fallback copy was', successful ? 'successful' : 'unsuccessful');
+			result = true;
+		} catch (err) {
+			console.error('Fallback: Unable to copy table', err);
 		}
 
 		document.body.removeChild(textArea);
