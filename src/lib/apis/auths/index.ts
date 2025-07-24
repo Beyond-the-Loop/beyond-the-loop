@@ -975,7 +975,7 @@ export const getCompanyDetails = async (token: string) => {
 	return res;
 };
 
-export const updateCompanyDetails = async (token: string, name: string, profile_image_url: string) => {
+export const updateCompanyDetails = async (token: string, name: string, profile_image_url: string, domain: string, auto_assign_sso_users: boolean) => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/companies/details`, {
@@ -987,7 +987,9 @@ export const updateCompanyDetails = async (token: string, name: string, profile_
 		credentials: 'include',
 		body: JSON.stringify({
 			name,
-			profile_image_url
+			profile_image_url,
+			domain,
+			auto_assign_sso_users
 		})
 	})
 		.then(async (res) => {

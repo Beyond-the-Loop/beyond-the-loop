@@ -34,6 +34,8 @@
 
 	let profileImageUrl = '';
 	let companyName = '';
+	let domain = '';
+	let autoAssignUsers = false;
 	let loading = false;
 
 	let hideModelLogo = false;
@@ -83,6 +85,8 @@
 	onMount(async () => {
 		companyName = $company?.name;
 		profileImageUrl = $company?.profile_image_url;	
+		domain = $company?.domain;
+		autoAssignUsers = $company?.auto_assign_sso_users;
 		if($companyConfig?.config?.ui?.hide_model_logo_in_chat) {
 			hideModelLogo = $companyConfig?.config?.ui?.hide_model_logo_in_chat;
 		}
@@ -101,7 +105,6 @@
 		// 	userNotice = $companyConfig?.config?.ui?.custom_user_notice;
 		// }
 	}});
-	$: console.log(userNotice, 'user notice')
 
 	const onSubmit = async () => {
 		loading = true;
@@ -109,17 +112,9 @@
 		const promises = [];
 		let companyInfo = null;
 		let companyConfigInfo = null;
-
-		if (companyName !== $company.name || profileImageUrl !== $company?.profile_image_url) {
-			const companyPromise = updateCompanyDetails(localStorage.token, companyName, profileImageUrl)
-				.then((res) => {
-					companyInfo = res;
-				})
-				.catch((error) => {
-					toast.error(`${error}`);
-				});
-			promises.push(companyPromise);
-		}
+	
+		const companyPromise = updateCompanyDetails(localStorage.token, companyName, profileImageUrl, domain, autoAssignUsers)		
+		promises.push(companyPromise);
 
 		const configPromise = updateCompanyConfig(
 			localStorage.token,
@@ -129,25 +124,25 @@
 			userPermissions?.websearch,
 			userPermissions?.image_generation
 		)
-			.then((res) => {
-				companyConfigInfo = res;
-			})
-			.catch((error) => {
-				toast.error(`${error}`);
-			});
 		promises.push(configPromise);
 
-		await Promise.all(promises);
+		try {
+			const [companyInfoRes, companyConfigInfoRes] = await Promise.all(promises);
+			
+			if (companyInfoRes) {
+    			companyInfo = companyInfoRes;
+    			company.set(companyInfo);
+  			}
 
-		if (companyInfo) {
-			company.set(companyInfo);
-		}
-
-		if (companyConfigInfo) {
+			if (companyConfigInfoRes) {
+				companyConfigInfo = companyConfigInfoRes;
+				companyConfig.set(companyConfigInfo);	
+			}
+  			
 			toast.success($i18n.t('Updated successfuly'));
-			companyConfig.set(companyConfigInfo);
+		} catch(error) {
+			toast.error(`${error}`);
 		}
-
 		loading = false;
 	}
 
@@ -478,6 +473,40 @@
 			<span class="text-xs text-lightGray-100/50 dark:text-customGray-100/50">
 				{$i18n.t('The disclaimer is displayed at the bottom of the user interface')}
 			</span>
+		</div>
+	</div>
+	<div class="mt-2.5">
+		<div
+			class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
+			>
+			<div class="flex w-full justify-between items-center">
+				<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Auto-assign SSO Users to Company')}</div>
+			</div>
+		</div>
+		<div class="flex flex-col w-full mb-2.5">
+			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
+				{#if domain}
+					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
+						{$i18n.t('Domain')}
+					</div>
+				{/if}
+				<input
+					class={`px-2.5 text-sm ${domain ? 'pt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-customGray-100 dark:placeholder:text-customGray-100 outline-none`}
+					placeholder={$i18n.t(' Domain')}
+					bind:value={domain}
+				/>
+			</div>
+		</div>
+		<div class="flex items-center mb-2.5">
+			<div class="text-xs dark:text-customGray-590 mr-2.5 cursor-pointer">{$i18n.t('Auto-assign Users via SSO')}</div>	
+			<Switch bind:state={autoAssignUsers} />
+			<div class="text-xs dark:text-customGray-590 ml-2.5">
+				{#if autoAssignUsers}
+					{$i18n.t('On')}
+				{:else}
+					{$i18n.t('Off')}
+				{/if}
+			</div>
 		</div>
 	</div>
 
