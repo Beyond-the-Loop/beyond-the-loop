@@ -193,6 +193,7 @@ async def update_company_details(
     Returns:
         CompanyModel: The updated company details
     """
+    print(form_data, 'form data')
     try:
         company_id = user.company_id
         if not company_id:
@@ -200,6 +201,7 @@ async def update_company_details(
         
         # Create a dict with only the non-None values
         update_data = {k: v for k, v in form_data.dict().items() if v is not None}
+        print(update_data, 'update data')
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")

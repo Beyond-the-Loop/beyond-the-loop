@@ -55,6 +55,8 @@ class CompanyModel(BaseModel):
     budget_mail_80_sent: Optional[bool] = False
     budget_mail_100_sent: Optional[bool] = False
     subscription_not_required: Optional[bool] = False
+    domain: Optional[str] = None
+    auto_assign_sso_users: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,6 +83,8 @@ class UpdateCompanyForm(BaseModel):
     """Request model for updating company details"""
     name: Optional[str] = None
     profile_image_url: Optional[str] = None
+    domain: Optional[str] = None
+    auto_assign_sso_users: Optional[bool] = False 
 
 class CompanyConfigResponse(BaseModel):
     """Response model for company configuration"""
@@ -115,6 +119,7 @@ class CompanyTable:
 
 
     def update_company_by_id(self, id: str, updated: dict) -> Optional[CompanyModel]:
+        print(updated)
         try:
             with get_db() as db:
                 db.query(Company).filter_by(id=id).update(updated)
