@@ -13,6 +13,9 @@
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
 	import CodeEditor from '$lib/components/common/CodeEditor.svelte';
 	import SvgPanZoom from '$lib/components/common/SVGPanZoom.svelte';
+	import { toast } from 'svelte-sonner';
+	import CopyMessageIcon from '$lib/components/icons/CopyMessageIcon.svelte';
+	import Tooltip from '$lib/components/common/Tooltip.svelte';
 
 	const i18n = getContext('i18n');
 	const dispatch = createEventDispatcher();
@@ -69,6 +72,7 @@
 	const copyCode = async () => {
 		copied = true;
 		await copyToClipboard(code);
+		toast.success($i18n.t('Copied code to clipboard!'));
 
 		setTimeout(() => {
 			copied = false;
@@ -546,12 +550,12 @@
 				<pre class="mermaid">{code}</pre>
 			{/if}
 		{:else}
-			<div class="text-lightGray-100 absolute pl-4 py-1 top-1.5 text-sm font-medium dark:text-customGray-100">
+			<div class="text-lightGray-100 absolute pl-4 py-1 top-2 text-sm font-medium dark:text-customGray-100">
 				{lang}
 			</div>
 
 			<div
-				class="sticky {stickyButtonsClassName} mb-1 py-1 pr-2.5 flex items-center justify-end z-10 text-sm text-black dark:text-white"
+				class="{stickyButtonsClassName} mb-1 py-1 pr-2.5 flex items-center justify-end z-10 text-sm text-black dark:text-white"
 			>
 				<div class="flex items-center gap-1 translate-y-[5px]">
 					{#if lang.toLowerCase() === 'python' || lang.toLowerCase() === 'py' || (lang === '' && checkPythonCode(code))}
@@ -568,20 +572,14 @@
 							>
 						{/if}
 					{/if}
-
-					{#if save}
+					<Tooltip content={$i18n.t('Copy')}>
 						<button
-							class="save-code-button bg-none border-none bg-gray-50 hover:bg-white dark:bg-gray-850 dark:hover:bg-gray-800 transition rounded-md px-1.5 py-0.5"
-							on:click={saveCode}
+							class="copy-code-button bg-transparent border-none hover:bg-lightGray-300 dark:hover:bg-customGray-950 transition rounded-md px-1.5 py-1.5 mb-0.5"
+							on:click={copyCode}>
+								<CopyMessageIcon/>
+							</button
 						>
-							{saved ? $i18n.t('Saved') : $i18n.t('Save')}
-						</button>
-					{/if}
-
-					<button
-						class="copy-code-button bg-none border-none bg-gray-50 hover:bg-white dark:bg-gray-850 dark:hover:bg-gray-800 transition rounded-md px-1.5 py-0.5"
-						on:click={copyCode}>{copied ? $i18n.t('Copied') : $i18n.t('Copy')}</button
-					>
+					</Tooltip>
 				</div>
 			</div>
 
