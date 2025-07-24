@@ -557,17 +557,14 @@ async def chat_image_generation_handler(
     if edit_last_image:
         try:
             last_image_path = already_generated_images[-1]
-            print("Last image path:", last_image_path)
             full_image_path = os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/'))
             with open(full_image_path, 'rb') as image_file:
                 image_data = image_file.read()
                 mime_type = mimetypes.guess_type(full_image_path)[0] or 'image/jpeg'
                 base64_data = base64.b64encode(image_data).decode('utf-8')
                 input_image_data = f"data:{mime_type};base64,{base64_data}"
-            log.debug(f"Prepared input image for editing: {last_image_path}")
-        except Exception as e:
-            log.exception(f"Failed to prepare input image for editing: {e}")
-            pass
+        except Exception:
+            pass # input_image_data will remain None
 
     try:
         images = await image_generations(
@@ -591,7 +588,7 @@ async def chat_image_generation_handler(
                 }
             )
 
-        system_message_content = "<context>An image has been generated and displayed above. Do not generate any image markdown. Acknowledge that the image has been generated and tell the user that you can edit the image if he asks you to do so.</context>"
+        system_message_content = "<context>An image has been generated and displayed above. Do not generate any image markdown. Acknowledge that the image has been generated and tell the user in his language,that you can edit the image if he asks you to do so.</context>"
 
     except Exception as e:
         log.exception(e)
