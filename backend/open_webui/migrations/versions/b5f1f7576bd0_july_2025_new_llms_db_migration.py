@@ -260,22 +260,22 @@ def upgrade() -> None:
                 "stats": "replace",
                 "visibility": "show",
             },
-            # "GPT o3": {
-            #     "cost": {
-            #         "cost_per_million_input_tokens": "tbd",
-            #         "cost_per_million_output_tokens": "tbd",
-            #         "cost_per_image": None,
-            #         "cost_per_minute": None,
-            #         "cost_per_million_characters": None,
-            #         "cost_per_million_reasoning_tokens": None,
-            #         "cost_per_thousand_search_queries": None,
-            #     },
-            #     "meta": {},
-            #     "params": {},
-            #     "replace_with": None,
-            #     "stats": "add",
-            #     "visibility": "show",
-            # },
+            "GPT o3": {
+                "cost": {
+                    "cost_per_million_input_tokens": 2,
+                    "cost_per_million_output_tokens": 8,
+                    "cost_per_image": None,
+                    "cost_per_minute": None,
+                    "cost_per_million_characters": None,
+                    "cost_per_million_reasoning_tokens": None,
+                    "cost_per_thousand_search_queries": None,
+                },
+                "meta": {},
+                "params": {},
+                "replace_with": None,
+                "stats": "add",
+                "visibility": "show",
+            },
             "GPT o3-mini": {
                 "cost": {
                     "cost_per_million_input_tokens": 1.21,
