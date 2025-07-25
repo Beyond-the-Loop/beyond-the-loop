@@ -33,10 +33,9 @@ class Company(Base):
     budget_mail_80_sent = Column(Boolean, nullable=True)
     budget_mail_100_sent = Column(Boolean, nullable=True)
     subscription_not_required = Column(Boolean, nullable=True)
-    domain = Column(String, nullable=True)
-    auto_assign_sso_users = Column(Boolean, default=False)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
 
 class CompanyModel(BaseModel):
     id: str
@@ -55,8 +54,6 @@ class CompanyModel(BaseModel):
     budget_mail_80_sent: Optional[bool] = False
     budget_mail_100_sent: Optional[bool] = False
     subscription_not_required: Optional[bool] = False
-    domain: Optional[str] = None
-    auto_assign_sso_users: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -67,6 +64,8 @@ class CompanyModel(BaseModel):
 class CompanyModelForm(BaseModel):
     id: str
     model_id: str
+
+    model_config = ConfigDict(protected_namespaces=())
 
 class CompanyForm(BaseModel):
     company: dict
@@ -83,8 +82,6 @@ class UpdateCompanyForm(BaseModel):
     """Request model for updating company details"""
     name: Optional[str] = None
     profile_image_url: Optional[str] = None
-    domain: Optional[str] = None
-    auto_assign_sso_users: Optional[bool] = False 
 
 class CompanyConfigResponse(BaseModel):
     """Response model for company configuration"""
@@ -338,35 +335,5 @@ class CompanyTable:
         except Exception as e:
             print(f"Error calculating credit limit for company {company_id}: {e}")
             return 1  # Default fallback value
-
-    def get_company_by_domain(self, domain: str) -> Optional[CompanyModel]:
-        """
-        Get a company by its domain.
-        Returns None if no company is found.
-        """
-        try:
-            with get_db() as db:
-                company = db.query(Company).filter_by(domain=domain).first()
-                if company:
-                    return CompanyModel.model_validate(company)
-                return None
-        except Exception as e:
-            print(f"Error getting company by domain {domain}: {e}")
-            return None
-
-    def get_company_enabled_auto_assign_sso_users_by_domain(self, domain: str) -> bool:
-        """
-        Get the auto_assign_sso_users setting for a company by its domain.
-        Returns True if auto-assign is enabled, False otherwise.
-        """
-        try:
-            with get_db() as db:
-                company = db.query(Company).filter_by(domain=domain).first()
-                if company:
-                    return company.auto_assign_sso_users
-                return False
-        except Exception as e:
-            print(f"Error getting auto_assign_sso_users for domain {domain}: {e}")
-            return False  # Default fallback value
 
 Companies = CompanyTable()
