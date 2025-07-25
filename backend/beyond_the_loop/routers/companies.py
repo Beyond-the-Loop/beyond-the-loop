@@ -202,7 +202,7 @@ async def update_company_details(
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
-        
+
         updated_company = Companies.update_company_by_id(company_id, update_data)
         if not updated_company:
             raise HTTPException(status_code=404, detail="Company not found or update failed")

@@ -34,6 +34,8 @@ class ModelCostModel(BaseModel):
     cost_per_million_reasoning_tokens: Optional[float]
     cost_per_thousand_search_queries: Optional[float]
 
+    model_config = ConfigDict(protected_namespaces=())
+
 
 ############################
 # ModelCost Table
