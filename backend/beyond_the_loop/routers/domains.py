@@ -5,6 +5,7 @@ import dns.resolver
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 import validators
 
+from open_webui.constants import ERROR_MESSAGES
 from beyond_the_loop.models.domains import (
     DomainCreateForm,
     DomainModel,
@@ -59,7 +60,7 @@ async def create_domain(form_data: DomainCreateForm, user=Depends(get_admin_user
         log.error(f"Error creating domain: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create domain.",
+            detail=ERROR_MESSAGES.DEFAULT(),
         )
 
 
@@ -70,18 +71,20 @@ async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
         if not domain:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Domain not found.",
+                detail=ERROR_MESSAGES.NOT_FOUND,
             )
 
         if domain.company_id != user.company_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to approve this domain.",
+                detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
             )
 
         try:
             resolve_response = dns.resolver.resolve(domain.domain_fqdn, "TXT")
-            resolve_records = [dns_record.to_text() for dns_record in resolve_response.rrset]
+            resolve_records = [
+                dns_record.to_text() for dns_record in resolve_response.rrset
+            ]
 
             for record in resolve_records:
                 if domain.dns_approval_record in record:
@@ -89,7 +92,7 @@ async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
                 else:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="DNS record does not match the expected value. Please check your DNS settings.",
+                        detail="DNS record not found. Please ensure the TXT record is set up correctly.",
                     )
 
         except dns.resolver.NoAnswer:
@@ -105,5 +108,31 @@ async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
         log.error(f"Error approving domain: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to approve domain.",
+            detail=ERROR_MESSAGES.DEFAULT(),
+        )
+
+
+@router.delete("/delete/{domain_id}", response_model=bool)
+async def delete_domain(domain_id: str, user=Depends(get_admin_user)):
+    try:
+        domain = Domains.get_domain_by_id(domain_id=domain_id)
+
+        if not domain:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.NOT_FOUND
+            )
+
+        if domain.company_id != user.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ERROR_MESSAGES.UNAUTHORIZED,
+            )
+
+        return Domains.delete_domain_by_id(domain_id)
+
+    except Exception as e:
+        log.error(f"Error deleting domain: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
         )
