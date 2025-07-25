@@ -32,7 +32,7 @@
 	function updateInputWidth() {
 		if (ghostRef && inputRef) {
 			ghostRef.textContent = input || ' ';
-			const width = ghostRef.offsetWidth + 10; 
+			const width = ghostRef.offsetWidth + 10;
 			inputRef.style.width = `${width}px`;
 		}
 	}
@@ -48,10 +48,16 @@
 			} else {
 				let fullName = `${user.first_name.toLowerCase()} ${user.last_name.toLowerCase()}`;
 				const query = search.toLowerCase();
-				return fullName?.includes(query);
+				return fullName?.includes(query) || user?.email?.includes(query);
 			}
 		})
-		.slice((page - 1) * 20, page * 20);
+		.slice((page - 1) * 15, page * 15);
+
+	let previousSearch;
+	$: if (previousSearch !== search) {
+		page = 1;
+		previousSearch = search;
+	}
 
 	const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -99,25 +105,30 @@
 
 	const inviteUsersHandler = async () => {
 		const invitees = invitedEmails.map((item) => ({ email: item, role: selectedRole }));
-		const existingGroups = selectedGroups?.filter(group => group.id);
-		const newGroups = selectedGroups?.filter(group => !group.id);
-		const existingGroupsIds= existingGroups?.length > 0 ? existingGroups?.map(group => group.id) : null;
-		const newGroupNames = newGroups?.length > 0 ? newGroups?.map(group => group.name) : null;
-		const res = await inviteUsers(localStorage.token, invitees, existingGroupsIds, newGroupNames).catch((error) =>
-			toast.error(`${error}`)
-		);
-		if (res?.success){
-			toast.success($i18n.t('Invited successfuly'))
+		const existingGroups = selectedGroups?.filter((group) => group.id);
+		const newGroups = selectedGroups?.filter((group) => !group.id);
+		const existingGroupsIds =
+			existingGroups?.length > 0 ? existingGroups?.map((group) => group.id) : null;
+		const newGroupNames = newGroups?.length > 0 ? newGroups?.map((group) => group.name) : null;
+		const res = await inviteUsers(
+			localStorage.token,
+			invitees,
+			existingGroupsIds,
+			newGroupNames
+		).catch((error) => toast.error(`${error}`));
+		if (res?.success) {
+			toast.success($i18n.t('Invited successfuly'));
 			getUsersHandler();
 			getSubscription();
+			page = 1;
 		} else {
-			res?.failed_invites?.forEach(res => {
-				toast.error(`${res.reason}`)
-			})
+			res?.failed_invites?.forEach((res) => {
+				toast.error(`${res.reason}`);
+			});
 		}
-		
+
 		invitedEmails = [];
-		selectedGroups = []
+		selectedGroups = [];
 	};
 	let groups = [];
 	const setGroups = async () => {
@@ -142,7 +153,6 @@
 			getSubscription();
 		}
 	};
-
 </script>
 
 <DeleteConfirmDialog
@@ -156,17 +166,19 @@
 		userToDelete = null;
 	}}
 >
-<div class=" text-sm text-gray-500 flex-1 line-clamp-3">
-	{$i18n.t('This will delete')} <span class="  font-semibold">{userToDelete?.email}</span>.
-</div>
+	<div class=" text-sm text-gray-500 flex-1 line-clamp-3">
+		{$i18n.t('This will delete')} <span class="  font-semibold">{userToDelete?.email}</span>.
+	</div>
 </DeleteConfirmDialog>
 
-<div class="pb-24 min-h-[32rem]">
+<div class="pb-6 min-h-[32rem]">
 	<div
 		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 	>
 		<div class="flex w-full justify-between items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Member Management')}</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">
+				{$i18n.t('Member Management')}
+			</div>
 		</div>
 	</div>
 	<form
@@ -239,15 +251,19 @@
 						: ''} border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 dark:bg-customGray-900 cursor-pointer"
 					on:click={() => (showUsersRoleDropdown = !showUsersRoleDropdown)}
 				>
-					<span class="text-lightGray-100 dark:text-customGray-100">{$i18n.t('User Permissions')}</span>
+					<span class="text-lightGray-100 dark:text-customGray-100"
+						>{$i18n.t('User Permissions')}</span
+					>
 					<div class="flex items-center">
 						<div class="text-xs dark:text-customGray-100/50 max-w-[15rem] text-left">
 							{#if selectedRole === 'user'}
-								<span class="bg-[#99C3A3] dark:bg-[#024D15] rounded-[9px] text-xs text-[#1D7732] dark:text-[#0F8C18] px-2 py-1 w-fit font-medium"
+								<span
+									class="bg-[#99C3A3] dark:bg-[#024D15] rounded-[9px] text-xs text-[#1D7732] dark:text-[#0F8C18] px-2 py-1 w-fit font-medium"
 									>{$i18n.t('User')}</span
 								>
 							{:else}
-								<span class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] text-xs  dark:text-[#7147CD] px-2 py-1 w-fit"
+								<span
+									class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] text-xs dark:text-[#7147CD] px-2 py-1 w-fit"
 									>{$i18n.t('Admin')}</span
 								>
 							{/if}
@@ -273,11 +289,13 @@
 								>
 									<div class="flex items-center">
 										{#if role === 'user'}
-											<span class="bg-[#99C3A3] dark:bg-[#024D15] rounded-[9px] py-[3px] text-xs text-[#1D7732] dark:text-[#0F8C18] px-2 w-fit font-medium"
+											<span
+												class="bg-[#99C3A3] dark:bg-[#024D15] rounded-[9px] py-[3px] text-xs text-[#1D7732] dark:text-[#0F8C18] px-2 w-fit font-medium"
 												>{$i18n.t('User')}</span
 											>
 										{:else}
-											<span class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] py-[3px] text-xs dark:text-[#7147CD] px-2 w-fit"
+											<span
+												class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] py-[3px] text-xs dark:text-[#7147CD] px-2 w-fit"
 												>{$i18n.t('Admin')}</span
 											>
 										{/if}
@@ -332,13 +350,21 @@
 		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 	>
 		<div class="flex w-full justify-start items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300 w-[calc(100%-250px)] font-medium">{$i18n.t('Users')}</div>
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Roles')}</div>
+			<div
+				class="text-xs text-lightGray-100 dark:text-customGray-300 w-[calc(100%-250px)] font-medium"
+			>
+				{$i18n.t('Users')}
+			</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">
+				{$i18n.t('Roles')}
+			</div>
 		</div>
 	</div>
 
 	{#each filteredUsers as user, userIdx (user.id)}
-		<div class="grid grid-cols-[1fr_96px_50px_20px] md:grid-cols-[238px_110px_100px_26px] gap-x-2 mb-2 group cursor-pointer">
+		<div
+			class="grid grid-cols-[1fr_96px_50px_20px] md:grid-cols-[238px_110px_100px_26px] gap-x-2 mb-2 group cursor-pointer"
+		>
 			<div class="flex md:items-center flex-col md:flex-row">
 				<div class="flex items-center shrink-0">
 					<img
@@ -357,12 +383,13 @@
 						</div>
 					{/if}
 				</div>
-				<Tooltip
-					content={user.email}
-					className=" w-fit overflow-hidden"
-					placement="top-end"					>
-					<div class="text-xs dark:text-customGray-590 mr-1 truncate text-ellipsis whitespace-nowrap">{user.email}</div>
-			</Tooltip>
+				<Tooltip content={user.email} className=" w-fit overflow-hidden" placement="top-end">
+					<div
+						class="text-xs dark:text-customGray-590 mr-1 truncate text-ellipsis whitespace-nowrap"
+					>
+						{user.email}
+					</div>
+				</Tooltip>
 			</div>
 			<div class="flex items-center">
 				<div class="relative flex items-start w-fit">
@@ -388,7 +415,8 @@
 									openDropdownIdx = null;
 								}}
 							>
-								<span class="bg-[#99C3A3] dark:bg-[#024D15] rounded-[9px] text-xs text-[#1D7732] dark:text-[#0F8C18] px-2 py-[3px] w-fit font-medium"
+								<span
+									class="bg-[#99C3A3] dark:bg-[#024D15] rounded-[9px] text-xs text-[#1D7732] dark:text-[#0F8C18] px-2 py-[3px] w-fit font-medium"
 									>{$i18n.t('User')}</span
 								>
 							</button>
@@ -399,7 +427,8 @@
 									openDropdownIdx = null;
 								}}
 							>
-								<span class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] text-xs dark:text-[#7147CD] px-2 py-[3px] w-fit"
+								<span
+									class="bg-[#A99EC2] text-[#5D4497] font-medium dark:bg-[#33176E] rounded-[9px] text-xs dark:text-[#7147CD] px-2 py-[3px] w-fit"
 									>{$i18n.t('Admin')}</span
 								>
 							</button>
@@ -413,7 +442,7 @@
 					<div
 						class="self-center rounded-[9px] text-2xs md:text-xs px-2 py-[3px] w-fit font-medium whitespace-nowrap bg-[#B4C1DB] dark:bg-[#113272] text-[#4169B8] dark:text-[#3F70CF]"
 					>
-						{#if ($mobile)}
+						{#if $mobile}
 							{$i18n.t('Pending')}
 						{:else}
 							{$i18n.t('Invite pending')}
@@ -422,12 +451,15 @@
 				{/if}
 			</div>
 			<div class="flex items-center">
-				<InviteMenu {user} {getUsersHandler} {getSubscription}
-				inviteCompleted={user?.first_name !== 'INVITED'}
-				on:deleteUser={() => {
-					showDeleteConfirm = true;
-					userToDelete = user;
-				}}
+				<InviteMenu
+					{user}
+					{getUsersHandler}
+					{getSubscription}
+					inviteCompleted={user?.first_name !== 'INVITED'}
+					on:deleteUser={() => {
+						showDeleteConfirm = true;
+						userToDelete = user;
+					}}
 				>
 					<button
 						type="button"
@@ -440,3 +472,5 @@
 		</div>
 	{/each}
 </div>
+
+<Pagination bind:page count={users.length} />
