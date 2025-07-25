@@ -17,6 +17,8 @@
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import ArrowDownTray from '$lib/components/icons/ArrowDownTray.svelte';
+	import { copyTableToClipboard } from '$lib/utils';
+	import CopyMessageIcon from '$lib/components/icons/CopyMessageIcon.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -67,6 +69,7 @@
 		// Use FileSaver.js's saveAs function to save the generated CSV file.
 		saveAs(blob, `table-${id}-${tokenIdx}.csv`);
 	};
+
 </script>
 
 <!-- {JSON.stringify(tokens)} -->
@@ -152,7 +155,7 @@
 				</table>
 			</div>
 
-			<div class=" absolute top-1 right-1.5 z-20 invisible group-hover:visible">
+			<div class=" absolute top-1 right-1.5 z-20 flex">
 				<Tooltip content={$i18n.t('Export to CSV')}>
 					<button
 						class="p-1 rounded-lg bg-transparent transition"
@@ -163,6 +166,17 @@
 					>
 						<ArrowDownTray className=" size-3.5" strokeWidth="1.5" />
 					</button>
+				</Tooltip>
+				<Tooltip content={$i18n.t('Copy')} placement="bottom">
+				<button
+					class="p-1.5 rounded-lg dark:hover:text-white hover:text-black transition copy-response-button"
+					on:click={(e) => {
+					e.stopPropagation();
+					copyTableToClipboard(token);
+				}}>
+
+					<CopyMessageIcon />
+				</button>
 				</Tooltip>
 			</div>
 		</div>

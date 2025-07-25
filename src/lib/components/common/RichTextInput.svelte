@@ -283,16 +283,24 @@
 							// Extract plain text from clipboard and paste it without formatting
 							const plainText = event.clipboardData.getData('text/plain');
 							if (plainText) {
-								if (largeTextAsFile) {
-									if (plainText.length > PASTED_TEXT_CHARACTER_LIMIT) {
-										// Dispatch paste event to parent component
-										eventDispatch('paste', { event });
-										event.preventDefault();
-										return true;
-									}
-								}
-								return false;
+								event.preventDefault();
+								view.dispatch(
+									view.state.tr.insertText(plainText, view.state.selection.from, view.state.selection.to)
+								);
+
+								return true;
 							}
+							// if (plainText) {
+							// 	if (largeTextAsFile) {
+							// 		if (plainText.length > PASTED_TEXT_CHARACTER_LIMIT) {
+							// 			// Dispatch paste event to parent component
+							// 			eventDispatch('paste', { event });
+							// 			event.preventDefault();
+							// 			return true;
+							// 		}
+							// 	}
+							// 	return false;
+							// }
 
 							// Check if the pasted content contains image files
 							const hasImageFile = Array.from(event.clipboardData.files).some((file) =>

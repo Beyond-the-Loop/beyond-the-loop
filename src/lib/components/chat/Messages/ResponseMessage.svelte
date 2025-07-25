@@ -13,7 +13,7 @@
 	import { synthesizeOpenAISpeech } from '$lib/apis/audio';
 	import { imageGenerations } from '$lib/apis/images';
 	import {
-		copyToClipboard as _copyToClipboard,
+		copyToClipboardResponse,
 		approximateToHumanReadable,
 		getMessageContentParts,
 		sanitizeResponseContent,
@@ -154,8 +154,8 @@
 
 	let showRateComment = false;
 
-	const copyToClipboard = async (text) => {
-		const res = await _copyToClipboard(text);
+	const copyToClipboard = async (text, sources) => {
+		const res = await copyToClipboardResponse(text, sources);
 		if (res) {
 			toast.success($i18n.t('Copying to clipboard was successful!'));
 		}
@@ -854,7 +854,7 @@
 											? 'visible'
 											: 'invisible group-hover:visible'} p-1.5 rounded-lg dark:hover:text-white hover:text-black transition copy-response-button"
 										on:click={() => {
-											copyToClipboard(message.content);
+											copyToClipboard(message.content, message?.sources);
 										}}
 									>
 										<CopyMessageIcon />
