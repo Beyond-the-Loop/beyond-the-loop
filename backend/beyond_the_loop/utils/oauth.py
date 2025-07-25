@@ -8,6 +8,7 @@ from authlib.integrations.starlette_client import OAuth
 from authlib.oidc.core import UserInfo
 from starlette.responses import RedirectResponse
 
+from beyond_the_loop.models.domains import Domains
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import NO_COMPANY, Companies
@@ -320,28 +321,30 @@ class OAuthManager:
                 company_id = NO_COMPANY
                 role = self.get_user_role(None, user_data)
 
-                if Companies.get_company_enabled_auto_assign_sso_users_by_domain(domain=domain):
-                    company = Companies.get_company_by_domain(domain=domain)
+                registered_domain = Domains.get_domain_by_domain_fqdn(domain_fqdn=domain)
 
-                    if company:
-                        if not company.subscription_not_required:
-                            from beyond_the_loop.routers.payments import get_subscription
+                if registered_domain and registered_domain.ownership_approved:
+                        company = Companies.get_company_by_id(company_id=registered_domain.company_id)
 
-                            admin_user = Users.get_admin_users_by_company(company_id=company.id)
-                            if len(admin_user) < 1:
-                                log.error(f"No admin user found for company {company.id} ({company.name})")
-                                return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_COMPANY_STRUCTURE)
+                        if company:
+                            if not company.subscription_not_required:
+                                from beyond_the_loop.routers.payments import get_subscription
 
-                            subscription_details = await get_subscription(user=admin_user[0])
-                            seats_limit = subscription_details.get("seats", 0)
-                            seats_taken = subscription_details.get("seats_taken", 0)
-                            available_seats = max(0, seats_limit - seats_taken)
+                                admin_user = Users.get_admin_users_by_company(company_id=company.id)
+                                if len(admin_user) < 1:
+                                    log.error(f"No admin user found for company {company.id} ({company.name})")
+                                    return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_COMPANY_STRUCTURE)
 
-                            if available_seats == 0:
-                                log.error(f"No available seats for company {company.id} ({company.name}) for user {email}")
-                                return redirect_with_error(request, OAUTH_ERROR_CODES.NO_SEATS_AVAILABLE)
+                                subscription_details = await get_subscription(user=admin_user[0])
+                                seats_limit = subscription_details.get("seats", 0)
+                                seats_taken = subscription_details.get("seats_taken", 0)
+                                available_seats = max(0, seats_limit - seats_taken)
 
-                        company_id = company.id
+                                if available_seats == 0:
+                                    log.error(f"No available seats for company {company.id} ({company.name}) for user {email}")
+                                    return redirect_with_error(request, OAUTH_ERROR_CODES.NO_SEATS_AVAILABLE)
+
+                            company_id = company.id
 
                 user = Auths.insert_new_auth(
                     email=email,
