@@ -29,8 +29,6 @@
 	let inputRef: HTMLInputElement;
 	let ghostRef;
 
-	$: console.log(users?.length, 'length-------------------->');
-
 	function updateInputWidth() {
 		if (ghostRef && inputRef) {
 			ghostRef.textContent = input || ' ';
@@ -122,6 +120,7 @@
 			toast.success($i18n.t('Invited successfuly'));
 			getUsersHandler();
 			getSubscription();
+			page = 1;
 		} else {
 			res?.failed_invites?.forEach((res) => {
 				toast.error(`${res.reason}`);
