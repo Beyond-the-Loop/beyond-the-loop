@@ -17,6 +17,10 @@
 	export let id: string;
 	export let tokens: Token[];
 	export let onSourceClick: Function = () => {};
+
+	const isPlainText = (tokens) => tokens.length === 1 && tokens?.[0]?.type === 'text';
+
+	$: console.log(tokens.filter((item) => item.type === 'link'));
 </script>
 
 {#each tokens as token}
@@ -35,9 +39,21 @@
 		{/if}
 	{:else if token.type === 'link'}
 		{#if token.tokens}
-			<a href={token.href} target="_blank" rel="nofollow" title={token.title}>
-				<svelte:self id={`${id}-a`} tokens={token.tokens} {onSourceClick} />
-			</a>
+			{#if isPlainText(token.tokens)}
+				<a
+					href={token.href}
+					target="_blank"
+					rel="nofollow"
+					title={token.title}
+					class="inline-flex justify-center text-xs leading-0 items-center px-[.4rem] py-[.1875rem] bg-lightGray-400 dark:bg-[#2d2f2f] text-lightGray-100 dark:text-customGray-100 border-lightGray-500 rounded-md mr-1"
+				>
+					{token.tokens[0]?.text.replace(/^\[|\]$/g, '')}
+				</a>
+			{:else}
+				<a href={token.href} target="_blank" rel="nofollow" title={token.title}>
+					<svelte:self id={`${id}-a`} tokens={token.tokens} {onSourceClick} />
+				</a>
+			{/if}
 		{:else}
 			<a href={token.href} target="_blank" rel="nofollow" title={token.title}>{token.text}</a>
 		{/if}
