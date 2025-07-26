@@ -70,7 +70,7 @@ async def create_domain(form_data: DomainCreateForm, user=Depends(get_admin_user
 @router.post("/approve/{domain_id}", response_model=Optional[DomainModel])
 async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
     try:
-        domain = Domains.get_domain_by_id(domain_id)
+        domain = Domains.get_domain_by_id(id=domain_id)
         if not domain:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -84,19 +84,23 @@ async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
             )
 
         try:
-            resolve_response = dns.resolver.resolve(domain.domain_fqdn, "TXT")
-            resolve_records = [
-                dns_record.to_text() for dns_record in resolve_response.rrset
-            ]
+            resolver = dns.resolver.Resolver()
+            resolver.cache = None
+            resolve_response = resolver.resolve(domain.domain_fqdn, "TXT")
 
-            for record in resolve_records:
-                if domain.dns_approval_record in record:
-                    break
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="DNS record not found. Please ensure the TXT record is set up correctly.",
-                    )
+            resolve_records = [dns_record.to_text() for dns_record in resolve_response.rrset]
+
+            if not resolve_records:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="DNS record not found. Please ensure the TXT record is set up correctly.",
+                )
+
+            if f"\"{domain.dns_approval_record}\"" not in resolve_records:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="DNS record does not match the expected approval record.",
+                )
 
         except dns.resolver.NoAnswer:
             raise HTTPException(
@@ -104,7 +108,7 @@ async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
                 detail="DNS record not found. Please ensure the TXT record is set up correctly.",
             )
 
-        updated_domain = Domains.update_ownership_approved_by_id(domain_id)
+        updated_domain = Domains.update_ownership_approved_by_id(id=domain_id)
         return updated_domain
 
     except Exception as e:

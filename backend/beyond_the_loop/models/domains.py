@@ -65,8 +65,6 @@ class DomainCreateForm(BaseModel):
 
 class DomainTable:
     def insert_domain(self, company_id: str, domain_fqdn: str) -> Optional[DomainModel]:
-        print(company_id)
-        print(domain_fqdn)
         try:
             with get_db() as db:
                 domain = DomainModel(
