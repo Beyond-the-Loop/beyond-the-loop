@@ -42,6 +42,8 @@ class DomainModel(BaseModel):
     dns_approval_record: str
     ownership_approved: bool
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 ####################
 # Forms
@@ -63,6 +65,8 @@ class DomainCreateForm(BaseModel):
 
 class DomainTable:
     def insert_domain(self, company_id: str, domain_fqdn: str) -> Optional[DomainModel]:
+        print(company_id)
+        print(domain_fqdn)
         try:
             with get_db() as db:
                 domain = DomainModel(
@@ -74,10 +78,12 @@ class DomainTable:
                         "dns_approval_record": f"beyond-the-loop-{int(time.time())}-{uuid.uuid4()}",
                     }
                 )
-                db.add(domain)
+                result = Domain(**domain.model_dump())
+                db.add(result)
                 db.commit()
-                db.refresh(domain)
-                return DomainModel.model_validate(domain)
+                db.refresh(result)
+                if result:
+                    return DomainModel.model_validate(domain)
         except Exception as e:
             log.error(f"Error creating domain: {e}")
             return None
@@ -86,7 +92,6 @@ class DomainTable:
         try:
             with get_db() as db:
                 query = db.query(Domain).filter_by(company_id=company_id)
-
                 if skip:
                     query = query.offset(skip)
                 if limit:

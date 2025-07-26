@@ -55,7 +55,10 @@ async def create_domain(form_data: DomainCreateForm, user=Depends(get_admin_user
             company_id=user.company_id, domain_fqdn=form_data.domain_fqdn
         )
         return domain
-
+    
+    except HTTPException as http_ex:
+        raise http_ex
+    
     except Exception as e:
         log.error(f"Error creating domain: {e}")
         raise HTTPException(
@@ -115,7 +118,7 @@ async def approve_domain(domain_id: str, user=Depends(get_admin_user)):
 @router.delete("/delete/{domain_id}", response_model=bool)
 async def delete_domain(domain_id: str, user=Depends(get_admin_user)):
     try:
-        domain = Domains.get_domain_by_id(domain_id=domain_id)
+        domain = Domains.get_domain_by_id(domain_id)
 
         if not domain:
             raise HTTPException(
