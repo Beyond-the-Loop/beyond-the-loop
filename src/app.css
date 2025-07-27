@@ -53,7 +53,7 @@ math {
 }
 
 .markdown-prose {
-	@apply prose dark:prose-invert prose-blockquote:border-gray-100 prose-blockquote:dark:border-gray-800 prose-blockquote:border-l-2 prose-blockquote:not-italic prose-blockquote:font-normal  prose-headings:font-semibold prose-hr:my-4 prose-hr:border-gray-100 prose-hr:dark:border-gray-800 prose-p:my-0 prose-img:my-1 prose-headings:my-1 prose-pre:my-0 prose-table:my-0 prose-blockquote:my-0 prose-ul:-my-0 prose-ol:-my-0 prose-li:-my-0 whitespace-pre-line;
+	@apply prose dark:prose-invert prose-blockquote:border-gray-100 prose-blockquote:dark:border-gray-800 prose-blockquote:border-l-2 prose-blockquote:not-italic prose-blockquote:font-normal  prose-headings:font-semibold prose-hr:my-4 prose-hr:border-lightGray-400 prose-hr:dark:border-customGray-700 prose-p:my-0 prose-img:my-1 prose-headings:my-2 prose-pre:my-0 prose-table:my-0 prose-blockquote:my-0 prose-ul:-my-0 prose-ol:-my-0 prose-li:-my-0 whitespace-pre-line;
 }
 
 .markdown-prose-xs {
@@ -231,6 +231,15 @@ input[type='number'] {
 	outline: none;
 }
 
+html.light .cm-gutter {
+	background-color: #F1F1F1;
+}
+
+html.dark .cm-gutter,
+html.dark .cm-content {
+	background-color: #181818;
+}
+
 html.light .tippy-box {
 	@apply rounded-md bg-lightGray-400 text-xs text-lightGray-100 shadow-md;
 }
@@ -391,31 +400,37 @@ html.dark input:-webkit-autofill {
 	-webkit-text-fill-color: white !important;
 	transition: background-color 9999s ease-in-out 0s;
 }
-#response-content-container strong {
+.markdown-prose strong {
 	font-weight: 500;
 }
 
-html.dark #response-content-container li::marker {
+html.dark .markdown-prose li::marker {
 	color: white;
 }
-html.light #response-content-container li::marker {
+html.light .markdown-prose li::marker {
 	color: #232529;
 }
-#response-content-container h1 {
-	font-size: 1.375rem;
+.markdown-prose h1 {
+	font-size: 1.25rem;
 	font-weight: 500;
 }
-#response-content-container h2 {
+.markdown-prose h2 {
 	font-size: 1.125rem;
 	font-weight: 500;
 }
-#response-content-container h3,
-#response-content-container h4
-#response-content-container h5
-#response-content-container h6 {
-	font-size: 1.125rem;
+.markdown-prose h3,
+.markdown-prose h4
+.markdown-prose h5
+.markdown-prose h6 {
+	font-size: 1rem;
 	font-weight: 500;
 }
+
+.markdown-prose li{
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
 	width: 6px;
 }

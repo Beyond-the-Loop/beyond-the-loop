@@ -104,19 +104,19 @@
 			{token.text}
 		{/if}
 	{:else if token.type === 'table'}
-		<div class="relative w-full group">
+		<div class="relative w-full group mb-5">
 			<div class="scrollbar-hidden relative overflow-x-auto max-w-full rounded-lg">
 				<table
-					class=" w-full text-sm text-left text-gray-500 dark:text-gray-400 max-w-full rounded-xl"
+					class=" w-full text-sm text-left text-lightGray-100 dark:text-customGray-100 max-w-full border-collapse"
 				>
 					<thead
-						class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-850 dark:text-gray-400 border-none"
+						class="text-sm text-lightGray-100 dark:text-customGray-100 uppercase bg-lightGray-700 dark:bg-[#2d2f2f] border-none"
 					>
 						<tr class="">
 							{#each token.header as header, headerIdx}
 								<th
 									scope="col"
-									class="!px-3 !py-1.5 cursor-pointer border border-gray-50 dark:border-gray-850"
+									class="!px-2 !py-2 cursor-pointer border border-lightGray-400 dark:border-gray-850"
 									style={token.align[headerIdx] ? '' : `text-align: ${token.align[headerIdx]}`}
 								>
 									<div class="flex flex-col gap-1.5 text-left">
@@ -134,13 +134,13 @@
 					</thead>
 					<tbody>
 						{#each token.rows as row, rowIdx}
-							<tr class="bg-white dark:bg-gray-900 dark:border-gray-850 text-xs">
+							<tr class="bg-transparent dark:border-gray-850 text-sm">
 								{#each row ?? [] as cell, cellIdx}
 									<td
-										class="!px-3 !py-1.5 text-gray-900 dark:text-white w-max border border-gray-50 dark:border-gray-850"
+										class="!px-2 !py-2 text-lightGray-100 dark:text-customGray-100 w-max border border-lightGray-400 dark:border-gray-850"
 										style={token.align[cellIdx] ? '' : `text-align: ${token.align[cellIdx]}`}
 									>
-										<div class="flex flex-col break-normal">
+										<div class="flex-col break-normal">
 											<MarkdownInlineTokens
 												id={`${id}-${tokenIdx}-row-${rowIdx}-${cellIdx}`}
 												tokens={cell.tokens}
