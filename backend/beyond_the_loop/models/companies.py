@@ -116,7 +116,6 @@ class CompanyTable:
 
 
     def update_company_by_id(self, id: str, updated: dict) -> Optional[CompanyModel]:
-        print(updated)
         try:
             with get_db() as db:
                 db.query(Company).filter_by(id=id).update(updated)
