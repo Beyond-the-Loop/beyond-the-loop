@@ -28,6 +28,8 @@
 	import { subscription } from '$lib/stores';
 	import BackIcon from '../icons/BackIcon.svelte';
 	import DomainSettings from './Settings/CompanySettings/DomainSettings.svelte';
+	import DomainSettingsIcon from '../icons/DomainSettingsIcon.svelte';
+
 	
 	const i18n = getContext('i18n');
 
@@ -287,7 +289,7 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col md:flex-row w-full pr-4 md:pr-7 md:space-x-4">
+		<div class="flex flex-col md:flex-row w-full pl-4 md:pl-0 pr-4 md:pr-7 md:space-x-4">
 			{#if selectedTab === null || !$mobile}
 				<div
 					id="settings-tabs-container"
@@ -326,7 +328,7 @@
 						>
 							<div class="flex items-center md:mb-1">
 								<div class=" self-center mr-2">
-									<ProfileIcon/>
+									<DomainSettingsIcon/>
 								</div>
 								<div class=" self-center">{$i18n.t('Domain Settings')}</div>
 							</div>
