@@ -21,7 +21,7 @@ ARG UID=0
 ARG GID=0
 
 ######## WebUI frontend ########
-FROM --platform=${BUILDPLATFORM:-linux/amd64} node:22-slim AS build
+FROM --platform=${BUILDPLATFORM:-linux/amd64} node:22-alpine3.22 AS build
 ARG BUILD_HASH
 
 WORKDIR /app
@@ -37,7 +37,7 @@ ENV APP_BUILD_HASH=${BUILD_HASH}
 RUN npm run build
 
 ######## WebUI backend ########
-FROM python:3.11-slim-bookworm AS base
+FROM python:3.13-alpine3.22 AS base
 
 # Use args
 ARG USE_CUDA
