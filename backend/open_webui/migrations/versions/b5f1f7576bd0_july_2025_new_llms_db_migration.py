@@ -475,7 +475,7 @@ def upgrade() -> None:
                 "stats": "unchanged",
                 "visibility": "show",
             },
-            "flux-kontext-pro": {
+            "flux-kontext-max": {
                 "cost": {
                     "cost_per_million_input_tokens": None,
                     "cost_per_million_output_tokens": None,

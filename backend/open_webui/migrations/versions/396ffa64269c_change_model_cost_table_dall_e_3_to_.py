@@ -1,4 +1,4 @@
-"""Change model_cost table dall-e-3 to flux-kontext-pro
+"""Change model_cost table dall-e-3 to flux-kontext-max
 
 Revision ID: 396ffa64269c
 Revises: fbde9eebf688
@@ -21,11 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # from model_cost table update the entry with the model_name "dall-e-3"
-    # to the model_name "flux-kontext-pro" also set the cost per image to 0.04
+    # to the model_name "flux-kontext-max"
     op.execute(
         """
         UPDATE model_cost
-        SET model_name = 'flux-kontext-pro', cost_per_image = 0.04
+        SET model_name = 'flux-kontext-max'
         WHERE model_name = 'dall-e-3';
         """
     )
