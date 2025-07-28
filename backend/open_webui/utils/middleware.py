@@ -3,27 +3,18 @@ import logging
 import sys
 import os
 import base64
-
+import re
+import mimetypes
 import asyncio
-from aiocache import cached
-from typing import Any, Optional
-import random
+from typing import Optional
 import json
 import html
 import inspect
-import re
 import ast
-
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
-
-
 from fastapi import Request
-from fastapi import BackgroundTasks
-
-from starlette.responses import Response, StreamingResponse
-
-
+from starlette.responses import StreamingResponse
 from open_webui.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from open_webui.socket.main import (
@@ -39,43 +30,33 @@ from open_webui.routers.tasks import (
 )
 from open_webui.routers.retrieval import process_web_search, SearchForm
 from open_webui.routers.images import image_generations, GenerateImageForm
-
-
 from open_webui.utils.webhook import post_webhook
-
-
 from beyond_the_loop.models.users import UserModel
 from open_webui.models.functions import Functions
 from beyond_the_loop.models.models import Models
-
 from open_webui.retrieval.utils import get_sources_from_files
-
-
 from open_webui.utils.chat import generate_chat_completion
+from beyond_the_loop.routers.openai import generate_chat_completion as generate_openai_chat_completion
 from open_webui.utils.task import (
     get_task_model_id,
     rag_template,
     tools_function_calling_generation_template,
 )
 from open_webui.utils.misc import (
-    deep_update,
     get_message_list,
     add_or_update_system_message,
     add_or_update_user_message,
     get_last_user_message,
-    get_last_assistant_message,
     prepend_to_first_user_message_content,
 )
 from open_webui.utils.tools import get_tools
 from open_webui.utils.plugin import load_function_module_by_id
-
-
 from open_webui.tasks import create_task
-
-from open_webui.config import (
+from beyond_the_loop.config import (
     CACHE_DIR,
     DEFAULT_TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     DEFAULT_CODE_INTERPRETER_PROMPT,
+    DEFAULT_AGENT_MODEL,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -509,9 +490,39 @@ async def chat_image_generation_handler(
     user_message = get_last_user_message(messages)
 
     prompt = user_message
-    negative_prompt = ""
 
-    if request.app.state.config.ENABLE_IMAGE_PROMPT_GENERATION:
+    already_generated_images = [
+        re.search(r'/cache/image/generations/[^)\s]+', x["content"]).group(0)
+        for x in messages
+        if x["role"] == "assistant" and "/cache/image/generations/" in x["content"]
+    ]
+
+    edit_last_image = False
+
+    if len(already_generated_images) > 0:
+        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+
+        decision_messages = messages.copy()
+        decision_messages.append({
+            "role": "user",
+            "content": "Please decide if the user wants to edit the last image generated. IMPORTANT: Only respond with 'yes' or 'no' and nothing else."
+        })
+
+        decision_form_data = {
+            "model": model.id,
+            "messages": decision_messages,
+            "stream": False,
+            "metadata": {"chat_id": None},
+            "temperature": 0.0
+        }
+
+        response = await generate_openai_chat_completion(request, decision_form_data, user, None, True)
+
+        response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+
+        edit_last_image = response_message.lower().strip() == 'yes'
+
+    if not edit_last_image and request.app.state.config.ENABLE_IMAGE_PROMPT_GENERATION:
         try:
             res = await generate_image_prompt(
                 request,
@@ -541,12 +552,26 @@ async def chat_image_generation_handler(
             log.exception(e)
             prompt = user_message
 
-    system_message_content = ""
+    input_image_data = None
+
+    if edit_last_image:
+        try:
+            last_image_path = already_generated_images[-1]
+            full_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
+            if not full_image_path.startswith(CACHE_DIR):
+                raise Exception("Access to the specified path is not allowed.")
+            with open(full_image_path, 'rb') as image_file:
+                image_data = image_file.read()
+                mime_type = mimetypes.guess_type(full_image_path)[0] or 'image/jpeg'
+                base64_data = base64.b64encode(image_data).decode('utf-8')
+                input_image_data = f"data:{mime_type};base64,{base64_data}"
+        except Exception:
+            pass # input_image_data will remain None
 
     try:
         images = await image_generations(
             request=request,
-            form_data=GenerateImageForm(**{"prompt": prompt}),
+            form_data=GenerateImageForm(**{"prompt": prompt, "input_image_data": input_image_data}),
             user=user,
         )
 
@@ -565,7 +590,8 @@ async def chat_image_generation_handler(
                 }
             )
 
-        system_message_content = "<context>User is shown the generated image, tell the user that the image has been generated</context>"
+        system_message_content = "<context>An image has been generated and displayed above. Do not generate any image markdown. Acknowledge that the image has been generated and tell the user in his language,that you can edit the image if he asks you to do so.</context>"
+
     except Exception as e:
         log.exception(e)
         await __event_emitter__(
@@ -759,10 +785,11 @@ async def process_chat_payload(request, form_data, metadata, user, model):
                     }
                 )
             else:
-                knowledge_files.append(item)
+                knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
 
         files = form_data.get("files", [])
         files.extend(knowledge_files)
+
         form_data["files"] = files
 
     if model_files:

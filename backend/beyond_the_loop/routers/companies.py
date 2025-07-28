@@ -1,13 +1,27 @@
 import logging
 from typing import Optional
+import uuid
 from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
-from beyond_the_loop.models.companies import Companies, CompanyConfigResponse, CompanyModel, UpdateCompanyConfigRequest, UpdateCompanyForm
+from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS
+from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
+from beyond_the_loop.routers import openai
+from open_webui.constants import ERROR_MESSAGES
+from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
+from beyond_the_loop.models.companies import (
+    Companies,
+    CompanyConfigResponse,
+    CompanyModel,
+    UpdateCompanyConfigRequest,
+    UpdateCompanyForm,
+    CreateCompanyForm,
+)
 from open_webui.utils.auth import get_current_user, get_admin_user
 from open_webui.env import SRC_LOG_LEVELS
-from open_webui.config import save_config, get_config
+from beyond_the_loop.config import save_config, get_config
+from beyond_the_loop.models.users import Users
 
 router = APIRouter()
 
@@ -197,3 +211,92 @@ async def update_company_details(
     except Exception as e:
         log.error(f"Error updating company details: {e}")
         raise HTTPException(status_code=500, detail=f"Error updating company details: {str(e)}")
+
+
+############################
+# Company Creation
+############################
+
+@router.post("/create", response_model=CompanyModel)
+async def create_company(
+    request: Request,
+    form_data: CreateCompanyForm,
+    user=Depends(get_current_user),
+):
+    try:
+        company_id = str(uuid.uuid4())
+        Companies.create_company(
+            {
+                "id": company_id,
+                "name": form_data.company_name,
+                "credit_balance": INITIAL_CREDIT_BALANCE,
+                "size": form_data.company_size,
+                "industry": form_data.company_industry,
+                "team_function": form_data.company_team_function,
+                "profile_image_url": form_data.company_profile_image_url,
+            }
+        )
+        Users.update_company_by_id(user.id, company_id)
+
+        # Save default config for the new company
+        from beyond_the_loop.config import save_config, DEFAULT_CONFIG
+        save_config(DEFAULT_CONFIG, company_id)
+
+        # Create model entries in DB based on the LiteLLM models
+        if request.app.state.config.ENABLE_OPENAI_API:
+            openai_models = await openai.get_all_models(request)
+            openai_models = openai_models["data"]
+
+            # Register OpenAI models in the database if they don't exist
+            for model in openai_models:
+                Models.insert_new_model(
+                    ModelForm(
+                        id=str(uuid.uuid4()),
+                        name=model[
+                            "id"
+                        ],  # Use ID as name since OpenAI models don't have separate names
+                        meta=ModelMeta(
+                            description="OpenAI model",
+                            profile_image_url="/static/favicon.png",
+                        ),
+                        params=ModelParams(),
+                        access_control=None,  # None means public access
+                    ),
+                    user_id=user.id,
+                    company_id=company_id,
+                )
+
+        # Create Stripe customer for the new company
+        from beyond_the_loop.routers.payments import stripe
+
+        # Create a Stripe customer for the company (without payment details)
+        stripe_customer = stripe.Customer.create(
+            email=user.email,
+            name=form_data.company_name,
+            metadata={"company_id": company_id},
+        )
+
+        # Update company with Stripe customer ID
+        company = Companies.update_company_by_id(
+            company_id, {"stripe_customer_id": stripe_customer.id}
+        )
+
+        # Create the subscription with the price
+        stripe.Subscription.create(
+            customer=stripe_customer.id,
+            trial_period_days=7,  # 7-day trial
+            trial_settings={
+                "end_behavior": {
+                    "missing_payment_method": "cancel"  # Cancel when trial ends if no payment method
+                }
+            },
+            items=[{"price": SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
+        )
+
+        return company
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=e,
+        )

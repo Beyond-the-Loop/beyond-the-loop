@@ -29,6 +29,7 @@
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { createUser } from '$lib/apis/users';
+	import { theme, systemTheme } from '$lib/stores';
 	const dispatch = createEventDispatcher();
 
 	const i18n = getContext('i18n');
@@ -37,15 +38,17 @@
 	let loading = false;
 
 	async function registerEmail() {
+		loading = true;
 		const user = await createUser(email).catch(error => {
 			showToast('error', error);
-		});
+		}).finally(() => loading = false);
 		dispatch('next', { email: user.email });
 	}
 	let logoSrc = '/logo_light.png';
 
 	onMount(() => {
-		const isDark = localStorage.getItem('theme') === 'dark';
+		const theme = $theme === "system" ? $systemTheme : $theme;
+		const isDark = theme === 'dark';
 		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
 	});
 </script>
@@ -61,7 +64,7 @@
 >
 	<div class="self-center flex flex-col items-center mb-5">
 		<div>
-			<img crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
+			<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
 		</div>
 		<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">{$i18n.t('Create Your Account')}</div>
 		<div class="text-center text-xs font-medium text-[#8A8B8D] dark:text-customGray-300">
@@ -104,12 +107,13 @@
 		{$i18n.t('Already have an account?')}
 		<a href="/login" class="text-customBlue-500 font-medium">{$i18n.t('Log in')}</a>
 	</div>
-	<!-- <hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
+	<hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
 	<div class="text-xs dark:text-customGray-300 text-center font-medium mb-2.5">Or</div>
 	<div class="flex flex-col space-y-2">
 		{#if $config?.oauth?.providers?.google}
 			<button
-				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-customGray-700"
+				type="button"
+				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
 				on:click={() => {
 					window.location.href = `${WEBUI_BASE_URL}/oauth/google/login`;
 				}}
@@ -134,7 +138,8 @@
 		{/if}
 		{#if $config?.oauth?.providers?.microsoft}
 			<button
-				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-customGray-700"
+				type="button"
+				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
 				on:click={() => {
 					window.location.href = `${WEBUI_BASE_URL}/oauth/microsoft/login`;
 				}}
@@ -157,5 +162,5 @@
 				<span>{$i18n.t('Continue with {{provider}}', { provider: 'Microsoft' })}</span>
 			</button>
 		{/if}
-	</div> -->
+	</div>
 </form>

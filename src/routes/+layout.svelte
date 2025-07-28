@@ -27,7 +27,8 @@
 		isApp,
 		appInfo,
 		company,
-		companyConfig
+		companyConfig,
+		systemTheme
 	} from '$lib/stores';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -402,11 +403,11 @@
 
 					const [companyInfo, companyConfigInfo] = await Promise.all([
 						getCompanyDetails(localStorage.token).catch((error) => {
-							toast.error(`${error}`);
+							// toast.error(`${error}`);
 							return null;
 						}),
 						getCompanyConfig(localStorage.token).catch((error) => {
-							toast.error(`${error}`);
+							// toast.error(`${error}`);
 							return null;
 						})
 					]);
@@ -436,8 +437,8 @@
 				} else {
 					// Don't redirect if we're already on the auth page
 					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/auth') {
-						// await goto('/auth');
+					if ($page.url.pathname !== '/login' && $page.url.pathname !== '/register' && $page.url.pathname !== '/signup') {
+						await goto('/login');
 					}
 				}
 			}
@@ -474,6 +475,7 @@
 
 			loaded = true;
 		} else {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
 			document.getElementById('splash-screen')?.remove();
 			loaded = true;
 		}
@@ -482,6 +484,28 @@
 			window.removeEventListener('resize', onResize);
 		};
 	});
+	
+	let systemThemeQuery;
+
+	onMount(() => {
+		let colorSchema = ''
+		systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+		colorSchema = systemThemeQuery.matches ? 'dark' : 'light';
+		systemTheme.set(colorSchema);
+
+		const handleSystemThemeChange = (e) => {
+			colorSchema = e.matches ? 'dark' : 'light';
+			systemTheme.set(colorSchema);
+		};
+
+		systemThemeQuery.addEventListener('change', handleSystemThemeChange);
+
+		return () => {
+			systemThemeQuery.removeEventListener('change', handleSystemThemeChange);
+		}	
+	});
+ 
 </script>
 
 <svelte:head>

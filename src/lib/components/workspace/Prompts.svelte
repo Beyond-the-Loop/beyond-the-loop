@@ -12,7 +12,8 @@
 		user,
 		showSidebar,
 		mobile,
-		theme
+		theme,
+		systemTheme
 	} from '$lib/stores';
 
 	import {
@@ -65,11 +66,11 @@
 
 	let loadingBookmark = null;
 
-	// $: if (prompts) {
-	// 	tags = Array.from(
-	// 		new Set(prompts.flatMap((p) => p.meta?.tags?.map((t) => t.name) || []))
-	// 	);
-	// }
+	$: if (prompts) {
+		tags = Array.from(
+			new Set(prompts.flatMap((p) => p.meta?.tags?.map((t) => t.name) || []))
+		);
+	}
 
 	onMount(async () => {
 		groupsForPrompts = await getGroups(localStorage.token);
@@ -134,6 +135,7 @@
 	const deleteHandler = async (prompt) => {
 		const command = prompt.command;
 		await deletePromptByCommand(localStorage.token, command);
+		selectedTags.clear();
 		await init();
 	};
 
@@ -142,14 +144,8 @@
 		await _prompts.set(await getPrompts(localStorage.token));
 	};
 
-	const getTags = async () => {
-		const res = await getUserTagsForPrompts(localStorage.token);
-		tags = res.filter((tag) => tag.is_system).map((tag) => tag.name);
-	};
-
 	onMount(async () => {
 		await init();
-		await getTags();
 		loaded = true;
 	});
 
@@ -312,9 +308,9 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										$theme === 'light' ? tagColorsLight[i % tagColorsLight.length] : ''
+										($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
 									}`}
-									class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-customViolet-200' : 'bg-lightGray-400 dark:bg-customGray-800'} dark:text-white`}
+									class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 dark:bg-customGray-800'} dark:text-white`}
 									on:click={() => {
 										selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
 										selectedTags = new Set(selectedTags);
@@ -335,9 +331,9 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									$theme === 'light' ? tagColorsLight[i % tagColorsLight.length] : ''
+									($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
 								}`}
-								class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-customViolet-200' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customBlue-800'} dark:text-white`}
+								class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customBlue-800'} dark:text-white`}
 								on:click={() => {
 									selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
 									selectedTags = new Set(selectedTags);
@@ -539,7 +535,7 @@
 								<div
 									class="text-xs line-clamp-1 text-lightGray-1200 dark:text-customGray-100/50 text-left"
 								>
-									{prompt.description}
+									{prompt.description ? prompt.description : prompt.content}
 								</div>
 							</button>
 						</div>

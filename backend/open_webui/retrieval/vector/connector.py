@@ -1,4 +1,4 @@
-from open_webui.config import VECTOR_DB
+from beyond_the_loop.config import VECTOR_DB
 
 if VECTOR_DB == "milvus":
     from open_webui.retrieval.vector.dbs.milvus import MilvusClient

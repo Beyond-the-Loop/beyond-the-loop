@@ -686,7 +686,7 @@
 					console.log($companyConfig?.config?.models?.DEFAULT_MODELS);
 					selectedModels = $companyConfig?.config?.models?.DEFAULT_MODELS?.split(',');
 				} else {
-					const gptDefault = $models?.find(item => item.name === 'GPT 4o-mini')
+					const gptDefault = $models?.find(item => item.name === 'GPT-4.1 mini')
 					selectedModels = [gptDefault?.id];
 				}
 			//}
@@ -1639,6 +1639,9 @@
 			history.messages[responseMessageId] = responseMessage;
 			history.currentId = responseMessageId;
 			return null;
+		}).finally(() => {
+			webSearchEnabled = false;
+			imageGenerationEnabled = false;
 		});
 
 		console.log(res);

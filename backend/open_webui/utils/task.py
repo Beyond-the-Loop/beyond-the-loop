@@ -9,7 +9,7 @@ import uuid
 from open_webui.utils.misc import get_last_user_message, get_messages_content
 
 from open_webui.env import SRC_LOG_LEVELS
-from open_webui.config import DEFAULT_RAG_TEMPLATE
+from beyond_the_loop.config import DEFAULT_RAG_TEMPLATE
 
 
 log = logging.getLogger(__name__)

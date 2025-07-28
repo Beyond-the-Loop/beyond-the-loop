@@ -19,7 +19,8 @@
 		settings,
 		user,
 		showSidebar,
-		theme
+		theme,
+		systemTheme
 	} from '$lib/stores';
 	import {
 		bookmarkModel,
@@ -77,20 +78,11 @@
 	let accessFilter = 'all';
 	let groupsForModels;
 
-	const getTags = async () => {
-		const res = await getUserTagsForModels(localStorage.token);
-		tags = res.filter((tag) => tag.is_system).map((tag) => tag.name);
-	};
-
-	onMount(async () => {
-		await getTags();
-	});
-
-	// $: if (models) {
-	// 	tags = Array.from(
-	// 		new Set(models.flatMap((m) => m.meta?.tags?.map((t) => t.name.toLowerCase()) || []))
-	// 	);
-	// }
+	$: if (models) {
+		tags = Array.from(
+			new Set(models.flatMap((m) => m.meta?.tags?.map((t) => t.name) || []))
+		);
+	}
 
 	$: if (models) {
 		filteredModels = models.filter((m) => {
@@ -132,6 +124,7 @@
 
 		await _models.set(await getModels(localStorage.token));
 		models = await getWorkspaceModels(localStorage.token);
+		selectedTags.clear();
 	};
 
 	const cloneModelHandler = async (model) => {
@@ -313,6 +306,7 @@
 		}
 		loadingBookmark = null;
 	};
+	
 </script>
 
 <svelte:head>
@@ -420,9 +414,9 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										$theme === 'light' ? tagColorsLight[i % tagColorsLight.length] : ''
+										(($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag)) ? tagColorsLight[i % tagColorsLight.length] : ''
 									}`}
-									class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-customViolet-200 dark:bg-customBlue-800' : 'bg-lightGray-400  dark:bg-customGray-800 '} font-medium text-lightGray-100 dark:text-white`}
+									class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-[#A6B9FF] text-white dark:bg-customBlue-800' : 'bg-lightGray-400  dark:bg-customGray-800 '} font-medium text-lightGray-100 dark:text-white`}
 									on:click={() => {
 										selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
 										selectedTags = new Set(selectedTags);
@@ -443,9 +437,9 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									$theme === 'light' ? tagColorsLight[i % tagColorsLight.length] : ''
+									(($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag)) ? tagColorsLight[i % tagColorsLight.length] : ''
 								}`}
-								class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-customViolet-200 dark:bg-customBlue-800' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customGray-950'} font-medium text-lightGray-100 dark:text-white`}
+								class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-[#A6B9FF] text-white dark:bg-customBlue-800' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customGray-950'} font-medium text-lightGray-100 dark:text-white`}
 								on:click={() => {
 									selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
 									selectedTags = new Set(selectedTags);

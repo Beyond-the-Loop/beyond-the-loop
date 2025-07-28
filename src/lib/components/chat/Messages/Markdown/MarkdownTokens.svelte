@@ -17,6 +17,8 @@
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import ArrowDownTray from '$lib/components/icons/ArrowDownTray.svelte';
+	import { copyTableToClipboard } from '$lib/utils';
+	import CopyMessageIcon from '$lib/components/icons/CopyMessageIcon.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -67,6 +69,7 @@
 		// Use FileSaver.js's saveAs function to save the generated CSV file.
 		saveAs(blob, `table-${id}-${tokenIdx}.csv`);
 	};
+
 </script>
 
 <!-- {JSON.stringify(tokens)} -->
@@ -101,19 +104,19 @@
 			{token.text}
 		{/if}
 	{:else if token.type === 'table'}
-		<div class="relative w-full group">
+		<div class="relative w-full group mb-5">
 			<div class="scrollbar-hidden relative overflow-x-auto max-w-full rounded-lg">
 				<table
-					class=" w-full text-sm text-left text-gray-500 dark:text-gray-400 max-w-full rounded-xl"
+					class=" w-full text-sm text-left text-lightGray-100 dark:text-customGray-100 max-w-full border-collapse"
 				>
 					<thead
-						class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-850 dark:text-gray-400 border-none"
+						class="text-sm text-lightGray-100 dark:text-customGray-100 uppercase bg-lightGray-700 dark:bg-[#2d2f2f] border-none"
 					>
 						<tr class="">
 							{#each token.header as header, headerIdx}
 								<th
 									scope="col"
-									class="!px-3 !py-1.5 cursor-pointer border border-gray-50 dark:border-gray-850"
+									class="!px-2 !py-2 cursor-pointer border border-lightGray-400 dark:border-gray-850"
 									style={token.align[headerIdx] ? '' : `text-align: ${token.align[headerIdx]}`}
 								>
 									<div class="flex flex-col gap-1.5 text-left">
@@ -131,13 +134,13 @@
 					</thead>
 					<tbody>
 						{#each token.rows as row, rowIdx}
-							<tr class="bg-white dark:bg-gray-900 dark:border-gray-850 text-xs">
+							<tr class="bg-transparent dark:border-gray-850 text-sm">
 								{#each row ?? [] as cell, cellIdx}
 									<td
-										class="!px-3 !py-1.5 text-gray-900 dark:text-white w-max border border-gray-50 dark:border-gray-850"
+										class="!px-2 !py-2 text-lightGray-100 dark:text-customGray-100 w-max border border-lightGray-400 dark:border-gray-850"
 										style={token.align[cellIdx] ? '' : `text-align: ${token.align[cellIdx]}`}
 									>
-										<div class="flex flex-col break-normal">
+										<div class="flex-col break-normal">
 											<MarkdownInlineTokens
 												id={`${id}-${tokenIdx}-row-${rowIdx}-${cellIdx}`}
 												tokens={cell.tokens}
@@ -152,7 +155,7 @@
 				</table>
 			</div>
 
-			<div class=" absolute top-1 right-1.5 z-20 invisible group-hover:visible">
+			<div class=" absolute top-1 right-1.5 z-20 flex">
 				<Tooltip content={$i18n.t('Export to CSV')}>
 					<button
 						class="p-1 rounded-lg bg-transparent transition"
@@ -163,6 +166,17 @@
 					>
 						<ArrowDownTray className=" size-3.5" strokeWidth="1.5" />
 					</button>
+				</Tooltip>
+				<Tooltip content={$i18n.t('Copy')} placement="bottom">
+				<button
+					class="p-1.5 rounded-lg dark:hover:text-white hover:text-black transition copy-response-button"
+					on:click={(e) => {
+					e.stopPropagation();
+					copyTableToClipboard(token);
+				}}>
+
+					<CopyMessageIcon />
+				</button>
 				</Tooltip>
 			</div>
 		</div>

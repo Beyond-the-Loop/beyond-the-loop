@@ -67,6 +67,13 @@ class CompanyModelForm(BaseModel):
 class CompanyForm(BaseModel):
     company: dict
 
+class CreateCompanyForm(BaseModel):
+    """Request model for creating a new company"""
+    company_name: str
+    company_size: str
+    company_industry: str
+    company_team_function: str
+    company_profile_image_url: Optional[str] = "/user.png"
 
 class UpdateCompanyForm(BaseModel):
     """Request model for updating company details"""
@@ -307,7 +314,7 @@ class CompanyTable:
                     return 1  # No active subscription
                 
                 subscription = subscriptions.data[0]
-                plan_id = subscription.metadata.get('plan_id', 'free')
+                plan_id = subscription.metadata.get('plan_id')
                 
                 # Import here to avoid circular imports
                 from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS

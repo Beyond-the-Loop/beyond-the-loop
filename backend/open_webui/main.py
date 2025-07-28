@@ -77,7 +77,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import auths
 from beyond_the_loop.routers import analytics
 
-from open_webui.config import (
+from beyond_the_loop.config import (
     # Ollama
     ENABLE_OLLAMA_API,
     OLLAMA_BASE_URLS,
@@ -88,23 +88,13 @@ from open_webui.config import (
     OPENAI_API_KEYS,
     OPENAI_API_CONFIGS,
     # Image
-    AUTOMATIC1111_API_AUTH,
-    AUTOMATIC1111_BASE_URL,
-    AUTOMATIC1111_CFG_SCALE,
-    AUTOMATIC1111_SAMPLER,
-    AUTOMATIC1111_SCHEDULER,
-    COMFYUI_BASE_URL,
-    COMFYUI_API_KEY,
-    COMFYUI_WORKFLOW,
-    COMFYUI_WORKFLOW_NODES,
+    BLACK_FOREST_LABS_API_KEY,
     ENABLE_IMAGE_GENERATION,
     ENABLE_IMAGE_PROMPT_GENERATION,
     IMAGE_GENERATION_ENGINE,
     IMAGE_GENERATION_MODEL,
     IMAGE_SIZE,
     IMAGE_STEPS,
-    IMAGES_OPENAI_API_BASE_URL,
-    IMAGES_OPENAI_API_KEY,
     # Audio
     AUDIO_STT_ENGINE,
     AUDIO_STT_MODEL,
@@ -282,7 +272,7 @@ from open_webui.utils.auth import (
     get_admin_user,
     get_verified_user,
 )
-from open_webui.utils.oauth import oauth_manager
+from beyond_the_loop.utils.oauth import oauth_manager
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
@@ -433,7 +423,6 @@ app.state.config.LDAP_USE_TLS = LDAP_USE_TLS
 app.state.config.LDAP_CA_CERT_FILE = LDAP_CA_CERT_FILE
 app.state.config.LDAP_CIPHERS = LDAP_CIPHERS
 
-
 app.state.AUTH_TRUSTED_EMAIL_HEADER = WEBUI_AUTH_TRUSTED_EMAIL_HEADER
 app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 
@@ -561,20 +550,9 @@ app.state.config.IMAGE_GENERATION_ENGINE = IMAGE_GENERATION_ENGINE
 app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
 app.state.config.ENABLE_IMAGE_PROMPT_GENERATION = ENABLE_IMAGE_PROMPT_GENERATION
 
-app.state.config.IMAGES_OPENAI_API_BASE_URL = IMAGES_OPENAI_API_BASE_URL
-app.state.config.IMAGES_OPENAI_API_KEY = IMAGES_OPENAI_API_KEY
-
 app.state.config.IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODEL
 
-app.state.config.AUTOMATIC1111_BASE_URL = AUTOMATIC1111_BASE_URL
-app.state.config.AUTOMATIC1111_API_AUTH = AUTOMATIC1111_API_AUTH
-app.state.config.AUTOMATIC1111_CFG_SCALE = AUTOMATIC1111_CFG_SCALE
-app.state.config.AUTOMATIC1111_SAMPLER = AUTOMATIC1111_SAMPLER
-app.state.config.AUTOMATIC1111_SCHEDULER = AUTOMATIC1111_SCHEDULER
-app.state.config.COMFYUI_BASE_URL = COMFYUI_BASE_URL
-app.state.config.COMFYUI_API_KEY = COMFYUI_API_KEY
-app.state.config.COMFYUI_WORKFLOW = COMFYUI_WORKFLOW
-app.state.config.COMFYUI_WORKFLOW_NODES = COMFYUI_WORKFLOW_NODES
+app.state.config.BLACK_FOREST_LABS_API_KEY = BLACK_FOREST_LABS_API_KEY
 
 app.state.config.IMAGE_SIZE = IMAGE_SIZE
 app.state.config.IMAGE_STEPS = IMAGE_STEPS
@@ -925,7 +903,7 @@ async def get_app_config(request: Request):
 
     onboarding = False
     if user is None:
-        user_count = Users.get_num_users()
+        user_count = 0
         onboarding = user_count == 0
 
     return {

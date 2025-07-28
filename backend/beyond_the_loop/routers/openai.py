@@ -16,15 +16,14 @@ from starlette.background import BackgroundTask
 
 from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.completions import Completions
-from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.services.credit_service import CreditService
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
 
-from open_webui.config import (
+from beyond_the_loop.config import (
     CACHE_DIR,
 )
+from beyond_the_loop.config import DEFAULT_AGENT_MODEL
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
@@ -550,7 +549,7 @@ async def generate_chat_completion(
     form_data: dict,
     user=Depends(get_verified_user),
     bypass_filter: Optional[bool] = False,
-    magic_prompt: Optional[bool] = False
+    agent_prompt: Optional[bool] = False
 ):
     global credit_service
     if BYPASS_MODEL_ACCESS_CONTROL:
@@ -579,7 +578,7 @@ async def generate_chat_completion(
     if (model_name == "Mistral Large 2"):
         payload["stream"] = False
 
-    if has_chat_id or magic_prompt:
+    if has_chat_id or agent_prompt:
         credit_service = CreditService()
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
@@ -801,7 +800,7 @@ async def generate_chat_completion(
 async def generate_prompt(request: Request, form_data: dict, user=Depends(get_verified_user)):
     messages = magic_prompt_util.generate_magic_prompt_messages(form_data["prompt"])
 
-    model = Models.get_model_by_name_and_company("Gemini 2.0 Flash", user.company_id)
+    model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
     form_data = {
         "model": model.id,

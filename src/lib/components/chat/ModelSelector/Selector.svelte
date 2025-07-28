@@ -522,7 +522,7 @@
 					>
 						<div class="py-1.5 border-b dark:border-customGray-700 last:border-b-0">
 							<p class="text-xs dark:text-customGray-100">
-								{modelsInfo?.[hoveredItem?.label]?.description}
+								{$i18n.t(modelsInfo?.[hoveredItem?.label]?.description)}
 							</p>
 						</div>
 						{#if modelsInfo?.[hoveredItem?.label]?.organization}
