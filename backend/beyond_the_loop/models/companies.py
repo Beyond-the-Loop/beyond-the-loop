@@ -35,6 +35,7 @@ class Company(Base):
     subscription_not_required = Column(Boolean, nullable=True)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
 
 class CompanyModel(BaseModel):
     id: str
@@ -63,6 +64,8 @@ class CompanyModel(BaseModel):
 class CompanyModelForm(BaseModel):
     id: str
     model_id: str
+
+    model_config = ConfigDict(protected_namespaces=())
 
 class CompanyForm(BaseModel):
     company: dict

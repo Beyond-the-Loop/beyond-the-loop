@@ -557,7 +557,9 @@ async def chat_image_generation_handler(
     if edit_last_image:
         try:
             last_image_path = already_generated_images[-1]
-            full_image_path = os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/'))
+            full_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
+            if not full_image_path.startswith(CACHE_DIR):
+                raise Exception("Access to the specified path is not allowed.")
             with open(full_image_path, 'rb') as image_file:
                 image_data = image_file.read()
                 mime_type = mimetypes.guess_type(full_image_path)[0] or 'image/jpeg'

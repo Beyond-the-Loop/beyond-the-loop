@@ -62,6 +62,7 @@ from beyond_the_loop.routers import prompts
 from beyond_the_loop.routers import openai, audio
 from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import companies
+from beyond_the_loop.routers import domains
 
 from open_webui.routers.retrieval import (
     get_embedding_function,
@@ -744,6 +745,7 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytic
 
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(companies.router, prefix="/api/v1/companies", tags=["companies"])
+app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
 
 ##################################
 #

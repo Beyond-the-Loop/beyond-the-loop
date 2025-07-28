@@ -27,6 +27,9 @@
 	} from '$lib/apis/payments';
 	import { subscription } from '$lib/stores';
 	import BackIcon from '../icons/BackIcon.svelte';
+	import DomainSettings from './Settings/CompanySettings/DomainSettings.svelte';
+	import DomainSettingsIcon from '../icons/DomainSettingsIcon.svelte';
+
 	
 	const i18n = getContext('i18n');
 
@@ -51,6 +54,12 @@
 		{
 			id: 'general-settings',
 			title: 'General Settings',
+			keywords: [	
+			]
+		},
+		{
+			id: 'domain-settings',
+			title: 'Domain Settings',
 			keywords: [	
 			]
 		},
@@ -280,7 +289,7 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col md:flex-row w-full pr-4 md:pr-7 md:space-x-4">
+		<div class="flex flex-col md:flex-row w-full pl-4 md:pl-0 pr-4 md:pr-7 md:space-x-4">
 			{#if selectedTab === null || !$mobile}
 				<div
 					id="settings-tabs-container"
@@ -304,6 +313,24 @@
 									<ProfileIcon/>
 								</div>
 								<div class=" self-center">{$i18n.t('General Settings')}</div>
+							</div>
+						</button>
+						{:else if tabId === 'domain-settings'}
+						<button
+							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
+							'domain-settings'
+								? 'bg-lightGray-700 dark:bg-customGray-800'
+								: ' text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-800 dark:hover:text-white'}"
+							on:click={() => {
+								selectedTab = 'domain-settings';
+								updateTabParam(selectedTab);
+							}}
+						>
+							<div class="flex items-center md:mb-1">
+								<div class=" self-center mr-2">
+									<DomainSettingsIcon/>
+								</div>
+								<div class=" self-center">{$i18n.t('Domain Settings')}</div>
 							</div>
 						</button>
 						{:else if tabId === 'user-management'}
@@ -396,7 +423,8 @@
 							toast.success($i18n.t('Settings saved successfully!'));
 						}}
                     />
-					
+				{:else if selectedTab === 'domain-settings'}	
+					<DomainSettings />
 				{:else if selectedTab === 'user-management'}
 					<UserManagement
 						{users}
