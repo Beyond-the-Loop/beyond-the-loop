@@ -75,7 +75,7 @@ jobs:
             mkdir -p ~/beyond-the-loop
 
       - name: Copy docker-compose file to EC2
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -95,7 +95,7 @@ jobs:
             mv ~/beyond-the-loop/docker-compose-prod.yaml ~/beyond-the-loop/docker-compose.yaml
 
       - name: Copy litellm-config file to EC2
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -126,7 +126,7 @@ jobs:
             fi
 
       - name: Copy traefik.yml file to EC2
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -167,7 +167,7 @@ jobs:
             mkdir -p ~/beyond-the-loop
 
       - name: Copy docker-compose file to EC2
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -187,7 +187,7 @@ jobs:
             mv ~/beyond-the-loop/docker-compose-staging.yaml ~/beyond-the-loop/docker-compose.yaml
 
       - name: Copy litellm-config file to EC2
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -218,7 +218,7 @@ jobs:
             fi
 
       - name: Copy traefik.yml file to EC2
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
