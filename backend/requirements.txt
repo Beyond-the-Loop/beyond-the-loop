@@ -42,7 +42,7 @@ openai==1.97.1
 opencv-python-headless==4.11.0.86
 openpyxl==3.1.5
 opensearch-py==2.7.1
-pandas==2.2.3
+pandas==2.3.1
 passlib[bcrypt]==1.7.4
 peewee-migrate==1.12.2
 peewee==3.17.8
