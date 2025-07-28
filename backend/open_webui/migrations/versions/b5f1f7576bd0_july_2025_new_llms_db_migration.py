@@ -11,6 +11,7 @@ import uuid
 import json
 import os
 import sqlalchemy
+from open_webui.env import DATABASE_URL
 
 # revision identifiers, used by Alembic.
 revision: str = 'b5f1f7576bd0'
@@ -20,16 +21,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Get the project root directory (parent of the scripts directory)
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    print("PROJECT ROOT", project_root)
-
-    DATABASE_URL = (
-        # go back two directories
-        f"sqlite:///{os.path.join(project_root, '../..', 'data', 'database.sqlite')}"
-    )
-
     print("Updating LLMs")
 
     db_engine = sqlalchemy.create_engine(DATABASE_URL)
