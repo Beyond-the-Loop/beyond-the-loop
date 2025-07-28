@@ -59,7 +59,7 @@
 		"@huggingface/transformers": "3.7.0",
 		"@mediapipe/tasks-vision": "0.10.21",
 		"@pyscript/core": "0.4.56",
-		"@sveltejs/adapter-node": "2.1.2",
+		"@sveltejs/adapter-node": "5.2.13",
 		"@sveltejs/svelte-virtual-list": "3.0.1",
 		"@tiptap/core": "2.26.1",
 		"@tiptap/extension-code-block-lowlight": "2.26.1",
