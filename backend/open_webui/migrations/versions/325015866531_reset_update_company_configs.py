@@ -37,7 +37,7 @@ def upgrade() -> None:
         new_image_generation_config = {
             "engine": "flux",
             "enable": True,
-            "model": "flux-kontext-pro",
+            "model": "flux-kontext-max",
             "size": "1024x1024"
         }
         
