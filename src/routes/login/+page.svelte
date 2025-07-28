@@ -36,7 +36,9 @@
 		"email_taken": "Uh-oh! This email is already registered. Sign in with your existing account or choose another email to start anew.",
 		"access_prohibited": "You do not have permission to access this resource. Please contact your administrator for assistance.",
 		"not_found": "We could not find what you're looking for :/",
-		"incomplete_invitation": "Your invitation is incomplete. Please complete the invitation process before signing in with OAuth."
+		"incomplete_invitation": "Your invitation is incomplete. Please complete the invitation process before signing in with OAuth.",
+		"no_seats_available": "No seats available for your company. Please contact your administrator to resolve this issue.",
+		"invalid_company_structure": "The company structure is invalid. Please contact support for assistance."
 	};
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
@@ -347,10 +349,10 @@
     <div class="self-center text-xs text-customGray-300 dark:text-customGray-100 pb-5 text-center">
 		{$i18n.t('By using this service, you agree to our')}
 		<a
-			href="https://drive.google.com/file/d/1--HSBhHR8JSkz6q-qDgjJZWXvHWa6sh-/view?usp=sharing"
+			href="https://beyondtheloop.ai/tscs"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="underline">{$i18n.t('Terms and Conditions')}</a
+			class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a
 		>.
 	</div>
 </div>

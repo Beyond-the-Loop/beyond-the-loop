@@ -34,6 +34,7 @@
 
 	let profileImageUrl = '';
 	let companyName = '';
+	
 	let loading = false;
 
 	let hideModelLogo = false;
@@ -101,7 +102,6 @@
 		// 	userNotice = $companyConfig?.config?.ui?.custom_user_notice;
 		// }
 	}});
-	$: console.log(userNotice, 'user notice')
 
 	const onSubmit = async () => {
 		loading = true;
@@ -109,17 +109,9 @@
 		const promises = [];
 		let companyInfo = null;
 		let companyConfigInfo = null;
-
-		if (companyName !== $company.name || profileImageUrl !== $company?.profile_image_url) {
-			const companyPromise = updateCompanyDetails(localStorage.token, companyName, profileImageUrl)
-				.then((res) => {
-					companyInfo = res;
-				})
-				.catch((error) => {
-					toast.error(`${error}`);
-				});
-			promises.push(companyPromise);
-		}
+	
+		const companyPromise = updateCompanyDetails(localStorage.token, companyName, profileImageUrl)		
+		promises.push(companyPromise);
 
 		const configPromise = updateCompanyConfig(
 			localStorage.token,
@@ -129,25 +121,25 @@
 			userPermissions?.websearch,
 			userPermissions?.image_generation
 		)
-			.then((res) => {
-				companyConfigInfo = res;
-			})
-			.catch((error) => {
-				toast.error(`${error}`);
-			});
 		promises.push(configPromise);
 
-		await Promise.all(promises);
+		try {
+			const [companyInfoRes, companyConfigInfoRes] = await Promise.all(promises);
+			
+			if (companyInfoRes) {
+    			companyInfo = companyInfoRes;
+    			company.set(companyInfo);
+  			}
 
-		if (companyInfo) {
-			company.set(companyInfo);
-		}
-
-		if (companyConfigInfo) {
+			if (companyConfigInfoRes) {
+				companyConfigInfo = companyConfigInfoRes;
+				companyConfig.set(companyConfigInfo);	
+			}
+  			
 			toast.success($i18n.t('Updated successfuly'));
-			companyConfig.set(companyConfigInfo);
+		} catch(error) {
+			toast.error(`${error}`);
 		}
-
 		loading = false;
 	}
 

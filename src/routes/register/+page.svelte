@@ -366,10 +366,10 @@
     <div class="self-center text-xs text-customGray-300 dark:text-customGray-100 pb-5 text-center">
 		{$i18n.t('By using this service, you agree to our')}
 		<a
-			href="https://drive.google.com/file/d/1--HSBhHR8JSkz6q-qDgjJZWXvHWa6sh-/view?usp=sharing"
+			href="https://beyondtheloop.ai/tscs"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="underline">{$i18n.t('Terms and Conditions')}</a
+			class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a
 		>.
 	</div>
 </div>
