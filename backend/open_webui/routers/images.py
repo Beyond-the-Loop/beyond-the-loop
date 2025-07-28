@@ -197,7 +197,7 @@ async def image_generations(
                     # Subtract credits for image generation
                     credit_service = CreditService()
 
-                    await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-pro")
+                    await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-max")
 
                     return [{"url": f"/cache/image/generations/{image_filename}"}]
 

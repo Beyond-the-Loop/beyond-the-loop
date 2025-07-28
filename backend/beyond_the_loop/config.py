@@ -176,7 +176,7 @@ DEFAULT_CONFIG = {
     "image_generation": {
         "engine": "flux",
         "enable": True,
-        "model": "flux-kontext-pro",
+        "model": "flux-kontext-max",
         "size": "1024x1024"
         },
     }
