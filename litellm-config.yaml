@@ -50,11 +50,12 @@ model_list:
       api_base: os.environ/AZURE_OPENAI_API_BASE_URL
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2024-12-01-preview"
-  # - model_name: "GPT o3" # needs a company registration
-  #   litellm_params:
-  #     model: "azure/o3"
-  #     api_base: os.environ/AZURE_OPENAI_API_BASE_URL
-  #     api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "GPT o3"
+    litellm_params:
+      model: "azure/o3"
+      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_version: "2024-12-01-preview"
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
