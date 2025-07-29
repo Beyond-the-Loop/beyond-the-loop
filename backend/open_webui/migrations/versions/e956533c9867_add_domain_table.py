@@ -1,7 +1,7 @@
 """add_domain_table
 
 Revision ID: e956533c9867
-Revises: fbde9eebf688
+Revises: 325015866531
 Create Date: 2025-07-25 21:30:45.890596
 
 """
