@@ -223,6 +223,9 @@ class CompanyTable:
     def add_flex_credit_balance(self, company_id: str, credits_to_add: int) -> bool:
         """Add credits to company's balance"""
         with get_db() as db:
+            print("FLEX_CREDIT_BUG company_id: ", company_id)
+            print("FLEX_CREDIT_BUG credits_to_add: ", credits_to_add)
+
             company = db.query(Company).filter(Company.id == company_id).first()
             if company:
                 if company.flex_credit_balance is None:

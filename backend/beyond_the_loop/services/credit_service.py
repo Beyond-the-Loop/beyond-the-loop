@@ -55,8 +55,6 @@ class CreditService:
                                 type="card"
                             )
 
-                            print("Payment methods", payment_methods)
-
                             if not payment_methods or len(payment_methods.data) == 0:
                                 print(
                                     f"Auto-recharge failed: No payment methods found for company {user.company_id}")
@@ -64,6 +62,7 @@ class CreditService:
                             else:
                                 # Trigger auto-recharge using the charge_customer endpoint
                                 await self.recharge_flex_credits(user)
+                                print("FLEX_CREDIT_BUG flex credits successfully recharged")
                                 # Note: The webhook will handle adding the credits when payment succeeds
                                 should_send_budget_email_80 = False  # Don't send email if auto-recharge succeeded
                         except Exception as e:

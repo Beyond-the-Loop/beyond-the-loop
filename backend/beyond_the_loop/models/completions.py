@@ -36,12 +36,10 @@ class CompletionModel(BaseModel):
 
 class CompletionTable:
     def insert_new_completion(self, user_id: str, chat_id: str, model: str, credits_used: float, time_saved_in_seconds: float) -> Optional[CompletionModel]:
-        print("CREDITS USED FOR COMPLETION", credits_used)
 
-        id = str(uuid.uuid4())
         completion = CompletionModel(
             **{
-                "id": id,
+                "id": str(uuid.uuid4()),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "created_at": int(time.time()),
