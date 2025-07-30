@@ -319,10 +319,7 @@
 					href="https://beyondtheloop.ai/tscs"
 					target="_blank"
 					rel="noopener noreferrer"
-					class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>
-				{#if $i18n.language === "de-DE"}
-					{" "}zu
-				{/if}
+					class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>{#if $i18n.language === "de-DE"}{" "}zu.{:else}.{/if}
 			</div>
 		</form>
 	{/if}
