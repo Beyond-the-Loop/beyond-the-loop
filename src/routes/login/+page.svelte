@@ -166,7 +166,6 @@
 		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
 	});
 
-	$: console.log($config?.oauth?.providers?.google);
 </script>
 
 <svelte:head>
@@ -182,9 +181,8 @@
 	</div>
 {/if}
 <div
-	class="flex flex-col justify-between w-full h-screen max-h-[100dvh] px-4 text-white relative bg-lightGray-300 dark:bg-customGray-900"
+	class="flex flex-col justify-center w-full h-screen max-h-[100dvh] px-4 text-white relative bg-lightGray-300 dark:bg-customGray-900"
 >
-    <div></div>
 	<form
 		class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] py-5 px-5 md:py-7 md:px-24"
 		on:submit={(e) => {
@@ -286,8 +284,8 @@
 			{$i18n.t(`Don’t have an account?`)}
 			<a href="/signup" class="font-medium text-customBlue-500">{$i18n.t('Register now')}</a>
 		</div>
-        <hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
-        <div class="text-xs dark:text-customGray-300 text-center font-medium mb-2.5">Or</div>
+        <hr class=" border-lightGray-300 dark:border-customGray-700 mb-2 mt-6" />
+        <div class="text-xs text-lightGray-100 dark:text-customGray-300 text-center font-medium mb-2.5">{$i18n.t("Or")}</div>
         <div class="flex flex-col space-y-2">
             {#if $config?.oauth?.providers?.google}
                 <button
@@ -342,15 +340,16 @@
                 </button>
             {/if}
 		</div>
+		<div class="self-center text-xs text-lightGray-100 dark:text-customGray-300 mt-5 text-center">
+			{$i18n.t('By using this service, you agree to our')}
+			<a
+				href="https://beyondtheloop.ai/tscs"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>
+			{#if $i18n.language === "de-DE"}
+				{" "}zu
+			{/if}
+		</div>
 	</form>
-    
-    <div class="self-center text-xs text-customGray-300 dark:text-customGray-100 pb-5 text-center">
-		{$i18n.t('By using this service, you agree to our')}
-		<a
-			href="https://beyondtheloop.ai/tscs"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a
-		>.
-	</div>
 </div>
