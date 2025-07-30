@@ -437,7 +437,9 @@
 				} else {
 					// Don't redirect if we're already on the auth page
 					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/login' && $page.url.pathname !== '/register' && $page.url.pathname !== '/signup') {
+					if ($page.url.pathname !== '/login' && $page.url.pathname !== '/register' && $page.url.pathname !== '/signup'
+						&& $page.url.pathname !== '/reset-password' && $page.url.pathname !== '/create-new-password'
+					) {
 						await goto('/login');
 					}
 				}

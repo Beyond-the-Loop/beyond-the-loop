@@ -139,13 +139,13 @@
 
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
 <div
-	class="flex flex-col justify-between w-full h-screen max-h-[100dvh] px-4 bg-lightGray-300 text-white relative dark:bg-customGray-900"
+	class="flex flex-col justify-center w-full h-screen max-h-[100dvh] px-4 bg-lightGray-300 text-white relative dark:bg-customGray-900"
 >
 	<div></div>
 
 	{#if !tokenValid}
 		<div
-			class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:pt-7 md:px-24 md:pb-4"
+			class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-8 md:px-24"
 		>
 			<div class="self-center flex flex-col items-center mb-5">
 				<div>
@@ -313,15 +313,17 @@
 					</div>
 				{/if}
 			</button>
+			<div class="self-center text-xs text-lightGray-100 dark:text-customGray-300 mt-5 text-center">
+				{$i18n.t('By using this service, you agree to our')}
+				<a
+					href="https://beyondtheloop.ai/tscs"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>
+				{#if $i18n.language === "de-DE"}
+					{" "}zu
+				{/if}
+			</div>
 		</form>
 	{/if}
-	<div class="self-center text-xs text-customGray-300 dark:text-customGray-100 pb-5 text-center">
-		{$i18n.t('By using this service, you agree to our')}
-		<a
-			href="https://beyondtheloop.ai/tscs"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a
-		>.
-	</div>
 </div>

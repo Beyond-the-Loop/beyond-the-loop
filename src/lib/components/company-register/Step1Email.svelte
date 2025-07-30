@@ -107,8 +107,8 @@
 		{$i18n.t('Already have an account?')}
 		<a href="/login" class="text-customBlue-500 font-medium">{$i18n.t('Log in')}</a>
 	</div>
-	<hr class=" border-gray-50 dark:border-customGray-700 mb-2 mt-6" />
-	<div class="text-xs dark:text-customGray-300 text-center font-medium mb-2.5">Or</div>
+	<hr class=" border-lightGray-300 dark:border-customGray-700 mb-2 mt-6" />
+	<div class="text-xs text-lightGray-100 dark:text-customGray-300 text-center font-medium mb-2.5">{$i18n.t("Or")}</div>
 	<div class="flex flex-col space-y-2">
 		{#if $config?.oauth?.providers?.google}
 			<button
@@ -161,6 +161,17 @@
 				</svg>
 				<span>{$i18n.t('Continue with {{provider}}', { provider: 'Microsoft' })}</span>
 			</button>
+		{/if}
+	</div>
+	<div class="self-center text-xs text-lightGray-100 dark:text-customGray-300 mt-5 text-center">
+		{$i18n.t('By using this service, you agree to our')}
+		<a
+			href="https://beyondtheloop.ai/tscs"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>
+		{#if $i18n.language === "de-DE"}
+			{" "}zu
 		{/if}
 	</div>
 </form>
