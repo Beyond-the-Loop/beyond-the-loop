@@ -756,7 +756,7 @@ app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
 
 @app.get("/api/models")
 async def get_models(request: Request, user=Depends(get_verified_user)):
-    return {"data": Models.get_models_by_user_and_company(user.id, user.company_id) + Models.get_base_models_by_comany_and_user(user.company_id, user.id, user.role)}
+    return {"data": Models.get_models_by_user_and_company(user.id, user.company_id) + Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)}
 
 
 @app.get("/api/models/base")
