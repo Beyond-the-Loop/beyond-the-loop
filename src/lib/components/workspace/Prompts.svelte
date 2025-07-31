@@ -44,6 +44,8 @@
 	import BookmarkIcon from '../icons/BookmarkIcon.svelte';
 	import BookmarkedIcon from '../icons/BookmarkedIcon.svelte';
 	import { bookmarkPrompt } from '$lib/apis/prompts';
+	import CloseIcon from '../icons/CloseIcon.svelte';
+	import Modal from '../common/Modal.svelte';
 
 	const i18n = getContext('i18n');
 	let promptsImportInputElement: HTMLInputElement;
@@ -199,6 +201,9 @@
 		}
 		loadingBookmark = null;
 	};
+
+	let showMore = false;
+	let showPrompt = null;
 </script>
 
 <svelte:head>
@@ -219,6 +224,30 @@
 			{$i18n.t('This will delete')} <span class="  font-semibold">{deletePrompt.command}</span>.
 		</div>
 	</DeleteConfirmDialog>
+
+	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
+		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
+			<div class="flex justify-between items-center pb-2.5">
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]">{showPrompt?.title}</div>
+					<button type="button" class="dark:text-white" on:click={() => {
+							showMore = false;
+						}}>
+						<CloseIcon />
+					</button>
+				</div>
+			<div>
+			<div class="max-h-[30rem] overflow-y-auto">
+				{#if showPrompt?.description}
+					<div class="text-left text-sm pb-2.5 text-lightGray-100 dark:text-customGray-100/50 border-b border-lightGray-400 dark:border-customGray-700">
+						{showPrompt?.description}
+					</div>
+				{/if}
+				<div class="text-left text-sm pt-2.5 text-lightGray-1200 dark:text-customGray-100/50">
+					{showPrompt?.content}
+				</div>
+			</div>
+		</div>
+	</Modal>
 
 	<div
 		id="prompts-header"
@@ -532,10 +561,20 @@
 										{prompt.title}
 									</div>
 								</div>
-								<div
-									class="text-xs line-clamp-1 text-lightGray-1200 dark:text-customGray-100/50 text-left"
-								>
-									{prompt.description ? prompt.description : prompt.content}
+								<div class="flex justify-between items-center mb-5">
+									<div
+										class="text-xs line-clamp-1 text-lightGray-1200 dark:text-customGray-100/50 text-left"
+									>
+										{prompt.description ? prompt.description : prompt.content}
+									</div>
+									<button 
+										class="text-xs shrink-0 ml-2 hover:underline" 
+										on:click={(e) => {
+											e.stopPropagation();
+											showMore = !showMore;
+											showPrompt = prompt;
+										}}>{$i18n.t('Show more')}
+									</button>
 								</div>
 							</button>
 						</div>
