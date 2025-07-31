@@ -369,18 +369,13 @@ def handle_invoice_paid(event_data):
 
 # For flex credits recharge
 def handle_charge_succeeded(event_data):
-    print("FLEX_CREDIT_BUG handle_charge_succeeded")
     try:
         flex_credits_recharge = event_data.get("metadata", {}).get("flex_credits_recharge")
-
-        print("FLEX_CREDIT_BUG flex_credits_recharge", flex_credits_recharge)
 
         if flex_credits_recharge == "true":
             company_id = event_data.get("metadata", {}).get("company_id")
             amount = event_data.get("amount")
 
-            print("FLEX_CREDIT_BUG company_id", company_id)
-            print("FLEX_CREDIT_BUG amount", amount)
             Companies.add_flex_credit_balance(company_id, float(amount) / 100) # Convert cents into Euros
     except Exception as e:
         print(f"Error processing charge succeeded event: {e}")
@@ -488,8 +483,6 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
                 "amount": FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS
             }
         )
-
-        print("FLEX_CREDIT_BUG flex_credits_recharge", payment_intent)
 
         return {"message": "Credits recharged successfully", "payment_intent": payment_intent.id}
 

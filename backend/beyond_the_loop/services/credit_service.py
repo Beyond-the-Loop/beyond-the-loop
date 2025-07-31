@@ -62,7 +62,6 @@ class CreditService:
                             else:
                                 # Trigger auto-recharge using the charge_customer endpoint
                                 await self.recharge_flex_credits(user)
-                                print("FLEX_CREDIT_BUG flex credits successfully recharged")
                                 # Note: The webhook will handle adding the credits when payment succeeds
                                 should_send_budget_email_80 = False  # Don't send email if auto-recharge succeeded
                         except Exception as e:
