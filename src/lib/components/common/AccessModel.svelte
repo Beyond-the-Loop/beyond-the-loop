@@ -21,9 +21,11 @@
 	export let accessControl = null;
 
 	export let openAccessDropdownId = null;
+	let isActive = true;
 
 	// let selectedGroupId = '';
 	export let groups = [];
+	export let is_active = true;
 
 	onMount(async () => {
 
@@ -68,7 +70,8 @@
 				group_ids: updated
 			}
 		};
-		updateModel(openAccessDropdownId, accessControl);
+		isActive = true;
+		updateModel(openAccessDropdownId, accessControl, isActive);
 		// openAccessDropdownId = null;
 	};
 
@@ -116,14 +119,15 @@
 							group_ids: []
 						}
 					};
-					updateModel(openAccessDropdownId, accessControl);
+					isActive = true;
+					updateModel(openAccessDropdownId, accessControl, isActive);
 					openAccessDropdownId = null;
 				}}
 			>
 				<div>
 					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
-						<PrivateIcon className="size-3" />{$i18n.t('Private')}
-						{#if accessControl !== null && activeGroupIds.length < 1}
+						<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
+						{#if accessControl !== null && activeGroupIds.length < 1 && is_active}
 							<CheckmarkIcon className="size-4" />
 						{/if}
 					</div>
@@ -135,14 +139,15 @@
 				class="flex justify-start items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
 				on:click={() => {
 					accessControl = null;
-					updateModel(openAccessDropdownId, accessControl);
+					isActive = true;
+					updateModel(openAccessDropdownId, accessControl, isActive);
 					openAccessDropdownId = null;
 				}}
 			>
 				<div>
 					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
 						<PublicIcon className="size-3" />{$i18n.t('Public')}
-						{#if accessControl === null}
+						{#if accessControl === null && is_active}
 							<CheckmarkIcon className="size-4" />
 						{/if}
 					</div>
@@ -183,7 +188,7 @@
 						<div>
 							<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
 								<GroupIcon className="size-3" />{$i18n.t('Group')}
-								{#if activeGroupIds.length > 0}
+								{#if activeGroupIds.length > 0 && is_active}
 									<CheckmarkIcon className="size-4" />
 								{/if}
 							</div>
@@ -214,7 +219,7 @@
 									class="grid grid-cols-[16px_1fr] text-xs w-full gap-1 justify-center px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-xl"
 								>
 									<div>
-										{#if activeGroupIds.includes(group.id)}
+										{#if activeGroupIds.includes(group.id) && is_active}
 											<CheckmarkIcon className="size-4" />
 										{/if}
 									</div>
@@ -227,6 +232,24 @@
 					{/if}
 				</button>
 			{/if}
+			<button
+				type="button"
+				class="flex justify-start items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
+				on:click={() => {
+					isActive = false;
+					updateModel(openAccessDropdownId, accessControl, isActive);
+					openAccessDropdownId = null;
+				}}
+			>
+				<div>
+					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
+						{$i18n.t('Disabled')}
+						{#if !is_active}
+							<CheckmarkIcon className="size-4" />
+						{/if}
+					</div>
+				</div>
+			</button>
 		</div>
 </div>
 

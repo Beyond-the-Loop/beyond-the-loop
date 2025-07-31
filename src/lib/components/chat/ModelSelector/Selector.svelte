@@ -39,13 +39,15 @@
 
 	export let showTemporaryChatControl = false;
 
-	export let items: {
-		label: string;
-		value: string;
-		model: Model;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		[key: string]: any;
-	}[] = [];
+	// export let items: {
+	// 	label: string;
+	// 	value: string;
+	// 	model: Model;
+	// 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// 	[key: string]: any;
+	// }[] = [];
+
+	$: console.log($models, 'inside select')
 
 	export let className = '180px';
 	export let triggerClassName = 'text-xs';
@@ -53,7 +55,11 @@
 	let show = false;
 
 	let selectedModel = '';
-	$: selectedModel = items.find((item) => item.value === value) ?? '';
+	$: selectedModel = $models.map((model) => ({
+		value: model.id,
+		label: model.name,
+		model: model
+	})).find((item) => item.value === value) ?? '';
 
 	let searchValue = '';
 	let ollamaVersion = null;
@@ -63,8 +69,12 @@
 	let modelGroups = mapModelsToOrganizations(modelsInfo);
 	const desiredOrder = Object.values(modelGroups).flat();
 	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
-	
-	const filteredSourceItems = items
+	let filteredSourceItems = []
+	$: filteredSourceItems = $models.map((model) => ({
+			value: model.id,
+			label: model.name,
+			model: model
+		}))
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
 		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
@@ -252,7 +262,11 @@
 	let baseModel = null;
 	$: {
 		if (selectedModel?.model?.base_model_id) {
-			baseModel = items.find((item) => item?.model?.id === selectedModel?.model?.base_model_id);
+			baseModel = $models.map((model) => ({
+				value: model.id,
+				label: model.name,
+				model: model
+			})).find((item) => item?.model?.id === selectedModel?.model?.base_model_id);
 		}
 	}
 	
