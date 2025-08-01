@@ -489,7 +489,7 @@
 					<div
 						on:mouseenter={() => (hoveredModel = model.id)}
 						on:mouseleave={() => (hoveredModel = null)}
-						class="flex flex-col gap-y-1 cursor-pointer w-full px-3 py-2 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl transition"
+						class="{!$_models.find(m => m.id === model?.base_model_id) && "opacity-70"} relative flex flex-col gap-y-1 cursor-pointer w-full px-3 py-2 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl transition"
 						id="model-item-{model.id}"
 					>
 						<div class="flex items-start justify-between">
@@ -622,7 +622,7 @@
 							</div>
 
 							<a
-								class=" flex flex-1 cursor-pointer w-full"
+								class=" flex flex-1 cursor-pointer w-full {!$_models.find(m => m.id === model?.base_model_id) && "pointer-events-none"}"
 								href={`/?models=${encodeURIComponent(model.id)}`}
 							>
 								<div class=" flex-1 self-center">
@@ -646,6 +646,9 @@
 								</div>
 							</a>
 						</div>
+						{#if !$_models.find(m => m.id === model?.base_model_id)}
+								<div class="absolute top-[6rem] text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t("Base model for this assistant was disabled.")}</div>
+						{/if}
 
 						<div
 							class="flex justify-between mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700"
