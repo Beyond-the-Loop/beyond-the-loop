@@ -83,5 +83,5 @@ transformers==4.54.0
 unstructured==0.16.11
 uvicorn[standard]==0.30.6
 validators==0.34.0
-xlrd==2.0.1
+xlrd==2.0.2
 youtube-transcript-api==0.6.3
