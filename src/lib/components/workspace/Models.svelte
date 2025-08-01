@@ -9,6 +9,7 @@
 
 	import { onMount, getContext, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+
 	const i18n = getContext('i18n');
 
 	import {
@@ -57,6 +58,10 @@
 	import BookIcon from '../icons/BookIcon.svelte';
 	import BookmarkIcon from '../icons/BookmarkIcon.svelte';
 	import BookmarkedIcon from '../icons/BookmarkedIcon.svelte';
+	import CloseIcon from '../icons/CloseIcon.svelte';
+	import Modal from '../common/Modal.svelte';
+	import { getModelIcon } from '$lib/utils';
+	import DocumentIcon from '../icons/DocumentIcon.svelte';
 
 	let shiftKey = false;
 
@@ -306,6 +311,12 @@
 		}
 		loadingBookmark = null;
 	};
+
+	let showMore = false;
+	let showAssistant = null;
+	let baseModel = null;
+	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
+	$: console.log(showAssistant, 'show assistant')
 	
 </script>
 
@@ -322,6 +333,94 @@
 			deleteModelHandler(selectedModel);
 		}}
 	/>
+
+	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
+		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
+			<div class="flex justify-between items-center pb-2.5">
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]">{showAssistant?.name}</div>
+					<button type="button" class="dark:text-white" on:click={() => {
+							showMore = false;
+						}}>
+						<CloseIcon />
+					</button>
+				</div>
+			<div>
+			<div class="max-h-[30rem] overflow-y-auto">
+				{#if showAssistant?.meta?.description}
+					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700">
+						{showAssistant?.meta?.description}
+					</div>
+				{/if}	
+			</div>
+			<div class="flex items-center mb-2.5 mt-2.5">
+				<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
+				 <div class="flex items-center">
+					<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+				 </div>
+			</div>
+			{#if showAssistant?.params?.temperature}
+				<div class="flex items-center mb-2.5">
+					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
+						{$i18n.t("Creativity scale")}:
+					</div>
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
+						{showAssistant?.params?.temperature}
+					</div> 
+				</div>
+			{/if}
+			{#if showAssistant?.params?.system}
+				<div class="mb-2.5">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
+						{$i18n.t("System prompt")}: 
+					</div>
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{showAssistant?.params?.system}</div>
+				</div>
+			{/if}
+			{#if showAssistant?.meta?.knowledge}
+				<div class="mb-2.5 pt-2.5 border-t border-lightGray-400 dark:border-customGray-700">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
+						{$i18n.t("Knowledge")}: 
+					</div>
+					{#each showAssistant?.meta?.knowledge as knowledge}
+						<div class="mb-2.5">
+							<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.name}</div>
+							<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.description}</div>
+							{#if knowledge?.files.length > 0}
+								<ul class="space-y-1 text-sm">
+									{#each knowledge.files as file (file.id)}
+										<li
+											class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
+										>
+											<DocumentIcon/>
+											<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.meta?.name}</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>	
+					{/each}
+				</div>
+			{/if}
+			{#if showAssistant?.meta?.files?.length > 0}
+				<div class="mb-2.5">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
+						{$i18n.t("Files")}: 
+					</div>
+					<ul class="space-y-1 text-sm">
+						{#each showAssistant?.meta?.files as file (file.id)}
+							<li
+								class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
+							>
+								<DocumentIcon/>
+								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.name}</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+		</div>
+	</Modal>
 
 	<div
 		id="assistants-header"
@@ -634,7 +733,7 @@
 										{model.name}
 									</div>
 
-									<div class="mt-[5px] flex gap-1 text-xs overflow-hidden">
+									<div class="flex justify-between items-center mt-[5px]">
 										<div
 											class="line-clamp-1 text-xs text-lightGray-1200 dark:text-customGray-100/50"
 										>
@@ -642,7 +741,15 @@
 												{model?.meta?.description}
 											{/if}
 										</div>
-									</div>
+										<button 
+											class="text-xs shrink-0 ml-2 hover:underline font-medium" 
+											on:click={(e) => {
+												e.preventDefault();
+												showMore = !showMore;
+												showAssistant = model;
+											}}>{$i18n.t('Show more')}
+										</button>
+									</div>	
 								</div>
 							</a>
 						</div>
