@@ -347,50 +347,50 @@
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
 				{#if showAssistant?.meta?.description}
-					<div class="text-left text-sm pb-2.5 text-lightGray-100 dark:text-customGray-100/50 border-b border-lightGray-400 dark:border-customGray-700">
+					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700">
 						{showAssistant?.meta?.description}
 					</div>
 				{/if}	
 			</div>
 			<div class="flex items-center mb-2.5 mt-2.5">
-				<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
+				<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
 				 <div class="flex items-center">
 					<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
-					<div class="text-sm text-lightGray-100 dark:text-customGray-100">{baseModel?.name}</div>
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
 				 </div>
 			</div>
 			{#if showAssistant?.params?.temperature}
 				<div class="flex items-center mb-2.5">
-					<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50 mr-1">
+					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
 						{$i18n.t("Creativity scale")}:
 					</div>
-					<div class="text-sm">
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
 						{showAssistant?.params?.temperature}
 					</div> 
 				</div>
 			{/if}
 			{#if showAssistant?.params?.system}
 				<div class="mb-2.5">
-					<div class="mb-1 text-sm text-lightGray-1200 dark:text-customGray-100/50">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
 						{$i18n.t("System prompt")}: 
 					</div>
-					<div class="text-sm">{showAssistant?.params?.system}</div>
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{showAssistant?.params?.system}</div>
 				</div>
 			{/if}
 			{#if showAssistant?.meta?.knowledge}
 				<div class="mb-2.5 pt-2.5 border-t border-lightGray-400 dark:border-customGray-700">
-					<div class="mb-1 text-sm text-lightGray-1200 dark:text-customGray-100/50">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
 						{$i18n.t("Knowledge")}: 
 					</div>
 					{#each showAssistant?.meta?.knowledge as knowledge}
 						<div class="mb-2.5">
-							<div class="text-sm">{knowledge?.name}</div>
-							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">{knowledge?.description}</div>
+							<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.name}</div>
+							<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.description}</div>
 							{#if knowledge?.files.length > 0}
 								<ul class="space-y-1 text-sm">
 									{#each knowledge.files as file (file.id)}
 										<li
-											class="flex justify-start items-center text-lightGray-100 dark:text-customGray-100"
+											class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
 										>
 											<DocumentIcon/>
 											<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.meta?.name}</span>
@@ -404,13 +404,13 @@
 			{/if}
 			{#if showAssistant?.meta?.files?.length > 0}
 				<div class="mb-2.5">
-					<div class="mb-1 text-sm text-lightGray-1200 dark:text-customGray-100/50">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
 						{$i18n.t("Files")}: 
 					</div>
 					<ul class="space-y-1 text-sm">
 						{#each showAssistant?.meta?.files as file (file.id)}
 							<li
-								class="flex justify-start items-center text-lightGray-100 dark:text-customGray-100"
+								class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
 							>
 								<DocumentIcon/>
 								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.name}</span>
@@ -742,7 +742,7 @@
 											{/if}
 										</div>
 										<button 
-											class="text-xs shrink-0 ml-2 hover:underline" 
+											class="text-xs shrink-0 ml-2 hover:underline font-medium" 
 											on:click={(e) => {
 												e.preventDefault();
 												showMore = !showMore;
