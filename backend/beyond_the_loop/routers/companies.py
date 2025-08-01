@@ -247,6 +247,12 @@ async def create_company(
             openai_models = await openai.get_all_models(request)
             openai_models = openai_models["data"]
 
+            disabled_models = [
+                "Claude Opus 4",
+                "Perplexity Sonar Reasoning Pro",
+                "Perplexity Sonar Deep Research"
+            ]
+
             # Register OpenAI models in the database if they don't exist
             for model in openai_models:
                 Models.insert_new_model(
@@ -261,6 +267,7 @@ async def create_company(
                         ),
                         params=ModelParams(),
                         access_control=None,  # None means public access
+                        is_active=model["id"] not in disabled_models
                     ),
                     user_id=user.id,
                     company_id=company_id,
