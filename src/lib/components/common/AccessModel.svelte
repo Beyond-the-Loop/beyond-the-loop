@@ -3,6 +3,7 @@
 	import { getContext, onMount } from 'svelte';
 	import { getGroups } from '$lib/apis/groups';
     import { onClickOutside } from '$lib/utils';
+	import { models } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -26,6 +27,7 @@
 	// let selectedGroupId = '';
 	export let groups = [];
 	export let is_active = true;
+	export let defaultModelIds = [];
 
 	onMount(async () => {
 
@@ -101,39 +103,15 @@
 	let submenuY = 0;
 	let groupTriggerEl: HTMLElement;
 
+	let blockDisable = false;
+	$: blockDisable = $models.find(model => model.name === defaultModelIds[0])?.id === openAccessDropdownId;
+
 </script>
 
 <div bind:this={root} class="relative w-[1px]" use:onClickOutside={() => (openAccessDropdownId = null)}>
 		<div
 			class="flex flex-col w-[9rem] absolute right-0 md:-left-20 top-4 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10"
 		>
-			<button
-				type="button"
-				class="flex justify-between items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
-				on:click={() => {
-					accessControl = {
-						read: {
-							group_ids: []
-						},
-						write: {
-							group_ids: []
-						}
-					};
-					isActive = true;
-					updateModel(openAccessDropdownId, accessControl, isActive);
-					openAccessDropdownId = null;
-				}}
-			>
-				<div>
-					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
-						<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
-						{#if accessControl !== null && activeGroupIds.length < 1 && is_active}
-							<CheckmarkIcon className="size-4" />
-						{/if}
-					</div>
-				</div>
-			</button>
-
 			<button
 				type="button"
 				class="flex justify-start items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
@@ -234,16 +212,17 @@
 			{/if}
 			<button
 				type="button"
-				class="flex justify-start items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
+				class="flex justify-start items-center px-3 py-2 rounded-lg {!blockDisable && "hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"}"
 				on:click={() => {
+					if(blockDisable) return;
 					isActive = false;
 					updateModel(openAccessDropdownId, accessControl, isActive);
 					openAccessDropdownId = null;
 				}}
 			>
 				<div>
-					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
-						{$i18n.t('Disabled')}
+					<div class="flex items-center gap-2 text-xs {blockDisable ? "text-lightGray-100/50 dark:text-customGray-100/50" : "text-lightGray-100 dark:text-customGray-100"}">
+						<PrivateIcon className="size-3" />{$i18n.t('Disabled')}
 						{#if !is_active}
 							<CheckmarkIcon className="size-4" />
 						{/if}

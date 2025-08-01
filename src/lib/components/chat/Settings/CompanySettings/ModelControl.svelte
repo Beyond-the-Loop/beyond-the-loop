@@ -303,7 +303,7 @@
 											<div
 													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
 												>
-													{$i18n.t('Disabled')}
+													<PrivateIcon className="size-3" />{$i18n.t('Disabled')}
 											</div>
 										{:else}
 											{#if model.access_control === null}
@@ -337,6 +337,7 @@
 										{updateModel}
 										accessControl={model.access_control}
 										is_active={model.is_active}
+										{defaultModelIds}
 									/>
 								{/if}
 							</div>
