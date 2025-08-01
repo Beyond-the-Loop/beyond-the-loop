@@ -19,7 +19,7 @@ docx2txt==0.8
 duckduckgo-search==7.3.2
 einops==0.8.0
 extract_msg==0.54.1
-fake-useragent==1.5.1
+fake-useragent==2.2.0
 fastapi==0.115.7
 faster-whisper==1.0.3
 flask-cors==6.0.1
