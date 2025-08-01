@@ -161,7 +161,7 @@
 	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
 		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
 			<div class="flex justify-between items-center pb-2.5">
-				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]">{showKnowledge?.name}</div>
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-1500 leading-[1.2]">{showKnowledge?.name}</div>
 					<button type="button" class="dark:text-white" on:click={() => {
 							showMore = false;
 						}}>
@@ -170,14 +170,14 @@
 				</div>
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
-				<div class="{showKnowledge?.files.length > 0 && "pb-5"} text-left text-sm text-lightGray-1200 dark:text-customGray-100/50">
+				<div class="{showKnowledge?.files.length > 0 && "pb-5"} text-left text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
 					{showKnowledge?.description}
 				</div>
 				{#if showKnowledge?.files.length > 0}
 					<ul class="pt-4 space-y-1 text-sm border-t border-lightGray-400 dark:border-customGray-700">
 						{#each showKnowledge.files as file (file.id)}
 							<li
-								class="flex justify-start items-center text-lightGray-100 dark:text-customGray-100"
+								class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
 							>
 								<DocumentIcon/>
 								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.meta?.name}</span>
@@ -368,7 +368,7 @@
 										{item.description}
 									</div>
 									<button 
-										class="text-xs shrink-0 ml-2 hover:underline" 
+										class="text-xs shrink-0 ml-2 hover:underline font-medium" 
 										on:click={(e) => {
 											e.stopPropagation();
 											showMore = !showMore;

@@ -238,11 +238,11 @@
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
 				{#if showPrompt?.description}
-					<div class="text-left text-sm pb-2.5 text-lightGray-100 dark:text-customGray-100/50 border-b border-lightGray-400 dark:border-customGray-700">
+					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700">
 						{showPrompt?.description}
 					</div>
 				{/if}
-				<div class="text-left text-sm pt-2.5 text-lightGray-1200 dark:text-customGray-100/50">
+				<div class="text-left text-sm pt-2.5 text-lightGray-1400/80 dark:text-customGray-100/80">
 					{showPrompt?.content}
 				</div>
 			</div>
@@ -568,7 +568,7 @@
 										{prompt.description ? prompt.description : prompt.content}
 									</div>
 									<button 
-										class="text-xs shrink-0 ml-2 hover:underline" 
+										class="text-xs shrink-0 ml-2 hover:underline font-medium" 
 										on:click={(e) => {
 											e.stopPropagation();
 											showMore = !showMore;
