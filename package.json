@@ -71,7 +71,7 @@
 		"@tiptap/starter-kit": "2.26.1",
 		"@xyflow/svelte": "0.1.39",
 		"async": "3.2.6",
-		"bits-ui": "0.19.7",
+		"bits-ui": "2.9.0",
 		"chart.js": "4.5.0",
 		"codemirror-lang-hcl": "0.0.0-beta.2",
 		"codemirror": "6.0.2",
