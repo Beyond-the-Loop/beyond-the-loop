@@ -39,7 +39,7 @@ langfuse==2.44.0
 ldap3==2.9.1
 Markdown==3.7
 nltk==3.9.1
-openai==1.97.1
+openai==1.98.0
 opencv-python-headless==4.11.0.86
 openpyxl==3.1.5
 opensearch-py==2.7.1
