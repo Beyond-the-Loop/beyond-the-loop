@@ -57,7 +57,7 @@ pymdown-extensions==10.14.2
 pymilvus==2.5.0
 pymongo==4.13.2
 PyMySQL==1.1.1
-pypandoc==1.13
+pypandoc==1.15
 pypdf==4.3.1
 pytest-docker==3.1.2
 pytest==8.3.5
