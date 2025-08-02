@@ -44,12 +44,12 @@ model_list:
   #     model: "azure/gpt-4.5-preview"
   #     api_base: os.environ/AZURE_OPENAI_API_BASE_URL
   #     api_key: os.environ/AZURE_OPENAI_API_KEY
-  - model_name: "GPT o3-mini"
-    litellm_params:
-      model: "azure/o3-mini"
-      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-      api_version: "2024-12-01-preview"
+  # - model_name: "GPT o3-mini"
+  #   litellm_params:
+  #     model: "azure/o3-mini"
+  #     api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+  #     api_key: os.environ/AZURE_OPENAI_API_KEY
+  #     api_version: "2024-12-01-preview"
   - model_name: "GPT o3"
     litellm_params:
       model: "azure/o3"
@@ -98,13 +98,13 @@ model_list:
     litellm_params:
       model: 'perplexity/sonar-reasoning-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
-  - model_name: "Perplexity Sonar"
-    litellm_params:
-      model: 'perplexity/sonar'
-      api_key: os.environ/PERPLEXITYAI_API_KEY
-  - model_name: "Pixtral Large"
-    litellm_params:
-      model: 'mistral/pixtral-large-2411'
-      api_key: os.environ/MISTRAL_API_KEY
+  # - model_name: "Perplexity Sonar"
+  #   litellm_params:
+  #     model: 'perplexity/sonar'
+  #     api_key: os.environ/PERPLEXITYAI_API_KEY
+  # - model_name: "Pixtral Large"
+  #   litellm_params:
+  #     model: 'mistral/pixtral-large-2411'
+  #     api_key: os.environ/MISTRAL_API_KEY
 
 general_settings: {}
