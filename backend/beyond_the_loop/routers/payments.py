@@ -15,6 +15,8 @@ router = APIRouter()
 
 webhook_secret = os.environ.get('WEBHOOK_SECRET')
 stripe.api_key = os.environ.get('STRIPE_API_KEY')
+stripe_pricing_table_id = os.environ.get('STRIPE_PRICING_TABLE_ID')
+stripe_publishable_key = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 
 stripe_price_id_starter_monthly = os.environ.get('STRIPE_PRICE_ID_STARTER_MONTHLY', "price_1RNq8xBBwyxb4MZjy1k0SneL")
 stripe_price_id_team_monthly = os.environ.get('STRIPE_PRICE_ID_TEAM_MONTHLY', "price_1RNqAcBBwyxb4MZjAGivhdo7")
@@ -106,6 +108,25 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
         )
 
         return {"url": session.url}
+    except Exception as e:
+        print(f"Error creating billing portal session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/customer-pricing-table-infos/")
+async def customer_pricing_table_infos(user=Depends(get_verified_user)):
+    try:
+        company = Companies.get_company_by_id(user.company_id)
+
+        if not company.stripe_customer_id:
+            raise HTTPException(status_code=404, detail="No customer found")
+
+        # Create a billing portal session
+        session = stripe.CustomerSession.create(
+            customer=company.stripe_customer_id,
+            components={"pricing_table": {"enabled": True}},
+        )
+
+        return {"client_secret": session.client_secret, "pricing_table_id": stripe_pricing_table_id, "publishable_key": stripe_publishable_key}
     except Exception as e:
         print(f"Error creating billing portal session: {e}")
         raise HTTPException(status_code=500, detail=str(e))

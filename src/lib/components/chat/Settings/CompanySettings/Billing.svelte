@@ -121,6 +121,9 @@
 
 {#if !subscriptionLoading}
 	<div class="pb-20">
+		<script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+		<stripe-pricing-table pricing-table-id="prctbl_1RqvQTBBwyxb4MZjJTWXaijo" publishable-key="pk_test_51Q50QGBBwyxb4MZjSIHsBI1z7jOI9Hnhg7Ii6rPy3w49C9IzqkAT5F39vNixFtTwKpmoZQXQtYPsYLnWl2AUeVri00Iw9Qm1Ti" customer-session-client-secret="cuss_secret_Snzqkp7YSlNQnMks3baocdknjiHR40UpOWAPMzN21tpKVCE">
+		</stripe-pricing-table>
 		<div
 			class="font-medium flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 		>
