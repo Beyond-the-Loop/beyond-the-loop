@@ -50,12 +50,8 @@
 
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
-		//baseModels = await getModels(localStorage.token, true);
-		// console.log(workspaceModels, 'workspace')
-		// console.log(baseModels, 'base')
 
 		models = workspaceModels.sort((a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity));
-		// storeModels.set(baseModels);
 	};
 
 	const defaultInit = async () => {
