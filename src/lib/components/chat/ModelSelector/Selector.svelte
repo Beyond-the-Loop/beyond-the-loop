@@ -47,8 +47,6 @@
 	// 	[key: string]: any;
 	// }[] = [];
 
-	$: console.log($models, 'inside select')
-
 	export let className = '180px';
 	export let triggerClassName = 'text-xs';
 
@@ -78,7 +76,7 @@
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
 		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
-	console.log(filteredSourceItems, 'items');
+	
 	const fuse = new Fuse(
 		filteredSourceItems.map((item) => {
 			const _item = {

@@ -683,11 +683,10 @@
 				if ($settings?.models) {
 					selectedModels = $settings?.models;
 				} else if ($companyConfig?.config?.models?.DEFAULT_MODELS) {
-					console.log($companyConfig?.config?.models?.DEFAULT_MODELS, 'default models');
 					const ids = $companyConfig?.config?.models?.DEFAULT_MODELS?.split(',');
 					const gptDefault = $models?.find(item => item.name === 'GPT-4.1 mini');
 					const isActive = $models?.some(model => ids?.includes(model.id));
-					selectedModels = isActive ? ids : [gptDefault?.id];
+					selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
 				} else {
 					const gptDefault = $models?.find(item => item.name === 'GPT-4.1 mini')
 					selectedModels = [gptDefault?.id];

@@ -103,8 +103,7 @@
 	let submenuY = 0;
 	let groupTriggerEl: HTMLElement;
 
-	let blockDisable = false;
-	$: blockDisable = $models.find(model => model.name === defaultModelIds[0])?.id === openAccessDropdownId;
+	$: blockDisable = Array.isArray(defaultModelIds) && defaultModelIds.length > 0 ? $models.find(model => model.name === defaultModelIds[0])?.id === openAccessDropdownId : false;
 
 </script>
 
