@@ -89,6 +89,19 @@ class OAuthManager:
             # If the user is the only user, assign the role "admin" - actually repairs role for single user on login
             return "admin"
 
+        # Handle edge case: new SSO user with no company should be assigned admin role
+        if not user:
+            # Get email to determine company assignment
+            email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
+            email = user_data.get(email_claim, "").lower()
+            domain = email.split("@")[-1] if email else ""
+
+            registered_domain = Domains.get_domain_by_domain_fqdn(domain_fqdn=domain) if domain else None
+
+            # If user has no company associated (will get NO_COMPANY), assign admin role
+            if not registered_domain or not registered_domain.ownership_approved:
+                return "admin"
+
         if auth_manager_config.ENABLE_OAUTH_ROLE_MANAGEMENT:
             oauth_claim = auth_manager_config.OAUTH_ROLES_CLAIM
             oauth_allowed_roles = auth_manager_config.OAUTH_ALLOWED_ROLES
