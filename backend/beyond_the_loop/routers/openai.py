@@ -575,7 +575,7 @@ async def generate_chat_completion(
 
     payload["model"] = model_name
 
-    if (model_name == "Mistral Large 2"):
+    if model_name == "Mistral Large 2":
         payload["stream"] = False
 
     if has_chat_id or agent_prompt:
@@ -589,9 +589,9 @@ async def generate_chat_completion(
     # Check if user has access to the model
     if not bypass_filter:
         if not (
-            user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
+            model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
                 user.id, type="read", access_control=model_info.access_control
-            )
+            ))
         ):
             raise HTTPException(
                 status_code=403,
