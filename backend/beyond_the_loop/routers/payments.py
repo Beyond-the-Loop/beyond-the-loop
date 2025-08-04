@@ -186,10 +186,7 @@ async def get_subscription(user=Depends(get_verified_user)):
             }
 
         if not subscriptions.data:
-            return {
-                'credits_remaining': company.credit_balance,
-                'plan': 'free'
-            }
+            return {}
 
         subscription = subscriptions.data[0]
 
