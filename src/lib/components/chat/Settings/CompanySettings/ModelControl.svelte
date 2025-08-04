@@ -50,27 +50,8 @@
 
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
-		baseModels = await getModels(localStorage.token, true);
 
-		models = baseModels.map((m) => {
-			const workspaceModel = workspaceModels.find((wm) => wm.id === m.id);
-
-			if (workspaceModel) {
-				return {
-					...m,
-					...workspaceModel
-				};
-			} else {
-				return {
-					...m,
-					id: m.id,
-					name: m.name,
-
-					is_active: true
-				};
-			}
-		}).sort((a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity));
-		// storeModels.set(baseModels);
+		models = workspaceModels.sort((a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity));
 	};
 
 	const defaultInit = async () => {
@@ -125,7 +106,7 @@
 
 	let openAccessDropdownId = null;
 
-	const updateModel = async (modelId, accessControl) => {
+	const updateModel = async (modelId, accessControl, isActive) => {
 		const selectedModel = models.find((model) => model.id === modelId);
 		let info = {};
 		info.id = selectedModel.id;
@@ -133,7 +114,7 @@
 		info.base_model_id = null;
 		info.params = {};
 		info.access_control = accessControl;
-		info.is_active = selectedModel.is_active;
+		info.is_active = isActive;
 		info.created_at = selectedModel.created_at;
 		info.updated_at = selectedModel.updated_at;
 		info.user_id = selectedModel.user_id;
@@ -148,6 +129,9 @@
 			toast.success($i18n.t('Model updated successfully'));
 		}
 		init();
+		if(selectedModel.is_active !== isActive) {
+			storeModels.set(await getModels(localStorage.token));
+		}
 	};
 </script>
 
@@ -186,7 +170,7 @@
 				>
 					<hr class="border-t border-lightGray-400 dark:border-customGray-700 mb-2 mt-1 mx-0.5" />
 					<div class="px-1">
-						{#each models as model (model.id)}
+						{#each models?.filter(model => model.is_active) as model (model.id)}
 							<button
 								class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-customGray-950 dark:text-customGray-100 cursor-pointer text-gray-900"
 								on:click={() => {
@@ -311,25 +295,34 @@
 										on:click={() =>
 											(openAccessDropdownId = openAccessDropdownId === model.id ? null : model.id)}
 									>
-										{#if model.access_control === null}
+										{#if !model.is_active}
 											<div
-												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-											>
-												<PublicIcon className="size-3" />{$i18n.t('Public')}
-											</div>
-										{:else if [...(model?.access_control?.read?.group_ids ?? []), ...(model?.access_control?.write?.group_ids ?? [])].length > 0}
-											<div
-												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-											>
-												<GroupIcon className="size-3" />{$i18n.t('Group')}
+													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+												>
+													<PrivateIcon className="size-3" />{$i18n.t('Disabled')}
 											</div>
 										{:else}
-											<div
-												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-											>
-												<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
-											</div>
+											{#if model.access_control === null}
+												<div
+													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+												>
+													<PublicIcon className="size-3" />{$i18n.t('Public')}
+												</div>
+											{:else if [...(model?.access_control?.read?.group_ids ?? []), ...(model?.access_control?.write?.group_ids ?? [])].length > 0}
+												<div
+													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+												>
+													<GroupIcon className="size-3" />{$i18n.t('Group')}
+												</div>
+											{:else}
+												<div
+													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+												>
+													<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
+												</div>
+											{/if}
 										{/if}
+									
 									</div>
 									<ChevronDown className="size-2 ml-[3px]" />
 								</div>
@@ -339,6 +332,8 @@
 										{groups}
 										{updateModel}
 										accessControl={model.access_control}
+										is_active={model.is_active}
+										{defaultModelIds}
 									/>
 								{/if}
 							</div>
