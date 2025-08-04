@@ -6,7 +6,8 @@
 		rechargeFlexCredits,
 		updateAutoRecharge,
 		getCurrentSubscription,
-		redirectToCustomerPortal
+		redirectToCustomerPortal,
+		createPricingTable
 	} from '$lib/apis/payments';
 	import dayjs from 'dayjs';
 	import { toast } from 'svelte-sonner';
@@ -15,6 +16,8 @@
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import UnlimitedPlanIcon from '$lib/components/icons/UnlimitedPlanIcon.svelte';
+	import Modal from '$lib/components/common/Modal.svelte';
+	import CloseIcon from '$lib/components/icons/CloseIcon.svelte';
 
 	const i18n = getContext('i18n');
 	export let autoRecharge = false;
@@ -101,6 +104,26 @@
 			window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 		}
 	}
+	$: console.log($subscription, 'subscription')
+
+	let showStripeTable = false;
+	let clientSecret = '';
+	let pricingTableId = '';
+	let publishableKey = '';
+
+	const createTable = async () => {
+		try {
+			const res = await createPricingTable(localStorage.token);
+			if(res) {
+				clientSecret = res.client_secret;
+				pricingTableId = res.pricing_table_id;
+				publishableKey = res.publishable_key;
+				showStripeTable = true;
+			}
+		} catch(err) {
+			console.log(err)
+		}
+	}
 </script>
 
 
@@ -119,11 +142,37 @@
 	</div>
 </ConfirmDialog>
 
-{#if !subscriptionLoading}
-	<div class="pb-20">
-		<script async src="https://js.stripe.com/v3/pricing-table.js"></script>
-		<stripe-pricing-table pricing-table-id="prctbl_1RqvQTBBwyxb4MZjJTWXaijo" publishable-key="pk_test_51Q50QGBBwyxb4MZjSIHsBI1z7jOI9Hnhg7Ii6rPy3w49C9IzqkAT5F39vNixFtTwKpmoZQXQtYPsYLnWl2AUeVri00Iw9Qm1Ti" customer-session-client-secret="cuss_secret_Snzqkp7YSlNQnMks3baocdknjiHR40UpOWAPMzN21tpKVCE">
+<Modal
+	bind:show={showStripeTable}
+	size="lg"
+	containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]"
+	>
+	<div class="flex justify-end border-b border-lightGray-400 dark:border-customGray-700 px-4 py-2">
+		<button type="button" class="dark:text-white" on:click={() => {
+			showStripeTable = false;
+			}}>
+			<CloseIcon />
+		</button>
+	</div>
+	<div class="p-4">
+		<stripe-pricing-table pricing-table-id={pricingTableId} publishable-key={publishableKey} customer-session-client-secret={clientSecret}>
 		</stripe-pricing-table>
+	</div>
+</Modal>
+
+{#if !subscriptionLoading}
+	{#if !$subscription?.plan}
+	<div class="flex justify-between items-center mt-4 mb-4">
+		<div class="text-sm">Your subscription has expired</div>
+		<button
+			on:click={createTable}
+			class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
+		>
+			{$i18n.t('Update Subscription')}
+		</button>
+	</div>
+	{:else}
+		<div class="pb-20">
 		<div
 			class="font-medium flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 		>
@@ -145,7 +194,7 @@
 					{/if}
 					<div class="flex items-center gap-2.5">
 						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
-							{$i18n.t($subscription?.plan.replace('_monthly', '').replace('_yearly', ''))}
+							{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', ''))}
 						</div>
 						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
 							<div
@@ -302,6 +351,7 @@
 			</div>
 		{/if}
 	</div>
+	{/if}	
 {:else}
 	<div class="h-[20rem] w-full flex justify-center items-center">
 		<Spinner />
