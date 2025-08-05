@@ -161,7 +161,7 @@
 </Modal>
 
 {#if !subscriptionLoading}
-	{#if !$subscription?.plan}
+	<!-- {#if !$subscription?.plan}
 	<div class="flex justify-between items-center mt-4 mb-4">
 		<div class="text-sm">Your subscription has expired</div>
 		<button
@@ -171,8 +171,8 @@
 			{$i18n.t('Update Subscription')}
 		</button>
 	</div>
-	{:else}
-		<div class="pb-20">
+	{:else} -->
+	<div class="pb-20">
 		<div
 			class="font-medium flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 		>
@@ -213,20 +213,33 @@
 					</div>
 				</div>
 				{#if $subscription?.plan !== 'unlimited'}
-					<button
-						on:click={() => {
-							goToCustomerPortal()
-						}}
-						class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
-					>
-						{$i18n.t('Manage Subscription')}
-					</button>
+					{#if $subscription?.status === "canceled"}
+						<button
+							on:click={createTable}
+							class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
+						>
+							{$i18n.t('Subscribe')}
+						</button>
+					{:else}
+						<button
+							on:click={() => {
+								goToCustomerPortal()
+							}}
+							class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
+						>
+							{$i18n.t('Manage Subscription')}
+						</button>
+
+					{/if}	
 				{/if}
 			</div>
 			{#if $subscription?.plan !== "unlimited"}
 				<div class="flex items-center justify-between pt-2.5 pb-3">
 					<div class="text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t('Billing details')}</div>
-					{#if $subscription?.cancel_at_period_end}
+					{#if $subscription.status === 'canceled'}
+						<div class="text-xs dark:text-customGray-590">Expired</div>
+					{:else}
+						{#if $subscription?.cancel_at_period_end}
 						<div class="text-xs dark:text-customGray-590">
 							Active until {dayjs($subscription?.end_date * 1000)?.format('DD.MM.YYYY')}
 						</div>
@@ -238,6 +251,7 @@
 						<div class="text-xs dark:text-customGray-590">
 							Trial ends {dayjs($subscription?.trial_end * 1000)?.format('DD.MM.YYYY')}
 						</div>
+					{/if}
 					{/if}
 				</div>
 			{/if}
@@ -284,7 +298,7 @@
 					<div style={`width: ${creditsWidth};`} class="absolute left-0 h-1 rounded-sm bg-[#024D15]/80 dark:bg-[#024D15]"></div>
 				</div>
 				<div class="flex items-center justify-between pt-2.5">
-					{#if $subscription?.plan !== 'free' && $subscription?.cancel_at_period_end !== true}
+					{#if $subscription?.plan !== 'free' && $subscription?.cancel_at_period_end !== true && $subscription?.status !== "canceled"}
 						<div class="text-xs dark:text-customGray-590">
 							{$i18n.t('Credits will reset on')} {dayjs($subscription?.next_billing_date * 1000)?.format('DD.MM.YYYY')}
 						</div>
@@ -306,7 +320,7 @@
 			</div>
 		{/if}
 
-		{#if $subscription?.plan !== "free"}
+		{#if $subscription?.plan !== "free" && $subscription.status !== 'canceled'}
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 pb-4">
 				<div class="flex items-center justify-between pb-2.5 border-b dark:border-customGray-700">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Flex credits')}</div>
@@ -351,7 +365,7 @@
 			</div>
 		{/if}
 	</div>
-	{/if}	
+	<!-- {/if}	 -->
 {:else}
 	<div class="h-[20rem] w-full flex justify-center items-center">
 		<Spinner />
