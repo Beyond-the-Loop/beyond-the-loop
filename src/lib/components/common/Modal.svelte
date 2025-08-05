@@ -26,6 +26,8 @@
 			return 'w-[42rem]';
 		} else if (size === 'md-plus') {
 			return 'w-[50rem]';
+		} else if (size === "lg") {
+			return 'w-[64rem]'
 		} else {
 			return 'w-[56rem]';
 		}
