@@ -198,16 +198,23 @@
 						</div>
 						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
 							<div
-								class="flex justify-center items-center text-xs dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
+								class="flex justify-center items-center text-xs bg-lightGray-400 dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
 							>
 								{$i18n.t('Monthly')}
 							</div>
 						{/if}
 						{#if $subscription?.plan && $subscription.plan.includes("yearly")}
 							<div
-								class="flex justify-center items-center text-xs dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
+								class="flex justify-center items-center text-xs bg-lightGray-400 dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
 							>
 								{$i18n.t('Yearly')}
+							</div>
+						{/if}
+						{#if $subscription.status === 'canceled'}
+							<div
+								class="flex justify-center items-center text-xs bg-lightGray-400 dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
+							>
+								{$i18n.t('Expired')}
 							</div>
 						{/if}
 					</div>
@@ -237,7 +244,7 @@
 				<div class="flex items-center justify-between pt-2.5 pb-3">
 					<div class="text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t('Billing details')}</div>
 					{#if $subscription.status === 'canceled'}
-						<div class="text-xs dark:text-customGray-590">Expired</div>
+						<div class="text-xs dark:text-customGray-590">Expired since {dayjs($subscription?.canceled_at * 1000)?.format('DD.MM.YYYY')}</div>
 					{:else}
 						{#if $subscription?.cancel_at_period_end}
 						<div class="text-xs dark:text-customGray-590">
@@ -320,9 +327,9 @@
 			</div>
 		{/if}
 
-		{#if $subscription?.plan !== "free" && $subscription.status !== 'canceled'}
+		{#if $subscription?.plan !== "free"}
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 pb-4">
-				<div class="flex items-center justify-between pb-2.5 border-b dark:border-customGray-700">
+				<div class="flex items-center justify-between {$subscription?.status !== 'canceled' && "border-b dark:border-customGray-700 pb-2.5"}">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Flex credits')}</div>
 					<div class="text-xs dark:text-customGray-590">
 						<!-- <span class="text-xs dark:text-customGray-100">0 {$i18n.t('used')}</span> -->
@@ -331,37 +338,39 @@
 						>
 					</div>
 				</div>
-				<div class="flex items-center justify-between pt-2.5">
-					<div class="flex items-center">
-						<Tooltip content={$i18n.t('When enabled, 20€ in credits will be automatically purchased and added to your account once your balance drops to 80% of your base credit amount.')}>
-							<div class="text-xs dark:text-customGray-590 mr-2.5 cursor-pointer">{$i18n.t('Auto recharge')}</div>
-						</Tooltip>
-						
-						<Switch bind:state={autoRecharge} on:change={async (e) => {
-							const res = await updateAutoRecharge(localStorage.token, e.detail).catch(error => console.log(error))
-							toast.success($i18n.t(res.message))
-							fetchCurrentSubscription()
-						}} />
-						<div class="text-xs dark:text-customGray-590 ml-2.5">
-							{#if autoRecharge}
-								{$i18n.t('On')}
-							{:else}
-								{$i18n.t('Off')}
-							{/if}
+				{#if $subscription?.status !== 'canceled'}
+					<div class="flex items-center justify-between pt-2.5">
+						<div class="flex items-center">
+							<Tooltip content={$i18n.t('When enabled, 20€ in credits will be automatically purchased and added to your account once your balance drops to 80% of your base credit amount.')}>
+								<div class="text-xs dark:text-customGray-590 mr-2.5 cursor-pointer">{$i18n.t('Auto recharge')}</div>
+							</Tooltip>
+							
+							<Switch bind:state={autoRecharge} on:change={async (e) => {
+								const res = await updateAutoRecharge(localStorage.token, e.detail).catch(error => console.log(error))
+								toast.success($i18n.t(res.message))
+								fetchCurrentSubscription()
+							}} />
+							<div class="text-xs dark:text-customGray-590 ml-2.5">
+								{#if autoRecharge}
+									{$i18n.t('On')}
+								{:else}
+									{$i18n.t('Off')}
+								{/if}
+							</div>
 						</div>
+						<button
+							on:click={() => {
+								showBuyFlexCredits = true;
+								const url = new URL(window.location.href);
+								url.searchParams.set('recharge', 'open'); 
+								window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+							}}
+							class="flex items-center justify-center rounded-[10px] bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-8 py-2 text-xs dark:text-customGray-200"
+						>
+							{$i18n.t('Buy credits')}
+						</button>
 					</div>
-					<button
-						on:click={() => {
-							showBuyFlexCredits = true;
-							const url = new URL(window.location.href);
-							url.searchParams.set('recharge', 'open'); 
-							window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-						}}
-						class="flex items-center justify-center rounded-[10px] bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-8 py-2 text-xs dark:text-customGray-200"
-					>
-						{$i18n.t('Buy credits')}
-					</button>
-				</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
