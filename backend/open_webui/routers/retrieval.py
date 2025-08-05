@@ -273,16 +273,8 @@ async def update_embedding_config(
             request.app.state.config.RAG_EMBEDDING_ENGINE,
             request.app.state.config.RAG_EMBEDDING_MODEL,
             request.app.state.ef,
-            (
-                request.app.state.config.RAG_OPENAI_API_BASE_URL
-                if request.app.state.config.RAG_EMBEDDING_ENGINE == "openai"
-                else request.app.state.config.RAG_OLLAMA_BASE_URL
-            ),
-            (
-                request.app.state.config.RAG_OPENAI_API_KEY
-                if request.app.state.config.RAG_EMBEDDING_ENGINE == "openai"
-                else request.app.state.config.RAG_OLLAMA_API_KEY
-            ),
+            request.app.state.config.RAG_OPENAI_API_BASE_URL,
+            request.app.state.config.RAG_OPENAI_API_KEY,
             request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
         )
 
@@ -768,16 +760,8 @@ def save_docs_to_vector_db(
             request.app.state.config.RAG_EMBEDDING_ENGINE,
             request.app.state.config.RAG_EMBEDDING_MODEL,
             request.app.state.ef,
-            (
-                request.app.state.config.RAG_OPENAI_API_BASE_URL
-                if request.app.state.config.RAG_EMBEDDING_ENGINE == "openai"
-                else request.app.state.config.RAG_OLLAMA_BASE_URL
-            ),
-            (
-                request.app.state.config.RAG_OPENAI_API_KEY
-                if request.app.state.config.RAG_EMBEDDING_ENGINE == "openai"
-                else request.app.state.config.RAG_OLLAMA_API_KEY
-            ),
+            request.app.state.config.RAG_OPENAI_API_BASE_URL,
+            request.app.state.config.RAG_OPENAI_API_KEY,
             request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
         )
 

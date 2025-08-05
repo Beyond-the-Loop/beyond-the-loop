@@ -253,7 +253,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     if file_path.is_file():
         return FileResponse(file_path)
 
-    payload = None
     try:
         payload = json.loads(body.decode("utf-8"))
     except Exception as e:
@@ -267,11 +266,11 @@ async def speech(request: Request, user=Depends(get_verified_user)):
             # print(payload)
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    url=f"{request.app.state.config.TTS_OPENAI_API_BASE_URL}/audio/speech",
+                    url=f"{os.environ.get('AZURE_OPENAI_API_BASE_URL')}/openai/deployments/tts/audio/speech?api-version=2025-03-01-preview",
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Authorization": f"Bearer {request.app.state.config.TTS_OPENAI_API_KEY}",
+                        "Authorization": f"Bearer {os.environ.get('AZURE_OPENAI_API_KEY')}",
                         **(
                             {
                                 "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
@@ -496,11 +495,12 @@ def transcribe(request: Request, file_path):
             convert_mp4_to_wav(file_path.replace(".wav", ".mp4"), file_path)
 
         r = None
+
         try:
             r = requests.post(
-                url=f"{request.app.state.config.STT_OPENAI_API_BASE_URL}/audio/transcriptions",
+                url=f"{os.environ.get('AZURE_OPENAI_API_BASE_URL')}/openai/deployments/whisper/audio/transcriptions?api-version=2025-03-01-preview",
                 headers={
-                    "Authorization": f"Bearer {request.app.state.config.STT_OPENAI_API_KEY}"
+                    "Authorization": f"Bearer {os.environ.get('AZURE_OPENAI_API_KEY')}"
                 },
                 files={"file": (filename, open(file_path, "rb"))},
                 data={"model": request.app.state.config.STT_MODEL, "language": "de"},
