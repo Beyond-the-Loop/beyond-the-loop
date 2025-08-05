@@ -147,7 +147,7 @@ async def get_subscription(user=Depends(get_verified_user)):
             }
 
         # Get subscription from Stripe
-        subscriptions = stripe.Subscription.list(
+        active_subscriptions = stripe.Subscription.list(
             customer=company.stripe_customer_id,
             status='active',
             limit=1
@@ -161,7 +161,7 @@ async def get_subscription(user=Depends(get_verified_user)):
         )
 
         # If there's an active trial subscription
-        if trial_subscriptions.data and len(trial_subscriptions.data) > 0 and not subscriptions.data:
+        if trial_subscriptions.data and len(trial_subscriptions.data) > 0 and not active_subscriptions.data:
             trial_subscription = trial_subscriptions.data[0]
 
             # Get the image url of the product
@@ -185,10 +185,38 @@ async def get_subscription(user=Depends(get_verified_user)):
                 'image_url': image_url
             }
 
-        if not subscriptions.data:
-            return {}
+        if not active_subscriptions.data:
+            # get last active subscription from stripe
+            last_subscription = stripe.Subscription.list(
+                customer=company.stripe_customer_id,
+                status='all',
+                limit=1
+            ).data[0]
 
-        subscription = subscriptions.data[0]
+            price_id = last_subscription.plan.id
+
+            plan_id = next(
+                (plan for plan, details in SUBSCRIPTION_PLANS.items() if details.get("stripe_price_id") == price_id),
+                None)
+
+            plan = SUBSCRIPTION_PLANS[plan_id] or {}
+
+            # Get the image url of the product
+            product = stripe.Product.retrieve(last_subscription.plan.product)
+            image_url = product.images[0] if product.images and len(product.images) > 0 else None
+
+            return {
+                'credits_remaining': company.credit_balance,
+                'flex_credits_remaining': company.flex_credit_balance,
+                'plan': plan_id,
+                "status": last_subscription.status,
+                "seats": plan.get("seats", 0),
+                "canceled_at": last_subscription.canceled_at if hasattr(last_subscription, 'canceled_at') else None,
+                "seats_taken": Users.count_users_by_company_id(user.company_id),
+                "image_url": image_url
+            }
+
+        subscription = active_subscriptions.data[0]
 
         price_id = subscription.plan.id
 
