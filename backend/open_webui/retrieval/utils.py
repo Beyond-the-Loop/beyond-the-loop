@@ -260,8 +260,6 @@ def get_embedding_function(
             engine=embedding_engine,
             model=embedding_model,
             text=query,
-            url=url,
-            key=key,
         )
 
         def generate_multiple(query, user, func):
@@ -424,14 +422,10 @@ def get_model_path(model: str, update_model: bool = False):
 def generate_openai_batch_embeddings(
     model: str,
     texts: list[str],
-    url: str = "https://api.openai.com/v1",
-    key: str = "",
-    user: UserModel = None,
 ) -> Optional[list[list[float]]]:
     try:
         client = AzureOpenAI(
-            api_version="2023-05-15",
-            azure_endpoint=url,
+            api_version="2023-05-15"
         )
 
         response = client.embeddings.create(
@@ -444,15 +438,12 @@ def generate_openai_batch_embeddings(
         log.exception(e)
         return None
 
-def generate_embeddings(engine: str, model: str, text: Union[str, list[str]], **kwargs):
-    url = kwargs.get("url", "")
-    key = kwargs.get("key", "")
-
+def generate_embeddings(engine: str, model: str, text: Union[str, list[str]]):
     if engine == "openai":
         if isinstance(text, list):
-            embeddings = generate_openai_batch_embeddings(model, text, url, key)
+            embeddings = generate_openai_batch_embeddings(model, text)
         else:
-            embeddings = generate_openai_batch_embeddings(model, [text], url, key)
+            embeddings = generate_openai_batch_embeddings(model, [text])
 
         return embeddings[0] if isinstance(text, str) else embeddings
 

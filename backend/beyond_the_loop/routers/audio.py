@@ -266,7 +266,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
             # print(payload)
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    url=f"{os.environ.get('AZURE_OPENAI_API_BASE_URL')}/openai/deployments/tts/audio/speech?api-version=2025-03-01-preview",
+                    url=f"{os.environ.get('AZURE_OPENAI_ENDPOINT')}/openai/deployments/tts/audio/speech?api-version=2025-03-01-preview",
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
@@ -498,7 +498,7 @@ def transcribe(request: Request, file_path):
 
         try:
             r = requests.post(
-                url=f"{os.environ.get('AZURE_OPENAI_API_BASE_URL')}/openai/deployments/whisper/audio/transcriptions?api-version=2025-03-01-preview",
+                url=f"{os.environ.get('AZURE_OPENAI_ENDPOINT')}/openai/deployments/whisper/audio/transcriptions?api-version=2025-03-01-preview",
                 headers={
                     "Authorization": f"Bearer {os.environ.get('AZURE_OPENAI_API_KEY')}"
                 },
