@@ -3,6 +3,7 @@
 	import { getContext, onMount } from 'svelte';
 	import { getGroups } from '$lib/apis/groups';
     import { onClickOutside } from '$lib/utils';
+	import { models } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -21,9 +22,12 @@
 	export let accessControl = null;
 
 	export let openAccessDropdownId = null;
+	let isActive = true;
 
 	// let selectedGroupId = '';
 	export let groups = [];
+	export let is_active = true;
+	export let defaultModelIds = [];
 
 	onMount(async () => {
 
@@ -68,7 +72,8 @@
 				group_ids: updated
 			}
 		};
-		updateModel(openAccessDropdownId, accessControl);
+		isActive = true;
+		updateModel(openAccessDropdownId, accessControl, isActive);
 		// openAccessDropdownId = null;
 	};
 
@@ -98,6 +103,8 @@
 	let submenuY = 0;
 	let groupTriggerEl: HTMLElement;
 
+	$: blockDisable = Array.isArray(defaultModelIds) && defaultModelIds.length > 0 ? $models.find(model => model.name === defaultModelIds[0])?.id === openAccessDropdownId : false;
+
 </script>
 
 <div bind:this={root} class="relative w-[1px]" use:onClickOutside={() => (openAccessDropdownId = null)}>
@@ -106,43 +113,18 @@
 		>
 			<button
 				type="button"
-				class="flex justify-between items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
-				on:click={() => {
-					accessControl = {
-						read: {
-							group_ids: []
-						},
-						write: {
-							group_ids: []
-						}
-					};
-					updateModel(openAccessDropdownId, accessControl);
-					openAccessDropdownId = null;
-				}}
-			>
-				<div>
-					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
-						<PrivateIcon className="size-3" />{$i18n.t('Private')}
-						{#if accessControl !== null && activeGroupIds.length < 1}
-							<CheckmarkIcon className="size-4" />
-						{/if}
-					</div>
-				</div>
-			</button>
-
-			<button
-				type="button"
 				class="flex justify-start items-center px-3 py-2 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"
 				on:click={() => {
 					accessControl = null;
-					updateModel(openAccessDropdownId, accessControl);
+					isActive = true;
+					updateModel(openAccessDropdownId, accessControl, isActive);
 					openAccessDropdownId = null;
 				}}
 			>
 				<div>
 					<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
 						<PublicIcon className="size-3" />{$i18n.t('Public')}
-						{#if accessControl === null}
+						{#if accessControl === null && is_active}
 							<CheckmarkIcon className="size-4" />
 						{/if}
 					</div>
@@ -183,7 +165,7 @@
 						<div>
 							<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100">
 								<GroupIcon className="size-3" />{$i18n.t('Group')}
-								{#if activeGroupIds.length > 0}
+								{#if activeGroupIds.length > 0 && is_active}
 									<CheckmarkIcon className="size-4" />
 								{/if}
 							</div>
@@ -214,7 +196,7 @@
 									class="grid grid-cols-[16px_1fr] text-xs w-full gap-1 justify-center px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-xl"
 								>
 									<div>
-										{#if activeGroupIds.includes(group.id)}
+										{#if activeGroupIds.includes(group.id) && is_active}
 											<CheckmarkIcon className="size-4" />
 										{/if}
 									</div>
@@ -227,6 +209,25 @@
 					{/if}
 				</button>
 			{/if}
+			<button
+				type="button"
+				class="flex justify-start items-center px-3 py-2 rounded-lg {!blockDisable && "hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer"}"
+				on:click={() => {
+					if(blockDisable) return;
+					isActive = false;
+					updateModel(openAccessDropdownId, accessControl, isActive);
+					openAccessDropdownId = null;
+				}}
+			>
+				<div>
+					<div class="flex items-center gap-2 text-xs {blockDisable ? "text-lightGray-100/50 dark:text-customGray-100/50" : "text-lightGray-100 dark:text-customGray-100"}">
+						<PrivateIcon className="size-3" />{$i18n.t('Disabled')}
+						{#if !is_active}
+							<CheckmarkIcon className="size-4" />
+						{/if}
+					</div>
+				</div>
+			</button>
 		</div>
 </div>
 

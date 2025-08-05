@@ -84,10 +84,23 @@ class OAuthManager:
     def get_client(self, provider_name):
         return self.oauth.create_client(provider_name)
 
-    def get_user_role(self, company_id, user_data):
-        if company_id == NO_COMPANY or Users.get_num_users_by_company_id(company_id=company_id) == 1:
+    def get_user_role(self, user, user_data):
+        if user and Users.get_num_users_by_company_id(company_id=user.company_id) == 1:
             # If the user is the only user, assign the role "admin" - actually repairs role for single user on login
             return "admin"
+
+        # Handle edge case: new SSO user with no company should be assigned admin role
+        if not user:
+            # Get email to determine company assignment
+            email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
+            email = user_data.get(email_claim, "").lower()
+            domain = email.split("@")[-1] if email else ""
+
+            registered_domain = Domains.get_domain_by_domain_fqdn(domain_fqdn=domain) if domain else None
+
+            # If user has no company associated (will get NO_COMPANY), assign admin role
+            if not registered_domain or not registered_domain.ownership_approved:
+                return "admin"
 
         if auth_manager_config.ENABLE_OAUTH_ROLE_MANAGEMENT:
             oauth_claim = auth_manager_config.OAUTH_ROLES_CLAIM
@@ -119,11 +132,12 @@ class OAuthManager:
                         role = "admin"
                         break
         else:
-            if company_id == NO_COMPANY:
+            if not user:
                 # If role management is disabled, use the default role for new users
                 role = auth_manager_config.DEFAULT_USER_ROLE
             else:
-                role = "user"
+                # If role management is disabled, use the existing role for existing users
+                role = user.role
 
         return role
 
@@ -258,7 +272,7 @@ class OAuthManager:
                     Users.update_user_oauth_sub_by_id(user.id, provider_sub)
 
         if user:
-            determined_role = self.get_user_role(user.company_id, user_data)
+            determined_role = self.get_user_role(user, user_data)
             if user.role != determined_role:
                 Users.update_user_role_by_id(user.id, determined_role)
 
@@ -318,6 +332,7 @@ class OAuthManager:
 
                 domain = email.split("@")[-1]
                 company_id = NO_COMPANY
+                role = self.get_user_role(None, user_data)
 
                 registered_domain = Domains.get_domain_by_domain_fqdn(domain_fqdn=domain)
 
@@ -343,8 +358,6 @@ class OAuthManager:
                                     return redirect_with_error(request, OAUTH_ERROR_CODES.NO_SEATS_AVAILABLE)
 
                             company_id = company.id
-
-                role = self.get_user_role(company_id, user_data)
 
                 user = Auths.insert_new_auth(
                     email=email,
