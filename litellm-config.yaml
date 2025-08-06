@@ -37,40 +37,40 @@ model_list:
   - model_name: "GPT 4.1"
     litellm_params:
       model: "azure/gpt-4.1"
-      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
   # - model_name: "GPT 4.5-preview" # needs a dedicated endpoint
   #   litellm_params:
   #     model: "azure/gpt-4.5-preview"
-  #     api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+  #     api_base: os.environ/AZURE_OPENAI_ENDPOINT
   #     api_key: os.environ/AZURE_OPENAI_API_KEY
   # - model_name: "GPT o3-mini"
   #   litellm_params:
   #     model: "azure/o3-mini"
-  #     api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+  #     api_base: os.environ/AZURE_OPENAI_ENDPOINT
   #     api_key: os.environ/AZURE_OPENAI_API_KEY
   #     api_version: "2024-12-01-preview"
   - model_name: "GPT o3"
     litellm_params:
       model: "azure/o3"
-      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2024-12-01-preview"
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
-      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2024-12-01-preview"
   - model_name: "GPT-4.1 mini"
     litellm_params:
       model: "azure/gpt-4.1-mini"
-      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
   - model_name: "GPT-4.1 nano"
     litellm_params:
       model: "azure/gpt-4.1-nano"
-      api_base: os.environ/AZURE_OPENAI_API_BASE_URL
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
   - model_name: "Grok 4"
     litellm_params:
