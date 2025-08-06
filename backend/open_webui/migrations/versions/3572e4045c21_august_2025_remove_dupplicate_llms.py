@@ -1,4 +1,4 @@
-"""August 2025 remove dupplicate LLMs
+"""August 2025 remove duplicate LLMs
 
 Revision ID: 3572e4045c21
 Revises: 703b58bcfdbc
@@ -7,7 +7,6 @@ Create Date: 2025-08-06 14:22:47.464864
 """
 
 from typing import Sequence, Union
-from xml.parsers.expat import model
 
 from alembic import op
 import sqlalchemy
@@ -26,29 +25,30 @@ def upgrade() -> None:
 
     connection = op.get_bind()
 
-    dupplicated_models = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
+    duplicat_models = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
     companies = connection.execute(sqlalchemy.text("SELECT company_id FROM model GROUP BY company_id")).fetchall()
 
     should_commit = False
     for company in companies:
         company_id = company[0]
 
-        for model in dupplicated_models:
+        for model in duplicat_models:
             model_ids = connection.execute(
                 sqlalchemy.text("SELECT id FROM model WHERE name = :model AND company_id = :company_id AND base_model_id IS NULL"),
                 {"company_id": company_id, "model": model},
             ).fetchall()
 
             if len(model_ids) > 1:
-                print(f"Found dupplicate models {model_ids} for company {company_id}")
+                print(f"Found duplicate models {model_ids} for company {company_id}")
                 should_commit = True
 
                 where_in_clause = ",".join(f'"{model_id[0]}"' for model_id in model_ids)
                 model_referenced_as_base_model = connection.execute(
-                    sqlalchemy.text(f"SELECT id, base_model_id FROM model WHERE base_model_id IN ({where_in_clause})")
+                    sqlalchemy.text("SELECT id, base_model_id FROM model WHERE base_model_id IN (:where_in_clause)"),
+                    {"where_in_clause": where_in_clause}
                 ).fetchall()
-                
-                model_id_keep = model_referenced_as_base_model[0][1] if model_referenced_as_base_model else model_ids[0][0]
+
+                model_id_keep = model_referenced_as_base_model[0][1] if model_referenced_as_base_model and len(model_referenced_as_base_model) > 0 else model_ids[0][0]
                 model_id_removes = [model_id[0] for model_id in model_ids if model_id[0] != model_id_keep]
 
                 print(f"Keeping model {model_id_keep} and removing {model_id_removes} for company {company_id}")
