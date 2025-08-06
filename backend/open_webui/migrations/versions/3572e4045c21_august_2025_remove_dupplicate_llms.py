@@ -25,14 +25,14 @@ def upgrade() -> None:
 
     connection = op.get_bind()
 
-    duplicat_models = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
+    duplicate_models = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
     companies = connection.execute(sqlalchemy.text("SELECT company_id FROM model GROUP BY company_id")).fetchall()
 
     should_commit = False
     for company in companies:
         company_id = company[0]
 
-        for model in duplicat_models:
+        for model in duplicate_models:
             model_ids = connection.execute(
                 sqlalchemy.text("SELECT id FROM model WHERE name = :model AND company_id = :company_id AND base_model_id IS NULL"),
                 {"company_id": company_id, "model": model},
@@ -44,8 +44,7 @@ def upgrade() -> None:
 
                 where_in_clause = ",".join(f'"{model_id[0]}"' for model_id in model_ids)
                 model_referenced_as_base_model = connection.execute(
-                    sqlalchemy.text("SELECT id, base_model_id FROM model WHERE base_model_id IN (:where_in_clause)"),
-                    {"where_in_clause": where_in_clause}
+                    sqlalchemy.text(f"SELECT id, base_model_id FROM model WHERE base_model_id IN ({where_in_clause})"),
                 ).fetchall()
 
                 model_id_keep = model_referenced_as_base_model[0][1] if model_referenced_as_base_model and len(model_referenced_as_base_model) > 0 else model_ids[0][0]
