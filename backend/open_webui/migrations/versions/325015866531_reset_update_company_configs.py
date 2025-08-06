@@ -9,6 +9,7 @@ from typing import Sequence, Union
 import json
 
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '325015866531'
@@ -20,17 +21,12 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # Import here to avoid circular imports
     from sqlalchemy.orm import sessionmaker
-    from sqlalchemy import create_engine
-    from open_webui.env import DATABASE_URL
-    
-    # Create engine and session
-    engine = create_engine(DATABASE_URL)
-    Session = sessionmaker(bind=engine)
-    session = Session()
+
+    connection = op.get_bind()
     
     try:
         # Get all config entries
-        configs = session.execute(
+        configs = connection.execute(
             sa.text("SELECT id, data, company_id FROM config")
         ).fetchall()
         
@@ -58,21 +54,19 @@ def upgrade() -> None:
             updated_data = json.dumps(data) if isinstance(config_data, str) else data
             
             # Update the database record
-            session.execute(
+            connection.execute(
                 sa.text("UPDATE config SET data = :data WHERE id = :id"),
                 {"data": updated_data, "id": config_id}
             )
         
         # Commit all changes
-        session.commit()
+        connection.commit()
         print(f"Updated {len(configs)} company configurations with new Flux image generation settings")
         
     except Exception as e:
-        session.rollback()
+        connection.rollback()
         print(f"Error updating configs: {e}")
         raise
-    finally:
-        session.close()
 
 
 def downgrade() -> None:
