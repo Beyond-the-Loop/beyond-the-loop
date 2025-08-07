@@ -134,9 +134,6 @@ DEFAULT_CONFIG = {
         "enable_hybrid_search": True,
         "embedding_engine": "openai",
         "embedding_model": "text-embedding-3-small",
-        "openai_api_base_url": "https://api.openai.com/v1",
-        "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
-        "ollama": {"url": "http://localhost:11434", "key": ""},
         "embedding_batch_size": 2048,
         "reranking_model": "",
         "file": {"max_size": None, "max_count": None},
@@ -149,28 +146,14 @@ DEFAULT_CONFIG = {
     "google_drive": {"enable": False},
     "audio": {
         "tts": {
-            "openai": {
-                "api_base_url": "https://api.openai.com/v1",
-                "api_key": os.environ.get("OPENAI_API_KEY", ""),
-            },
-            "api_key": "",
             "engine": "openai",
             "model": "tts-1",
             "voice": "alloy",
-            "split_on": "punctuation",
-            "azure": {
-                "speech_region": "eastus",
-                "speech_output_format": "audio-24khz-160kbitrate-mono-mp3",
-            },
+            "split_on": "punctuation"
         },
         "stt": {
-            "openai": {
-                "api_base_url": "https://api.openai.com/v1",
-                "api_key": os.environ.get("OPENAI_API_KEY", ""),
-            },
             "engine": "openai",
-            "model": "whisper-1",
-            "whisper_model": "base",
+            "model": "whisper-1"
         },
     },
     "image_generation": {
