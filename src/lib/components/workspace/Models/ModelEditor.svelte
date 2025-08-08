@@ -208,9 +208,7 @@
 			if (
 				info.params[key] === '' ||
 				info.params[key] === null ||
-				((baseModel?.name === 'GPT o3-mini' ||
-					baseModel?.name === 'GPT o1' ||
-					baseModel?.name === 'GPT o1-mini') &&
+				(isGptOModel(baseModel) &&
 					key === 'temperature')
 			) {
 				delete info.params[key];
@@ -236,11 +234,7 @@
 
 		if (model) {
 			const baseModel = $models?.find((item) => item.id === model.base_model_id);
-			if (
-				baseModel?.name === 'GPT o3-mini' ||
-				baseModel?.name === 'GPT o1' ||
-				baseModel?.name === 'GPT o1-mini'
-			) {
+			if (isGptOModel(baseModel)) {
 				disableCreativity = true;
 			}
 			console.log(model);
@@ -402,7 +396,9 @@
 	const desiredOrder = Object.values(organizations).flat();
 	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 
-	$: console.log($models)
+	function isGptOModel(model) {
+  		return /^GPT o/i.test(model?.name ?? '');
+	}
 
 </script>
 
@@ -913,11 +909,7 @@
 																class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-100 cursor-pointer"
 																on:click={() => {
 																	info.base_model_id = model.id;
-																	if (
-																		model.name === 'GPT o3-mini' ||
-																		model?.name === 'GPT o1' ||
-																		model?.name === 'GPT o1-mini'
-																	) {
+																	if (isGptOModel(model)) {
 																		disableCreativity = true;
 																	} else {
 																		if (disableCreativity) {
@@ -939,56 +931,54 @@
 										</div>
 									</div>
 								{/if}
-
-								<div class="my-1" use:onClickOutside={() => (showTemperatureDropdown = false)}>
-									<div class="relative" bind:this={temperatureDropdownRef}>
-										<button
-											type="button"
-											class={`flex items-center justify-between w-full text-sm h-12 px-3 py-2 ${
-												showTemperatureDropdown ? 'border' : ''
-											} border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 ${disableCreativity ? 'bg-lightGray-300 dark:bg-customGray-800' : 'dark:bg-customGray-900 bg-lightGray-300'}  cursor-pointer`}
-											on:click={() => {
-												if (disableCreativity) return;
-												showTemperatureDropdown = !showTemperatureDropdown;
-											}}
-										>
-											<span class="text-lightGray-100 dark:text-customGray-100"
-												>{$i18n.t('Creativity Scale')}</span
+								{#if !disableCreativity}
+									<div class="my-1" use:onClickOutside={() => (showTemperatureDropdown = false)}>
+										<div class="relative" bind:this={temperatureDropdownRef}>
+											<button
+												type="button"
+												class={`flex items-center justify-between w-full text-sm h-12 px-3 py-2 ${
+													showTemperatureDropdown ? 'border' : ''
+												} border-lightGray-400 dark:border-customGray-700 rounded-md dark:bg-customGray-900 bg-lightGray-300 cursor-pointer`}
+												on:click={() => {
+													showTemperatureDropdown = !showTemperatureDropdown;
+												}}
 											>
-											{#if !disableCreativity}
+												<span class="text-lightGray-100 dark:text-customGray-100"
+													>{$i18n.t('Creativity Scale')}</span
+												>
 												<div
 													class="flex items-center gap-2 text-xs text-lightGray-100/50 dark:text-customGray-100/50"
 												>
 													{selectedTemperatureLabel}
 													<ChevronDown className="size-3" />
+												</div>	
+											</button>
+
+											{#if showTemperatureDropdown}
+												<div
+													class="max-h-40 overflow-y-auto absolute z-50 w-full -mt-1 bg-lightGray-300 pb-1 dark:bg-customGray-900 border-l border-r border-b border-lightGray-400 dark:border-customGray-700 rounded-b-md"
+												>
+													<hr
+														class="border-t border-lightGray-400 dark:border-customGray-700 mb-2 mt-1 mx-0.5"
+													/>
+													<div class="px-1">
+														{#each temperatureOptions as option}
+															<button
+																class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 cursor-pointer text-lightGray-100"
+																on:click={() => {
+																	info.params.temperature = option.value;
+																	showTemperatureDropdown = false;
+																}}
+															>
+																{option.label}
+															</button>
+														{/each}
+													</div>
 												</div>
 											{/if}
-										</button>
-
-										{#if showTemperatureDropdown}
-											<div
-												class="max-h-40 overflow-y-auto absolute z-50 w-full -mt-1 bg-lightGray-300 pb-1 dark:bg-customGray-900 border-l border-r border-b border-lightGray-400 dark:border-customGray-700 rounded-b-md"
-											>
-												<hr
-													class="border-t border-lightGray-400 dark:border-customGray-700 mb-2 mt-1 mx-0.5"
-												/>
-												<div class="px-1">
-													{#each temperatureOptions as option}
-														<button
-															class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 cursor-pointer text-lightGray-100"
-															on:click={() => {
-																info.params.temperature = option.value;
-																showTemperatureDropdown = false;
-															}}
-														>
-															{option.label}
-														</button>
-													{/each}
-												</div>
-											</div>
-										{/if}
+										</div>
 									</div>
-								</div>
+								{/if}
 
 								<CapabilitiesNew bind:capabilities />
 							</div>
