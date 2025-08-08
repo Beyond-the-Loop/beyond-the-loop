@@ -10,7 +10,7 @@ from beyond_the_loop.models.prompts import Prompt
 
 from pydantic import BaseModel, ConfigDict
 
-from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey
+from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
 
@@ -197,11 +197,14 @@ class ModelsTable:
         with get_db() as db:
             return [ModelModel.model_validate(model) for model in db.query(Model).filter_by(company_id=company_id).all()]
 
-    def get_models(self) -> list[ModelUserResponse]:
+    def get_assistants(self) -> list[ModelUserResponse]:
         with get_db() as db:
             models = []
-            for model in db.query(Model).filter(Model.base_model_id != None).all():
-                user = Users.get_user_by_id(model.user_id)
+
+            for model in db.query(Model).filter(or_(Model.base_model_id != None, Model.user_id == "system")).all():
+                if model.user_id != "system":
+                    user = Users.get_user_by_id(model.user_id)
+
                 models.append(
                     ModelUserResponse.model_validate(
                         {
@@ -239,14 +242,21 @@ class ModelsTable:
             )
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-            all_models = self.get_models()
+            all_models = self.get_assistants()
 
             filtered_models = []
             for model in all_models:
                 if (
-                    model.user_id == user_id
+                    model.user_id == "system"
+                    or model.user_id == user_id
                     or (model.company_id == company_id and has_access(user_id, permission, model.access_control))
                 ):
+                    # if it is a system model, add the base model id manually by looking for the name and searching for it in the user models
+                    if model.user_id == "system":
+                        base_model = self.get_model_by_name_and_company(model.base_model_id, company_id)
+                        if base_model:
+                            model.base_model_id = base_model.id
+
                     model_dict = model.model_dump()
                     model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
                     filtered_models.append(ModelUserResponse(**model_dict))
@@ -255,7 +265,7 @@ class ModelsTable:
             return filtered_models
 
     def get_models_by_company_id(self, company_id: str) -> list[ModelModel]:
-        models = self.get_models()
+        models = self.get_assistants()
         return [model for model in models if model.company_id == company_id]
 
     def get_model_by_id(self, id: str) -> Optional[ModelModel]:

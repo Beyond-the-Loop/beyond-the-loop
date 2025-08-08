@@ -166,32 +166,10 @@ async def update_model_by_id(
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    if (
-        (not model.base_model_id and user.role != "admin")
-        and model.user_id != user.id
-        and not has_access(user.id, "write", model.access_control)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    model = Models.update_model_by_id_and_company(id, form_data, user.company_id)
-    return model
-
-
-@router.post("/model/update", response_model=Optional[ModelModel])
-async def update_model_by_id(
-    id: str,
-    form_data: ModelForm,
-    user=Depends(get_verified_user),
-):
-    model = Models.get_model_by_id(id)
-
-    if not model:
+    if model.user_id == "system":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
     if (
@@ -221,6 +199,12 @@ async def delete_model_by_id(id: str, user=Depends(get_verified_user)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    if model.user_id == "system":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
     if (
