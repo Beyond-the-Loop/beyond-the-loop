@@ -913,11 +913,7 @@
 																class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-100 cursor-pointer"
 																on:click={() => {
 																	info.base_model_id = model.id;
-																	if (
-																		model.name === 'GPT o3-mini' ||
-																		model?.name === 'GPT o1' ||
-																		model?.name === 'GPT o1-mini'
-																	) {
+																	if (/^GPT o/i.test(model?.name)) {
 																		disableCreativity = true;
 																	} else {
 																		if (disableCreativity) {
@@ -946,7 +942,7 @@
 											type="button"
 											class={`flex items-center justify-between w-full text-sm h-12 px-3 py-2 ${
 												showTemperatureDropdown ? 'border' : ''
-											} border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 ${disableCreativity ? 'bg-lightGray-300 dark:bg-customGray-800' : 'dark:bg-customGray-900 bg-lightGray-300'}  cursor-pointer`}
+											} border-lightGray-400 dark:border-customGray-700 rounded-md ${disableCreativity ? 'bg-lightGray-550 dark:bg-customGray-800' : 'dark:bg-customGray-900 bg-lightGray-300'}  cursor-pointer`}
 											on:click={() => {
 												if (disableCreativity) return;
 												showTemperatureDropdown = !showTemperatureDropdown;
