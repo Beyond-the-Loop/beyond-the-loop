@@ -44,9 +44,13 @@ export const modelsInfo = {
 	"Claude Opus 4.1": {
 		organization: 'Anthropic',
 		hosted_in: 'US',
+		description: "Anthropic's hybrid reasoning model with 200K context for complex coding and agent tasks. Advanced thinking abilities with visible reasoning steps.",
 		context_window: '200K',
-		knowledge_cutoff: '2025-03',
-		multimodal: true
+		knowledge_cutoff: null,
+		intelligence_score: 4.5,
+		speed: 3.5,
+		multimodal: true,
+		reasoning: true
 	},
 	"Google 2.5 Pro": {
 		organization: 'Google',
@@ -132,7 +136,6 @@ export const modelsInfo = {
 		credit_multiple: 7,
 		research: false
 	},
-	
 	'GPT-4.1 nano': {
 		organization: 'OpenAI',
 		hosted_in: 'EU',
@@ -206,9 +209,13 @@ export const modelsInfo = {
 	"GPT-5": {
 		organization: 'OpenAI',
 		hosted_in: 'EU',
-		context_window: '1M',
-		knowledge_cutoff: null,
-		multimodal: true
+		description: "OpenAI's flagship model for coding, reasoning, and agent tasks. Highest reasoning capabilities with moderate speed for complex domains.",
+		context_window: '400K',
+		knowledge_cutoff: '2024-09-31',
+		intelligence_score: 4.5,
+		speed: 3.0,
+		multimodal: true,
+		reasoning: true,
 	},
 	"Llama 4 Maverick": {
 		organization: 'Meta',
