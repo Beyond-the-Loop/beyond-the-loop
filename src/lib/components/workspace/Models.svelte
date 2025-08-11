@@ -546,17 +546,18 @@
 											</div>
 										{/each}
 									{/if}
-
-									{#each model.meta?.tags as modelTag}
-										<div
-											class="flex items-center {hoveredModel === model.id ||
-											menuIdOpened === model.id
-												? 'dark:text-white'
-												: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
-										>
-											{$i18n.t(modelTag.name)}
-										</div>
-									{/each}
+									{#if model.meta?.tags}
+										{#each model.meta?.tags as modelTag}
+											<div
+												class="flex items-center {hoveredModel === model.id ||
+												menuIdOpened === model.id
+													? 'dark:text-white'
+													: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+											>
+												{$i18n.t(modelTag.name)}
+											</div>
+										{/each}
+									{/if}
 								</div>
 							</div>
 							{#if $user?.role === 'admin' || model.user_id === $user?.id || model?.access_control === null || model?.access_control?.write.group_ids?.some( (wg) => group_ids.includes(wg) )}
