@@ -240,6 +240,7 @@
 
 	$: {
 		if (modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff) {
+			console.log(modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff, 'hovered ')
 			const date = new Date(modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff);
 
 			const formatted = date.toLocaleString('default', {
@@ -247,6 +248,8 @@
 				month: 'long'
 			});
 			knowledgeCutoff = formatted;
+		} else {
+			knowledgeCutoff = null;
 		}
 	}
 	let baseModel = null;

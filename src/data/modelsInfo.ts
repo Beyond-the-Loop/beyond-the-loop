@@ -41,6 +41,13 @@ export const modelsInfo = {
 		credit_multiple: 22,
 		research: false
 	},
+	"Claude Opus 4.1": {
+		organization: 'Anthropic',
+		hosted_in: 'US',
+		context_window: '200K',
+		knowledge_cutoff: '2025-03',
+		multimodal: true
+	},
 	"Google 2.5 Pro": {
 		organization: 'Google',
 		hosted_in: 'EU',
@@ -195,6 +202,13 @@ export const modelsInfo = {
 		included: true,
 		credit_multiple: 7,
 		research: false
+	},
+	"GPT-5": {
+		organization: 'OpenAI',
+		hosted_in: 'EU',
+		context_window: '1M',
+		knowledge_cutoff: null,
+		multimodal: true
 	},
 	"Llama 4 Maverick": {
 		organization: 'Meta',
