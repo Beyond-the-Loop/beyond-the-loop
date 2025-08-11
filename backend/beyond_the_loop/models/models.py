@@ -202,6 +202,7 @@ class ModelsTable:
             models = []
 
             for model in db.query(Model).filter(or_(Model.base_model_id != None, Model.user_id == "system")).all():
+                user = None
                 if model.user_id != "system":
                     user = Users.get_user_by_id(model.user_id)
 
