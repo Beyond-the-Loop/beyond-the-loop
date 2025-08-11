@@ -195,7 +195,7 @@ class ModelsTable:
 
     def get_all_models_by_company(self, company_id: str) -> list[ModelModel]:
         with get_db() as db:
-            return [ModelModel.model_validate(model) for model in db.query(Model).filter_by(company_id=company_id).all()]
+            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.user_id == "system")).all()]
 
     def get_assistants(self) -> list[ModelUserResponse]:
         with get_db() as db:
