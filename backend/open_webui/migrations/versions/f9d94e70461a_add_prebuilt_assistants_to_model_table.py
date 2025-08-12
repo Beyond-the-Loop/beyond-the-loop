@@ -76,7 +76,7 @@ def upgrade() -> None:
             # Create meta object
             meta = {
                 "description": row.get('Beschreibung', ''),
-                "profile_image_url": "/static/favicon.png",
+                "profile_image_url": "\ud83e\udd16",
                 "categories": [row.get('Kategorie', 'Assistenzaufgaben')],
                 "capabilities": {
                     "websearch": websearch,
