@@ -373,6 +373,23 @@
 				{/if}
 			</div>
 		{/if}
+		{#if subscription.status !== 'canceled' && $subscription?.plan !== 'unlimited'}
+			<div
+			class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
+			>
+				<div class="flex w-full justify-between items-center">
+					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Billing')}</div>
+				</div>
+			</div>
+			<button
+				on:click={() => {
+					goToCustomerPortal()
+				}}
+				class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
+			>
+				{$i18n.t('View invoices')}
+			</button>
+		{/if}
 	</div>
 	<!-- {/if}	 -->
 {:else}
