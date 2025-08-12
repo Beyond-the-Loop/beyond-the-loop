@@ -62,6 +62,7 @@
 	import Modal from '../common/Modal.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import DocumentIcon from '../icons/DocumentIcon.svelte';
+	import FolderIcon from '../icons/FolderIcon.svelte';
 
 	let shiftKey = false;
 
@@ -368,16 +369,14 @@
 						{$i18n.t("Creativity scale")}:
 					</div>
 					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
-						{showAssistant?.params?.temperature}
+						{#if showAssistant?.params?.temperature === 0.2}
+							{$i18n.t('Determined')}
+						{:else if showAssistant?.params?.temperature === 0.5}
+							{$i18n.t('Balanced')}
+						{:else if showAssistant?.params?.temperature === 0.8}
+							{$i18n.t('Creative')}
+						{/if}
 					</div> 
-				</div>
-			{/if}
-			{#if showAssistant?.params?.system}
-				<div class="mb-2.5">
-					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
-						{$i18n.t("System prompt")}: 
-					</div>
-					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{showAssistant?.params?.system}</div>
 				</div>
 			{/if}
 			{#if showAssistant?.meta?.knowledge}
@@ -386,21 +385,9 @@
 						{$i18n.t("Knowledge")}: 
 					</div>
 					{#each showAssistant?.meta?.knowledge as knowledge}
-						<div class="mb-2.5">
-							<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.name}</div>
-							<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.description}</div>
-							{#if knowledge?.files.length > 0}
-								<ul class="space-y-1 text-sm">
-									{#each knowledge.files as file (file.id)}
-										<li
-											class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
-										>
-											<DocumentIcon/>
-											<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.meta?.name}</span>
-										</li>
-									{/each}
-								</ul>
-							{/if}
+						<div class="mb-2.5 text-lightGray-100 dark:text-customGray-100/80 flex items-center">
+							<FolderIcon/>
+							<div class="ml-2 text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.name}</div>
 						</div>	
 					{/each}
 				</div>
