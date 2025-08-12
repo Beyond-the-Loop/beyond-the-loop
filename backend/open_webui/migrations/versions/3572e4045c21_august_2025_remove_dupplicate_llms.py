@@ -28,7 +28,6 @@ def upgrade() -> None:
     duplicate_models = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
     companies = connection.execute(sqlalchemy.text("SELECT company_id FROM model GROUP BY company_id")).fetchall()
 
-    should_commit = False
     for company in companies:
         company_id = company[0]
 
@@ -40,7 +39,6 @@ def upgrade() -> None:
 
             if len(model_ids) > 1:
                 print(f"Found duplicate models {model_ids} for company {company_id}")
-                should_commit = True
 
                 where_in_clause = ",".join(f'"{model_id[0]}"' for model_id in model_ids)
                 model_referenced_as_base_model = connection.execute(
@@ -64,13 +62,6 @@ def upgrade() -> None:
                         sqlalchemy.text("DELETE FROM model WHERE id = :model_id_remove AND company_id = :company_id"),
                         {"model_id_remove": model_id_remove, "company_id": company_id},
                     )
-
-    if should_commit:
-        connection.commit()
-        print("Duplicate LLMs removed successfully.")
-    else:
-        print("No duplicate LLMs found to remove.")
-
 
 def downgrade() -> None:
     pass
