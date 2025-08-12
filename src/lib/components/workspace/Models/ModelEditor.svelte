@@ -244,14 +244,9 @@
 			id = model.id;
 
 			if (model.base_model_id) {
-				let base_model = null; 
-				if(model.company_id === 'system') {
-					base_model = $models?.find(m => m.name === model.base_model_id);
-				} else {
-					base_model = $models
-					.filter((m) => !m?.preset && !(m?.arena ?? false))
-					.find((m) => [model.base_model_id, `${model.base_model_id}:latest`].includes(m.id));
-				}
+				const base_model = $models
+				.filter((m) => !m?.preset && !(m?.arena ?? false))
+				.find((m) => [model.base_model_id, `${model.base_model_id}:latest`].includes(m.id));
 
 				if (base_model) {
 					model.base_model_id = base_model.id;
