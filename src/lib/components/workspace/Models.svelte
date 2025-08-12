@@ -103,13 +103,14 @@
 					?.map((tag) => tag?.toLowerCase())
 					?.some((tag) => modelTags.includes(tag));
 
-			const isPublic = m.access_control === null;
-			// const isPrivate = m.access_control !== null;
+			const isPublic = m.access_control === null && m.company_id !== "system";
+			const isPrebuilt = m.company_id === "system";
 			const isPrivate = m?.user_id === $user?.id;
 			const accessMatch =
 				accessFilter === 'all' ||
 				(accessFilter === 'public' && isPublic) ||
-				(accessFilter === 'private' && isPrivate);
+				(accessFilter === 'private' && isPrivate) ||
+				(accessFilter === 'pre-built' && isPrebuilt);
 
 			return nameMatch && tagsMatch && accessMatch;
 		});
@@ -556,9 +557,11 @@
 					class={`${accessFilter === 'public' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-4 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Public')}</button
 				>
-				<!-- <button class="px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white"
+				<button
+					on:click={() => (accessFilter = 'pre-built')}
+					class={`${accessFilter === 'pre-built' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-2 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Pre-built')}</button
-				> -->
+				>
 			</div>
 		</div>
 		<div
@@ -598,7 +601,16 @@
 									</button>
 								{/if}
 								<div class="flex items-center gap-1 flex-wrap">
-									{#if model.access_control == null}
+									{#if model.company_id === "system"}
+										<div
+											class="flex gap-1 items-center {hoveredModel === model.id ||
+											menuIdOpened === model.id
+												? 'dark:text-white'
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
+										>
+											<span>{$i18n.t('Prebuilt')}</span>
+										</div>
+									{:else if model.access_control == null}
 										<div
 											class="flex gap-1 items-center {hoveredModel === model.id ||
 											menuIdOpened === model.id
@@ -631,17 +643,18 @@
 											</div>
 										{/each}
 									{/if}
-
-									{#each model.meta?.tags as modelTag}
-										<div
-											class="flex items-center {hoveredModel === model.id ||
-											menuIdOpened === model.id
-												? 'dark:text-white'
-												: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
-										>
-											{$i18n.t(modelTag.name)}
-										</div>
-									{/each}
+									{#if model.meta?.tags}
+										{#each model.meta?.tags as modelTag}
+											<div
+												class="flex items-center {hoveredModel === model.id ||
+												menuIdOpened === model.id
+													? 'dark:text-white'
+													: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+											>
+												{$i18n.t(modelTag.name)}
+											</div>
+										{/each}
+									{/if}
 								</div>
 							</div>
 							{#if $user?.role === 'admin' || model.user_id === $user?.id || model?.access_control === null || model?.access_control?.write.group_ids?.some( (wg) => group_ids.includes(wg) )}
@@ -768,8 +781,6 @@
 											{model?.user?.first_name} {model?.user?.last_name}
 										{:else if model?.user?.email}
 											{model?.user?.email}
-										{:else}
-											{$i18n.t('Deleted User')}
 										{/if}
 									</div>
 								</Tooltip>
