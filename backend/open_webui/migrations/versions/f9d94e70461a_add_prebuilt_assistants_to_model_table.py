@@ -1,7 +1,7 @@
 """add_prebuilt_assistants_to_model_table
 
 Revision ID: f9d94e70461a
-Revises: 3572e4045c21
+Revises: 9b79f110c1db
 Create Date: 2025-08-08 13:33:59.780605
 
 """
