@@ -310,13 +310,6 @@ class ModelsTable:
 
             return None
 
-    def get_model_by_name_and_company(self, name: str, company_id: str) -> Optional[ModelModel]:
-        try:
-            with get_db() as db:
-                model = db.query(Model).filter_by(name=name, company_id=company_id).first()
-                return ModelModel.model_validate(model)
-        except Exception:
-            return None
 
     def delete_model_by_id_and_company(self, id: str, company_id: str) -> bool:
         try:

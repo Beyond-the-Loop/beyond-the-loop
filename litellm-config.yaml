@@ -70,11 +70,6 @@ model_list:
     litellm_params:
       model: 'xai/grok-4'
       api_key: os.environ/XAI_API_KEY
-  - model_name: "Llama 4 Maverick"
-    litellm_params:
-      model: 'vertex_ai/meta/llama-4-maverick-17b-128e-instruct-maas'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'us-east5'
   - model_name: "Mistral Large 2"
     litellm_params:
       model: 'vertex_ai/mistral-large-2411@001'
