@@ -194,7 +194,11 @@
 					{/if}
 					<div class="flex items-center gap-2.5">
 						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
-							{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', ''))}
+							{#if $subscription?.plan === 'free' && $subscription?.is_trial}
+								{$i18n.t('starter')}
+							{:else}
+								{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', ''))}
+							{/if}
 						</div>
 						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
 							<div
