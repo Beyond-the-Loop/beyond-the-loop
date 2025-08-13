@@ -191,7 +191,7 @@
 
 			<div class="relative text-base font-normal @md:max-w-3xl w-full py-3 {atSelectedModel ? 'mt-2' : ''}">
 				{#if currentModel?.base_model_id}
-					<div class="absolute -top-[12rem] left-1/2 tramsform -translate-x-1/2 max-w-[20rem] flex items-center flex-col">
+					<div class="absolute -top-[12rem] left-1/2 tramsform -translate-x-1/2 w-[25rem] flex items-center flex-col">
 						{#if !currentModel?.meta?.profile_image_url || currentModel?.meta?.profile_image_url.length > 5}
 						<img
 							class="w-16 h-16 rounded-lg mb-2"

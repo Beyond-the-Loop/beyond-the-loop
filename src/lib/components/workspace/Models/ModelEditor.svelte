@@ -245,10 +245,8 @@
 
 			if (model.base_model_id) {
 				const base_model = $models
-					.filter((m) => !m?.preset && !(m?.arena ?? false))
-					.find((m) => [model.base_model_id, `${model.base_model_id}:latest`].includes(m.id));
-
-				console.log('base_model', base_model);
+				.filter((m) => !m?.preset && !(m?.arena ?? false))
+				.find((m) => [model.base_model_id, `${model.base_model_id}:latest`].includes(m.id));
 
 				if (base_model) {
 					model.base_model_id = base_model.id;
@@ -308,7 +306,8 @@
 					)
 				)
 			};
-
+			
+			info.meta.tags = model.meta?.tags ? model.meta?.tags : [];
 			files = model?.meta?.files ? model?.meta?.files : [];
 		}
 
