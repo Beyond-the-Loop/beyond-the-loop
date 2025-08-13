@@ -558,9 +558,7 @@ def upgrade() -> None:
         if k in current_model_list_names and v["stats"] != "replace"
     }
 
-    should_commit = False
     for model_name, model_data in to_insert_models_list.items():
-        should_commit = True
         model_cost = model_data["cost"]
         print(f"Inserting model: {model_name}")
         connection.execute(
@@ -590,7 +588,6 @@ def upgrade() -> None:
         )
 
     for model_name, model_data in to_update_models_list.items():
-        should_commit = True
         model_cost = model_data["cost"]
         print(f"Updating model: {model_name}")
         connection.execute(
@@ -618,8 +615,6 @@ def upgrade() -> None:
                 ],
             },
         )
-    if should_commit:
-        connection.commit()
 
     # replace models in model table
     to_replace_models_list = {
@@ -628,9 +623,7 @@ def upgrade() -> None:
         if v["stats"] == "replace" and v["replace_with"] is not None
     }
 
-    should_commit = False
     for model_name, model_data in to_replace_models_list.items():
-        should_commit = True
         replacement_model_name = model_data["replace_with"]
         print(f"Replacing model: {model_name} with {replacement_model_name}")
         connection.execute(
@@ -644,40 +637,30 @@ def upgrade() -> None:
                 "params": json.dumps(all_models_list[replacement_model_name]["params"]),
             },
         )
-    if should_commit:
-        connection.commit()
 
     # remove models from model_cost table
     to_remove_models_list = {
         k: v for k, v in all_models_list.items() if v["stats"] == "replace"
     }
 
-    should_commit = False
     for model_name in to_remove_models_list.keys():
-        should_commit = True
         print(f"Removing model: {model_name} from model_cost table")
         connection.execute(
             sqlalchemy.text("DELETE FROM model_cost WHERE model_name = :model_name"),
             {"model_name": model_name},
         )
-    if should_commit:
-        connection.commit()
 
     # remove hidden models from model table
     to_remove_hidden_models_list = {
         k: v for k, v in all_models_list.items() if v["visibility"] == "hide"
     }
 
-    should_commit = False
     for model_name in to_remove_hidden_models_list.keys():
-        should_commit = True
         print(f"Removing hidden model: {model_name} from model table")
         connection.execute(
             sqlalchemy.text("DELETE FROM model WHERE name = :model_name"),
             {"model_name": model_name},
         )
-    if should_commit:
-        connection.commit()
 
     # add missing models to companies
     companies = connection.execute(sqlalchemy.text("SELECT id FROM company")).fetchall()
@@ -687,7 +670,6 @@ def upgrade() -> None:
         if v["stats"] != "replace" and v["visibility"] == "show"
     }
 
-    should_commit = False
     for company in companies:
         company_id = company[0]
         current_company_models = connection.execute(
@@ -702,7 +684,6 @@ def upgrade() -> None:
 
         for model_name, model_data in to_sync_models_list.items():
             if model_name not in current_company_models:
-                should_commit = True
                 print(f"Adding model: {model_name} to company: {company_id}")
                 connection.execute(
                     sqlalchemy.text(
@@ -720,8 +701,6 @@ def upgrade() -> None:
                         "company_id": company_id,
                     },
                 )
-    if should_commit:
-        connection.commit()
 
     # remove unassigned models from model_cost table
     current_model_list_names = connection.execute(
@@ -735,19 +714,14 @@ def upgrade() -> None:
         if model_name not in all_models_list
     ]
 
-    should_commit = False
     for model_name in to_remove_unassigned_models_list:
-        should_commit = True
         print(f"Removing unassigned model: {model_name} from model_cost table")
         connection.execute(
             sqlalchemy.text("DELETE FROM model_cost WHERE model_name = :model_name"),
             {"model_name": model_name},
         )
-    if should_commit:
-        connection.commit()
 
     # remove dupplicate "Claude Sonnet 4" models
-    should_commit = False
     for company in companies:
         company_id = company[0]
         claude_sonnet_model_ids = connection.execute(
@@ -758,7 +732,6 @@ def upgrade() -> None:
         ).fetchall()
 
         if len(claude_sonnet_model_ids) == 2:
-            should_commit = True
             claude_sonnet_model_id_keep = claude_sonnet_model_ids[0][0]
             claude_sonnet_model_id_remove = claude_sonnet_model_ids[1][0]
 
@@ -778,8 +751,6 @@ def upgrade() -> None:
                 sqlalchemy.text("DELETE FROM model WHERE id = :model_id"),
                 {"model_id": claude_sonnet_model_id_remove},
             )
-    if should_commit:
-        connection.commit()
 
     print("LLMs updated successfully")
 
