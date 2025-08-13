@@ -9,6 +9,7 @@
 
 	import { onMount, getContext, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+
 	const i18n = getContext('i18n');
 
 	import {
@@ -57,6 +58,11 @@
 	import BookIcon from '../icons/BookIcon.svelte';
 	import BookmarkIcon from '../icons/BookmarkIcon.svelte';
 	import BookmarkedIcon from '../icons/BookmarkedIcon.svelte';
+	import CloseIcon from '../icons/CloseIcon.svelte';
+	import Modal from '../common/Modal.svelte';
+	import { getModelIcon } from '$lib/utils';
+	import DocumentIcon from '../icons/DocumentIcon.svelte';
+	import FolderIcon from '../icons/FolderIcon.svelte';
 
 	let shiftKey = false;
 
@@ -97,13 +103,14 @@
 					?.map((tag) => tag?.toLowerCase())
 					?.some((tag) => modelTags.includes(tag));
 
-			const isPublic = m.access_control === null;
-			// const isPrivate = m.access_control !== null;
+			const isPublic = m.access_control === null && m.company_id !== "system";
+			const isPrebuilt = m.company_id === "system";
 			const isPrivate = m?.user_id === $user?.id;
 			const accessMatch =
 				accessFilter === 'all' ||
 				(accessFilter === 'public' && isPublic) ||
-				(accessFilter === 'private' && isPrivate);
+				(accessFilter === 'private' && isPrivate) ||
+				(accessFilter === 'pre-built' && isPrebuilt);
 
 			return nameMatch && tagsMatch && accessMatch;
 		});
@@ -310,6 +317,11 @@
 	$: isBaseModelDisabled = (model) => {
 		return !$_models.find(m => m.id === model?.base_model_id);
 	} 
+	let showMore = false;
+	let showAssistant = null;
+	let baseModel = null;
+	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
+	$: console.log(showAssistant, 'show assistant')
 	
 </script>
 
@@ -326,6 +338,80 @@
 			deleteModelHandler(selectedModel);
 		}}
 	/>
+
+	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
+		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
+			<div class="flex justify-between items-center pb-2.5">
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]">{showAssistant?.name}</div>
+					<button type="button" class="dark:text-white" on:click={() => {
+							showMore = false;
+						}}>
+						<CloseIcon />
+					</button>
+				</div>
+			<div>
+			<div class="max-h-[30rem] overflow-y-auto">
+				{#if showAssistant?.meta?.description}
+					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700">
+						{showAssistant?.meta?.description}
+					</div>
+				{/if}	
+			</div>
+			<div class="flex items-center mb-2.5 mt-2.5">
+				<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
+				 <div class="flex items-center">
+					<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+				 </div>
+			</div>
+			{#if showAssistant?.params?.temperature}
+				<div class="flex items-center mb-2.5">
+					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
+						{$i18n.t("Creativity scale")}:
+					</div>
+					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
+						{#if showAssistant?.params?.temperature === 0.2}
+							{$i18n.t('Determined')}
+						{:else if showAssistant?.params?.temperature === 0.5}
+							{$i18n.t('Balanced')}
+						{:else if showAssistant?.params?.temperature === 0.8}
+							{$i18n.t('Creative')}
+						{/if}
+					</div> 
+				</div>
+			{/if}
+			{#if showAssistant?.meta?.knowledge}
+				<div class="mb-2.5 pt-2.5 border-t border-lightGray-400 dark:border-customGray-700">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
+						{$i18n.t("Knowledge")}: 
+					</div>
+					{#each showAssistant?.meta?.knowledge as knowledge}
+						<div class="mb-2.5 text-lightGray-100 dark:text-customGray-100/80 flex items-center">
+							<FolderIcon/>
+							<div class="ml-2 text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.name}</div>
+						</div>	
+					{/each}
+				</div>
+			{/if}
+			{#if showAssistant?.meta?.files?.length > 0}
+				<div class="mb-2.5">
+					<div class="mb-1 text-sm text-lightGray-1400/60 dark:text-customGray-100/50">
+						{$i18n.t("Files")}: 
+					</div>
+					<ul class="space-y-1 text-sm">
+						{#each showAssistant?.meta?.files as file (file.id)}
+							<li
+								class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
+							>
+								<DocumentIcon/>
+								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.name}</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+		</div>
+	</Modal>
 
 	<div
 		id="assistants-header"
@@ -471,9 +557,11 @@
 					class={`${accessFilter === 'public' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-4 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Public')}</button
 				>
-				<!-- <button class="px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white"
+				<button
+					on:click={() => (accessFilter = 'pre-built')}
+					class={`${accessFilter === 'pre-built' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-2 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Pre-built')}</button
-				> -->
+				>
 			</div>
 		</div>
 		<div
@@ -513,7 +601,16 @@
 									</button>
 								{/if}
 								<div class="flex items-center gap-1 flex-wrap">
-									{#if model.access_control == null}
+									{#if model.company_id === "system"}
+										<div
+											class="flex gap-1 items-center {hoveredModel === model.id ||
+											menuIdOpened === model.id
+												? 'dark:text-white'
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
+										>
+											<span>{$i18n.t('Prebuilt')}</span>
+										</div>
+									{:else if model.access_control == null}
 										<div
 											class="flex gap-1 items-center {hoveredModel === model.id ||
 											menuIdOpened === model.id
@@ -546,17 +643,18 @@
 											</div>
 										{/each}
 									{/if}
-
-									{#each model.meta?.tags as modelTag}
-										<div
-											class="flex items-center {hoveredModel === model.id ||
-											menuIdOpened === model.id
-												? 'dark:text-white'
-												: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
-										>
-											{$i18n.t(modelTag.name)}
-										</div>
-									{/each}
+									{#if model.meta?.tags}
+										{#each model.meta?.tags as modelTag}
+											<div
+												class="flex items-center {hoveredModel === model.id ||
+												menuIdOpened === model.id
+													? 'dark:text-white'
+													: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+											>
+												{$i18n.t(modelTag.name)}
+											</div>
+										{/each}
+									{/if}
 								</div>
 							</div>
 							{#if $user?.role === 'admin' || model.user_id === $user?.id || model?.access_control === null || model?.access_control?.write.group_ids?.some( (wg) => group_ids.includes(wg) )}
@@ -638,7 +736,7 @@
 										{model.name}
 									</div>
 
-									<div class="mt-[5px] flex gap-1 text-xs overflow-hidden">
+									<div class="flex justify-between items-center mt-[5px]">
 										<div
 											class="line-clamp-1 text-xs text-lightGray-1200 dark:text-customGray-100/50"
 										>
@@ -646,7 +744,15 @@
 												{model?.meta?.description}
 											{/if}
 										</div>
-									</div>
+										<button 
+											class="text-xs shrink-0 ml-2 hover:underline font-medium" 
+											on:click={(e) => {
+												e.preventDefault();
+												showMore = !showMore;
+												showAssistant = model;
+											}}>{$i18n.t('Show more')}
+										</button>
+									</div>	
 								</div>
 							</a>
 						</div>
@@ -675,8 +781,6 @@
 											{model?.user?.first_name} {model?.user?.last_name}
 										{:else if model?.user?.email}
 											{model?.user?.email}
-										{:else}
-											{$i18n.t('Deleted User')}
 										{/if}
 									</div>
 								</Tooltip>
