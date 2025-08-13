@@ -1,7 +1,7 @@
 """add_prebuilt_assistants_to_model_table
 
 Revision ID: f9d94e70461a
-Revises: 9b79f110c1db
+Revises: dc09e93071fb
 Create Date: 2025-08-08 13:33:59.780605
 
 """
@@ -21,7 +21,7 @@ import open_webui.internal.db
 
 # revision identifiers, used by Alembic.
 revision: str = 'f9d94e70461a'
-down_revision: Union[str, None] = '9b79f110c1db'
+down_revision: Union[str, None] = 'dc09e93071fb'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
