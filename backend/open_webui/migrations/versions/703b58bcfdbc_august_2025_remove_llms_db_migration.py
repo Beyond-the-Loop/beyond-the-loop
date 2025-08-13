@@ -72,9 +72,7 @@ def upgrade() -> None:
         if v["stats"] == "replace" and v["replace_with"] is not None
     }
 
-    should_commit = False
     for model_name, model_data in to_replace_models_list.items():
-        should_commit = True
         replacement_model_name = model_data["replace_with"]
         print(f"Replacing model: {model_name} with {replacement_model_name}")
         connection.execute(
@@ -86,24 +84,18 @@ def upgrade() -> None:
                 "replace_with": replacement_model_name,
             },
         )
-    if should_commit:
-        connection.commit()
 
     # remove models from model_cost table
     to_remove_models_list = {
         k: v for k, v in replacement_models_list.items() if v["stats"] == "replace"
     }
 
-    should_commit = False
     for model_name in to_remove_models_list.keys():
-        should_commit = True
         print(f"Removing model: {model_name} from model_cost table")
         connection.execute(
             sqlalchemy.text("DELETE FROM model_cost WHERE model_name = :model_name"),
             {"model_name": model_name},
         )
-    if should_commit:
-        connection.commit()
 
 def downgrade() -> None:
     pass
