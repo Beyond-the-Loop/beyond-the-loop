@@ -25,13 +25,13 @@ def upgrade() -> None:
 
     connection = op.get_bind()
 
-    duplicate_models = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
+    dupplicate_llms = ["GPT o4-mini", "Perplexity Sonar Pro", "Mistral Large 2"]
     companies = connection.execute(sqlalchemy.text("SELECT company_id FROM model GROUP BY company_id")).fetchall()
 
     for company in companies:
         company_id = company[0]
 
-        for model in duplicate_models:
+        for model in dupplicate_llms:
             model_ids = connection.execute(
                 sqlalchemy.text("SELECT id FROM model WHERE name = :model AND company_id = :company_id AND base_model_id IS NULL"),
                 {"company_id": company_id, "model": model},
