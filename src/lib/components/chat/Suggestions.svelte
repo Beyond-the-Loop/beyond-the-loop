@@ -81,7 +81,7 @@
 			<button
 				class="waterfall flex flex-col w-1/3 justify-between
 				       px-3 py-3 rounded-xl bg-lightGray-350
-				       dark:bg-customGray-800 transition group"
+				       dark:bg-customGray-800 transition group min-h-[56px]"
 				style="animation-delay: {idx * 60}ms"
 				on:click={() => dispatch('select', prompt.content)}
 			>
@@ -97,11 +97,11 @@
 						</div>
 					{:else}
 						<div
-							class="font-medium text-xs text-lightGray-100 dark:text-gray-300 dark:group-hover:text-gray-200 transition line-clamp-1"
+							class="font-medium text-xs text-lightGray-100 dark:text-gray-300 dark:group-hover:text-gray-200 transition line-clamp-2"
 						>
 							{prompt.content}
 						</div>
-						<div class="text-xs text-gray-500 font-normal line-clamp-1">{$i18n.t('Prompt')}</div>
+						<!-- <div class="text-xs text-gray-500 font-normal line-clamp-1">{$i18n.t('Prompt')}</div> -->
 					{/if}
 				</div>
 			</button>

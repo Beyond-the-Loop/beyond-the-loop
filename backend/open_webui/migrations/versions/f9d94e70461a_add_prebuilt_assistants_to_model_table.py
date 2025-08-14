@@ -84,7 +84,8 @@ def upgrade() -> None:
                     "code_interpreter": False,
                     "vision": False,
                     "citations": False
-                }
+                },
+                "suggestion_prompts": [{"content": s} for s in prompt_suggestions]
             }
 
             params = {
