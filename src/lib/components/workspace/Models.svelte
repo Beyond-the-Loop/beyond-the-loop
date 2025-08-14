@@ -360,8 +360,12 @@
 			<div class="flex items-center mb-2.5 mt-2.5">
 				<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
 				 <div class="flex items-center">
-					<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
-					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+					{#if baseModel}
+						<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
+						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+					{:else}
+						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{$i18n.t('Base model for this assistant was to be disabled')}</div>
+					{/if}
 				 </div>
 			</div>
 			{#if showAssistant?.params?.temperature}
@@ -581,7 +585,7 @@
 					<div
 						on:mouseenter={() => (hoveredModel = model.id)}
 						on:mouseleave={() => (hoveredModel = null)}
-						class="{isBaseModelDisabled(model) && "opacity-70"} relative flex flex-col gap-y-1 cursor-pointer w-full px-3 py-2 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl transition"
+						class="relative flex flex-col gap-y-1 cursor-pointer w-full px-3 py-2 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl transition"
 						id="model-item-{model.id}"
 					>
 						<div class="flex items-start justify-between">
@@ -642,6 +646,16 @@
 												<span>{groupName}</span>
 											</div>
 										{/each}
+									{/if}
+									{#if isBaseModelDisabled(model)}
+										<div
+											class="flex gap-1 items-center {hoveredModel === model.id ||
+											menuIdOpened === model.id
+												? 'dark:text-white'
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
+										>
+											<span>{$i18n.t('Inactive')}</span>
+										</div>
 									{/if}
 									{#if model.meta?.tags}
 										{#each model.meta?.tags as modelTag}
@@ -723,9 +737,13 @@
 								</div>
 							</div>
 
-							<a
-								class=" flex flex-1 cursor-pointer w-full {isBaseModelDisabled(model) && "pointer-events-none"}"
-								href={`/?models=${encodeURIComponent(model.id)}`}
+							<div
+								class=" flex flex-1 cursor-pointer w-full "
+								on:click={() => {
+									if (!isBaseModelDisabled(model)) {
+										goto(`/?models=${encodeURIComponent(model.id)}`)
+									}
+								}}
 							>
 								<div class=" flex-1 self-center">
 									<div
@@ -738,27 +756,31 @@
 
 									<div class="flex justify-between items-center mt-[5px]">
 										<div
-											class="line-clamp-1 text-xs text-lightGray-1200 dark:text-customGray-100/50"
+											class="{isBaseModelDisabled(model) ? 'line-clamp-2' : 'line-clamp-1'} text-xs text-lightGray-1200 dark:text-customGray-100/50"
 										>
+										{#if isBaseModelDisabled(model)}
+											{$i18n.t('Base model for this assistant was to be disabled')}
+										{:else}
 											{#if (model?.meta?.description ?? '').trim()}
 												{model?.meta?.description}
 											{/if}
+										{/if}
 										</div>
 										<button 
 											class="text-xs shrink-0 ml-2 hover:underline font-medium" 
 											on:click={(e) => {
-												e.preventDefault();
+												e.stopPropagation();
 												showMore = !showMore;
 												showAssistant = model;
 											}}>{$i18n.t('Show more')}
 										</button>
 									</div>	
 								</div>
-							</a>
+							</div>
 						</div>
-						{#if isBaseModelDisabled(model)}
+						<!-- {#if isBaseModelDisabled(model)}
 								<div class="absolute top-[6rem] text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t("Base model for this assistant was disabled.")}</div>
-						{/if}
+						{/if} -->
 
 						<div
 							class="flex justify-between mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700"
