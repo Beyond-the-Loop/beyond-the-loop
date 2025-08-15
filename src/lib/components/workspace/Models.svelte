@@ -364,7 +364,7 @@
 						<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
 						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
 					{:else}
-						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{$i18n.t('Base model for this assistant was to be disabled')}</div>
+						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{$i18n.t('Base model for this assistant is disabled.')}</div>
 					{/if}
 				 </div>
 			</div>
@@ -585,7 +585,7 @@
 					<div
 						on:mouseenter={() => (hoveredModel = model.id)}
 						on:mouseleave={() => (hoveredModel = null)}
-						class="relative flex flex-col gap-y-1 cursor-pointer w-full px-3 py-2 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl transition"
+						class="{isBaseModelDisabled(model) && "opacity-70"} relative flex flex-col gap-y-1 cursor-pointer w-full px-3 py-2 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl transition"
 						id="model-item-{model.id}"
 					>
 						<div class="flex items-start justify-between">
@@ -759,7 +759,7 @@
 											class="{isBaseModelDisabled(model) ? 'line-clamp-2' : 'line-clamp-1'} text-xs text-lightGray-1200 dark:text-customGray-100/50"
 										>
 										{#if isBaseModelDisabled(model)}
-											{$i18n.t('Base model for this assistant was to be disabled')}
+											{$i18n.t('Base model for this assistant is disabled.')}
 										{:else}
 											{#if (model?.meta?.description ?? '').trim()}
 												{model?.meta?.description}

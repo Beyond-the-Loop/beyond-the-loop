@@ -136,6 +136,7 @@
 	"Balanced general-purpose performance.": "Ausgewogene Allzweckleistung.",
 	"Banners": "Banner",
 	"Base Model (From)": "Basismodell (From)",
+	"Base model for this assistant is disabled.": "Das Basismodell für diesen Assistenten ist deaktiviert.",
 	"Batch Size (num_batch)": "Stapelgröße (num_batch)",
 	"before": "bereits geteilt",
 	"Being lazy": "Faulheit",
