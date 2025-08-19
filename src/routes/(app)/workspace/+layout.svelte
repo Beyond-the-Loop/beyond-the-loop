@@ -22,7 +22,7 @@
 
 	onMount(async () => {
 		if ($user?.role !== 'admin') {
-			if ($page.url.pathname.includes('/models') && !$user?.permissions?.workspace?.models) {
+			if ($page.url.pathname.includes('/models') && !$user?.permissions?.workspace?.view_assistants) {
 				goto('/');
 			} else if (
 				$page.url.pathname.includes('/knowledge') &&
@@ -31,7 +31,7 @@
 				goto('/');
 			} else if (
 				$page.url.pathname.includes('/prompts') &&
-				!$user?.permissions?.workspace?.prompts
+				!$user?.permissions?.workspace?.view_prompts
 			) {
 				goto('/');
 			} else if ($page.url.pathname.includes('/tools') && !$user?.permissions?.workspace?.tools) {

@@ -21,7 +21,10 @@
 	let hoveringGroup = false;
 	let hoveringSubmenu = false;
 
-    
+	let hoveringGroupPermisssions = false;
+	let hoveringPermissionsSubmenu = false;
+
+    $: showPermissionsSubmenu = hoveringGroupPermisssions || hoveringPermissionsSubmenu;
 
 	$: showSubmenu = hoveringGroup || hoveringSubmenu;
 	let root;
@@ -29,6 +32,10 @@
 	let submenuX = 0;
 	let submenuY = 0;
 	let groupTriggerEl: HTMLElement;
+
+	let submenuPermissionsX = 0;
+	let submenuPermissionsY = 0;
+	let groupTriggerPermisssionsEl: HTMLElement;
 
     let initialized = false;
 
@@ -43,7 +50,30 @@
 		image_generation: ImageGenerateIcon,
 		code_interpreter: CodeInterpreterIcon
 	};
-   
+
+	let permissions = {
+		view_assistants: true,
+		edit_assistants: false,
+		view_prompts: true,
+		edit_prompts: false,
+	}
+	function setPermission(key, checked) {
+		permissions[key] = checked;
+
+		if (key.startsWith('edit_') && checked) {
+		const viewKey = 'view_' + key.slice(5);
+		permissions[viewKey] = true;
+		}
+
+		if (key.startsWith('view_') && !checked) {
+		const editKey = 'edit_' + key.slice(5);
+		permissions[editKey] = false;
+		}
+
+		permissions = { ...permissions };
+
+		dispatch('changePermissions', permissions);
+	}
     $: {
         if(group && !initialized){
             if(group.permissions) {
@@ -51,6 +81,12 @@
 		        web_search: group.permissions.features.web_search,
 		        image_generation: group.permissions.features.image_generation,
 		        code_interpreter: group.permissions.features.code_interpreter
+	        };
+			permissions = {
+		        view_assistants: group.permissions.workspace.view_assistants,
+		        edit_assistants: group.permissions.workspace.edit_assistants,
+		        view_prompts: group.permissions.workspace.view_prompts,
+				edit_prompts: group.permissions.workspace.edit_prompts
 	        };
         }
             initialized = true;
@@ -125,7 +161,7 @@
 						class="w-full flex justify-between gap-2 items-center px-3 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
 					>	<div class="flex items-center gap-2">
 							<PermissionIcon />
-							<div class="flex items-center">{$i18n.t('Permission')}</div>
+							<div class="flex items-center">{$i18n.t('Features')}</div>
 						</div>
 						<svg
 							width="4"
@@ -174,7 +210,7 @@
 										on:change={(e) => {
 											e.stopPropagation();
 											capabilities[capability] = e.detail === 'checked';
-                                            dispatch('changePermissions', capabilities)
+                                            dispatch('changeFeatures', capabilities)
 										}}
 									/>
 									<div class="flex items-center gap-2 ml-2">
@@ -182,6 +218,110 @@
 											<svelte:component this={capabilityIcons[capability]} className="size-4" />
 										{/if}
 										<span class="capitalize">{capability.replace(/_/g, ' ')}</span>
+									</div>
+								</div>
+							{/each}
+						</button>
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="relative"
+					bind:this={groupTriggerPermisssionsEl}
+					on:mouseenter={() => {
+						hoveringGroupPermisssions = true;
+						if (groupTriggerPermisssionsEl) {
+							const rect = groupTriggerPermisssionsEl.getBoundingClientRect();
+							const screenWidth = window.innerWidth;
+							if (screenWidth < 1290) {
+								// submenuX = rect.left - 178;
+								submenuPermissionsX = -183;
+							} else {
+								// submenuX = rect.right + 8;
+								submenuPermissionsX = 158;
+							}
+							// submenuY = rect.top - 40;
+							submenuPermissionsY = -40;
+							showPermissionsSubmenu = true;
+						}
+					}}
+					on:mouseleave={() => {
+						hoveringGroupPermisssions = false;
+						setTimeout(() => {
+							if (!hoveringPermissionsSubmenu) showPermissionsSubmenu = false;
+						}, 100);
+					}}
+				>
+					<button
+						on:click={() => {
+							if($mobile) {
+								showPermissionsSubmenu = true;
+								submenuPermissionsX = -183;
+								submenuPermissionsY = -40;
+							}else{
+								showDropdown = false;
+							}
+						}}
+						class="w-full flex justify-between gap-2 items-center px-3 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
+					>	<div class="flex items-center gap-2">
+							<PermissionIcon />
+							<div class="flex items-center">{$i18n.t('Permissions')}</div>
+						</div>
+						<svg
+							width="4"
+							height="7"
+							viewBox="0 0 4 7"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M3.9999 3.39941C3.9999 3.53267 3.94978 3.66592 3.84237 3.77113L1.31467 6.24687C1.10701 6.45026 0.763304 6.45026 0.555646 6.24687C0.347988 6.04348 0.347988 5.70684 0.555646 5.50345L2.70383 3.39941L0.555646 1.29538C0.347988 1.09199 0.347988 0.755346 0.555645 0.551957C0.763303 0.348567 1.10701 0.348567 1.31467 0.551957L3.84237 3.0277C3.94978 3.1329 3.9999 3.26616 3.9999 3.39941Z"
+								fill="currentColor"
+							/>
+						</svg>
+					</button>
+					<div
+						class="absolute left-full top-0 w-4 h-full z-10"
+						on:mouseenter={() => (hoveringPermissionsSubmenu = true)}
+						on:mouseleave={() => (hoveringPermisssionsSubmenu = false)}
+					></div>
+					<div
+						class="absolute -left-4 top-0 w-4 h-full z-10"
+						on:mouseenter={() => (hoveringPermissionsSubmenu = true)}
+						on:mouseleave={() => (hoveringPermissionsSubmenu = false)}
+					></div>
+
+					<!-- Submenu -->
+					{#if showPermissionsSubmenu}
+						<button
+							type="button"
+							class="w-[11rem] absolute dark:bg-customGray-900 border px-1 py-2 border-lightGray-400 bg-lightGray-300 dark:border-customGray-700 rounded-xl shadow z-20 min-w-30"
+							style="top: {submenuPermissionsY}px; left: {submenuPermissionsX}px"
+							on:mouseenter={() => (hoveringPermissionsSubmenu = true)}
+							on:mouseleave={() => {
+								hoveringPermissionsSubmenu = false;
+								showPermissionsSubmenu = false;
+							}}
+						>
+							{#each Object.keys(permissions) as permission}
+								<div
+									role="button"
+									tabindex="0"
+									class="flex items-center rounded-xl w-full justify-start px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer text-xs dark:text-customGray-100"
+								>
+									<Checkbox
+										state={permissions[permission] ? 'checked' : 'unchecked'}
+										on:change={(e) => {
+											e.stopPropagation();
+											setPermission(permission, e.detail === 'checked');
+                                            //dispatch('changePermissions', capabilities)
+										}}
+									/>
+									<div class="flex items-center gap-2 ml-2">
+										<!-- {#if capabilityIcons[capability]}
+											<svelte:component this={capabilityIcons[capability]} className="size-4" />
+										{/if} -->
+										<span class="capitalize">{permission.replace(/_/g, ' ')}</span>
 									</div>
 								</div>
 							{/each}

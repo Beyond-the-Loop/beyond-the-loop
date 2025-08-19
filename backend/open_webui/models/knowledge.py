@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from typing import Optional
@@ -12,9 +11,9 @@ from beyond_the_loop.models.users import Users, UserResponse
 
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, Text, JSON
+from sqlalchemy import BigInteger, Column, Text, JSON
 
-from open_webui.utils.access_control import has_access
+from beyond_the_loop.utils.access_control import has_access
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])

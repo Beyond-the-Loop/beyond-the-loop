@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.misc import validate_email_format
 from beyond_the_loop.services.email_service import EmailService
+from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -256,24 +257,25 @@ async def get_users(
 
 ############################
 class WorkspacePermissions(BaseModel):
-    models: bool = False
-    knowledge: bool = False
-    prompts: bool = False
-    tools: bool = False
-
+    view_assistants: bool
+    edit_assistants: bool
+    knowledge: bool
+    tools: bool
+    view_prompts: bool
+    edit_prompts: bool
 
 class ChatPermissions(BaseModel):
-    controls: bool = True
-    file_upload: bool = True
-    delete: bool = True
-    edit: bool = True
-    temporary: bool = True
+    controls: bool
+    file_upload: bool
+    delete: bool
+    edit: bool
+    temporary: bool
 
 
 class FeaturesPermissions(BaseModel):
-    web_search: bool = True
-    image_generation: bool = True
-    code_interpreter: bool = True
+    web_search: bool
+    image_generation: bool
+    code_interpreter: bool
 
 
 class UserPermissions(BaseModel):
@@ -286,23 +288,15 @@ class UserPermissions(BaseModel):
 async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
     return {
         "workspace": WorkspacePermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("workspace", {})
+            **DEFAULT_USER_PERMISSIONS.get("workspace", {})
         ),
         "chat": ChatPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("chat", {})
+            **DEFAULT_USER_PERMISSIONS.get("chat", {})
         ),
         "features": FeaturesPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("features", {})
+            **DEFAULT_USER_PERMISSIONS.get("features", {})
         ),
     }
-
-
-@router.post("/permissions")
-async def update_user_permissions(
-    request: Request, form_data: UserPermissions, user=Depends(get_admin_user)
-):
-    request.app.state.config.USER_PERMISSIONS = form_data.model_dump()
-    return request.app.state.config.USER_PERMISSIONS
 
 
 ############################

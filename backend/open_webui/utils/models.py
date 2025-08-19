@@ -5,17 +5,15 @@ import sys
 from fastapi import Request
 
 from beyond_the_loop.models.users import User
-from open_webui.routers import ollama
 from beyond_the_loop.routers import openai
 from open_webui.functions import get_function_models
 
 
 from open_webui.models.functions import Functions
-from beyond_the_loop.models.models import Models, ModelForm, ModelMeta, ModelParams
-
+from beyond_the_loop.models.models import Models
 
 from open_webui.utils.plugin import load_function_module_by_id
-from open_webui.utils.access_control import has_access
+from beyond_the_loop.utils.access_control import has_access
 
 
 from beyond_the_loop.config import (

@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Optional
 
@@ -20,7 +19,7 @@ from pydantic import BaseModel
 
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_permission
+from beyond_the_loop.utils.access_control import has_permission
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -55,8 +54,7 @@ async def get_session_user_chat_list(
 async def delete_all_user_chats(request: Request, user=Depends(get_verified_user)):
 
     if user.role == "user" and not has_permission(
-        user.id, "chat.delete", request.app.state.config.USER_PERMISSIONS
-    ):
+        user.id, "chat.delete"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -390,8 +388,7 @@ async def delete_chat_by_id(request: Request, id: str, user=Depends(get_verified
         return result
     else:
         if not has_permission(
-            user.id, "chat.delete", request.app.state.config.USER_PERMISSIONS
-        ):
+            user.id, "chat.delete"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=ERROR_MESSAGES.ACCESS_PROHIBITED,

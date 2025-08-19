@@ -22,9 +22,11 @@
 
 	let permissions = {
 		workspace: {
-			models: true,
+			view_assistants: true,
+			edit_assistants: true,
 			knowledge: true,
-			prompts: true,
+			view_prompts: true,
+			edit_prompts: true,
 			tools: false
 		},
 		chat: {
@@ -35,9 +37,9 @@
 			temporary: true
 		},
 		features: {
-			web_search: false,
-			image_generation: false,
-			code_interpreter: false
+			web_search: true,
+			image_generation: true,
+			code_interpreter: true
 		}
 	};
 
@@ -72,9 +74,13 @@
 	$: console.log(groups);
 
 	const addGroupHandler = async () => {
+		if(!groupName) {
+			toast.error($i18n.t('Add group name'))
+			return;
+		} 
 		const res = await createNewGroup(localStorage.token, {
 			name: groupName,
-			description: ''
+			description: '',
 		}).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -208,7 +214,7 @@
 							showDeleteConfirm = true;
 							groupToDelete = group;
 						}}
-						on:changePermissions={(e) => {
+						on:changeFeatures={(e) => {
 							updateGroupHandler(group.id, {
 								...group,
 								permissions: { ...permissions, features: {
@@ -218,6 +224,17 @@
                                 }}
 							});
 							console.log(e.detail);
+						}}
+						on:changePermissions={(e) => {
+							updateGroupHandler(group.id, {
+								...group,
+								permissions: { ...permissions, workspace: {
+                                    view_assistants: e.detail.view_assistants,
+			                        edit_assistants: e.detail.edit_assistants,
+			                        view_prompts: e.detail.view_prompts,
+									edit_prompts: e.detail.edit_prompts
+                                }}
+							});
 						}}
 					>
 						<button type="button" class="hover:dark:text-white h-4">
