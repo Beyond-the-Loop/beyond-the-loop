@@ -103,13 +103,14 @@
 					?.map((tag) => tag?.toLowerCase())
 					?.some((tag) => modelTags.includes(tag));
 
-			const isPublic = m.access_control === null;
-			// const isPrivate = m.access_control !== null;
+			const isPublic = m.access_control === null && m.company_id !== "system";
+			const isPrebuilt = m.company_id === "system";
 			const isPrivate = m?.user_id === $user?.id;
 			const accessMatch =
 				accessFilter === 'all' ||
 				(accessFilter === 'public' && isPublic) ||
-				(accessFilter === 'private' && isPrivate);
+				(accessFilter === 'private' && isPrivate) ||
+				(accessFilter === 'pre-built' && isPrebuilt);
 
 			return nameMatch && tagsMatch && accessMatch;
 		});
@@ -359,8 +360,12 @@
 			<div class="flex items-center mb-2.5 mt-2.5">
 				<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
 				 <div class="flex items-center">
-					<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
-					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+					{#if baseModel}
+						<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
+						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+					{:else}
+						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{$i18n.t('Base model for this assistant is disabled.')}</div>
+					{/if}
 				 </div>
 			</div>
 			{#if showAssistant?.params?.temperature}
@@ -556,9 +561,11 @@
 					class={`${accessFilter === 'public' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-4 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Public')}</button
 				>
-				<!-- <button class="px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white"
+				<button
+					on:click={() => (accessFilter = 'pre-built')}
+					class={`${accessFilter === 'pre-built' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-2 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Pre-built')}</button
-				> -->
+				>
 			</div>
 		</div>
 		<div
@@ -598,7 +605,16 @@
 									</button>
 								{/if}
 								<div class="flex items-center gap-1 flex-wrap">
-									{#if model.access_control == null}
+									{#if model.company_id === "system"}
+										<div
+											class="flex gap-1 items-center {hoveredModel === model.id ||
+											menuIdOpened === model.id
+												? 'dark:text-white'
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
+										>
+											<span>{$i18n.t('Prebuilt')}</span>
+										</div>
+									{:else if model.access_control == null}
 										<div
 											class="flex gap-1 items-center {hoveredModel === model.id ||
 											menuIdOpened === model.id
@@ -631,17 +647,28 @@
 											</div>
 										{/each}
 									{/if}
-
-									{#each model.meta?.tags as modelTag}
+									{#if isBaseModelDisabled(model)}
 										<div
-											class="flex items-center {hoveredModel === model.id ||
+											class="flex gap-1 items-center {hoveredModel === model.id ||
 											menuIdOpened === model.id
 												? 'dark:text-white'
-												: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
 										>
-											{$i18n.t(modelTag.name)}
+											<span>{$i18n.t('Inactive')}</span>
 										</div>
-									{/each}
+									{/if}
+									{#if model.meta?.tags}
+										{#each model.meta?.tags as modelTag}
+											<div
+												class="flex items-center {hoveredModel === model.id ||
+												menuIdOpened === model.id
+													? 'dark:text-white'
+													: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+											>
+												{$i18n.t(modelTag.name)}
+											</div>
+										{/each}
+									{/if}
 								</div>
 							</div>
 							{#if $user?.role === 'admin' || model.user_id === $user?.id || model?.access_control === null || model?.access_control?.write.group_ids?.some( (wg) => group_ids.includes(wg) )}
@@ -710,9 +737,13 @@
 								</div>
 							</div>
 
-							<a
-								class=" flex flex-1 cursor-pointer w-full {isBaseModelDisabled(model) && "pointer-events-none"}"
-								href={`/?models=${encodeURIComponent(model.id)}`}
+							<div
+								class=" flex flex-1 cursor-pointer w-full "
+								on:click={() => {
+									if (!isBaseModelDisabled(model)) {
+										goto(`/?models=${encodeURIComponent(model.id)}`)
+									}
+								}}
 							>
 								<div class=" flex-1 self-center">
 									<div
@@ -725,27 +756,31 @@
 
 									<div class="flex justify-between items-center mt-[5px]">
 										<div
-											class="line-clamp-1 text-xs text-lightGray-1200 dark:text-customGray-100/50"
+											class="{isBaseModelDisabled(model) ? 'line-clamp-2' : 'line-clamp-1'} text-xs text-lightGray-1200 dark:text-customGray-100/50"
 										>
+										{#if isBaseModelDisabled(model)}
+											{$i18n.t('Base model for this assistant is disabled.')}
+										{:else}
 											{#if (model?.meta?.description ?? '').trim()}
 												{model?.meta?.description}
 											{/if}
+										{/if}
 										</div>
 										<button 
 											class="text-xs shrink-0 ml-2 hover:underline font-medium" 
 											on:click={(e) => {
-												e.preventDefault();
+												e.stopPropagation();
 												showMore = !showMore;
 												showAssistant = model;
 											}}>{$i18n.t('Show more')}
 										</button>
 									</div>	
 								</div>
-							</a>
+							</div>
 						</div>
-						{#if isBaseModelDisabled(model)}
+						<!-- {#if isBaseModelDisabled(model)}
 								<div class="absolute top-[6rem] text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t("Base model for this assistant was disabled.")}</div>
-						{/if}
+						{/if} -->
 
 						<div
 							class="flex justify-between mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700"
@@ -768,8 +803,6 @@
 											{model?.user?.first_name} {model?.user?.last_name}
 										{:else if model?.user?.email}
 											{model?.user?.email}
-										{:else}
-											{$i18n.t('Deleted User')}
 										{/if}
 									</div>
 								</Tooltip>

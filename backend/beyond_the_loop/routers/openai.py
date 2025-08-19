@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
+import uuid
 
 import aiohttp
 from aiocache import cached
@@ -569,7 +570,11 @@ async def generate_chat_completion(
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
     if model_info.base_model_id:
-        model_name = Models.get_model_by_id(model_info.base_model_id).name
+        try:
+            if uuid.UUID(model_info.base_model_id):
+                model_name = Models.get_model_by_id(model_info.base_model_id).name
+        except ValueError:
+            model_name = model_info.base_model_id
     else:
         model_name = model_info.name
 

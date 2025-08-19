@@ -35,7 +35,7 @@
 				const isDarkLS = localStorage.getItem('theme') === 'dark';
 				const isDark = localStorage.getItem('theme') === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-				const animationPath = isDarkLS || isDark ? 'b-logo-white.json' : 'b-logo-black.json';
+				const animationPath = isDarkLS || isDark ? '/b-logo-white.json' : '/b-logo-black.json';
 				const container = document.getElementById('lottie-animation');
 				const animation = lottie.loadAnimation({
 					container: container,
