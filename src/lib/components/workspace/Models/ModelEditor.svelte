@@ -208,7 +208,7 @@
 			if (
 				info.params[key] === '' ||
 				info.params[key] === null ||
-				(isGptOModel(baseModel) &&
+				(isTemperatureUnsupportedModel(baseModel) &&
 					key === 'temperature')
 			) {
 				delete info.params[key];
@@ -234,7 +234,7 @@
 
 		if (model) {
 			const baseModel = $models?.find((item) => item.id === model.base_model_id);
-			if (isGptOModel(baseModel)) {
+			if (isTemperatureUnsupportedModel(baseModel)) {
 				disableCreativity = true;
 			}
 			console.log(model);
@@ -395,8 +395,8 @@
 	const desiredOrder = Object.values(organizations).flat();
 	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 
-	function isGptOModel(model) {
-  		return /^GPT o/i.test(model?.name ?? '');
+	function isTemperatureUnsupportedModel(model) {
+  		return /^(GPT\s*o|GPT-?5)/i.test(model?.name ?? '');
 	}
 
 </script>
@@ -908,7 +908,7 @@
 																class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-100 cursor-pointer"
 																on:click={() => {
 																	info.base_model_id = model.id;
-																	if (isGptOModel(model)) {
+																	if (isTemperatureUnsupportedModel(model)) {
 																		disableCreativity = true;
 																	} else {
 																		if (disableCreativity) {
