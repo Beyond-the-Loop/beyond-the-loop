@@ -993,28 +993,6 @@ ENABLE_CHANNELS = PersistentConfig(
     os.environ.get("ENABLE_CHANNELS", "False").lower() == "true",
 )
 
-
-ENABLE_EVALUATION_ARENA_MODELS = PersistentConfig(
-    "ENABLE_EVALUATION_ARENA_MODELS",
-    "evaluation.arena.enable",
-    os.environ.get("ENABLE_EVALUATION_ARENA_MODELS", "True").lower() == "true",
-)
-EVALUATION_ARENA_MODELS = PersistentConfig(
-    "EVALUATION_ARENA_MODELS",
-    "evaluation.arena.models",
-    [],
-)
-
-DEFAULT_ARENA_MODEL = {
-    "id": "arena-model",
-    "name": "Arena Model",
-    "meta": {
-        "profile_image_url": "/favicon.png",
-        "description": "Submit your questions to anonymous AI chatbots and vote on the best response.",
-        "model_ids": None,
-    },
-}
-
 WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )
