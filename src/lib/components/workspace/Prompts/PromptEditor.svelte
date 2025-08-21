@@ -49,7 +49,7 @@
 	const submitHandler = async () => {
 		loading = true;
 
-		if (validateCommandString(command)) {
+		if (!edit && validateCommandString(command) || edit && validatePromptTitle(title)) {
 			await onSubmit({
 				title,
 				command,
@@ -72,6 +72,11 @@
 		const regex = /^[a-zA-Z0-9äöüÄÖÜß-]+$/;
 
 		// Test the input string against the regular expression
+		return regex.test(inputString);
+	};
+
+	const validatePromptTitle = (inputString) => {
+		const regex = /^[a-zA-Z0-9äöüÄÖÜß -]+$/;
 		return regex.test(inputString);
 	};
 
