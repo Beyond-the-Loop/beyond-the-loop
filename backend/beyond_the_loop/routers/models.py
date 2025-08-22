@@ -13,10 +13,46 @@ from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from beyond_the_loop.utils.access_control import has_access, has_permission
 
 router = APIRouter()
 
+
+def _validate_model_edit_permissions(model: ModelModel, user):
+    """
+    Validates that a user has permission to edit/delete a model.
+    
+    Args:
+        model: The model to check permissions for
+        user: The user attempting the operation
+        request: FastAPI request object for permission checking
+        operation: Either "edit" or "delete" for appropriate error messages
+    
+    Raises:
+        HTTPException: If user lacks required permissions
+    """
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    # Avoid editing prebuilt models
+    if model.user_id == "system":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
+    if (not model.base_model_id
+        and user.role != "admin"
+        and model.user_id != user.id
+        and not has_access(user.id, "write", model.access_control)
+        and not has_permission(user.id, "workspace.edit_assistants")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
 
 ###########################
 # GetModels
@@ -47,19 +83,18 @@ async def get_base_models(user=Depends(get_admin_user)):
 
 @router.post("/create", response_model=Optional[ModelModel])
 async def create_new_model(
-    request: Request,
     form_data: ModelForm,
     user=Depends(get_verified_user),
 ):
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.models", request.app.state.config.USER_PERMISSIONS
-    ):
+        user.id, "workspace.edit_assistants"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
     model = Models.get_model_by_name_and_company(form_data.name, user.company_id)
+
     if model:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -70,6 +105,7 @@ async def create_new_model(
         form_data.id = str(uuid.uuid4())
 
         model = Models.insert_new_model(form_data, user.id, user.company_id)
+
         if model:
             return model
         else:
@@ -160,30 +196,11 @@ async def update_model_by_id(
 ):
     model = Models.get_model_by_id(id)
 
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
+    _validate_model_edit_permissions(model, user)
 
-    if model.user_id == "system":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
+    updated_model = Models.update_model_by_id_and_company(id, form_data, user.company_id)
 
-    if (
-        (not model.base_model_id and user.role != "admin")
-        and model.user_id != user.id
-        and not has_access(user.id, "write", model.access_control)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    model = Models.update_model_by_id_and_company(id, form_data, user.company_id)
-    return model
+    return updated_model
 
 
 ############################
@@ -192,32 +209,15 @@ async def update_model_by_id(
 
 
 @router.delete("/model/delete", response_model=bool)
-async def delete_model_by_id(id: str, user=Depends(get_verified_user)):
+async def delete_model_by_id(
+        id: str, user=Depends(get_verified_user)
+):
     model = Models.get_model_by_id(id)
 
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
+    _validate_model_edit_permissions(model, user)
 
-    if model.user_id == "system":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    if (
-        model.user_id != user.id
-        and not has_access(user.id, "write", model.access_control)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.UNAUTHORIZED,
-        )
-
-    result = Models.delete_model_by_id_and_company(id, user.company_id)
-    return result
+    updated_model = Models.delete_model_by_id_and_company(id, user.company_id)
+    return updated_model
 
 ############################
 # GetTags

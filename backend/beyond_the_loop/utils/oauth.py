@@ -35,11 +35,12 @@ from beyond_the_loop.config import (
     JWT_EXPIRES_IN,
     AppConfig,
 )
-from open_webui.constants import ERROR_MESSAGES, WEBHOOK_MESSAGES
+from open_webui.constants import WEBHOOK_MESSAGES
 from open_webui.env import WEBUI_AUTH_COOKIE_SAME_SITE, WEBUI_AUTH_COOKIE_SECURE
 from open_webui.utils.misc import parse_duration
 from open_webui.utils.auth import get_password_hash, create_token
 from open_webui.utils.webhook import post_webhook
+from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 
 log = logging.getLogger(__name__)
 
@@ -392,7 +393,7 @@ class OAuthManager:
             self.update_user_groups(
                 user=user,
                 user_data=user_data,
-                default_permissions=request.app.state.config.USER_PERMISSIONS,
+                default_permissions=DEFAULT_USER_PERMISSIONS
             )
 
         # Set the cookie token

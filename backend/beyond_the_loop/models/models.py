@@ -15,7 +15,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
 
 
-from open_webui.utils.access_control import has_access
+from beyond_the_loop.utils.access_control import has_access
 
 
 log = logging.getLogger(__name__)

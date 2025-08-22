@@ -503,7 +503,7 @@
 									{/if}
 								</div>
 							</div>
-							{#if !prompt.prebuilt && (prompt.user_id === $user?.id || $user?.role === 'admin')}
+							{#if !prompt.prebuilt && (prompt.user_id === $user?.id || $user?.role === 'admin' || $user?.permissions?.workspace?.edit_prompts)}
 								<div
 									class={hoveredPrompt === prompt.command || menuIdOpened === prompt.command
 										? 'md:visible'

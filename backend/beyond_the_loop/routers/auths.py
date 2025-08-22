@@ -5,9 +5,7 @@ import datetime
 import logging
 import secrets
 import string
-from aiohttp import ClientSession
 
-from beyond_the_loop.models.auths import SignupForm
 from beyond_the_loop.models.auths import (
     ApiKey,
     Auths,
@@ -22,12 +20,10 @@ from beyond_the_loop.models.auths import (
     ResetPasswordForm,
 )
 from beyond_the_loop.models.users import Users
-from beyond_the_loop.models.companies import Companies, NO_COMPANY
+from beyond_the_loop.models.companies import NO_COMPANY
 from beyond_the_loop.services.email_service import EmailService
-from beyond_the_loop.models.models import Models, ModelForm, ModelMeta, ModelParams
 from open_webui.constants import ERROR_MESSAGES, WEBHOOK_MESSAGES
 from open_webui.env import (
-    WEBUI_AUTH,
     WEBUI_AUTH_TRUSTED_EMAIL_HEADER,
     WEBUI_AUTH_TRUSTED_NAME_HEADER,
     WEBUI_AUTH_COOKIE_SAME_SITE,
@@ -35,13 +31,12 @@ from open_webui.env import (
     SRC_LOG_LEVELS,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import Response
 from beyond_the_loop.config import (
-    OPENID_PROVIDER_URL,
     ENABLE_OAUTH_SIGNUP,
 )
 from pydantic import BaseModel
-from open_webui.utils.misc import parse_duration, validate_email_format
+from open_webui.utils.misc import parse_duration
 from open_webui.utils.auth import (
     create_api_key,
     create_token,
@@ -51,16 +46,13 @@ from open_webui.utils.auth import (
     get_password_hash,
 )
 from open_webui.utils.webhook import post_webhook
-from open_webui.utils.access_control import get_permissions
+from beyond_the_loop.utils.access_control import get_permissions
 
 from typing import Optional
 
 from ssl import CERT_REQUIRED, PROTOCOL_TLS
 from ldap3 import Server, Connection, NONE, Tls
 from ldap3.utils.conv import escape_filter_chars
-
-from beyond_the_loop.routers import openai
-from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS
 
 router = APIRouter()
 
@@ -129,7 +121,7 @@ async def get_session_user(
     )
 
     user_permissions = get_permissions(
-        user.id, request.app.state.config.USER_PERMISSIONS
+        user.id
     )
 
     return {
@@ -329,7 +321,7 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                 )
 
                 user_permissions = get_permissions(
-                    user.id, request.app.state.config.USER_PERMISSIONS
+                    user.id
                 )
 
                 return {
@@ -404,7 +396,7 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
         )
 
         user_permissions = get_permissions(
-            user.id, request.app.state.config.USER_PERMISSIONS
+            user.id
         )
 
         return {
@@ -492,7 +484,7 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
         )
 
     user_permissions = get_permissions(
-        user.id, request.app.state.config.USER_PERMISSIONS
+        user.id
     )
 
     return {

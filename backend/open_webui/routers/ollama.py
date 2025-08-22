@@ -19,14 +19,12 @@ import requests
 
 from fastapi import (
     Depends,
-    FastAPI,
     File,
     HTTPException,
     Request,
     UploadFile,
     APIRouter,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.background import BackgroundTask
@@ -42,14 +40,13 @@ from open_webui.utils.payload import (
     apply_model_system_prompt_to_body,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access
+from beyond_the_loop.utils.access_control import has_access
 
 
 from beyond_the_loop.config import (
     UPLOAD_DIR,
 )
 from open_webui.env import (
-    ENV,
     SRC_LOG_LEVELS,
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,

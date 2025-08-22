@@ -35,6 +35,7 @@
 	export let onClose: Function;
 
 	let show = false;
+	$: console.log(user.permissions, 'user permissions')
 </script>
 
 <Dropdown
@@ -58,7 +59,7 @@
 			align="end"
 			transition={flyAndScale}
 		>
-			{#if (model.user_id !== user?.id && user?.role === 'user') || model.company_id === "system"}
+			{#if (model.user_id !== user?.id && user?.role === 'user' && !user?.permissions?.workspace?.edit_assistants) || model.company_id === "system"}
 				<DropdownMenu.Item
 					class="flex  gap-2  items-center px-3 py-2 text-xs text-lightGray-100 dark:text-customGray-100 font-medium cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
 					on:click={() => {

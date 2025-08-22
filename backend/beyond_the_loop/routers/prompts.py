@@ -4,15 +4,42 @@ from beyond_the_loop.models.prompts import (
     PromptForm,
     PromptUserResponse,
     PromptModel,
-    Prompts, PromptBookmarkForm,
-    TagResponse
+    Prompts, TagResponse
 )
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from open_webui.utils.auth import get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from beyond_the_loop.utils.access_control import has_access, has_permission
 
 router = APIRouter()
+
+
+def _validate_prompt_write_access(prompt: PromptModel, user):
+    """
+    Validates that a user has write access to a prompt.
+    Raises HTTPException if access is denied.
+    """
+    if not prompt:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    if prompt.prebuilt:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
+    if (user.role != "admin"
+            and prompt.user_id != user.id
+            and not has_access(user.id, "write", prompt.access_control)
+            and not has_permission(user.id, "workspace.edit_prompts")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
 
 ############################
 # GetPrompts
@@ -41,14 +68,14 @@ async def create_new_prompt(
     request: Request, form_data: PromptForm, user=Depends(get_verified_user)
 ):
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.prompts", request.app.state.config.USER_PERMISSIONS
-    ):
+        user.id, "workspace.edit_prompts"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
     prompt = Prompts.get_prompt_by_command_and_company(form_data.command, user.company_id)
+
     if prompt is None:
         prompt = Prompts.insert_new_prompt(user.id, user.company_id, form_data)
 
@@ -58,6 +85,7 @@ async def create_new_prompt(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT(),
         )
+
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=ERROR_MESSAGES.COMMAND_TAKEN,
@@ -85,23 +113,7 @@ async def get_prompt_by_command(command: str, user=Depends(get_verified_user)):
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-# @router.post("/command/{command}/bookmark/update", response_model=Optional[PromptModel])
-# async def get_prompt_by_command(command: str, form_data: PromptBookmarkForm, user=Depends(get_verified_user)):
-#     prompt = Prompts.get_prompt_by_command_and_company(f"/{command}", user.company_id)
 
-#     if prompt:
-#         if (
-#             prompt.user_id == user.id
-#             or has_access(user.id, "read", prompt.access_control)
-#         ):
-#             prompt.bookmarked = form_data.bookmarked
-#             Prompts.update_prompt_by_command_and_company(f"/{command}", prompt, user.company_id)
-#             return prompt
-#     else:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail=ERROR_MESSAGES.NOT_FOUND,
-#         )
 @router.post("/command/{command}/bookmark/update")
 async def update_prompt_bookmark(command: str, user=Depends(get_verified_user)):
     prompt = Prompts.get_prompt_by_command_and_company_or_system(f"/{command}", user.company_id)
@@ -109,7 +121,7 @@ async def update_prompt_bookmark(command: str, user=Depends(get_verified_user)):
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found")
 
-    bookmarked =Prompts.toggle_bookmark(prompt.command, user.id)
+    bookmarked = Prompts.toggle_bookmark(prompt.command, user.id)
     return {"prompt_command": prompt.command, "bookmarked_by_user": bookmarked}
 
 ############################
@@ -125,30 +137,10 @@ async def update_prompt_by_command(
 ):
     prompt = Prompts.get_prompt_by_command_and_company(f"/{command}", user.company_id)
 
-    if not prompt:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
-
-    if prompt.prebuilt:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    # Is the user the original creator, in a group with write access, or an admin
-    if (
-        prompt.user_id != user.id
-        and not has_access(user.id, "write", prompt.access_control)
-        and user.role != "admin"
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
+    _validate_prompt_write_access(prompt, user)
 
     prompt = Prompts.update_prompt_by_command_and_company(f"/{command}", form_data, user.company_id)
+
     if prompt:
         return prompt
     else:
@@ -164,29 +156,13 @@ async def update_prompt_by_command(
 
 
 @router.delete("/command/{command}/delete", response_model=bool)
-async def delete_prompt_by_command(command: str, user=Depends(get_verified_user)):
+async def delete_prompt_by_command(
+        command: str,
+        user=Depends(get_verified_user)
+):
     prompt = Prompts.get_prompt_by_command_and_company(f"/{command}", user.company_id)
-    if not prompt:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
 
-    if prompt.prebuilt:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    if (
-        prompt.user_id != user.id
-        and not has_access(user.id, "write", prompt.access_control)
-        and user.role != "admin"
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
+    _validate_prompt_write_access(prompt, user)
 
     result = Prompts.delete_prompt_by_command_and_company(f"/{command}", user.company_id)
     return result
