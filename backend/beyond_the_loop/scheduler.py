@@ -53,7 +53,7 @@ class TaskScheduler:
             # Schedule daily chat archival at 23:00
             self.scheduler.add_job(
                 func=self._run_chat_archival,
-                trigger=CronTrigger(hour=23, minute=0),  # Daily at 23:00
+                trigger=CronTrigger(hour=13, minute=0),  # Daily at 23:00
                 id='daily_chat_archival',
                 name='Daily Chat Archival Process',
                 replace_existing=True
@@ -62,7 +62,7 @@ class TaskScheduler:
             # Schedule daily file cleanup at 23:30
             self.scheduler.add_job(
                 func=self._run_file_cleanup,
-                trigger=CronTrigger(hour=23, minute=30),  # Daily at 23:30
+                trigger=CronTrigger(hour=13, minute=30),  # Daily at 23:30
                 id='daily_file_cleanup',
                 name='Daily File Cleanup Process',
                 replace_existing=True
