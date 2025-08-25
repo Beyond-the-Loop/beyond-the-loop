@@ -69,26 +69,9 @@
 		?.filter((item) => item.model?.base_model_id == null)
 		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
 	
-	const fuse = new Fuse(
-		filteredSourceItems.map((item) => {
-			const _item = {
-				...item,
-				modelName: item.model?.name,
-				tags: item.model?.meta?.tags?.map((tag) => tag.name).join(' '),
-				desc: item.model?.meta?.description
-			};
-			return _item;
-		}),
-		{
-			keys: ['value', 'tags', 'modelName'],
-			threshold: 0.4
-		}
-	);
-
+	
 	$: filteredItems = searchValue
-		? fuse.search(searchValue).map((e) => {
-				return e.item;
-			})
+		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
 		: filteredSourceItems;
 
 	const pullModelHandler = async () => {
