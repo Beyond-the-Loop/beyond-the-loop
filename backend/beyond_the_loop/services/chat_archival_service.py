@@ -129,7 +129,7 @@ class ChatArchivalService:
             chats_to_archive = db.query(Chat).filter(
                 and_(
                     Chat.user_id.in_(user_ids),
-                    Chat.created_at < cutoff_timestamp,
+                    Chat.updated_at < cutoff_timestamp,
                     Chat.archived == False  # Only non-archived chats
                 )
             ).all()
@@ -169,7 +169,7 @@ class ChatArchivalService:
             chats_to_delete = db.query(Chat).filter(
                 and_(
                     Chat.archived == True,
-                    Chat.created_at < cutoff_timestamp
+                    Chat.updated_at < cutoff_timestamp
                 )
             ).all()
             
@@ -264,26 +264,26 @@ class ChatArchivalService:
             candidates = db.query(Chat).filter(
                 and_(
                     Chat.user_id.in_(user_ids),
-                    Chat.created_at < cutoff_timestamp,
+                    Chat.updated_at < cutoff_timestamp,
                     Chat.archived == False
                 )
-            ).order_by(Chat.created_at.asc()).limit(10).all()  # Limit for preview
+            ).order_by(Chat.updated_at.asc()).limit(10).all()  # Limit for preview
             
             candidate_info = []
             for chat in candidates:
-                created_date = datetime.fromtimestamp(chat.created_at)
+                updated_date = datetime.fromtimestamp(chat.updated_at)
                 candidate_info.append({
                     "chat_id": chat.id,
                     "title": chat.title,
                     "user_id": chat.user_id,
-                    "created_at": created_date.isoformat(),
-                    "days_old": (datetime.now() - created_date).days
+                    "updated_at": updated_date.isoformat(),
+                    "days_old": (datetime.now() - updated_date).days
                 })
             
             total_candidates = db.query(Chat).filter(
                 and_(
                     Chat.user_id.in_(user_ids),
-                    Chat.created_at < cutoff_timestamp,
+                    Chat.updated_at < cutoff_timestamp,
                     Chat.archived == False
                 )
             ).count()
