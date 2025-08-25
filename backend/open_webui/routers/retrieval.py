@@ -1,26 +1,19 @@
 import json
 import logging
-import mimetypes
 import os
 import shutil
 
 import uuid
 from datetime import datetime
-from pathlib import Path
-from typing import Iterator, List, Optional, Sequence, Union
+from typing import List, Optional
 
 from fastapi import (
     Depends,
-    FastAPI,
-    File,
-    Form,
     HTTPException,
-    UploadFile,
     Request,
     status,
     APIRouter,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import tiktoken
 
@@ -28,8 +21,7 @@ import tiktoken
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain_core.documents import Document
 
-from open_webui.models.files import FileModel, Files
-from open_webui.models.knowledge import Knowledges
+from beyond_the_loop.models.files import FileModel, Files
 from open_webui.storage.provider import Storage
 
 
@@ -74,9 +66,7 @@ from open_webui.utils.auth import get_admin_user, get_verified_user
 
 from beyond_the_loop.config import (
     ENV,
-    RAG_EMBEDDING_MODEL_AUTO_UPDATE,
     RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE,
-    RAG_RERANKING_MODEL_AUTO_UPDATE,
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
     UPLOAD_DIR,
     DEFAULT_LOCALE,

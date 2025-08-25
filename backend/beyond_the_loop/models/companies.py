@@ -1,11 +1,12 @@
 import json
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import String, Column, Text, Boolean, Float
 
 from open_webui.internal.db import get_db, Base
+from enum import Enum
 
 # Constants
 NO_COMPANY = "NO_COMPANY"
@@ -87,6 +88,13 @@ class CompanyConfigResponse(BaseModel):
     """Response model for company configuration"""
     config: dict
 
+class ChatRetentionDays(Enum):
+    DAYS_30 = 30
+    DAYS_90 = 90
+    DAYS_180 = 180
+    DAYS_270 = 270
+    DAYS_365 = 365
+
 class UpdateCompanyConfigRequest(BaseModel):
     """Request model for updating company configuration"""
     hide_model_logo_in_chat: Optional[bool] = None
@@ -94,6 +102,17 @@ class UpdateCompanyConfigRequest(BaseModel):
     custom_user_notice: Optional[str] = None
     features_web_search: Optional[bool] = None
     features_image_generation: Optional[bool] = None
+    
+    @field_validator('chat_retention_days')
+    @classmethod
+    def validate_chat_retention_days(cls, v):
+        if v is None:
+            return v
+        
+        valid_values = [days.value for days in ChatRetentionDays]
+        if v not in valid_values:
+            raise ValueError(f'chat_retention_days must be one of {valid_values}')
+        return v
 
 class CompanyResponse(BaseModel):
     id: str

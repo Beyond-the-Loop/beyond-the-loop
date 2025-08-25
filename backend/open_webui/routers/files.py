@@ -4,12 +4,11 @@ import uuid
 from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
-import mimetypes
 from urllib.parse import quote
 
 from open_webui.storage.provider import Storage
 
-from open_webui.models.files import (
+from beyond_the_loop.models.files import (
     FileForm,
     FileModel,
     FileModelResponse,
@@ -17,7 +16,6 @@ from open_webui.models.files import (
 )
 from open_webui.routers.retrieval import process_file, ProcessFileForm
 
-from beyond_the_loop.config import UPLOAD_DIR
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.constants import ERROR_MESSAGES
 
