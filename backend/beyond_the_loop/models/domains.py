@@ -4,14 +4,10 @@ from typing import Optional
 import uuid
 
 from open_webui.internal.db import Base, get_db
-from open_webui.models.chats import Chats
-from beyond_the_loop.models.groups import Groups
 from open_webui.env import SRC_LOG_LEVELS
 
-from functools import partial
-
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, Text, ForeignKey, Boolean
+from sqlalchemy import Column, String, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
 log = logging.getLogger(__name__)

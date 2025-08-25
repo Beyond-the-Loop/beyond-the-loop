@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from typing import Optional
@@ -7,12 +6,12 @@ import uuid
 from open_webui.internal.db import Base, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
-from open_webui.models.files import FileMetadataResponse
+from beyond_the_loop.models.files import FileMetadataResponse
 from beyond_the_loop.models.users import Users, UserResponse
 
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, Text, JSON
+from sqlalchemy import BigInteger, Column, Text, JSON
 
 from open_webui.utils.access_control import has_access
 

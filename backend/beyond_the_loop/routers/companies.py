@@ -35,12 +35,11 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
 @router.get("/config", response_model=CompanyConfigResponse)
-async def get_company_config(request: Request, user=Depends(get_current_user)):
+async def get_company_config(user=Depends(get_current_user)):
     """
     Get the configuration for the user's company
     
     Args:
-        request: The FastAPI request object
         user: The current authenticated user
         
     Returns:
@@ -64,7 +63,7 @@ async def get_company_config(request: Request, user=Depends(get_current_user)):
 
         config.get("rag", {}).get("web", {}).get("search", {}).pop("google_pse_api_key", None)
         config.get("rag", {}).get("web", {}).get("search", {}).pop("google_pse_engine_id", None)
-        
+
         return {"config": config}
     except Exception as e:
         log.error(f"Error getting company config: {e}")
@@ -74,15 +73,13 @@ async def get_company_config(request: Request, user=Depends(get_current_user)):
 
 @router.post("/config", response_model=CompanyConfigResponse)
 async def update_company_config(
-    request: Request, 
-    form_data: UpdateCompanyConfigRequest, 
+    form_data: UpdateCompanyConfigRequest,
     user=Depends(get_admin_user)
 ):
     """
     Update specific configuration settings for the user's company
     
     Args:
-        request: The FastAPI request object
         form_data: The specific configuration settings to update
         user: The current authenticated admin user
         
