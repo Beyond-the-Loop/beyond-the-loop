@@ -202,8 +202,7 @@
 			});
 
 			if (res) {
-				console.log(res);
-				voices = [...res.voices, {id: 'alloy', name: 'alloy'}];
+				voices = res.voices;
 			}
 		}
 	};
