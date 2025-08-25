@@ -10,6 +10,7 @@ import json
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.orm import Session
 
 # revision identifiers, used by Alembic.
 revision: str = 'a1b2c3d4e5f6'
@@ -19,10 +20,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Create a connection and bind a session
     connection = op.get_bind()
+    session = Session(bind=connection)
     
     # Get all config entries
-    configs = connection.execute(
+    configs = session.execute(
         sa.text("SELECT id, data, company_id FROM config")
     ).fetchall()
     
@@ -45,19 +48,23 @@ def upgrade() -> None:
         updated_data = json.dumps(data) if isinstance(config_data, str) else data
         
         # Update the database record
-        connection.execute(
+        session.execute(
             sa.text("UPDATE config SET data = :data WHERE id = :id"),
             {"data": updated_data, "id": config_id}
         )
     
+    # Commit the changes
+    session.commit()
     print(f"Updated {len(configs)} company configurations with chat_retention_days = 90")
 
 
 def downgrade() -> None:
+    # Create a connection and bind a session
     connection = op.get_bind()
+    session = Session(bind=connection)
     
     # Get all config entries
-    configs = connection.execute(
+    configs = session.execute(
         sa.text("SELECT id, data, company_id FROM config")
     ).fetchall()
     
@@ -79,9 +86,11 @@ def downgrade() -> None:
         updated_data = json.dumps(data) if isinstance(config_data, str) else data
         
         # Update the database record
-        connection.execute(
+        session.execute(
             sa.text("UPDATE config SET data = :data WHERE id = :id"),
             {"data": updated_data, "id": config_id}
         )
     
+    # Commit the changes
+    session.commit()
     print(f"Removed chat_retention_days from {len(configs)} company configurations")
