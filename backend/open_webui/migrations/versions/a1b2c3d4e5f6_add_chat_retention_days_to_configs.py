@@ -36,8 +36,10 @@ def upgrade() -> None:
         else:
             data = config_data
         
-        # Add chat_retention_days to the config
-        data["chat_retention_days"] = 90
+        # Add chat_retention_days to the data section
+        if "data" not in data:
+            data["data"] = {}
+        data["data"]["chat_retention_days"] = 90
         
         # Convert back to JSON string if needed
         updated_data = json.dumps(data) if isinstance(config_data, str) else data
@@ -69,9 +71,9 @@ def downgrade() -> None:
         else:
             data = config_data
         
-        # Remove chat_retention_days if it exists
-        if "chat_retention_days" in data:
-            del data["chat_retention_days"]
+        # Remove chat_retention_days from data section if it exists
+        if "data" in data and "chat_retention_days" in data["data"]:
+            del data["data"]["chat_retention_days"]
         
         # Convert back to JSON string if needed
         updated_data = json.dumps(data) if isinstance(config_data, str) else data
