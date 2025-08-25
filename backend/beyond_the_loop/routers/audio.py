@@ -249,6 +249,9 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     file_path = SPEECH_CACHE_DIR.joinpath(f"{name}.mp3")
     file_body_path = SPEECH_CACHE_DIR.joinpath(f"{name}.json")
 
+    print("Azure Endpoint", os.environ.get('AZURE_OPENAI_ENDPOINT'))
+    print("Azure API Key", os.environ.get('AZURE_OPENAI_API_KEY'))
+
     # Check if the file already exists in the cache
     if file_path.is_file():
         return FileResponse(file_path)
@@ -261,6 +264,8 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
     if request.app.state.config.TTS_ENGINE == "openai":
         payload["model"] = request.app.state.config.TTS_MODEL
+
+        print("Payload", payload)
 
         try:
             # print(payload)
