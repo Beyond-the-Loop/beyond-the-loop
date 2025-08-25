@@ -12,7 +12,7 @@ class TestChats(AbstractPostgresTest):
 
     def setup_method(self):
         super().setup_method()
-        from open_webui.models.chats import ChatForm, Chats
+        from beyond_the_loop.models.chats import ChatForm, Chats
 
         self.chats = Chats
         self.chats.insert_new_chat(

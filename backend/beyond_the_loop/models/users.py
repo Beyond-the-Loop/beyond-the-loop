@@ -2,7 +2,7 @@ import time
 from typing import Optional
 
 from open_webui.internal.db import Base, JSONField, get_db
-from open_webui.models.chats import Chats
+from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.groups import Groups
 
 from functools import partial

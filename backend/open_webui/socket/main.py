@@ -6,7 +6,7 @@ import time
 
 from beyond_the_loop.models.users import Users, UserNameResponse
 from open_webui.models.channels import Channels
-from open_webui.models.chats import Chats
+from beyond_the_loop.models.chats import Chats
 
 from open_webui.env import (
     ENABLE_WEBSOCKET_SUPPORT,

@@ -1,7 +1,7 @@
 import black
 import markdown
 
-from open_webui.models.chats import ChatTitleMessagesForm
+from beyond_the_loop.models.chats import ChatTitleMessagesForm
 from beyond_the_loop.config import DATA_DIR, ENABLE_ADMIN_EXPORT
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Response, status

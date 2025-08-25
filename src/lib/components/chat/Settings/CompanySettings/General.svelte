@@ -67,11 +67,11 @@
 	let showUserPermissionsDropdown = false;
 	let userPermissionsRef;
 
-	let showChatLifetimeDropdown = false;
-	let chatLifetimeDropdownRef;
+	let showChatRetentionDaysDropdown = false;
+	let chatRetentionDaysDropdownRef;
 
-	const chatLifetimeOptions = [{value: 30, label: '30 days'}, {value: 91, label: '3 months'}, {value: 183, label: '6 months'}, {value: 275, label: '9 months'}, {value: 365, label: '1 year'}, {value: 0, label: "no limit"}];
-	let chatLifetime = chatLifetimeOptions[0];
+	const chatRetentionDaysOptions = [{value: 30, label: '30 days'}, {value: 90, label: '3 months'}, {value: 180, label: '6 months'}, {value: 270, label: '9 months'}, {value: 365, label: '1 year'}];
+	let chatRetentionDays = chatRetentionDaysOptions[0];
 
 	let userNotice = '';
 
@@ -101,6 +101,9 @@
 		// if($companyConfig?.config?.ui?.custom_user_notice) {
 		// 	userNotice = $companyConfig?.config?.ui?.custom_user_notice;
 		// }
+		if($companyConfig?.config?.data?.chat_retention_days) {
+			chatRetentionDays = chatRetentionDaysOptions.find((option) => option.value === $companyConfig?.config?.data?.chat_retention_days) || chatRetentionDaysOptions[0];
+		}
 	}});
 
 	const onSubmit = async () => {
@@ -116,7 +119,7 @@
 		const configPromise = updateCompanyConfig(
 			localStorage.token,
 			hideModelLogo,
-			chatLifetimeOptions?.value,
+			chatRetentionDays.value,
 			userNotice,
 			userPermissions?.websearch,
 			userPermissions?.image_generation
@@ -407,15 +410,15 @@
 					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Safety & Compliance')}</div>
 				</div>
 			</div>
-			<div class="mb-2.5" use:onClickOutside={() => (showChatLifetimeDropdown = false)}>
-				<div class="relative" bind:this={chatLifetimeDropdownRef}>
+			<div class="mb-2.5" use:onClickOutside={() => (showChatRetentionDaysDropdown = false)}>
+				<div class="relative" bind:this={chatRetentionDaysDropdownRef}>
 					<button
 						type="button"
 						class={`flex items-center justify-between w-full text-sm h-12 px-3 py-2 ${
-							showChatLifetimeDropdown ? 'border' : ''
+							showChatRetentionDaysDropdown ? 'border' : ''
 						} border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 dark:bg-customGray-900 cursor-pointer`}
 						on:click={() => {
-							showChatLifetimeDropdown = !showChatLifetimeDropdown
+							showChatRetentionDaysDropdown = !showChatRetentionDaysDropdown
 							}}
 					>
 						<span class="text-lightGray-100 dark:text-customGray-100"
@@ -423,24 +426,24 @@
 						>
 						
 						<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
-							{chatLifetime.label}
+							{chatRetentionDays.label}
 							<ChevronDown className="size-3" />
 						</div>
 						
 					</button>
 
-					{#if showChatLifetimeDropdown}
+					{#if showChatRetentionDaysDropdown}
 						<div
 							class="max-h-40 overflow-y-auto absolute z-50 w-full -mt-1 bg-lightGray-300 pb-1 dark:bg-customGray-900 border-l border-r border-b border-lightGray-400 dark:border-customGray-700 rounded-b-md"
 						>
 							<hr class="border-t border-lightGray-400 dark:border-customGray-700 mb-2 mt-1 mx-0.5" />
 							<div class="px-1">
-								{#each chatLifetimeOptions as option}
+								{#each chatRetentionDaysOptions as option}
 									<button
 										class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 cursor-pointer text-gray-900"
 										on:click={() => {
-											chatLifetime = option;
-											showChatLifetimeDropdown = false;
+											chatRetentionDays = option;
+											showChatRetentionDaysDropdown = false;
 										}}
 									>
 										{$i18n.t(option.label)}

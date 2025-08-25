@@ -1,8 +1,7 @@
-import json
 import logging
 from typing import Optional
 
-from open_webui.models.chats import (
+from beyond_the_loop.models.chats import (
     ChatForm,
     ChatImportForm,
     ChatResponse,
@@ -10,7 +9,7 @@ from open_webui.models.chats import (
     ChatTitleIdResponse,
 )
 from open_webui.models.tags import TagModel, Tags
-from open_webui.models.folders import Folders
+from beyond_the_loop.models.folders import Folders
 
 from beyond_the_loop.config import ENABLE_ADMIN_CHAT_ACCESS, ENABLE_ADMIN_EXPORT
 from open_webui.constants import ERROR_MESSAGES

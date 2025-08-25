@@ -161,8 +161,11 @@ DEFAULT_CONFIG = {
         "enable": True,
         "model": "flux-kontext-max",
         "size": "1024x1024"
-        },
+    },
+    "data": {
+        "chat_retention_days": 90,
     }
+}
 
 def get_config(company_id):
     # If company_id is None, return the default config directly
@@ -1020,12 +1023,6 @@ HIDE_MODEL_LOGO_IN_CHAT = PersistentConfig(
     "HIDE_MODEL_LOGO_IN_CHAT",
     "ui.hide_model_logo_in_chat",
     os.environ.get("HIDE_MODEL_LOGO_IN_CHAT", "False").lower() == "true",
-)
-
-CHAT_RETENTION_DAYS = PersistentConfig(
-    "CHAT_RETENTION_DAYS",
-    "data.chat_retention_days",
-    int(os.environ.get("CHAT_RETENTION_DAYS", "365")),
 )
 
 
