@@ -1,0 +1,101 @@
+"""add_chat_retention_days_to_configs
+
+Revision ID: a1b2c3d4e5f6
+Revises: f9d94e70461a
+Create Date: 2025-08-25 13:55:00.000000
+
+"""
+from typing import Sequence, Union
+import json
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = 'a1b2c3d4e5f6'
+down_revision: Union[str, None] = 'f9d94e70461a'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    connection = op.get_bind()
+    
+    try:
+        # Get all config entries
+        configs = connection.execute(
+            sa.text("SELECT id, data, company_id FROM config")
+        ).fetchall()
+        
+        # Update each config to add chat_retention_days = 90
+        for config_row in configs:
+            config_id, config_data, company_id = config_row
+            
+            # Parse the JSON data
+            if isinstance(config_data, str):
+                data = json.loads(config_data)
+            else:
+                data = config_data
+            
+            # Add chat_retention_days to the config
+            data["chat_retention_days"] = 90
+            
+            # Convert back to JSON string if needed
+            updated_data = json.dumps(data) if isinstance(config_data, str) else data
+            
+            # Update the database record
+            connection.execute(
+                sa.text("UPDATE config SET data = :data WHERE id = :id"),
+                {"data": updated_data, "id": config_id}
+            )
+        
+        # Commit all changes
+        connection.commit()
+        print(f"Updated {len(configs)} company configurations with chat_retention_days = 90")
+        
+    except Exception as e:
+        connection.rollback()
+        print(f"Error updating configs: {e}")
+        raise
+
+
+def downgrade() -> None:
+    connection = op.get_bind()
+    
+    try:
+        # Get all config entries
+        configs = connection.execute(
+            sa.text("SELECT id, data, company_id FROM config")
+        ).fetchall()
+        
+        # Remove chat_retention_days from each config
+        for config_row in configs:
+            config_id, config_data, company_id = config_row
+            
+            # Parse the JSON data
+            if isinstance(config_data, str):
+                data = json.loads(config_data)
+            else:
+                data = config_data
+            
+            # Remove chat_retention_days if it exists
+            if "chat_retention_days" in data:
+                del data["chat_retention_days"]
+            
+            # Convert back to JSON string if needed
+            updated_data = json.dumps(data) if isinstance(config_data, str) else data
+            
+            # Update the database record
+            connection.execute(
+                sa.text("UPDATE config SET data = :data WHERE id = :id"),
+                {"data": updated_data, "id": config_id}
+            )
+        
+        # Commit all changes
+        connection.commit()
+        print(f"Removed chat_retention_days from {len(configs)} company configurations")
+        
+    except Exception as e:
+        connection.rollback()
+        print(f"Error removing chat_retention_days from configs: {e}")
+        raise

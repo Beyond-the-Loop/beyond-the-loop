@@ -163,7 +163,7 @@ DEFAULT_CONFIG = {
         "size": "1024x1024"
     },
     "data": {
-        "chat_retention_days": 30,
+        "chat_retention_days": 90,
     }
 }
 
