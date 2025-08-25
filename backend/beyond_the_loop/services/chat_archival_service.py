@@ -36,7 +36,7 @@ class ChatArchivalService:
         Returns:
             dict: Summary of the archival process results
         """
-        log.info("Starting daily chat archival process")
+        print("Starting daily chat archival process")
         start_time = datetime.now()
         
         # Reset counters
@@ -64,7 +64,7 @@ class ChatArchivalService:
                 "chats_deleted": self.deleted_count
             }
             
-            log.info(f"Daily archival process completed successfully: {summary}")
+            print(f"Daily archival process completed successfully: {summary}")
             return summary
             
         except Exception as e:
@@ -79,7 +79,7 @@ class ChatArchivalService:
     
     def _archive_old_chats(self) -> None:
         """Archive chats that exceed the company's retention period"""
-        log.info("Starting chat archival process")
+        print("Starting chat archival process")
         
         with get_db() as db:
             # Get all companies that have users with chats
@@ -87,7 +87,7 @@ class ChatArchivalService:
             user_ids = [row[0] for row in companies_with_chats]
             
             if not user_ids:
-                log.info("No chats found to process")
+                print("No chats found to process")
                 return
             
             # Get users and their companies
@@ -118,7 +118,7 @@ class ChatArchivalService:
         if retention_days is None:
             raise Exception("No chat retention policy found for company")
         
-        log.info(f"Processing company {company_id} with {len(user_ids)} users, retention: {retention_days} days")
+        print(f"Processing company {company_id} with {len(user_ids)} users, retention: {retention_days} days")
         
         # Calculate cutoff timestamp (retention_days ago)
         cutoff_date = datetime.now() - timedelta(days=retention_days)
@@ -135,7 +135,7 @@ class ChatArchivalService:
             ).all()
             
             if not chats_to_archive:
-                log.info(f"No chats to archive for company {company_id}")
+                print(f"No chats to archive for company {company_id}")
                 return
             
             # Archive the chats
@@ -154,11 +154,11 @@ class ChatArchivalService:
             db.commit()
             
             self.archived_count += result
-            log.info(f"Archived {result} chats for company {company_id}")
+            print(f"Archived {result} chats for company {company_id}")
     
     def _delete_old_archived_chats(self) -> None:
         """Delete archived chats that are older than 3 months"""
-        log.info("Starting deletion of old archived chats")
+        print("Starting deletion of old archived chats")
         
         # Calculate cutoff timestamp (90 days ago)
         cutoff_date = datetime.now() - timedelta(days=self.DELETION_THRESHOLD_DAYS)
@@ -174,7 +174,7 @@ class ChatArchivalService:
             ).all()
             
             if not chats_to_delete:
-                log.info("No archived chats to delete")
+                print("No archived chats to delete")
                 return
             
             chat_ids_to_delete = [chat.id for chat in chats_to_delete]
@@ -189,7 +189,7 @@ class ChatArchivalService:
                     log.error(f"Error deleting chat {chat_id}: {e}")
             
             self.deleted_count = deleted_count
-            log.info(f"Deleted {deleted_count} old archived chats")
+            print(f"Deleted {deleted_count} old archived chats")
     
     def get_archival_stats(self, company_id: Optional[str] = None) -> dict:
         """
