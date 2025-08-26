@@ -1,7 +1,7 @@
 from typing import Optional
 
 
-def normalize_workspace_permissions(form_data):
+def normalize_workspace_permissions(form_data: GroupForm) -> None:
     """
     Ensures that edit permissions automatically grant corresponding view permissions.
     If a user has edit_prompts permission, they also get view_prompts permission.
