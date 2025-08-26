@@ -71,7 +71,7 @@
 	let chatRetentionDaysDropdownRef;
 
 	const chatRetentionDaysOptions = [{value: 30, label: '30 days'}, {value: 90, label: '3 months'}, {value: 180, label: '6 months'}, {value: 270, label: '9 months'}, {value: 365, label: '1 year'}];
-	let chatRetentionDays = chatRetentionDaysOptions[0];
+	let chatRetentionDays = chatRetentionDaysOptions[1];
 
 	let userNotice = '';
 
