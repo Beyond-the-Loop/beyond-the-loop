@@ -116,7 +116,7 @@ class ChatArchivalService:
         retention_days = get_config_value("data.chat_retention_days", company_id)
 
         if retention_days is None:
-            raise Exception("No chat retention policy found for company")
+            raise Exception(f"No chat retention policy found for company {company_id}. Please configure chat_retention_days in company settings.")
         
         log.info(f"Processing company {company_id} with {len(user_ids)} users, retention: {retention_days} days")
         
