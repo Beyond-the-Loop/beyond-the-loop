@@ -35,7 +35,6 @@
 	export let onClose: Function;
 
 	let show = false;
-	$: console.log(user.permissions, 'user permissions')
 </script>
 
 <Dropdown
