@@ -74,7 +74,7 @@
 	$: console.log(groups);
 
 	const addGroupHandler = async () => {
-		if(!groupName) {
+		if (!groupName) {
 			toast.error($i18n.t('Add group name'))
 			return;
 		} 
