@@ -444,7 +444,6 @@
 		if (unsubscribe) unsubscribe();
 	});
 
-	$: console.log($user.permissions)
 </script>
 
 <ArchivedChatsModal
