@@ -772,7 +772,9 @@ async def chat_completion(
         model_id = form_data.get("model", None)
 
         if model_id not in request.app.state.MODELS:
-            raise Exception("Model not found for chat completion")
+            print("MODEL ID", model_id)
+            print("ALL MODELS", request.app.state.MODELS)
+            raise Exception("Model not found 1")
 
         model = request.app.state.MODELS[model_id]
         model_info = Models.get_model_by_id(model_id)

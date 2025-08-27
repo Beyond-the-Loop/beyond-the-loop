@@ -1018,13 +1018,13 @@ async def generate_chat_completion(
             ):
                 raise HTTPException(
                     status_code=403,
-                    detail="Model not found",
+                    detail="Model not found 2",
                 )
     elif not bypass_filter:
         if user.role != "admin":
             raise HTTPException(
                 status_code=403,
-                detail="Model not found",
+                detail="Model not found 3",
             )
 
     if ":" not in payload["model"]:
@@ -1119,13 +1119,13 @@ async def generate_openai_completion(
             ):
                 raise HTTPException(
                     status_code=403,
-                    detail="Model not found",
+                    detail="Model not found 4",
                 )
     else:
         if user.role != "admin":
             raise HTTPException(
                 status_code=403,
-                detail="Model not found",
+                detail="Model not found 5",
             )
 
     if ":" not in payload["model"]:
