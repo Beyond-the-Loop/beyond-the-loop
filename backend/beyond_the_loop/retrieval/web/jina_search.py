@@ -1,7 +1,7 @@
 import logging
 
 import requests
-from open_webui.retrieval.web.main import SearchResult
+from beyond_the_loop.retrieval.web.main import SearchResult
 from open_webui.env import SRC_LOG_LEVELS
 from yarl import URL
 

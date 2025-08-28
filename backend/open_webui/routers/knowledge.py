@@ -10,14 +10,13 @@ from open_webui.models.knowledge import (
     KnowledgeUserResponse,
 )
 from open_webui.models.files import Files, FileModel
-from open_webui.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 from open_webui.routers.retrieval import (
     process_file,
     ProcessFileForm,
     process_files_batch,
     BatchProcessFilesForm,
 )
-from open_webui.storage.provider import Storage
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user

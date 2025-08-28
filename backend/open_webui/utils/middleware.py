@@ -34,7 +34,7 @@ from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from open_webui.models.functions import Functions
 from beyond_the_loop.models.models import Models
-from open_webui.retrieval.utils import get_sources_from_files
+from beyond_the_loop.retrieval.utils import get_sources_from_files
 from open_webui.utils.chat import generate_chat_completion
 from beyond_the_loop.routers.openai import generate_chat_completion as generate_openai_chat_completion
 from open_webui.utils.task import (
@@ -61,7 +61,6 @@ from beyond_the_loop.config import (
 from open_webui.env import (
     SRC_LOG_LEVELS,
     GLOBAL_LOG_LEVEL,
-    BYPASS_MODEL_ACCESS_CONTROL,
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS

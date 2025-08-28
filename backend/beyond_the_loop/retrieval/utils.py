@@ -6,7 +6,7 @@ from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriev
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
 from beyond_the_loop.config import VECTOR_DB
-from open_webui.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 from beyond_the_loop.models.users import UserModel
 
 from open_webui.env import (
@@ -42,6 +42,8 @@ class VectorSearchRetriever(BaseRetriever):
             limit=self.top_k,
         )
 
+        print("GET RELEVANT DOCUMENTS", self.collection_name)
+
         ids = result.ids[0]
         metadatas = result.metadatas[0]
         documents = result.documents[0]
@@ -54,21 +56,21 @@ class VectorSearchRetriever(BaseRetriever):
                     page_content=documents[idx],
                 )
             )
+
+        print("RELEVANT DOCUMENTS", results)
         return results
 
 
 def query_doc(
-    collection_name: str, query_embedding: list[float], k: int, user: UserModel = None
+    collection_name: str, query_embedding: list[float], k: int
 ):
+    print("QUERY DOC", collection_name, query_embedding, k)
     try:
         result = VECTOR_DB_CLIENT.search(
             collection_name=collection_name,
             vectors=[query_embedding],
             limit=k,
         )
-
-        if result:
-            log.info(f"query_doc:result {result.ids} {result.metadatas}")
 
         return result
     except Exception as e:
@@ -120,7 +122,7 @@ def query_doc_with_hybrid_search(
             "metadatas": [[d.metadata for d in result]],
         }
 
-        log.info(
+        print(
             "query_doc_with_hybrid_search:result "
             + f'{result["metadatas"]} {result["distances"]}'
         )
@@ -249,8 +251,6 @@ def get_embedding_function(
     embedding_engine,
     embedding_model,
     embedding_function,
-    url,
-    key,
     embedding_batch_size,
 ):
     if embedding_engine == "":
