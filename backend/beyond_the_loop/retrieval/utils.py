@@ -42,8 +42,6 @@ class VectorSearchRetriever(BaseRetriever):
             limit=self.top_k,
         )
 
-        print("GET RELEVANT DOCUMENTS", self.collection_name)
-
         ids = result.ids[0]
         metadatas = result.metadatas[0]
         documents = result.documents[0]
@@ -57,14 +55,12 @@ class VectorSearchRetriever(BaseRetriever):
                 )
             )
 
-        print("RELEVANT DOCUMENTS", results)
         return results
 
 
 def query_doc(
     collection_name: str, query_embedding: list[float], k: int
 ):
-    print("QUERY DOC", collection_name, query_embedding, k)
     try:
         result = VECTOR_DB_CLIENT.search(
             collection_name=collection_name,
