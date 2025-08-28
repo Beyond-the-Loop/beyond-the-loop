@@ -1,5 +1,10 @@
 from typing import Optional
-
+from beyond_the_loop.models.groups import (
+    Groups,
+    GroupForm,
+    GroupUpdateForm,
+    GroupResponse,
+)
 
 def normalize_workspace_permissions(form_data: GroupForm) -> None:
     """
@@ -16,12 +21,6 @@ def normalize_workspace_permissions(form_data: GroupForm) -> None:
 
 
 from beyond_the_loop.models.users import Users
-from beyond_the_loop.models.groups import (
-    Groups,
-    GroupForm,
-    GroupUpdateForm,
-    GroupResponse,
-)
 
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, status

@@ -57,18 +57,19 @@
 		view_prompts: true,
 		edit_prompts: false,
 	}
+
 	function setPermission(key, checked) {
 		permissions[key] = checked;
 
-		if (key.startsWith('edit_') && checked) {
-		const viewKey = 'view_' + key.slice(5);
-		permissions[viewKey] = true;
-		}
+		// if (key.startsWith('edit_') && checked) {
+		// const viewKey = 'view_' + key.slice(5);
+		// permissions[viewKey] = true;
+		// }
 
-		if (key.startsWith('view_') && !checked) {
-		const editKey = 'edit_' + key.slice(5);
-		permissions[editKey] = false;
-		}
+		// if (key.startsWith('view_') && !checked) {
+		// const editKey = 'edit_' + key.slice(5);
+		// permissions[editKey] = false;
+		// }
 
 		permissions = { ...permissions };
 
@@ -108,7 +109,7 @@
 	</div>
 		{#if showDropdown}
 			<div
-				class="w-[10rem] flex flex-col absolute md:left-0 right-0 bg-lightGray-300 dark:bg-customGray-900 px-1 py-2 border border-lightGray-400 dark:border-customGray-700 rounded-lg z-10"
+				class="w-[10.5rem] flex flex-col absolute md:left-0 right-0 bg-lightGray-300 dark:bg-customGray-900 px-1 py-2 border border-lightGray-400 dark:border-customGray-700 rounded-lg z-10"
 			>
 				<button
 					type="button"
@@ -134,7 +135,7 @@
 								submenuX = -183;
 							} else {
 								// submenuX = rect.right + 8;
-								submenuX = 158;
+								submenuX = 167;
 							}
 							// submenuY = rect.top - 40;
 							submenuY = -40;
@@ -238,10 +239,10 @@
 								submenuPermissionsX = -183;
 							} else {
 								// submenuX = rect.right + 8;
-								submenuPermissionsX = 158;
+								submenuPermissionsX = 167;
 							}
 							// submenuY = rect.top - 40;
-							submenuPermissionsY = -40;
+							submenuPermissionsY = -10;
 							showPermissionsSubmenu = true;
 						}
 					}}
@@ -257,7 +258,7 @@
 							if($mobile) {
 								showPermissionsSubmenu = true;
 								submenuPermissionsX = -183;
-								submenuPermissionsY = -40;
+								submenuPermissionsY = -10;
 							}else{
 								showDropdown = false;
 							}
@@ -283,7 +284,7 @@
 					<div
 						class="absolute left-full top-0 w-4 h-full z-10"
 						on:mouseenter={() => (hoveringPermissionsSubmenu = true)}
-						on:mouseleave={() => (hoveringPermisssionsSubmenu = false)}
+						on:mouseleave={() => (hoveringPermissionsSubmenu = false)}
 					></div>
 					<div
 						class="absolute -left-4 top-0 w-4 h-full z-10"
@@ -303,7 +304,9 @@
 								showPermissionsSubmenu = false;
 							}}
 						>
-							{#each Object.keys(permissions) as permission}
+							{#each Object.keys(permissions).filter(
+								p => !['view_assistants', 'view_prompts'].includes(p)
+							) as permission}
 								<div
 									role="button"
 									tabindex="0"
