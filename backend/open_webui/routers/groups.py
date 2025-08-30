@@ -1,13 +1,26 @@
 from typing import Optional
-
-
-from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.groups import (
     Groups,
     GroupForm,
     GroupUpdateForm,
     GroupResponse,
 )
+
+def normalize_workspace_permissions(form_data: GroupForm) -> None:
+    """
+    Ensures that edit permissions automatically grant corresponding view permissions.
+    If a user has edit_prompts permission, they also get view_prompts permission.
+    If a user has edit_assistants permission, they also get view_assistants permission.
+    """
+    if form_data.permissions:
+        if form_data.permissions.get("workspace", {}).get("edit_prompts", False):
+            form_data.permissions["workspace"]["view_prompts"] = True
+            
+        if form_data.permissions.get("workspace", {}).get("edit_assistants", False):
+            form_data.permissions["workspace"]["view_assistants"] = True
+
+
+from beyond_the_loop.models.users import Users
 
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -36,7 +49,16 @@ async def get_groups(user=Depends(get_verified_user)):
 @router.post("/create", response_model=Optional[GroupResponse])
 async def create_new_function(form_data: GroupForm, user=Depends(get_admin_user)):
     try:
+        if not form_data.name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ERROR_MESSAGES.DEFAULT("Group name is required"),
+            )
+
+        normalize_workspace_permissions(form_data)
+
         group = Groups.insert_new_group(user.company_id, form_data)
+
         if group:
             return group
         else:
@@ -79,10 +101,19 @@ async def update_group_by_id(
     id: str, form_data: GroupUpdateForm, user=Depends(get_admin_user)
 ):
     try:
+        if not form_data.name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ERROR_MESSAGES.DEFAULT("Group name is required"),
+            )
+
         if form_data.user_ids:
             form_data.user_ids = Users.get_valid_user_ids(form_data.user_ids)
 
+        normalize_workspace_permissions(form_data)
+
         group = Groups.update_group_by_id(id, form_data)
+
         if group:
             return group
         else:

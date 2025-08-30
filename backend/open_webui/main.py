@@ -63,6 +63,7 @@ from beyond_the_loop.routers import openai, audio
 from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
+from beyond_the_loop.utils.access_control import get_permissions
 from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import file_archival
 
@@ -183,7 +184,6 @@ from beyond_the_loop.config import (
     ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
-    USER_PERMISSIONS,
     DEFAULT_USER_ROLE,
     DEFAULT_PROMPT_SUGGESTIONS,
     DEFAULT_MODELS,
@@ -395,7 +395,6 @@ app.state.config.DEFAULT_MODELS = DEFAULT_MODELS
 app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
 app.state.config.DEFAULT_USER_ROLE = DEFAULT_USER_ROLE
 
-app.state.config.USER_PERMISSIONS = USER_PERMISSIONS
 app.state.config.WEBHOOK_URL = WEBHOOK_URL
 app.state.config.BANNERS = WEBUI_BANNERS
 app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
@@ -779,6 +778,7 @@ async def chat_completion(
     await get_all_models(request, user)
 
     tasks = form_data.pop("background_tasks", None)
+
     try:
         model_id = form_data.get("model", None)
 
@@ -969,7 +969,6 @@ async def get_app_config(request: Request):
                     "max_size": app.state.config.FILE_MAX_SIZE,
                     "max_count": app.state.config.FILE_MAX_COUNT,
                 },
-                "permissions": {**app.state.config.USER_PERMISSIONS},
                 "google_drive": {
                     "client_id": GOOGLE_DRIVE_CLIENT_ID.value,
                     "api_key": GOOGLE_DRIVE_API_KEY.value,

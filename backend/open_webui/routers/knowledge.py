@@ -20,7 +20,7 @@ from open_webui.routers.retrieval import (
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from beyond_the_loop.utils.access_control import has_access, has_permission
 
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -132,8 +132,7 @@ async def create_new_knowledge(
     request: Request, form_data: KnowledgeForm, user=Depends(get_verified_user)
 ):
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.knowledge", request.app.state.config.USER_PERMISSIONS
-    ):
+        user.id, "workspace.knowledge"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,

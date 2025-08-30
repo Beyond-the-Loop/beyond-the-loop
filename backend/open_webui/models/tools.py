@@ -8,7 +8,7 @@ from open_webui.env import SRC_LOG_LEVELS
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text, JSON
 
-from open_webui.utils.access_control import has_access
+from beyond_the_loop.utils.access_control import has_access
 
 
 log = logging.getLogger(__name__)

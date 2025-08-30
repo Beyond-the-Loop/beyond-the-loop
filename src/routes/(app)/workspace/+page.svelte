@@ -5,11 +5,11 @@
 
 	onMount(() => {
 		if ($user?.role !== 'admin') {
-			if ($user?.permissions?.workspace?.models) {
+			if ($user?.permissions?.workspace?.view_assistants) {
 				goto('/workspace/models');
 			} else if ($user?.permissions?.workspace?.knowledge) {
 				goto('/workspace/knowledge');
-			} else if ($user?.permissions?.workspace?.prompts) {
+			} else if ($user?.permissions?.workspace?.view_prompts) {
 				goto('/workspace/prompts');
 			} else if ($user?.permissions?.workspace?.tools) {
 				goto('/workspace/tools');
