@@ -263,7 +263,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
         payload["model"] = request.app.state.config.TTS_MODEL
 
         try:
-            # print(payload)
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     url=f"{os.environ.get('AZURE_OPENAI_ENDPOINT')}/openai/deployments/tts/audio/speech?api-version=2025-03-01-preview",
@@ -650,37 +649,16 @@ async def get_models(request: Request, user=Depends(get_verified_user)):
 def get_available_voices(request) -> dict:
     """Returns {voice_id: voice_name} dict"""
     available_voices = {}
+
     if request.app.state.config.TTS_ENGINE == "openai":
         available_voices = {
-            "ash": "ash",
-            "coral": "coral",
+            "alloy": "alloy",
+            "echo": "echo",
+            "fable": "fable",
+            "onyx": "onyx",
+            "nova": "nova",
+            "shimmer": "shimmer",
         }
-    elif request.app.state.config.TTS_ENGINE == "elevenlabs":
-        try:
-            available_voices = get_elevenlabs_voices(
-                api_key=request.app.state.config.TTS_API_KEY
-            )
-        except Exception:
-            # Avoided @lru_cache with exception
-            pass
-    elif request.app.state.config.TTS_ENGINE == "azure":
-        try:
-            region = request.app.state.config.TTS_AZURE_SPEECH_REGION
-            url = f"https://{region}.tts.speech.microsoft.com/cognitiveservices/voices/list"
-            headers = {
-                "Ocp-Apim-Subscription-Key": request.app.state.config.TTS_API_KEY
-            }
-
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            voices = response.json()
-
-            for voice in voices:
-                available_voices[voice["ShortName"]] = (
-                    f"{voice['DisplayName']} ({voice['ShortName']})"
-                )
-        except requests.RequestException as e:
-            log.error(f"Error fetching voices: {str(e)}")
 
     return available_voices
 

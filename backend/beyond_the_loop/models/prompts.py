@@ -220,7 +220,6 @@ class PromptsTable:
                 prompt.timestamp = int(time.time())
                 prompt.description = form_data.description
                 prompt.meta = form_data.meta.model_dump() if form_data.meta else None
-                # prompt.bookmarked = form_data.bookmarked
                 db.commit()
                 return PromptModel.model_validate(prompt)
         except Exception:

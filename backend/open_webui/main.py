@@ -64,6 +64,8 @@ from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
 from beyond_the_loop.utils.access_control import get_permissions
+from beyond_the_loop.routers import chat_archival
+from beyond_the_loop.routers import file_archival
 
 from open_webui.routers.retrieval import (
     get_embedding_function,
@@ -78,6 +80,7 @@ from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import auths
 from beyond_the_loop.routers import analytics
+from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 
 from beyond_the_loop.config import (
     # Ollama
@@ -181,12 +184,10 @@ from beyond_the_loop.config import (
     ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
-    ENABLE_EVALUATION_ARENA_MODELS,
     DEFAULT_USER_ROLE,
     DEFAULT_PROMPT_SUGGESTIONS,
     DEFAULT_MODELS,
     MODEL_ORDER_LIST,
-    EVALUATION_ARENA_MODELS,
     # WebUI (OAuth)
     ENABLE_OAUTH_ROLE_MANAGEMENT,
     OAUTH_ROLES_CLAIM,
@@ -322,8 +323,14 @@ async def lifespan(app: FastAPI):
         # It will just reset the in-memory config to the default values
         reset_config(None)
 
+    # Start the task scheduler for automated processes
+    start_scheduler()
+    
     asyncio.create_task(periodic_usage_pool_cleanup())
     yield
+    
+    # Shutdown the scheduler gracefully
+    shutdown_scheduler()
 
 
 app = FastAPI(
@@ -396,9 +403,6 @@ app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 app.state.config.ENABLE_CHANNELS = ENABLE_CHANNELS
 app.state.config.ENABLE_COMMUNITY_SHARING = ENABLE_COMMUNITY_SHARING
 app.state.config.ENABLE_MESSAGE_RATING = ENABLE_MESSAGE_RATING
-
-app.state.config.ENABLE_EVALUATION_ARENA_MODELS = ENABLE_EVALUATION_ARENA_MODELS
-app.state.config.EVALUATION_ARENA_MODELS = EVALUATION_ARENA_MODELS
 
 app.state.config.OAUTH_USERNAME_CLAIM = OAUTH_USERNAME_CLAIM
 app.state.config.OAUTH_PICTURE_CLAIM = OAUTH_PICTURE_CLAIM
@@ -745,6 +749,8 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytic
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(companies.router, prefix="/api/v1/companies", tags=["companies"])
 app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
+app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["chat-archival"])
+app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
 
 ##################################
 #
@@ -777,7 +783,9 @@ async def chat_completion(
         model_id = form_data.get("model", None)
 
         if model_id not in request.app.state.MODELS:
-            raise Exception("Model not found for chat completion")
+            print("MODEL ID", model_id)
+            print("ALL MODELS", request.app.state.MODELS)
+            raise Exception("Model not found 1")
 
         model = request.app.state.MODELS[model_id]
         model_info = Models.get_model_by_id(model_id)

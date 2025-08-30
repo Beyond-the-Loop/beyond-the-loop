@@ -191,13 +191,6 @@ async def generate_title(
         "model": task_model_id,
         "messages": [{"role": "user", "content": content}],
         "stream": False,
-        **(
-            {"max_tokens": 1000}
-            if models[task_model_id]["owned_by"] == "ollama"
-            else {
-                "max_completion_tokens": 1000,
-            }
-        ),
         "metadata": {
             "task": str(TASKS.TITLE_GENERATION),
             "task_body": form_data,
@@ -485,67 +478,6 @@ async def generate_autocompletion(
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "An internal error has occurred."},
-        )
-
-
-@router.post("/emoji/completions")
-async def generate_emoji(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
-):
-
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
-
-    log.debug(f"generating emoji using model {task_model_id} for user {user.email} ")
-
-    template = DEFAULT_EMOJI_GENERATION_PROMPT_TEMPLATE
-
-    content = emoji_generation_template(
-        template,
-        form_data["prompt"],
-        {
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "location": user.info.get("location") if user.info else None,
-        },
-    )
-
-    payload = {
-        "model": task_model_id,
-        "messages": [{"role": "user", "content": content}],
-        "stream": False,
-        **(
-            {"max_tokens": 4}
-            if models[task_model_id]["owned_by"] == "ollama"
-            else {
-                "max_completion_tokens": 4,
-            }
-        ),
-        "chat_id": form_data.get("chat_id", None),
-        "metadata": {"task": str(TASKS.EMOJI_GENERATION), "task_body": form_data},
-    }
-
-    try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": str(e)},
         )
 
 

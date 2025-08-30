@@ -8,7 +8,7 @@ from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.groups import Groups, GroupForm
 from beyond_the_loop.models.companies import Companies
-from open_webui.models.chats import Chats
+from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import (
     UserModel,
     UserRoleUpdateForm,

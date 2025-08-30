@@ -161,8 +161,11 @@ DEFAULT_CONFIG = {
         "enable": True,
         "model": "flux-kontext-max",
         "size": "1024x1024"
-        },
+    },
+    "data": {
+        "chat_retention_days": 90,
     }
+}
 
 def get_config(company_id):
     # If company_id is None, return the default config directly
@@ -912,28 +915,6 @@ ENABLE_CHANNELS = PersistentConfig(
     os.environ.get("ENABLE_CHANNELS", "False").lower() == "true",
 )
 
-
-ENABLE_EVALUATION_ARENA_MODELS = PersistentConfig(
-    "ENABLE_EVALUATION_ARENA_MODELS",
-    "evaluation.arena.enable",
-    os.environ.get("ENABLE_EVALUATION_ARENA_MODELS", "True").lower() == "true",
-)
-EVALUATION_ARENA_MODELS = PersistentConfig(
-    "EVALUATION_ARENA_MODELS",
-    "evaluation.arena.models",
-    [],
-)
-
-DEFAULT_ARENA_MODEL = {
-    "id": "arena-model",
-    "name": "Arena Model",
-    "meta": {
-        "profile_image_url": "/favicon.png",
-        "description": "Submit your questions to anonymous AI chatbots and vote on the best response.",
-        "model_ids": None,
-    },
-}
-
 WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )
@@ -961,12 +942,6 @@ HIDE_MODEL_LOGO_IN_CHAT = PersistentConfig(
     "HIDE_MODEL_LOGO_IN_CHAT",
     "ui.hide_model_logo_in_chat",
     os.environ.get("HIDE_MODEL_LOGO_IN_CHAT", "False").lower() == "true",
-)
-
-CHAT_RETENTION_DAYS = PersistentConfig(
-    "CHAT_RETENTION_DAYS",
-    "data.chat_retention_days",
-    int(os.environ.get("CHAT_RETENTION_DAYS", "365")),
 )
 
 
