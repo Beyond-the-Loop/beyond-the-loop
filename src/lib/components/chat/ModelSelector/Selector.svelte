@@ -301,7 +301,7 @@
 
 	<DropdownMenu.Content
 		class=" z-40 {$mobile
-			? `w-full`
+			? `w-[15rem]`
 			: `${className}`} w-[180px] justify-start rounded-xl border dark:border-customGray-700 bg-lightGray-550 border-lightGray-400 dark:bg-customGray-900 dark:text-white shadow-lg  outline-none"
 		transition={flyAndScale}
 		side={$mobile ? 'bottom' : 'bottom-start'}
@@ -508,7 +508,7 @@
 						</div>
 					</div>
 				{/each}
-				{#if hoveredItem}
+				{#if hoveredItem && !$mobile}
 					<div
 						class="absolute left-full ml-1 top-0 w-[21rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
 					>

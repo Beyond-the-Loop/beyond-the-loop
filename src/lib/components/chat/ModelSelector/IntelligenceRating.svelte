@@ -8,7 +8,7 @@
 </script>
 
 <div class="flex flex-col items-center gap-1.5">
-    <div class="flex gap-1">
+    <div class="hidden sm:flex gap-0.5">
         {#each Array(fullStars) as _, i}
         <svg  class="size-3 star filled text-lightGray-100 dark:text-white" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -60,7 +60,7 @@
         {/each}
     </div>
     <p class="text-xs text-lightGray-100 dark:text-white">
-        {rating.toFixed(1)}/5
+        {rating.toFixed(1)}<span class="hidden sm:inline">/5</span>
     </p>
 </div>
 

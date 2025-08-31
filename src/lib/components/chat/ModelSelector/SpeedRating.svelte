@@ -8,7 +8,7 @@
 </script>
 
 <div class="flex flex-col items-center gap-1">
-    <div class="flex gap-1">
+    <div class="hidden sm:flex">
         {#each Array(fullStars) as _, i}
             <svg class="size-3.5 filled text-lightGray-100 dark:text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path

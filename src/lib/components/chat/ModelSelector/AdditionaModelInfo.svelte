@@ -1,9 +1,8 @@
 <script>
 	import { modelsInfo } from '../../../../data/modelsInfo';
 	import { getContext, onMount } from 'svelte';
-	import SpeedRating from '../../chat/ModelSelector/SpeedRating.svelte';
-	import StarRating from '../../chat/ModelSelector/IntelligenceRating.svelte';
     import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
+	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
 
 	const i18n = getContext('i18n');
 	export let hoveredItem = null;
@@ -52,75 +51,62 @@ onMount(() => {
 <div bind:this={triggerEl}
 on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
     <InfoIcon className="size-6" />
-<div
-bind:this={tooltipEl}
-class={`invisible group-hover:visible absolute -left-7 md:left-0 px-3 py-1 left-full ml-2 w-52 p-2 rounded-xl border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50 shadow
-	${placeAbove ? 'bottom-full mb-2' : 'top-0'}`}
->
-	{#if modelsInfo?.[hoveredItem?.name]?.organization}
-		<div class="py-1.5 border-b dark:border-customGray-700 last:border-b-0">
-			<p class="text-xs dark:text-white">
-				{modelsInfo?.[hoveredItem?.name]?.organization}
+	<div
+	bind:this={tooltipEl}
+	class={`invisible group-hover:visible absolute -left-7 md:left-0 px-3 py-1 left-full ml-2 w-[21rem] p-2 rounded-xl border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50 shadow
+		${placeAbove ? 'bottom-full mb-2' : 'top-0'}`}
+	>
+		<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.name}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{modelsInfo?.[hoveredItem?.name]?.organization}</span></div>
+		<div>
+			<p class="text-xs text-lightGray-100 dark:text-customGray-100">
+				{$i18n.t(modelsInfo?.[hoveredItem?.name]?.description)}
 			</p>
-			<p class="text-2xs dark:text-white/50">{$i18n.t('Organization')}</p>
 		</div>
-	{/if}
-	{#if modelsInfo?.[hoveredItem?.name]?.hosted_in}
-		<div class="py-1.5 border-b dark:border-customGray-700 last:border-b-0">
-			<p class="text-xs dark:text-white">{modelsInfo?.[hoveredItem?.name]?.hosted_in}</p>
-			<p class="text-2xs dark:text-white/50">{$i18n.t('Hosted In')}</p>
-		</div>
-	{/if}
-
-	<div class="py-1.5 border-b dark:border-customGray-700 last:border-b-0">
-		<p class="text-xs dark:text-white">
-			{#if modelsInfo?.[hoveredItem?.name]?.context_window}
-				{modelsInfo?.[hoveredItem?.name]?.context_window}
-			{:else}
-				N/A
+		<div class="flex items-center gap-3">
+			{#if modelsInfo?.[hoveredItem?.name]?.multimodal}
+				<div class="py-2.5 flex items-center">
+					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
+						<CheckmarkIcon className="size-6" />
+					</div>
+					<p class="text-xs dark:text-customGray-100">{$i18n.t('Multimodal')}</p>
+				</div>
 			{/if}
-		</p>
-		<p class="text-2xs dark:text-white/50">{$i18n.t('Context Window')}</p>
-	</div>
-
-	<div class="py-1.5 border-b dark:border-customGray-700 last:border-b-0">
-		<p class="text-xs dark:text-white">
-			{#if knowledgeCutoff}
-				{knowledgeCutoff}
-			{:else}
-				N/A
+			{#if modelsInfo?.[hoveredItem?.name]?.reasoning}
+				<div class="py-2.5 flex items-center">
+					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
+						<CheckmarkIcon className="size-6" />
+					</div>
+					<p class="text-xs dark:text-customGray-100">{$i18n.t('Reasoning')}</p>
+				</div>
 			{/if}
-		</p>
-		<p class="text-2xs dark:text-white/50">{$i18n.t('Knowledge Cutoff')}</p>
-	</div>
-
-	<div class="py-1.5 text-xs border-b dark:border-customGray-700 last:border-b-0">
-		{#if modelsInfo?.[hoveredItem?.name]?.intelligence_score}
-			<StarRating rating={modelsInfo?.[hoveredItem?.name]?.intelligence_score} />
-		{:else}
-			N/A
-		{/if}
-		<p class="text-2xs dark:text-white/50">{$i18n.t('Intelligence Score')}</p>
-	</div>
-
-	<div class="py-1.5 text-xs border-b dark:border-customGray-700 last:border-b-0">
-		{#if modelsInfo?.[hoveredItem?.name]?.speed}
-			<SpeedRating rating={modelsInfo?.[hoveredItem?.name]?.speed} />
-		{:else}
-			N/A
-		{/if}
-		<p class="text-2xs dark:text-white/50">{$i18n.t('Speed')}</p>
-	</div>
-
-	{#if modelsInfo?.[hoveredItem?.name]?.multimodal}
-		<div class="py-2.5 border-b dark:border-customGray-700 last:border-b-0">
-			<p class="text-xs dark:text-white">{$i18n.t('Multimodal')}</p>
 		</div>
-	{/if}
-	{#if modelsInfo?.[hoveredItem?.name]?.reasoning}
-		<div class="py-2.5 border-b dark:border-customGray-700 last:border-b-0">
-			<p class="text-xs dark:text-white">{$i18n.t('Reasoning')}</p>
+		<div class="grid grid-cols-3 gap-y-4 gap-x-2 border-t border-lightGray-400 dark:border-customGray-700">
+			<div class="flex flex-col items-center py-2">
+				{#if modelsInfo?.[hoveredItem?.name]?.hosted_in}
+					<p class="text-xs dark:text-customGray-100">{modelsInfo?.[hoveredItem?.name]?.hosted_in}</p>
+					<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted In')}</p>
+				{/if}
+			</div>
+			<div class="flex flex-col items-center py-2 border-r border-l border-lightGray-400 dark:border-customGray-700">
+				<p class="text-xs dark:text-customGray-100">
+					{#if knowledgeCutoff}
+						{knowledgeCutoff}	
+					{:else}
+						N/A
+					{/if}
+				</p>
+				<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge Cutoff')}</p>
+			</div>
+			<div class="flex flex-col items-center py-2">
+				<p class="text-xs dark:text-customGray-100">
+					{#if modelsInfo?.[hoveredItem?.name]?.context_window}
+						{modelsInfo?.[hoveredItem?.name]?.context_window}
+					{:else}
+						N/A
+					{/if}
+				</p>
+				<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context Window')}</p>
+			</div>
 		</div>
-	{/if}
-</div>
+	</div>
 </div>

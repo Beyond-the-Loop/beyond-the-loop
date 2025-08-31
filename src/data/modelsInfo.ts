@@ -345,3 +345,23 @@ export const mapModelsToOrganizations = (modelsInfo) => {
 
 	return organizations;
 };
+
+export function filterCatalog(
+  catalog,
+  availableModels,
+  { caseInsensitive = false, trim = true } = {}
+) {
+  const norm = s => (trim ? String(s).trim() : String(s));
+  const normalize = caseInsensitive ? s => norm(s).toLowerCase() : s => norm(s);
+
+  const allowed = new Set(availableModels.map(normalize));
+
+  return Object.fromEntries(
+    Object.entries(catalog)
+      .map(([org, models]) => {
+        const kept = models.filter(m => allowed.has(normalize(m)));
+        return [org, kept];
+      })
+      .filter(([, models]) => models.length > 0) 
+  );
+}
