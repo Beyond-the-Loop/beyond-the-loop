@@ -7,10 +7,10 @@
 	$: partialFill = (rating % 1) * 100;
 </script>
 
-<div class="flex items-center gap-2.5">
+<div class="flex flex-col items-center gap-1">
     <div class="flex gap-1">
         {#each Array(fullStars) as _, i}
-            <svg class="star filled text-lightGray-100 dark:text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="size-3.5 filled text-lightGray-100 dark:text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                     d="M3.3404 6.77561H4.7309V10.0156C4.7309 10.7716 5.1404 10.9246 5.6399 10.3576L9.0464 6.48761C9.4649 6.01511 9.2894 5.62361 8.6549 5.62361H7.2644V2.38361C7.2644 1.62761 6.8549 1.47461 6.3554 2.04161L2.9489 5.91161C2.5349 6.38861 2.7104 6.77561 3.3404 6.77561Z"
                     fill="currentColor"
@@ -24,8 +24,8 @@
         {/each}
 
         {#if hasPartial}
-            <div class="star partial-wrapper text-lightGray-100 dark:text-white" style="--fill: {partialFill}%">
-                <svg class="star" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div class="size-3.5 partial-wrapper text-lightGray-100 dark:text-white" style="--fill: {partialFill}%">
+                <svg class="size-3.5" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M3.3404 6.77561H4.7309V10.0156C4.7309 10.7716 5.1404 10.9246 5.6399 10.3576L9.0464 6.48761C9.4649 6.01511 9.2894 5.62361 8.6549 5.62361H7.2644V2.38361C7.2644 1.62761 6.8549 1.47461 6.3554 2.04161L2.9489 5.91161C2.5349 6.38861 2.7104 6.77561 3.3404 6.77561Z"
                         stroke="currentColor"
@@ -37,7 +37,7 @@
                 </svg>
 
                 <svg
-                    class="star partial-fill text-lightGray-100 dark:text-white"
+                    class="size-3.5 partial-fill text-lightGray-100 dark:text-white"
                     viewBox="0 0 12 12"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
@@ -56,7 +56,7 @@
         {/if}
 
         {#each Array(max - fullStars - (hasPartial ? 1 : 0)) as _, i}
-            <svg class="star text-lightGray-100 dark:text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="size-3.5 text-lightGray-100 dark:text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                     d="M3.3404 6.77561H4.7309V10.0156C4.7309 10.7716 5.1404 10.9246 5.6399 10.3576L9.0464 6.48761C9.4649 6.01511 9.2894 5.62361 8.6549 5.62361H7.2644V2.38361C7.2644 1.62761 6.8549 1.47461 6.3554 2.04161L2.9489 5.91161C2.5349 6.38861 2.7104 6.77561 3.3404 6.77561Z"
                     stroke="currentColor"
@@ -74,15 +74,6 @@
 </div>
 
 <style>
-	.star {
-		width: 1rem;
-		height: 1rem;
-	}
-
-	.filled {
-		/* color: #ffffff; */
-	}
-
 	.partial-wrapper {
 		position: relative;
 	}
