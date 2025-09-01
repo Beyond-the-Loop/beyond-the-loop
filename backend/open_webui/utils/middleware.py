@@ -669,7 +669,7 @@ async def chat_file_intent_decision_handler(
         decision_messages = [
             {
                 "role": "system",
-                "content": "You are an AI assistant that determines user intent. The user has attached non-image files to their message. Analyze their message and determine if they want to:\n\n1. RAG (Retrieval-Augmented Generation): Search, query, or ask questions about the file content\n2. TRANSLATE/CONTENT: Translate the file content, summarize it, or work directly with the full file content\n\nRespond with ONLY 'RAG' or 'TRANSLATE' - nothing else."
+                "content": "You are an AI assistant that determines user intent. The user has attached non-image files to their message. Analyze their message and determine:\n\nFor the user's intent, is it necessary to use the ENTIRE content of the document?\n\nExamples that need ENTIRE content:\n- Translation tasks\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n\nExamples that can use RAG (partial content):\n- Answering specific questions about the document\n- Finding particular information or facts\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'FULL' or 'RAG' - nothing else."
             },
             {
                 "role": "user",
@@ -1000,6 +1000,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
     # First, decide if this is a RAG task or content extraction task
     try:
         form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user)
+        print("IS RAG TASK:", is_rag_task)
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
