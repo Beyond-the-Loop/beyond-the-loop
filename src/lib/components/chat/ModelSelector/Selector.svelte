@@ -219,7 +219,7 @@
 		}
 	};
 
-	let hoveredItem = null;
+	let hoveredItem = {label: "GPT-5"};
 
 	let knowledgeCutoff = null;
 
@@ -510,7 +510,7 @@
 				{/each}
 				{#if hoveredItem && !$mobile}
 					<div
-						class="absolute left-full ml-1 top-0 w-[21rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
+						class="absolute flex flex-col h-[16rem] left-full ml-1 top-0 w-[21rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
 					>
 						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
 						<div>
@@ -518,9 +518,9 @@
 								{$i18n.t(modelsInfo?.[hoveredItem?.label]?.description)}
 							</p>
 						</div>
-						<div class="flex items-center gap-3 mb-2">
+						<div class="flex items-center gap-3 mt-auto">
 							{#if modelsInfo?.[hoveredItem?.label]?.multimodal}
-								<div class="py-2.5 flex items-center">
+								<div class="py-2 flex items-center">
 									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 										<CheckmarkIcon className="size-6" />
 									</div>
@@ -528,7 +528,7 @@
 								</div>
 							{/if}
 							{#if modelsInfo?.[hoveredItem?.label]?.reasoning}
-								<div class="py-2.5 flex items-center">
+								<div class="py-2 flex items-center">
 									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 										<CheckmarkIcon className="size-6" />
 									</div>
@@ -536,7 +536,7 @@
 								</div>
 							{/if}
 						</div>
-						<div class="grid grid-cols-3 gap-y-4 gap-x-2">
+						<div class="grid grid-cols-3 gap-y-4 gap-x-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700">
 							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
 								{#if modelsInfo?.[hoveredItem?.label]?.costFactor}
 									<CostRating rating={modelsInfo?.[hoveredItem?.label]?.costFactor} />

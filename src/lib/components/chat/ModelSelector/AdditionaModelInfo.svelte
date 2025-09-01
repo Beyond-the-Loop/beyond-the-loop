@@ -58,11 +58,11 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 	>
 		<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.name}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{modelsInfo?.[hoveredItem?.name]?.organization}</span></div>
 		<div>
-			<p class="text-xs text-lightGray-100 dark:text-customGray-100">
+			<p class="text-xs text-lightGray-100 dark:text-customGray-100 {!modelsInfo?.[hoveredItem?.name]?.multimodal && !modelsInfo?.[hoveredItem?.name]?.reasoning && "mb-2"}">
 				{$i18n.t(modelsInfo?.[hoveredItem?.name]?.description)}
 			</p>
 		</div>
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-x-3">
 			{#if modelsInfo?.[hoveredItem?.name]?.multimodal}
 				<div class="py-2.5 flex items-center">
 					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">

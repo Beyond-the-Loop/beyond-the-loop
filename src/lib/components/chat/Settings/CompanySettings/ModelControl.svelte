@@ -286,7 +286,7 @@
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
 								{#if modelsInfo?.[model?.name]?.speed}
-									<SpeedRating rating={modelsInfo?.[model?.name]?.speed} />
+									{modelsInfo?.[model?.name]?.speed}
 								{:else}
 									N/A
 								{/if}
@@ -295,7 +295,7 @@
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
 								{#if modelsInfo?.[model?.name]?.intelligence_score}
-									<IntelligenceRating rating={modelsInfo?.[model?.name]?.intelligence_score} />
+									{modelsInfo?.[model?.name]?.intelligence_score}/5
 								{:else}
 									N/A
 								{/if}
@@ -304,7 +304,7 @@
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
 								{#if modelsInfo?.[model?.name]?.costFactor}
-									<CostRating rating={modelsInfo?.[model?.name]?.costFactor} />
+									{modelsInfo?.[model?.name]?.costFactor}/5
 								{:else}
 									N/A
 								{/if}
