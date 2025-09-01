@@ -25,32 +25,32 @@ from beyond_the_loop.models.files import FileModel, Files
 from open_webui.storage.provider import Storage
 
 
-from open_webui.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 # Document loaders
-from open_webui.retrieval.loaders.main import Loader
-from open_webui.retrieval.loaders.youtube import YoutubeLoader
+from beyond_the_loop.retrieval.loaders.main import Loader
+from beyond_the_loop.retrieval.loaders.youtube import YoutubeLoader
 
 # Web search engines
-from open_webui.retrieval.web.main import SearchResult
-from open_webui.retrieval.web.utils import get_web_loader
-from open_webui.retrieval.web.brave import search_brave
-from open_webui.retrieval.web.kagi import search_kagi
-from open_webui.retrieval.web.mojeek import search_mojeek
-from open_webui.retrieval.web.duckduckgo import search_duckduckgo
-from open_webui.retrieval.web.google_pse import search_google_pse
-from open_webui.retrieval.web.jina_search import search_jina
-from open_webui.retrieval.web.searchapi import search_searchapi
-from open_webui.retrieval.web.searxng import search_searxng
-from open_webui.retrieval.web.serper import search_serper
-from open_webui.retrieval.web.serply import search_serply
-from open_webui.retrieval.web.serpstack import search_serpstack
-from open_webui.retrieval.web.tavily import search_tavily
-from open_webui.retrieval.web.bing import search_bing
-from open_webui.retrieval.web.exa import search_exa
+from beyond_the_loop.retrieval.web.main import SearchResult
+from beyond_the_loop.retrieval.web.utils import get_web_loader
+from beyond_the_loop.retrieval.web.brave import search_brave
+from beyond_the_loop.retrieval.web.kagi import search_kagi
+from beyond_the_loop.retrieval.web.mojeek import search_mojeek
+from beyond_the_loop.retrieval.web.duckduckgo import search_duckduckgo
+from beyond_the_loop.retrieval.web.google_pse import search_google_pse
+from beyond_the_loop.retrieval.web.jina_search import search_jina
+from beyond_the_loop.retrieval.web.searchapi import search_searchapi
+from beyond_the_loop.retrieval.web.searxng import search_searxng
+from beyond_the_loop.retrieval.web.serper import search_serper
+from beyond_the_loop.retrieval.web.serply import search_serply
+from beyond_the_loop.retrieval.web.serpstack import search_serpstack
+from beyond_the_loop.retrieval.web.tavily import search_tavily
+from beyond_the_loop.retrieval.web.bing import search_bing
+from beyond_the_loop.retrieval.web.exa import search_exa
 
 
-from open_webui.retrieval.utils import (
+from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
     get_model_path,
     query_collection,
@@ -117,7 +117,7 @@ def get_rf(
     if reranking_model:
         if any(model in reranking_model for model in ["jinaai/jina-colbert-v2"]):
             try:
-                from open_webui.retrieval.models.colbert import ColBERT
+                from beyond_the_loop.retrieval.models.colbert import ColBERT
 
                 rf = ColBERT(
                     get_model_path(reranking_model, auto_update),
@@ -329,7 +329,6 @@ async def update_reranking_config(
 async def get_rag_config(request: Request, user=Depends(get_admin_user)):
     return {
         "status": True,
-        "pdf_extract_images": request.app.state.config.PDF_EXTRACT_IMAGES,
         "enable_google_drive_integration": request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
         "content_extraction": {
             "engine": request.app.state.config.CONTENT_EXTRACTION_ENGINE,
@@ -431,7 +430,6 @@ class WebConfig(BaseModel):
 
 
 class ConfigUpdateForm(BaseModel):
-    pdf_extract_images: Optional[bool] = None
     enable_google_drive_integration: Optional[bool] = None
     file: Optional[FileConfig] = None
     content_extraction: Optional[ContentExtractionConfig] = None
@@ -444,12 +442,6 @@ class ConfigUpdateForm(BaseModel):
 async def update_rag_config(
     request: Request, form_data: ConfigUpdateForm, user=Depends(get_admin_user)
 ):
-    request.app.state.config.PDF_EXTRACT_IMAGES = (
-        form_data.pdf_extract_images
-        if form_data.pdf_extract_images is not None
-        else request.app.state.config.PDF_EXTRACT_IMAGES
-    )
-
     request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = (
         form_data.enable_google_drive_integration
         if form_data.enable_google_drive_integration is not None
@@ -538,7 +530,6 @@ async def update_rag_config(
 
     return {
         "status": True,
-        "pdf_extract_images": request.app.state.config.PDF_EXTRACT_IMAGES,
         "file": {
             "max_size": request.app.state.config.FILE_MAX_SIZE,
             "max_count": request.app.state.config.FILE_MAX_COUNT,
@@ -750,8 +741,6 @@ def save_docs_to_vector_db(
             request.app.state.config.RAG_EMBEDDING_ENGINE,
             request.app.state.config.RAG_EMBEDDING_MODEL,
             request.app.state.ef,
-            request.app.state.config.RAG_OPENAI_API_BASE_URL,
-            request.app.state.config.RAG_OPENAI_API_KEY,
             request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
         )
 
@@ -860,7 +849,6 @@ def process_file(
                 loader = Loader(
                     engine=request.app.state.config.CONTENT_EXTRACTION_ENGINE,
                     TIKA_SERVER_URL=request.app.state.config.TIKA_SERVER_URL,
-                    PDF_EXTRACT_IMAGES=request.app.state.config.PDF_EXTRACT_IMAGES,
                 )
                 docs = loader.load(
                     file.filename, file.meta.get("content_type"), file_path

@@ -99,7 +99,6 @@ def reset_config(company_id):
 DEFAULT_CONFIG = {
     "concurrent_requests": 10,
     "rag": {
-        "pdf_extract_images": False,
         "youtube_loader_language": ["en"],
         "youtube_loader_proxy_url": "",
         "enable_web_loader_ssl_verification": False,
@@ -171,7 +170,7 @@ def get_config(company_id):
     # If company_id is None, return the default config directly
     if company_id is None:
         return DEFAULT_CONFIG
-        
+
     with get_db() as db:
         config_entry = db.query(Config).filter_by(company_id=company_id).order_by(Config.id.desc()).first()
         if not config_entry:
@@ -202,12 +201,12 @@ def save_config(config, company_id):
     # If company_id is None, we can't save to the database (company_id is required)
     if company_id is None:
         return False
-        
+
     global CONFIG_DATA
     global PERSISTENT_CONFIG_REGISTRY
     try:
         save_to_db(config, company_id)
-        
+
         # Trigger updates on all registered PersistentConfig entries
         for config_entry in PERSISTENT_CONFIG_REGISTRY:
             if hasattr(config_entry, "update"):
@@ -1421,12 +1420,6 @@ RAG_EMBEDDING_ENGINE = PersistentConfig(
     "RAG_EMBEDDING_ENGINE",
     "rag.embedding_engine",
     os.environ.get("RAG_EMBEDDING_ENGINE", ""),
-)
-
-PDF_EXTRACT_IMAGES = PersistentConfig(
-    "PDF_EXTRACT_IMAGES",
-    "rag.pdf_extract_images",
-    os.environ.get("PDF_EXTRACT_IMAGES", "False").lower() == "true",
 )
 
 RAG_EMBEDDING_MODEL = PersistentConfig(
