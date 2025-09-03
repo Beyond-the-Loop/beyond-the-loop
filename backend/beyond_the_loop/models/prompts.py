@@ -5,13 +5,11 @@ from open_webui.internal.db import Base, get_db, JSONField
 from beyond_the_loop.models.users import Users, UserResponse
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, Text, JSON, Boolean, Column, Table, ForeignKey, or_
+from sqlalchemy import BigInteger, String, Text, JSON, Boolean, Column, Table, ForeignKey, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
 
-import json
-
-from open_webui.utils.access_control import has_access
+from beyond_the_loop.utils.access_control import has_access
 
 ####################
 # Prompts DB Schema

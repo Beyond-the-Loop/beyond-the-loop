@@ -6,7 +6,7 @@ import uuid
 from open_webui.internal.db import Base, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import BigInteger, Column, String, Text, JSON, func
 
 
@@ -49,7 +49,7 @@ class GroupModel(BaseModel):
     meta: Optional[dict] = None
 
     permissions: Optional[dict] = None
-    user_ids: list[str] = []
+    user_ids: Optional[list[str]] = Field(default_factory=list)
 
     created_at: int  # timestamp in epoch
     updated_at: int  # timestamp in epoch
@@ -68,7 +68,7 @@ class GroupResponse(BaseModel):
     permissions: Optional[dict] = None
     data: Optional[dict] = None
     meta: Optional[dict] = None
-    user_ids: list[str] = []
+    user_ids: Optional[list[str]] = Field(default_factory=list)
     created_at: int  # timestamp in epoch
     updated_at: int  # timestamp in epoch
 

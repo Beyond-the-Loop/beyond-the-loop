@@ -443,6 +443,7 @@
 	onDestroy(() => {
 		if (unsubscribe) unsubscribe();
 	});
+
 </script>
 
 <ArchivedChatsModal
@@ -589,7 +590,7 @@
 		</div>
 
 		<div class="px-2">
-			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.models}
+			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_assistants}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/models')
 						? 'dark:bg-customGray-900 bg-lightGray-700'
@@ -637,7 +638,7 @@
 				</div>
 			{/if}
 
-			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.prompts}
+			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_prompts}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/prompts')
 						? 'dark:bg-customGray-900 bg-lightGray-700'

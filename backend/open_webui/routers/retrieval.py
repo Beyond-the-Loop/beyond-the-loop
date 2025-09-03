@@ -21,7 +21,7 @@ import tiktoken
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain_core.documents import Document
 
-from open_webui.models.files import FileModel, Files
+from beyond_the_loop.models.files import FileModel, Files
 from open_webui.storage.provider import Storage
 
 

@@ -14,7 +14,7 @@ from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from open_webui.utils.tools import get_tools_specs
 from open_webui.utils.auth import get_admin_user, get_verified_user
-from open_webui.utils.access_control import has_access, has_permission
+from beyond_the_loop.utils.access_control import has_access, has_permission
 
 
 router = APIRouter()
@@ -70,8 +70,7 @@ async def create_new_tools(
     user=Depends(get_verified_user),
 ):
     if user.role != "admin" and not has_permission(
-        user.id, "workspace.tools", request.app.state.config.USER_PERMISSIONS
-    ):
+        user.id, "workspace.tools"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,

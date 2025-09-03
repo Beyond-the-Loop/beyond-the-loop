@@ -63,6 +63,9 @@ from beyond_the_loop.routers import openai, audio
 from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
+from beyond_the_loop.utils.access_control import get_permissions
+from beyond_the_loop.routers import chat_archival
+from beyond_the_loop.routers import file_archival
 
 from open_webui.routers.retrieval import (
     get_embedding_function,
@@ -77,6 +80,7 @@ from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import auths
 from beyond_the_loop.routers import analytics
+from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 
 from beyond_the_loop.config import (
     # Ollama
@@ -179,7 +183,6 @@ from beyond_the_loop.config import (
     ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
-    USER_PERMISSIONS,
     DEFAULT_USER_ROLE,
     DEFAULT_PROMPT_SUGGESTIONS,
     DEFAULT_MODELS,
@@ -319,8 +322,14 @@ async def lifespan(app: FastAPI):
         # It will just reset the in-memory config to the default values
         reset_config(None)
 
+    # Start the task scheduler for automated processes
+    start_scheduler()
+    
     asyncio.create_task(periodic_usage_pool_cleanup())
     yield
+    
+    # Shutdown the scheduler gracefully
+    shutdown_scheduler()
 
 
 app = FastAPI(
@@ -385,7 +394,6 @@ app.state.config.DEFAULT_MODELS = DEFAULT_MODELS
 app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
 app.state.config.DEFAULT_USER_ROLE = DEFAULT_USER_ROLE
 
-app.state.config.USER_PERMISSIONS = USER_PERMISSIONS
 app.state.config.WEBHOOK_URL = WEBHOOK_URL
 app.state.config.BANNERS = WEBUI_BANNERS
 app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
@@ -728,6 +736,8 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytic
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(companies.router, prefix="/api/v1/companies", tags=["companies"])
 app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
+app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["chat-archival"])
+app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
 
 ##################################
 #
@@ -755,6 +765,7 @@ async def chat_completion(
     await get_all_models(request, user)
 
     tasks = form_data.pop("background_tasks", None)
+
     try:
         model_id = form_data.get("model", None)
 
@@ -943,7 +954,6 @@ async def get_app_config(request: Request):
                     "max_size": app.state.config.FILE_MAX_SIZE,
                     "max_count": app.state.config.FILE_MAX_COUNT,
                 },
-                "permissions": {**app.state.config.USER_PERMISSIONS},
                 "google_drive": {
                     "client_id": GOOGLE_DRIVE_CLIENT_ID.value,
                     "api_key": GOOGLE_DRIVE_API_KEY.value,

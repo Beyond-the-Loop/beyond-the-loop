@@ -15,7 +15,7 @@ from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import Request
 from starlette.responses import StreamingResponse
-from open_webui.models.chats import Chats
+from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from open_webui.socket.main import (
     get_event_call,
