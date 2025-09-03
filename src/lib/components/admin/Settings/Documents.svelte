@@ -176,7 +176,6 @@
 			return;
 		}
 		const res = await updateRAGConfig(localStorage.token, {
-			pdf_extract_images: pdfExtractImages,
 			enable_google_drive_integration: enableGoogleDriveIntegration,
 			file: {
 				max_size: fileMaxSize === '' ? null : fileMaxSize,
@@ -236,8 +235,6 @@
 		const res = await getRAGConfig(localStorage.token);
 
 		if (res) {
-			pdfExtractImages = res.pdf_extract_images;
-
 			textSplitter = res.chunk.text_splitter;
 			chunkSize = res.chunk.chunk_size;
 			chunkOverlap = res.chunk.chunk_overlap;

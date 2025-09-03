@@ -10,7 +10,7 @@ from open_webui.models.knowledge import (
     KnowledgeUserResponse,
 )
 from beyond_the_loop.models.files import Files, FileModel
-from open_webui.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 from open_webui.routers.retrieval import (
     process_file,
     ProcessFileForm,

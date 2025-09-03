@@ -137,7 +137,6 @@ from beyond_the_loop.config import (
     RAG_TOP_K,
     RAG_TEXT_SPLITTER,
     TIKTOKEN_ENCODING_NAME,
-    PDF_EXTRACT_IMAGES,
     YOUTUBE_LOADER_LANGUAGE,
     YOUTUBE_LOADER_PROXY_URL,
     # Retrieval (Web Search)
@@ -472,8 +471,6 @@ app.state.config.RAG_OPENAI_API_KEY = RAG_OPENAI_API_KEY
 app.state.config.RAG_OLLAMA_BASE_URL = RAG_OLLAMA_BASE_URL
 app.state.config.RAG_OLLAMA_API_KEY = RAG_OLLAMA_API_KEY
 
-app.state.config.PDF_EXTRACT_IMAGES = PDF_EXTRACT_IMAGES
-
 app.state.config.YOUTUBE_LOADER_LANGUAGE = YOUTUBE_LOADER_LANGUAGE
 app.state.config.YOUTUBE_LOADER_PROXY_URL = YOUTUBE_LOADER_PROXY_URL
 
@@ -530,16 +527,6 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
     app.state.config.RAG_EMBEDDING_ENGINE,
     app.state.config.RAG_EMBEDDING_MODEL,
     app.state.ef,
-    (
-        app.state.config.RAG_OPENAI_API_BASE_URL
-        if app.state.config.RAG_EMBEDDING_ENGINE == "openai"
-        else app.state.config.RAG_OLLAMA_BASE_URL
-    ),
-    (
-        app.state.config.RAG_OPENAI_API_KEY
-        if app.state.config.RAG_EMBEDDING_ENGINE == "openai"
-        else app.state.config.RAG_OLLAMA_API_KEY
-    ),
     app.state.config.RAG_EMBEDDING_BATCH_SIZE,
 )
 
@@ -783,9 +770,7 @@ async def chat_completion(
         model_id = form_data.get("model", None)
 
         if model_id not in request.app.state.MODELS:
-            print("MODEL ID", model_id)
-            print("ALL MODELS", request.app.state.MODELS)
-            raise Exception("Model not found 1")
+            raise Exception("Model not found")
 
         model = request.app.state.MODELS[model_id]
         model_info = Models.get_model_by_id(model_id)

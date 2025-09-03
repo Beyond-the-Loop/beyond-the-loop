@@ -34,9 +34,12 @@ from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from open_webui.models.functions import Functions
 from beyond_the_loop.models.models import Models
-from open_webui.retrieval.utils import get_sources_from_files
+from beyond_the_loop.retrieval.utils import get_sources_from_files
 from open_webui.utils.chat import generate_chat_completion
 from beyond_the_loop.routers.openai import generate_chat_completion as generate_openai_chat_completion
+from open_webui.models.files import Files
+from open_webui.storage.provider import Storage
+from beyond_the_loop.retrieval.loaders.main import Loader
 from open_webui.utils.task import (
     get_task_model_id,
     rag_template,
@@ -613,6 +616,128 @@ async def chat_image_generation_handler(
     return form_data
 
 
+async def chat_file_intent_decision_handler(
+    request: Request, body: dict, user: UserModel
+) -> tuple[dict, bool]:
+    """
+    Decide if the user's intent is RAG (search/query) or translation/content extraction.
+    Returns (modified_body, is_rag_task)
+    """
+
+    files = body.get("metadata", {}).get("files", None)
+    if not files:
+        return body, True  # No files, proceed normally
+
+    # Filter out image files - only process non-image files
+    non_image_files = []
+    for file_item in files:
+        if isinstance(file_item, dict):
+            # Check if it's a regular file (not web search results or collections)
+            if file_item.get("type") not in ["web_search_results", "collection"]:
+                file_id = file_item.get("id")
+                if file_id:
+                    try:
+                        file_record = Files.get_file_by_id(file_id)
+                        if file_record and file_record.meta:
+                            content_type = file_record.meta.get("content_type", "")
+                            # Skip image files
+                            if not content_type.startswith("image/"):
+                                non_image_files.append(file_item)
+                    except Exception as e:
+                        log.debug(f"Error checking file {file_id}: {e}")
+                        # If we can't determine the type, include it
+                        non_image_files.append(file_item)
+            else:
+                # Collections and web search results should use RAG
+                non_image_files.append(file_item)
+    
+    if not non_image_files:
+        return body, True  # No non-image files, proceed with normal RAG
+    
+    # Use DEFAULT_AGENT_MODEL to decide intent
+    user_message = get_last_user_message(body["messages"])
+    if not user_message:
+        return body, True  # No user message, proceed with RAG
+    
+    try:
+        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        if not model:
+            log.warning(f"DEFAULT_AGENT_MODEL {DEFAULT_AGENT_MODEL.value} not found for company {user.company_id}")
+            return body, True  # Fallback to RAG
+        
+        # Create decision prompt
+        decision_messages = [
+            {
+                "role": "system",
+                "content": "You are an AI assistant that determines user intent. The user has attached non-image files to their message. Analyze their message and determine:\n\nFor the user's intent, is it necessary to use the ENTIRE content of the document?\n\nExamples that need ENTIRE content:\n- Translation tasks\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n\nExamples that can use RAG (partial content):\n- Answering specific questions about the document\n- Finding particular information or facts\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'FULL' or 'RAG' - nothing else."
+            },
+            {
+                "role": "user",
+                "content": f"User message: {user_message}\n\nFile names: {', '.join([f.get('name', 'unknown') for f in non_image_files])}\n\nWhat is the user's intent?"
+            }
+        ]
+        
+        decision_form_data = {
+            "model": model.id,
+            "messages": decision_messages,
+            "stream": False,
+            "metadata": {"chat_id": None},
+            "temperature": 0.0
+        }
+        
+        response = await generate_openai_chat_completion(request, decision_form_data, user, None, True)
+        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
+        
+        is_rag_task = response_content == 'RAG'
+        log.debug(f"File intent decision: {response_content} -> is_rag_task: {is_rag_task}")
+        
+        return body, is_rag_task
+        
+    except Exception as e:
+        log.exception(f"Error in file intent decision: {e}")
+        return body, True  # Fallback to RAG on error
+
+
+def extract_file_content_with_loader(file_id: str) -> str:
+    """
+    Extract text content from a file by ID using the existing Loader system.
+    """
+    try:
+        file_record = Files.get_file_by_id(file_id)
+        if not file_record:
+            return f"[File {file_id} not found]"
+        
+        # Get file path using Storage
+        if file_record.path:
+            try:
+                storage = Storage()
+                file_path = storage.get_file(file_record.path)
+                
+                # Use the existing Loader system to extract content
+                loader = Loader()
+                content_type = file_record.meta.get("content_type", "") if file_record.meta else ""
+                
+                # Load documents using the existing system
+                documents = loader.load(file_record.filename, content_type, file_path)
+                
+                # Combine all document content
+                combined_content = "\n\n".join([doc.page_content for doc in documents])
+                return combined_content
+                
+            except Exception as e:
+                log.debug(f"Error loading file {file_id} with Loader: {e}")
+        
+        # Fallback: try to get content from file data if available
+        if file_record.data and 'content' in file_record.data:
+            return file_record.data['content']
+        
+        return f"[Could not extract content from file {file_record.filename}]"
+        
+    except Exception as e:
+        log.exception(f"Error extracting content from file {file_id}: {e}")
+        return f"[Error reading file {file_id}]"
+
+
 async def chat_completion_files_handler(
     request: Request, body: dict, user: UserModel
 ) -> tuple[dict, dict[str, list]]:
@@ -746,6 +871,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
 
     events = []
     sources = []
+    is_rag_task = True  # Default to RAG behavior
 
     user_message = get_last_user_message(form_data["messages"])
     model_knowledge = model.get("info", {}).get("meta", {}).get("knowledge", False)
@@ -871,14 +997,60 @@ async def process_chat_payload(request, form_data, metadata, user, model):
             except Exception as e:
                 log.exception(e)
 
+    # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, flags = await chat_completion_files_handler(request, form_data, user)
-        sources.extend(flags.get("sources", []))
+        form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user)
+        print("IS RAG TASK:", is_rag_task)
     except Exception as e:
-        log.exception(e)
+        log.exception(f"Error in file intent decision: {e}")
+        is_rag_task = True  # Fallback to RAG
+    
+    if is_rag_task:
+        # Proceed with normal RAG processing
+        try:
+            form_data, flags = await chat_completion_files_handler(request, form_data, user)
+            sources.extend(flags.get("sources", []))
+        except Exception as e:
+            log.exception(e)
+    else:
+        # Handle non-RAG task: extract file content and append to user prompt
+        try:
+            files = form_data.get("metadata", {}).get("files", [])
+            file_contents = []
+            
+            for file_item in files:
+                if isinstance(file_item, dict):
+                    file_id = file_item.get("id")
+                    if file_id:
+                        # Skip image files and collections
+                        if file_item.get("type") not in ["web_search_results", "collection"]:
+                            try:
+                                file_record = Files.get_file_by_id(file_id)
+                                if file_record and file_record.meta:
+                                    content_type = file_record.meta.get("content_type", "")
+                                    # Skip image files
+                                    if not content_type.startswith("image/"):
+                                        content = extract_file_content_with_loader(file_id)
+                                        file_contents.append(f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
+                            except Exception as e:
+                                log.debug(f"Error processing file {file_id}: {e}")
+            
+            # Append file contents to the last user message
+            if file_contents:
+                combined_content = "".join(file_contents)
+                form_data["messages"] = add_or_update_user_message(
+                    combined_content, form_data["messages"]
+                )
+                
+                # Remove files from metadata since we've processed them as content
+                if "metadata" in form_data and "files" in form_data["metadata"]:
+                    del form_data["metadata"]["files"]
+                    
+        except Exception as e:
+            log.exception(f"Error processing files for content extraction: {e}")
 
-    # If context is not empty, insert it into the messages
-    if len(sources) > 0:
+    # If context is not empty, insert it into the messages (only for RAG tasks)
+    if len(sources) > 0 and is_rag_task:
         context_string = ""
         for source_idx, source in enumerate(sources):
             source_id = source.get("source", {}).get("name", "")

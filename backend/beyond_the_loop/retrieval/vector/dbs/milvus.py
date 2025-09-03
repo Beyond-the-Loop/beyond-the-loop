@@ -1,10 +1,10 @@
 from pymilvus import MilvusClient as Client
-from pymilvus import FieldSchema, DataType
+from pymilvus import DataType
 import json
 
 from typing import Optional
 
-from open_webui.retrieval.vector.main import VectorItem, SearchResult, GetResult
+from retrieval.vector.main import VectorItem, SearchResult, GetResult
 from beyond_the_loop.config import (
     MILVUS_URI,
     MILVUS_DB,
