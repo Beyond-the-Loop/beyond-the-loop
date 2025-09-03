@@ -219,7 +219,7 @@
 		}
 	};
 
-	let hoveredItem = {label: "GPT-5"};
+	let hoveredItem = null;
 
 	let knowledgeCutoff = null;
 
@@ -341,7 +341,7 @@
 				</div>
 			{/if}
 
-			<div class="px-[3px] my-2 max-h-64 overflow-y-auto custom-scrollbar">
+			<div class="px-[3px] my-2 max-h-[202px] overflow-y-auto custom-scrollbar">
 				{#each filteredItems as item, index}
 					<button
 						aria-label="model-item"
@@ -510,9 +510,9 @@
 				{/each}
 				{#if hoveredItem && !$mobile}
 					<div
-						class="absolute flex flex-col h-[16rem] left-full ml-1 top-0 w-[21rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
+						class=" shadow-lg absolute flex flex-col h-[258px] left-full ml-1 top-0 w-[21rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
 					>
-						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
+						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
 						<div>
 							<p class="text-xs text-lightGray-100 dark:text-customGray-100">
 								{$i18n.t(modelsInfo?.[hoveredItem?.label]?.description)}
