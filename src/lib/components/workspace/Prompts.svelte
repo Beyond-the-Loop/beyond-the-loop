@@ -32,7 +32,7 @@
 	import ChevronRight from '../icons/ChevronRight.svelte';
 	import Spinner from '../common/Spinner.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
-	import { capitalizeFirstLetter, tagColorsLight } from '$lib/utils';
+	import { capitalizeFirstLetter, tagColorsLight, tagColors } from '$lib/utils';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import { getGroups } from '$lib/apis/groups';
 	import GroupIcon from '../icons/GroupIcon.svelte';
@@ -337,7 +337,7 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
+										!selectedTags.has(tag) ? ($theme === 'system' && $systemTheme === 'light' || $theme === 'light') ? tagColorsLight[i % tagColorsLight.length] : tagColors[i % tagColors.length] : ''
 									}`}
 									class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 dark:bg-customGray-800'} dark:text-white`}
 									on:click={() => {
@@ -360,7 +360,7 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
+									!selectedTags.has(tag) ? ($theme === 'system' && $systemTheme === 'light' || $theme === 'light') ? tagColorsLight[i % tagColorsLight.length] : tagColors[i % tagColors.length] : ''
 								}`}
 								class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customBlue-800'} dark:text-white`}
 								on:click={() => {
