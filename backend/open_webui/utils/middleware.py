@@ -37,7 +37,7 @@ from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
 from open_webui.utils.chat import generate_chat_completion
 from beyond_the_loop.routers.openai import generate_chat_completion as generate_openai_chat_completion
-from open_webui.models.files import Files
+from beyond_the_loop.models.files import Files
 from open_webui.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
 from open_webui.utils.task import (
@@ -1000,7 +1000,6 @@ async def process_chat_payload(request, form_data, metadata, user, model):
     # First, decide if this is a RAG task or content extraction task
     try:
         form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user)
-        print("IS RAG TASK:", is_rag_task)
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG

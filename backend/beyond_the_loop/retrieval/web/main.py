@@ -18,9 +18,3 @@ def get_filtered_results(results, filter_list):
         if any(domain.endswith(filtered_domain) for filtered_domain in filter_list):
             filtered_results.append(result)
     return filtered_results
-
-
-class SearchResult(BaseModel):
-    link: str
-    title: Optional[str]
-    snippet: Optional[str]
