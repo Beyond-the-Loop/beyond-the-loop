@@ -106,7 +106,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 data=body,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {os.getenv("OPENAI_API_KEY")}",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
                     **(
                         {
                             "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
@@ -230,7 +230,7 @@ async def generate_chat_completion(
             url=f"{os.getenv("OPENAI_API_BASE_URL")}/chat/completions",
             data=payload,
             headers={
-                "Authorization": f"Bearer {os.getenv("OPENAI_API_KEY")}",
+                "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
                 "Content-Type": "application/json",
                 **(
                     {
