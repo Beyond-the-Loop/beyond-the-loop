@@ -55,6 +55,10 @@ class ModelMeta(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    files: Optional[list[dict]] = None
+
+    knowledge: Optional[list[dict]] = None
+
     pass
 
 
