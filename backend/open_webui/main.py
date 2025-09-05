@@ -39,9 +39,7 @@ from open_webui.socket.main import (
 )
 from open_webui.routers import (
     images,
-    ollama,
     retrieval,
-    pipelines,
     tasks,
     channels,
     chats,
@@ -63,7 +61,6 @@ from beyond_the_loop.routers import openai, audio
 from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
-from beyond_the_loop.utils.access_control import get_permissions
 from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import file_archival
 
@@ -83,15 +80,6 @@ from beyond_the_loop.routers import analytics
 from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 
 from beyond_the_loop.config import (
-    # Ollama
-    ENABLE_OLLAMA_API,
-    OLLAMA_BASE_URLS,
-    OLLAMA_API_CONFIGS,
-    # OpenAI
-    ENABLE_OPENAI_API,
-    OPENAI_API_BASE_URLS,
-    OPENAI_API_KEYS,
-    OPENAI_API_CONFIGS,
     # Image
     BLACK_FOREST_LABS_API_KEY,
     ENABLE_IMAGE_GENERATION,
@@ -251,16 +239,10 @@ from open_webui.env import (
     WEBUI_AUTH_TRUSTED_EMAIL_HEADER,
     WEBUI_AUTH_TRUSTED_NAME_HEADER,
     ENABLE_WEBSOCKET_SUPPORT,
-    BYPASS_MODEL_ACCESS_CONTROL,
     RESET_CONFIG_ON_START,
     OFFLINE_MODE,
 )
 
-
-from open_webui.utils.models import (
-    get_all_models,
-    check_model_access,
-)
 from open_webui.utils.chat import (
     generate_chat_completion as chat_completion_handler,
     chat_completed as chat_completed_handler,
@@ -340,33 +322,6 @@ app = FastAPI(
 )
 
 app.state.config = AppConfig()
-
-
-########################################
-#
-# OLLAMA
-#
-########################################
-
-
-app.state.config.ENABLE_OLLAMA_API = ENABLE_OLLAMA_API
-app.state.config.OLLAMA_BASE_URLS = OLLAMA_BASE_URLS
-app.state.config.OLLAMA_API_CONFIGS = OLLAMA_API_CONFIGS
-
-app.state.OLLAMA_MODELS = {}
-
-########################################
-#
-# OPENAI
-#
-########################################
-
-app.state.config.ENABLE_OPENAI_API = ENABLE_OPENAI_API
-app.state.config.OPENAI_API_BASE_URLS = OPENAI_API_BASE_URLS
-app.state.config.OPENAI_API_KEYS = OPENAI_API_KEYS
-app.state.config.OPENAI_API_CONFIGS = OPENAI_API_CONFIGS
-
-app.state.OPENAI_MODELS = {}
 
 ########################################
 #
@@ -585,12 +540,6 @@ app.state.speech_speaker_embeddings_dataset = None
 # TASKS
 #
 ########################################
-
-
-app.state.config.TASK_MODEL = TASK_MODEL
-app.state.config.TASK_MODEL_EXTERNAL = TASK_MODEL_EXTERNAL
-
-
 app.state.config.ENABLE_SEARCH_QUERY_GENERATION = ENABLE_SEARCH_QUERY_GENERATION
 app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION = ENABLE_RETRIEVAL_QUERY_GENERATION
 app.state.config.ENABLE_AUTOCOMPLETE_GENERATION = ENABLE_AUTOCOMPLETE_GENERATION
@@ -620,9 +569,6 @@ app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH = (
 # WEBUI
 #
 ########################################
-
-app.state.MODELS = {}
-
 
 class RedirectMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -696,12 +642,8 @@ app.add_middleware(
 
 app.mount("/ws", socket_app)
 
-
-app.include_router(ollama.router, prefix="/ollama", tags=["ollama"])
 app.include_router(openai.router, prefix="/openai", tags=["openai"])
 
-
-app.include_router(pipelines.router, prefix="/api/v1/pipelines", tags=["pipelines"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(images.router, prefix="/api/v1/images", tags=["images"])
 app.include_router(audio.router, prefix="/api/v1/audio", tags=["audio"])
@@ -762,25 +704,12 @@ async def chat_completion(
     form_data: dict,
     user=Depends(get_verified_user),
 ):
-    await get_all_models(request, user)
-
     tasks = form_data.pop("background_tasks", None)
 
     try:
         model_id = form_data.get("model", None)
 
-        if model_id not in request.app.state.MODELS:
-            raise Exception("Model not found")
-
-        model = request.app.state.MODELS[model_id]
-        model_info = Models.get_model_by_id(model_id)
-
-        # Check if user has access to the model
-        if not BYPASS_MODEL_ACCESS_CONTROL and user.role == "user":
-            try:
-                check_model_access(user, model)
-            except Exception as e:
-                raise e
+        model = Models.get_model_by_id(model_id)
 
         metadata = {
             "user_id": user.id,
@@ -791,13 +720,13 @@ async def chat_completion(
             "files": form_data.get("files", None),
             "features": form_data.get("features", None),
             "variables": form_data.get("variables", None),
-            "model": model_info,
+            "model": model,
             **(
                 {"function_calling": "native"}
                 if form_data.get("params", {}).get("function_calling") == "native"
                 or (
-                    model_info
-                    and model_info.params.model_dump().get("function_calling")
+                    model
+                    and model.params.model_dump().get("function_calling")
                     == "native"
                 )
                 else {}
@@ -810,18 +739,20 @@ async def chat_completion(
         )
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
 
     try:
-        response = await chat_completion_handler(request, form_data, user)
+        response = await chat_completion_handler(form_data, user)
 
         return await process_chat_response(
             request, response, form_data, user, events, metadata, tasks
         )
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
