@@ -227,7 +227,7 @@ async def generate_chat_completion(
 
         r = await session.request(
             method="POST",
-            url=f"{os.getenv("OPENAI_API_BASE_URL")}/chat/completions",
+            url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
             data=payload,
             headers={
                 "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
