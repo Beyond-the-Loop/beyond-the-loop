@@ -211,6 +211,8 @@
 		});
 		saveAs(blob, `${model.id}-${Date.now()}.json`);
 	};
+	$: console.log(group_ids);
+	$: console.log(models);
 
 	onMount(async () => {
 		models = await getWorkspaceModels(localStorage.token);
@@ -676,49 +678,48 @@
 									{/if}
 								</div>
 							</div>
-							{#if $user?.role === 'admin' || model.user_id === $user?.id || model?.access_control === null || model?.access_control?.write.group_ids?.some( (wg) => group_ids.includes(wg) )}
-								<div
-									class="{hoveredModel === model.id || menuIdOpened === model.id
-										? 'md:visible'
-										: 'md:invisible'} "
+							
+							<div
+								class="{hoveredModel === model.id || menuIdOpened === model.id
+									? 'md:visible'
+									: 'md:invisible'} "
+							>
+								<ModelMenu
+									user={$user}
+									{model}
+									shareHandler={() => {
+										shareModelHandler(model);
+									}}
+									cloneHandler={() => {
+										cloneModelHandler(model);
+									}}
+									exportHandler={() => {
+										exportModelHandler(model);
+									}}
+									hideHandler={() => {
+										hideModelHandler(model);
+									}}
+									deleteHandler={() => {
+										selectedModel = model;
+										showModelDeleteConfirm = true;
+									}}
+									onClose={() => {}}
+									on:openMenu={() => {
+										menuIdOpened = model.id;
+									}}
+									on:closeMenu={() => {
+										menuIdOpened = null;
+									}}
+									{cloneModelHandler}
 								>
-									<ModelMenu
-										user={$user}
-										{model}
-										shareHandler={() => {
-											shareModelHandler(model);
-										}}
-										cloneHandler={() => {
-											cloneModelHandler(model);
-										}}
-										exportHandler={() => {
-											exportModelHandler(model);
-										}}
-										hideHandler={() => {
-											hideModelHandler(model);
-										}}
-										deleteHandler={() => {
-											selectedModel = model;
-											showModelDeleteConfirm = true;
-										}}
-										onClose={() => {}}
-										on:openMenu={() => {
-											menuIdOpened = model.id;
-										}}
-										on:closeMenu={() => {
-											menuIdOpened = null;
-										}}
-										{cloneModelHandler}
+									<button
+										class="self-center w-fit text-sm px-0.5 h-[21px] dark:text-white dark:hover:text-white hover:bg-black/5 rounded-md"
+										type="button"
 									>
-										<button
-											class="self-center w-fit text-sm px-0.5 h-[21px] dark:text-white dark:hover:text-white hover:bg-black/5 rounded-md"
-											type="button"
-										>
-											<EllipsisHorizontal className="size-5" />
-										</button>
-									</ModelMenu>
-								</div>
-							{/if}
+										<EllipsisHorizontal className="size-5" />
+									</button>
+								</ModelMenu>
+							</div>
 						</div>
 						<div class="flex gap-4 mb-2.5">
 							<div class=" w-[56px]">
