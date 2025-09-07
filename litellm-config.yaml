@@ -9,11 +9,6 @@ model_list:
       model: 'vertex_ai/claude-3-5-haiku@20241022'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'us-east5'
-  - model_name: "Claude Opus 4"
-    litellm_params:
-      model: 'vertex_ai/claude-opus-4@20250514'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'us-east5'
   - model_name: "Claude Opus 4.1"
     litellm_params:
       model: 'vertex_ai/claude-opus-4-1@20250805'
