@@ -863,7 +863,6 @@ async def get_app_config(request: Request):
             **(
                 {
                     "enable_channels": app.state.config.ENABLE_CHANNELS,
-                    "enable_web_search": app.state.config.ENABLE_RAG_WEB_SEARCH,
                     "enable_google_drive_integration": app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
                     "enable_image_generation": app.state.config.ENABLE_IMAGE_GENERATION,
                     "enable_community_sharing": app.state.config.ENABLE_COMMUNITY_SHARING,
