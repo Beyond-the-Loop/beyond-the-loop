@@ -321,8 +321,19 @@
 	let showAssistant = null;
 	let baseModel = null;
 	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
-	$: console.log(showAssistant, 'show assistant')
-	
+
+
+	$: colorMap = new Map(
+    tags.map((t, i) => [
+      t,
+      ($theme === 'system' && $systemTheme === 'light' || $theme === 'light')
+        ? tagColorsLight[i % tagColorsLight.length]
+        : tagColors[i % tagColors.length],
+    	])
+  	);
+
+  
+ 	
 </script>
 
 <svelte:head>
@@ -508,7 +519,7 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										!selectedTags.has(tag) ? ($theme === 'system' && $systemTheme === 'light' || $theme === 'light') ? tagColorsLight[i % tagColorsLight.length] : tagColors[i % tagColors.length] : ''
+										!selectedTags.has(tag) ? colorMap.get(tag) ?? '' : ''
 									}`}
 									class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-[#A6B9FF] text-white dark:bg-customBlue-800' : 'bg-lightGray-400  dark:bg-customGray-800 '} font-medium text-lightGray-100 dark:text-white`}
 									on:click={() => {
@@ -531,7 +542,7 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									!selectedTags.has(tag) ? ($theme === 'system' && $systemTheme === 'light' || $theme === 'light') ? tagColorsLight[i % tagColorsLight.length] : tagColors[i % tagColors.length] : ''
+									!selectedTags.has(tag) ? colorMap.get(tag) ?? '' : ''
 								}`}
 								class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-[#A6B9FF] text-white dark:bg-customBlue-800' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customGray-950'} font-medium text-lightGray-100 dark:text-white`}
 								on:click={() => {
@@ -665,10 +676,11 @@
 									{#if model.meta?.tags}
 										{#each model.meta?.tags as modelTag}
 											<div
+												style={`background-color: ${colorMap.get(modelTag?.name) ?? ''}`}
 												class="flex items-center {hoveredModel === model.id ||
 												menuIdOpened === model.id
 													? 'dark:text-white'
-													: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+													: 'text-lightGray-100 dark:text-customGray-100'} text-xs font-medium  px-[6px] py-[3px] rounded-md"
 											>
 												{$i18n.t(modelTag.name)}
 											</div>
