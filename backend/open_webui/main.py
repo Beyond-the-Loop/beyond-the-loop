@@ -864,6 +864,7 @@ async def get_app_config(request: Request):
                 {
                     "enable_channels": app.state.config.ENABLE_CHANNELS,
                     "enable_google_drive_integration": app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
+                    "enable_web_search": True,
                     "enable_image_generation": app.state.config.ENABLE_IMAGE_GENERATION,
                     "enable_community_sharing": app.state.config.ENABLE_COMMUNITY_SHARING,
                     "enable_message_rating": app.state.config.ENABLE_MESSAGE_RATING,
