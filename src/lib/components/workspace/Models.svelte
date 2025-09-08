@@ -211,8 +211,6 @@
 		});
 		saveAs(blob, `${model.id}-${Date.now()}.json`);
 	};
-	$: console.log(group_ids);
-	$: console.log(models);
 
 	onMount(async () => {
 		models = await getWorkspaceModels(localStorage.token);
@@ -323,7 +321,6 @@
 	let showAssistant = null;
 	let baseModel = null;
 	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
-	$: console.log(showAssistant, 'show assistant')
 	
 </script>
 
