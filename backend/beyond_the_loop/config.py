@@ -105,25 +105,6 @@ DEFAULT_CONFIG = {
         "web": {
             "search": {
                 "enable": True,
-                "engine": "google_pse",
-                "searxng_query_url": "",
-                "google_pse_api_key": os.environ.get("GOOGLE_PSE_API_KEY", ""),
-                "google_pse_engine_id": os.environ.get("GOOGLE_PSE_ENGINE_ID", ""),
-                "brave_search_api_key": "",
-                "kagi_search_api_key": "",
-                "mojeek_search_api_key": "",
-                "serpstack_api_key": "",
-                "serpstack_https": True,
-                "serper_api_key": "",
-                "serply_api_key": "",
-                "tavily_api_key": "",
-                "searchapi_api_key": "",
-                "searchapi_engine": "",
-                "jina_api_key": "",
-                "bing_search_v7_endpoint": "https://api.bing.microsoft.com/v7.0/search",
-                "bing_search_v7_subscription_key": "",
-                "exa_api_key": "",
-                "result_count": 3,
                 "concurrent_requests": 10,
             }
         },
@@ -1471,15 +1452,6 @@ RAG_TEXT_SPLITTER = PersistentConfig(
     os.environ.get("RAG_TEXT_SPLITTER", ""),
 )
 
-
-TIKTOKEN_CACHE_DIR = os.environ.get("TIKTOKEN_CACHE_DIR", f"{CACHE_DIR}/tiktoken")
-TIKTOKEN_ENCODING_NAME = PersistentConfig(
-    "TIKTOKEN_ENCODING_NAME",
-    "rag.tiktoken_encoding_name",
-    os.environ.get("TIKTOKEN_ENCODING_NAME", "cl100k_base"),
-)
-
-
 CHUNK_SIZE = PersistentConfig(
     "CHUNK_SIZE", "rag.chunk_size", int(os.environ.get("CHUNK_SIZE", "1000"))
 )
@@ -1531,182 +1503,13 @@ RAG_OPENAI_API_BASE_URL = PersistentConfig(
     "rag.openai_api_base_url",
     os.getenv("RAG_OPENAI_API_BASE_URL", OPENAI_API_BASE_URL),
 )
+
 RAG_OPENAI_API_KEY = PersistentConfig(
     "RAG_OPENAI_API_KEY",
     "rag.openai_api_key",
     os.getenv("RAG_OPENAI_API_KEY", OPENAI_API_KEY),
 )
 
-RAG_OLLAMA_BASE_URL = PersistentConfig(
-    "RAG_OLLAMA_BASE_URL",
-    "rag.ollama.url",
-    os.getenv("RAG_OLLAMA_BASE_URL", OLLAMA_BASE_URL),
-)
-
-RAG_OLLAMA_API_KEY = PersistentConfig(
-    "RAG_OLLAMA_API_KEY",
-    "rag.ollama.key",
-    os.getenv("RAG_OLLAMA_API_KEY", ""),
-)
-
-
-ENABLE_RAG_LOCAL_WEB_FETCH = (
-    os.getenv("ENABLE_RAG_LOCAL_WEB_FETCH", "False").lower() == "true"
-)
-
-YOUTUBE_LOADER_LANGUAGE = PersistentConfig(
-    "YOUTUBE_LOADER_LANGUAGE",
-    "rag.youtube_loader_language",
-    os.getenv("YOUTUBE_LOADER_LANGUAGE", "en").split(","),
-)
-
-YOUTUBE_LOADER_PROXY_URL = PersistentConfig(
-    "YOUTUBE_LOADER_PROXY_URL",
-    "rag.youtube_loader_proxy_url",
-    os.getenv("YOUTUBE_LOADER_PROXY_URL", ""),
-)
-
-
-ENABLE_RAG_WEB_SEARCH = PersistentConfig(
-    "ENABLE_RAG_WEB_SEARCH",
-    "rag.web.search.enable",
-    os.getenv("ENABLE_RAG_WEB_SEARCH", "False").lower() == "true",
-)
-
-RAG_WEB_SEARCH_ENGINE = PersistentConfig(
-    "RAG_WEB_SEARCH_ENGINE",
-    "rag.web.search.engine",
-    os.getenv("RAG_WEB_SEARCH_ENGINE", ""),
-)
-
-# You can provide a list of your own websites to filter after performing a web search.
-# This ensures the highest level of safety and reliability of the information sources.
-RAG_WEB_SEARCH_DOMAIN_FILTER_LIST = PersistentConfig(
-    "RAG_WEB_SEARCH_DOMAIN_FILTER_LIST",
-    "rag.rag.web.search.domain.filter_list",
-    [
-        # "wikipedia.com",
-        # "wikimedia.org",
-        # "wikidata.org",
-    ],
-)
-
-
-SEARXNG_QUERY_URL = PersistentConfig(
-    "SEARXNG_QUERY_URL",
-    "rag.web.search.searxng_query_url",
-    os.getenv("SEARXNG_QUERY_URL", ""),
-)
-
-GOOGLE_PSE_API_KEY = PersistentConfig(
-    "GOOGLE_PSE_API_KEY",
-    "rag.web.search.google_pse_api_key",
-    os.getenv("GOOGLE_PSE_API_KEY", ""),
-)
-
-GOOGLE_PSE_ENGINE_ID = PersistentConfig(
-    "GOOGLE_PSE_ENGINE_ID",
-    "rag.web.search.google_pse_engine_id",
-    os.getenv("GOOGLE_PSE_ENGINE_ID", ""),
-)
-
-BRAVE_SEARCH_API_KEY = PersistentConfig(
-    "BRAVE_SEARCH_API_KEY",
-    "rag.web.search.brave_search_api_key",
-    os.getenv("BRAVE_SEARCH_API_KEY", ""),
-)
-
-KAGI_SEARCH_API_KEY = PersistentConfig(
-    "KAGI_SEARCH_API_KEY",
-    "rag.web.search.kagi_search_api_key",
-    os.getenv("KAGI_SEARCH_API_KEY", ""),
-)
-
-MOJEEK_SEARCH_API_KEY = PersistentConfig(
-    "MOJEEK_SEARCH_API_KEY",
-    "rag.web.search.mojeek_search_api_key",
-    os.getenv("MOJEEK_SEARCH_API_KEY", ""),
-)
-
-SERPSTACK_API_KEY = PersistentConfig(
-    "SERPSTACK_API_KEY",
-    "rag.web.search.serpstack_api_key",
-    os.getenv("SERPSTACK_API_KEY", ""),
-)
-
-SERPSTACK_HTTPS = PersistentConfig(
-    "SERPSTACK_HTTPS",
-    "rag.web.search.serpstack_https",
-    os.getenv("SERPSTACK_HTTPS", "True").lower() == "true",
-)
-
-SERPER_API_KEY = PersistentConfig(
-    "SERPER_API_KEY",
-    "rag.web.search.serper_api_key",
-    os.getenv("SERPER_API_KEY", ""),
-)
-
-SERPLY_API_KEY = PersistentConfig(
-    "SERPLY_API_KEY",
-    "rag.web.search.serply_api_key",
-    os.getenv("SERPLY_API_KEY", ""),
-)
-
-TAVILY_API_KEY = PersistentConfig(
-    "TAVILY_API_KEY",
-    "rag.web.search.tavily_api_key",
-    os.getenv("TAVILY_API_KEY", ""),
-)
-
-JINA_API_KEY = PersistentConfig(
-    "JINA_API_KEY",
-    "rag.web.search.jina_api_key",
-    os.getenv("JINA_API_KEY", ""),
-)
-
-SEARCHAPI_API_KEY = PersistentConfig(
-    "SEARCHAPI_API_KEY",
-    "rag.web.search.searchapi_api_key",
-    os.getenv("SEARCHAPI_API_KEY", ""),
-)
-
-SEARCHAPI_ENGINE = PersistentConfig(
-    "SEARCHAPI_ENGINE",
-    "rag.web.search.searchapi_engine",
-    os.getenv("SEARCHAPI_ENGINE", ""),
-)
-
-BING_SEARCH_V7_ENDPOINT = PersistentConfig(
-    "BING_SEARCH_V7_ENDPOINT",
-    "rag.web.search.bing_search_v7_endpoint",
-    os.environ.get(
-        "BING_SEARCH_V7_ENDPOINT", "https://api.bing.microsoft.com/v7.0/search"
-    ),
-)
-
-BING_SEARCH_V7_SUBSCRIPTION_KEY = PersistentConfig(
-    "BING_SEARCH_V7_SUBSCRIPTION_KEY",
-    "rag.web.search.bing_search_v7_subscription_key",
-    os.environ.get("BING_SEARCH_V7_SUBSCRIPTION_KEY", ""),
-)
-
-EXA_API_KEY = PersistentConfig(
-    "EXA_API_KEY",
-    "rag.web.search.exa_api_key",
-    os.getenv("EXA_API_KEY", ""),
-)
-
-RAG_WEB_SEARCH_RESULT_COUNT = PersistentConfig(
-    "RAG_WEB_SEARCH_RESULT_COUNT",
-    "rag.web.search.result_count",
-    int(os.getenv("RAG_WEB_SEARCH_RESULT_COUNT", "3")),
-)
-
-RAG_WEB_SEARCH_CONCURRENT_REQUESTS = PersistentConfig(
-    "RAG_WEB_SEARCH_CONCURRENT_REQUESTS",
-    "rag.web.search.concurrent_requests",
-    int(os.getenv("RAG_WEB_SEARCH_CONCURRENT_REQUESTS", "10")),
-)
 
 
 ####################################
