@@ -16,7 +16,7 @@
 	const i18n = getContext('i18n');
 
 	export let show = false;
-	export let className = 'max-w-[15rem]';
+	export let className = 'max-w-[21rem]';
 
 	const dispatch = createEventDispatcher();
 </script>
@@ -28,7 +28,7 @@
 	}}
 >
 	<DropdownMenu.Trigger>
-		<div class="text-2xs bg-lightGray-700 dark:bg-[#252323] py-2 px-2 rounded-lg">{$i18n.t('Filter by category')}</div>
+		<div class="text-2xs bg-lightGray-700 dark:bg-[#252323] py-2 px-1 sm:px-2 rounded-lg">{$i18n.t('Filter by category')}</div>
 	</DropdownMenu.Trigger>
 
 		<DropdownMenu.Content
