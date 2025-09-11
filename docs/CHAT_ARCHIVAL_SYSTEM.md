@@ -8,6 +8,7 @@ The Chat Archival System is an automated solution that manages chat lifecycle ba
 
 - **Automated Chat Archival**: Archives chats based on company-specific retention settings
 - **Automatic Deletion**: Permanently deletes archived chats after 3 months
+- **Smart Exclusions**: Excludes pinned chats and chats in folders from automatic archival and deletion
 - **Daily Scheduling**: Runs automatically every day at 23:00
 - **Company-Specific Policies**: Each company can configure their own retention period
 - **Monitoring & Management**: REST API endpoints for monitoring and manual control
@@ -57,6 +58,15 @@ Each company can configure their chat retention period through the company confi
 
 - **Archived chats** are permanently deleted after **90 days** (3 months)
 - This deletion period is fixed and not configurable per company
+
+### Exclusion Rules
+
+The following types of chats are **automatically excluded** from both archival and deletion:
+
+- **Pinned Chats**: Chats marked as pinned (`pinned = true`) are never archived or deleted
+- **Chats in Folders**: Chats that belong to folders (`folder_id` is not null) are never archived or deleted
+
+This ensures that important chats that users have explicitly organized or marked as important are preserved indefinitely.
 
 ## API Endpoints
 
@@ -152,11 +162,13 @@ Get global archival statistics across all companies (admin only).
      - Get company's `chat_retention_days` setting
      - Calculate cutoff date (current date - retention days)
      - Find non-archived chats older than cutoff date
+     - **Exclude pinned chats and chats in folders from archival**
      - Mark these chats as `archived = true`
      - Update `updated_at` timestamp
 
 3. **Chat Deletion Phase**
    - Find all archived chats older than 90 days
+   - **Exclude pinned chats and chats in folders from deletion**
    - Permanently delete these chats using existing `Chats.delete_chat_by_id()`
    - This also handles deletion of shared chats
 
