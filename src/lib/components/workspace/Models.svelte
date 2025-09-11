@@ -46,7 +46,7 @@
 	import ChevronRight from '../icons/ChevronRight.svelte';
 	import Switch from '../common/Switch.svelte';
 	import Spinner from '../common/Spinner.svelte';
-	import { capitalizeFirstLetter, tagColorsLight } from '$lib/utils';
+	import { capitalizeFirstLetter, tagColorsLight, tagColors } from '$lib/utils';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import GroupIcon from '../icons/GroupIcon.svelte';
 	import PublicIcon from '../icons/PublicIcon.svelte';
@@ -321,7 +321,16 @@
 	let showAssistant = null;
 	let baseModel = null;
 	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
-	
+
+	$: colorMap = new Map(
+    tags.map((t, i) => [
+      t,
+      ($theme === 'system' && $systemTheme === 'light' || $theme === 'light')
+        ? tagColorsLight[i % tagColorsLight.length]
+        : tagColors[i % tagColors.length],
+    	])
+  	);
+  
 </script>
 
 <svelte:head>
@@ -507,7 +516,7 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										(($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag)) ? tagColorsLight[i % tagColorsLight.length] : ''
+										!selectedTags.has(tag) ? colorMap.get(tag) ?? '' : ''
 									}`}
 									class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-[#A6B9FF] text-white dark:bg-customBlue-800' : 'bg-lightGray-400  dark:bg-customGray-800 '} font-medium text-lightGray-100 dark:text-white`}
 									on:click={() => {
@@ -530,7 +539,7 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									(($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag)) ? tagColorsLight[i % tagColorsLight.length] : ''
+									!selectedTags.has(tag) ? colorMap.get(tag) ?? '' : ''
 								}`}
 								class={`flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'bg-[#A6B9FF] text-white dark:bg-customBlue-800' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customGray-950'} font-medium text-lightGray-100 dark:text-white`}
 								on:click={() => {
@@ -547,22 +556,27 @@
 			<div class="flex bg-lightGray-700 dark:bg-customGray-800 rounded-md flex-shrink-0">
 				<button
 					on:click={() => (accessFilter = 'all')}
-					class={`${accessFilter === 'all' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-4 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
+					class={`${accessFilter === 'all' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-3 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('All')}</button
 				>
 				<button
 					on:click={() => (accessFilter = 'private')}
-					class={`${accessFilter === 'private' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-4 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
-					>{$i18n.t('My Assistants')}</button
+					class={`${accessFilter === 'private' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-3 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
+					>{#if $mobile}
+						{$i18n.t('My')}
+					{:else}
+						{$i18n.t('My Assistants')}
+					{/if}
+					</button
 				>
 				<button
 					on:click={() => (accessFilter = 'public')}
-					class={`${accessFilter === 'public' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-4 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
+					class={`${accessFilter === 'public' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-3 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Public')}</button
 				>
 				<button
 					on:click={() => (accessFilter = 'pre-built')}
-					class={`${accessFilter === 'pre-built' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-2 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
+					class={`${accessFilter === 'pre-built' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-3 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
 					>{$i18n.t('Pre-built')}</button
 				>
 			</div>
@@ -659,10 +673,11 @@
 									{#if model.meta?.tags}
 										{#each model.meta?.tags as modelTag}
 											<div
+												style={`background-color: ${colorMap.get(modelTag?.name) ?? ''}`}
 												class="flex items-center {hoveredModel === model.id ||
 												menuIdOpened === model.id
 													? 'dark:text-white'
-													: 'text-lightGray-100 dark:text-customGray-100'} text-xs bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+													: 'text-lightGray-100 dark:text-customGray-100'} text-xs font-medium  px-[6px] py-[3px] rounded-md"
 											>
 												{$i18n.t(modelTag.name)}
 											</div>
