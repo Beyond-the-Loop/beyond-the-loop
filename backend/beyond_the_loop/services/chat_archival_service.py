@@ -4,6 +4,7 @@ Chat Archival Service
 This service handles automatic archival and deletion of chats based on company retention policies.
 - Archives chats after the configured retention period (chat_retention_days)
 - Deletes archived chats after 3 months (90 days)
+- Excludes pinned chats and chats in folders from automatic archival and deletion
 """
 
 import logging
@@ -126,11 +127,14 @@ class ChatArchivalService:
         
         with get_db() as db:
             # Find chats that should be archived
+            # Exclude pinned chats and chats in folders from automatic archival
             chats_to_archive = db.query(Chat).filter(
                 and_(
                     Chat.user_id.in_(user_ids),
                     Chat.updated_at < cutoff_timestamp,
-                    Chat.archived == False  # Only non-archived chats
+                    Chat.archived == False,  # Only non-archived chats
+                    Chat.pinned != True,     # Exclude pinned chats
+                    Chat.folder_id.is_(None) # Exclude chats in folders
                 )
             ).all()
             
@@ -166,10 +170,13 @@ class ChatArchivalService:
         
         with get_db() as db:
             # Find archived chats older than 3 months
+            # Exclude pinned chats and chats in folders from automatic deletion
             chats_to_delete = db.query(Chat).filter(
                 and_(
                     Chat.archived == True,
-                    Chat.updated_at < cutoff_timestamp
+                    Chat.updated_at < cutoff_timestamp,
+                    Chat.pinned != True,     # Exclude pinned chats
+                    Chat.folder_id.is_(None) # Exclude chats in folders
                 )
             ).all()
             
@@ -261,11 +268,14 @@ class ChatArchivalService:
                 }
             
             # Find chats that would be archived
+            # Exclude pinned chats and chats in folders from archival preview
             candidates = db.query(Chat).filter(
                 and_(
                     Chat.user_id.in_(user_ids),
                     Chat.updated_at < cutoff_timestamp,
-                    Chat.archived == False
+                    Chat.archived == False,
+                    Chat.pinned != True,     # Exclude pinned chats
+                    Chat.folder_id.is_(None) # Exclude chats in folders
                 )
             ).order_by(Chat.updated_at.asc()).limit(10).all()  # Limit for preview
             
@@ -284,7 +294,9 @@ class ChatArchivalService:
                 and_(
                     Chat.user_id.in_(user_ids),
                     Chat.updated_at < cutoff_timestamp,
-                    Chat.archived == False
+                    Chat.archived == False,
+                    Chat.pinned != True,     # Exclude pinned chats
+                    Chat.folder_id.is_(None) # Exclude chats in folders
                 )
             ).count()
             
