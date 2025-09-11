@@ -23,14 +23,14 @@ from langchain_core.documents import Document
 from beyond_the_loop.models.files import FileModel, Files
 from open_webui.storage.provider import Storage
 
-
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 # Document loaders
 from beyond_the_loop.retrieval.loaders.main import Loader
-from beyond_the_loop.retrieval.loaders.youtube import YoutubeLoader
 
 from firecrawl import Firecrawl
+from firecrawl.v2.types import SearchResultWeb
+from firecrawl.v2.types import Document as Firecrawl_Document
 
 from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
@@ -643,21 +643,34 @@ def process_web_search(
             }
         )
 
-        for result in web_results.web:
-            print(result.metadata)
+        docs = []
 
-        docs = [
-            Document(
-                page_content=result.markdown,
-                metadata={
-                    "source": result.metadata.url or "",
-                    "title": result.metadata.title or "",
-                    "description": result.metadata.description or "",
-                    "language": result.metadata.language or "",
-                }
-            )
-            for result in web_results.web
-        ]
+        for result in web_results.web:
+            if isinstance(result, Firecrawl_Document):
+                docs.append(
+                    Document(
+                        page_content=result.markdown or "",
+                        metadata={
+                            "source": result.metadata.url or "",
+                            "title": result.metadata.title or "",
+                            "description": result.metadata.description or "",
+                            "language": result.metadata.language or "",
+                        }
+                    )
+                )
+            elif isinstance(result, SearchResultWeb):
+                # Fallback: use description or title as content
+                docs.append(
+                    Document(
+                        page_content=result.description or "",
+                        metadata={
+                            "source": result.url or "",
+                            "title": result.title or "",
+                            "description": result.description or "",
+                            "language": "",
+                        }
+                    )
+                )
 
         log.debug(f"web_results: {web_results}")
 

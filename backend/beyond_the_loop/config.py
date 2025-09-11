@@ -1128,7 +1128,16 @@ Analyze the chat history to determine the necessity of generating search queries
 - Err on the side of suggesting search queries if there is **any chance** they might provide useful or updated information.
 - Be concise and focused on composing high-quality search queries, avoiding unnecessary elaboration, commentary, or assumptions.
 - Today's date is: {{CURRENT_DATE}}.
-- Always prioritize providing actionable and broad queries that maximize informational coverage.
+- Always prioritize providing search queries for a webscraping service (e.g. firecrawl).
+- IMPORTANT! Use the chat's primary language for the queries; default to English if multilingual.
+
+### URL Extraction Rules:
+- **CRITICAL**: Scan user messages for URLs (http:// or https://)
+- If URLs are found, include them as contextual search queries in the FIRST position of the queries array
+- URLs must be the FIRST query in the array since only queries[0] is used by firecrawl
+- Create the search query as usual but include the the URL without any additional formatting or changes as it is in the query
+- It must not be formatted as "search for https://example.com" or "analyze https://docs.site.com/page" but with context from the chat if possible
+- Don't return just the URL in the first query
 
 ### Output:
 Strictly return in JSON format: 
