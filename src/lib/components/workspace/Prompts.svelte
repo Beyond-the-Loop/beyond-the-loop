@@ -32,7 +32,7 @@
 	import ChevronRight from '../icons/ChevronRight.svelte';
 	import Spinner from '../common/Spinner.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
-	import { capitalizeFirstLetter, tagColorsLight } from '$lib/utils';
+	import { capitalizeFirstLetter, tagColorsLight, tagColors } from '$lib/utils';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import { getGroups } from '$lib/apis/groups';
 	import GroupIcon from '../icons/GroupIcon.svelte';
@@ -204,6 +204,15 @@
 
 	let showMore = false;
 	let showPrompt = null;
+
+	$: colorMap = new Map(
+    tags.map((t, i) => [
+      t,
+      ($theme === 'system' && $systemTheme === 'light' || $theme === 'light')
+        ? tagColorsLight[i % tagColorsLight.length]
+        : tagColors[i % tagColors.length],
+    	])
+  	);
 </script>
 
 <svelte:head>
@@ -337,7 +346,7 @@
 							{#each tags as tag, i}
 								<button
 									style={`background-color: ${
-										($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
+										!selectedTags.has(tag) ? colorMap.get(tag) ?? '' : ''
 									}`}
 									class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 dark:bg-customGray-800'} dark:text-white`}
 									on:click={() => {
@@ -360,7 +369,7 @@
 						{#each tags as tag, i}
 							<button
 								style={`background-color: ${
-									($theme === 'system' && $systemTheme === 'light' || $theme === 'light') && !selectedTags.has(tag) ? tagColorsLight[i % tagColorsLight.length] : ''
+									!selectedTags.has(tag) ? colorMap.get(tag) ?? '' : ''
 								}`}
 								class={`font-medium flex items-center justify-center rounded-md text-xs leading-none px-[6px] py-[6px] ${selectedTags.has(tag) ? 'dark:bg-customBlue-800 bg-[#A6B9FF] text-white' : 'bg-lightGray-400 hover:bg-customViolet-200 dark:bg-customGray-800 dark:hover:bg-customBlue-800'} dark:text-white`}
 								on:click={() => {
@@ -492,10 +501,11 @@
 									{#if prompt.meta && Array.isArray(prompt.meta.tags)}
 										{#each prompt?.meta?.tags as promptTag}
 											<div
+												style={`background-color: ${colorMap.get(promptTag?.name) ?? ''}`}
 												class="flex items-center {hoveredPrompt === prompt.command ||
 												menuIdOpened === prompt.command
 													? 'dark:text-white'
-													: 'dark:text-customGray-100'} text-xs text-lightGray-100 font-medium bg-customViolet-200 dark:bg-customBlue-800 px-[6px] py-[3px] rounded-md"
+													: 'dark:text-customGray-100'} text-xs text-lightGray-100 font-medium px-[6px] py-[3px] rounded-md"
 											>
 												{$i18n.t(promptTag.name)}
 											</div>
