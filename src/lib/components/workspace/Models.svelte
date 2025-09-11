@@ -211,8 +211,6 @@
 		});
 		saveAs(blob, `${model.id}-${Date.now()}.json`);
 	};
-	$: console.log(group_ids);
-	$: console.log(models);
 
 	onMount(async () => {
 		models = await getWorkspaceModels(localStorage.token);
@@ -334,8 +332,8 @@
     	])
   	);
 
-  
- 	
+
+
 </script>
 
 <svelte:head>
@@ -690,7 +688,7 @@
 									{/if}
 								</div>
 							</div>
-							
+
 							<div
 								class="{hoveredModel === model.id || menuIdOpened === model.id
 									? 'md:visible'
