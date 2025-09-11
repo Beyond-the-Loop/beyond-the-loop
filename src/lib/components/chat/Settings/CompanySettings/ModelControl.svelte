@@ -2,7 +2,11 @@
 	import { getContext, onMount } from 'svelte';
 	import { getBaseModels } from '$lib/apis/models';
 	import { getModels } from '$lib/apis';
-	import { modelsInfo, mapModelsToOrganizations } from '../../../../../data/modelsInfo';
+	import {
+		modelsInfo,
+		mapModelsToOrganizations,
+		filterCatalog
+	} from '../../../../../data/modelsInfo';
 	import { getModelIcon } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import { onClickOutside } from '$lib/utils';
@@ -20,7 +24,9 @@
 	import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
 	import AdditionaModelInfo from '../../ModelSelector/AdditionaModelInfo.svelte';
 	import { getCompanyConfig } from '$lib/apis/auths';
-
+	import SpeedRating from '../../ModelSelector/SpeedRating.svelte';
+	import IntelligenceRating from '../../ModelSelector/IntelligenceRating.svelte';
+	import CostRating from '../../ModelSelector/CostRating.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -51,7 +57,11 @@
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
 
-		models = workspaceModels.sort((a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity));
+		models = workspaceModels.sort(
+			(a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
+		);
+		const availableModels = models.map((model) => model?.name);
+		organizations = filterCatalog(organizations, availableModels);
 	};
 
 	const defaultInit = async () => {
@@ -61,7 +71,10 @@
 		const allModelIds = $storeModels.map((model) => model.id);
 
 		if (config?.DEFAULT_MODELS) {
-			defaultModelIds = (config?.DEFAULT_MODELS ?? '').split(',').filter(Boolean).map((id) => $storeModels.find((m) => m.id === id)?.name ?? '');
+			defaultModelIds = (config?.DEFAULT_MODELS ?? '')
+				.split(',')
+				.filter(Boolean)
+				.map((id) => $storeModels.find((m) => m.id === id)?.name ?? '');
 		} else {
 			defaultModelIds = [];
 		}
@@ -86,9 +99,10 @@
 		if (res) {
 			toast.success($i18n.t('Models configuration saved successfully'));
 			defaultInit();
-			const companyConfigInfo = await getCompanyConfig(localStorage.token)
-			.catch(error => toast.error(error));
-			if(companyConfigInfo) {
+			const companyConfigInfo = await getCompanyConfig(localStorage.token).catch((error) =>
+				toast.error(error)
+			);
+			if (companyConfigInfo) {
 				companyConfig.set(companyConfigInfo);
 			}
 		} else {
@@ -129,10 +143,11 @@
 			toast.success($i18n.t('Model updated successfully'));
 		}
 		init();
-		if(selectedModel.is_active !== isActive) {
+		if (selectedModel.is_active !== isActive) {
 			storeModels.set(await getModels(localStorage.token));
 		}
 	};
+	let showPricingTolltip = false;
 </script>
 
 <div class="min-h-[40rem] pb-4">
@@ -155,7 +170,9 @@
 				</div>
 				<div class="flex items-center gap-2">
 					{#if defaultModelIds?.length > 0}
-						<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
+						<div
+							class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50"
+						>
 							<img src={getModelIcon(defaultModelIds?.[0])} alt="icon" class="w-4 h-4" />
 							{defaultModelIds?.[0]}
 						</div>
@@ -170,7 +187,7 @@
 				>
 					<hr class="border-t border-lightGray-400 dark:border-customGray-700 mb-2 mt-1 mx-0.5" />
 					<div class="px-1">
-						{#each models?.filter(model => model.is_active) as model (model.id)}
+						{#each models?.filter((model) => model.is_active) as model (model.id)}
 							<button
 								class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-customGray-950 dark:text-customGray-100 cursor-pointer text-gray-900"
 								on:click={() => {
@@ -188,107 +205,113 @@
 			{/if}
 		</div>
 	</div>
-	<!-- <div class="mb-5" use:onClickOutside={() => (showImageDropdown = false)}>
-		<div class="relative" bind:this={dropdownImageRef}>
-			<button
-				type="button"
-				class={`flex items-center justify-between w-full text-sm h-10 px-3 py-2  ${showImageDropdown ? 'border' : ''} border-gray-300 dark:border-customGray-700 rounded-md bg-white dark:bg-customGray-900 cursor-pointer`}
-				on:click={() => (showImageDropdown = !showImageDropdown)}
-			>
-				<div class="text-gray-500 dark:text-customGray-100 flex items-center">
-					<span>{$i18n.t('Image generation model')}</span>
-				</div>
-
-				<div class="flex items-center gap-2">
-					{#if imageModelName}
-						<div class="flex items-center gap-2 text-xs dark:text-customGray-100/50">
-							<img src={getModelIcon(imageModelName)} alt="icon" class="w-4 h-4" />
-							{imageModelName}
-						</div>
-					{/if}
-					<ChevronDown className="size-3" />
-				</div>
-			</button>
-
-			{#if showImageDropdown}
-				<div
-					class="max-h-60 overflow-y-auto absolute z-50 w-full -mt-1 bg-white dark:bg-customGray-900 border-l border-r border-b border-gray-300 dark:border-customGray-700 rounded-b-md shadow"
-				>
-					<hr class="border-t border-customGray-700 mb-2 mt-1 mx-0.5" />
-					<div class="px-1">
-						{#each models as model (model.id)}
-							<button
-								class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-customGray-950 dark:text-customGray-100 cursor-pointer text-gray-900"
-								on:click={() => {
-									imageModelName = model.name;
-									showImageDropdown = false;
-								}}
-							>
-								<img src={getModelIcon(model.name)} alt="icon" class="w-4 h-4" />
-								{model.name}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-		</div>
-	</div> -->
 	{#if models !== null}
 		<div>
 			{#each Object.keys(organizations) as organization, idx (organization)}
 				<div class="mb-5">
-					<div class="grid grid-cols-[55%_15%_1fr] md:grid-cols-[55%_1fr_1fr] mb-2.5 gap-x-1">
-						<div class="text-sm text-lightGray-100 dark:text-customGray-100 flex items-end justify-start">{organization}</div>
+					<div
+						class="grid grid-cols-[32%_1fr_1fr_1fr_22%] md:grid-cols-[32%_1fr_1fr_1fr_22%] mb-2.5 gap-x-1"
+					>
+						<div
+							class="text-sm text-lightGray-100 dark:text-customGray-100 flex items-end justify-start"
+						>
+							{organization}
+						</div>
 						{#if idx === 0}
-							<div class="text-2xs md:text-xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center">
-								<div>{$i18n.t('Cost Multiple')}</div>
-								{#if (!$mobile)}
-									<Tooltip content={$i18n?.t('The Cost Multiple shows how different Models compare in price. For details, visit our pricing page.')}>
-										<div class="ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
-											<InfoIcon className="size-6" />
-										</div>
-									</Tooltip>
+							<div
+								class="text-2xs md:text-2xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center"
+							>
+								{$i18n.t('Speed')}
+							</div>
+							<div
+								class="text-2xs md:text-2xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center"
+							>
+								{$i18n.t('Intelligence Score')}
+							</div>
+							<div
+								class="text-2xs md:text-2xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center"
+							>
+								<div>{$i18n.t('Pricing')}</div>
+								{#if !$mobile}
+									<div
+										on:mouseenter={() => (showPricingTolltip = true)}
+										on:mouseleave={() => (showPricingTolltip = false)}
+										class="relative ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
+									>
+										{#if showPricingTolltip}
+											<div
+												class="text-lightGray-100 dark:text-customGray-100 w-[12rem] text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10"
+											>
+												Please visit our <a
+													class="underline"
+													href="https://beyondtheloop.ai/pricing-breakdown"
+													target="_blank"
+													rel="noopener noreferrer">pricing page</a
+												> for a detailed breakdown.
+											</div>
+										{/if}
+										<InfoIcon className="size-6" />
+									</div>
 								{/if}
 							</div>
-							<div class="text-2xs md:text-xs text-[#8A8B8D] dark:text-customGray-300 flex items-end">{$i18n.t('Access Rights')}</div>
+							<div
+								class="text-2xs text-[#8A8B8D] dark:text-customGray-300 flex justify-center items-end"
+							>
+								{$i18n.t('Access Rights')}
+							</div>
 						{/if}
-						
 					</div>
 					{#each models?.filter((m) => organizations[organization]
 							.map((item) => {
-								return item.toLowerCase()
+								return item.toLowerCase();
 							})
 							.includes(m.name.toLowerCase())) as model (model.name)}
-						<div class="grid grid-cols-[55%_15%_1fr] md:grid-cols-[54%_1fr_1fr] border-t last:border-b border-lightGray-400 dark:border-customGray-700">
-							<div class="border-l border-r border-lightGray-400 dark:border-customGray-700 py-2 px-2">
-								<div class="flex items-center mb-1">
-									<img class="w-4 h-4 rounded-full" src={getModelIcon(model.name)} alt={model.name} />
+						<div
+							class="grid grid-cols-[35%_1fr_1fr_1fr_30%] md:grid-cols-[32%_1fr_1fr_1fr_22%] border-t last:border-b border-lightGray-400 dark:border-customGray-700"
+						>
+							<div
+								class="border-l border-r border-lightGray-400 dark:border-customGray-700 py-3 px-2"
+							>
+								<div class="flex items-center">
+									<img
+										class="w-4 h-4 rounded-full"
+										src={getModelIcon(model.name)}
+										alt={model.name}
+									/>
 									<div class="text-xs dark:text-white ml-2">{model.name}</div>
-										<AdditionaModelInfo hoveredItem={model} />
-								</div>
-								<div class="text-xs text-[#8A8B8D] dark:text-customGray-590">
-									{$i18n.t(modelsInfo[model.name].description)}
+									<AdditionaModelInfo hoveredItem={model} />
 								</div>
 							</div>
-							<div class="border-r border-lightGray-400 dark:border-customGray-700 flex justify-center items-center dark:text-customGray-100">
-								<div class="text-xs dark:text-white">
-									{#if (modelsInfo[model.name]?.credit_multiple) && (modelsInfo[model.name]?.research || modelsInfo[model.name]?.reasoning)}
-									    <div>{$i18n.t('from')}</div>
-										<div class="flex items-center">{modelsInfo[model.name]?.credit_multiple}x
-											<Tooltip content={$i18n?.t('Costs for research and reasoning models are variable. As a result, pricing may fluctuate based on the complexity of the task.')}>
-												<div class="ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
-													<InfoIcon className="size-6" />
-												</div>
-											</Tooltip>
-										</div>
-									{:else if ((modelsInfo[model.name]?.credit_multiple))}
-										{modelsInfo[model.name]?.credit_multiple}x
-									{:else}
-										N/A
-									{/if}
-								</div>
+							<div
+								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
+							>
+								{#if modelsInfo?.[model?.name]?.speed}
+									{modelsInfo?.[model?.name]?.speed}
+								{:else}
+									N/A
+								{/if}
 							</div>
-							<div class="border-r border-lightGray-400 dark:border-customGray-700 flex justify-center items-center">
+							<div
+								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
+							>
+								{#if modelsInfo?.[model?.name]?.intelligence_score}
+									{modelsInfo?.[model?.name]?.intelligence_score}/5
+								{:else}
+									N/A
+								{/if}
+							</div>
+							<div
+								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
+							>
+								{#if modelsInfo?.[model?.name]?.costFactor}
+									{modelsInfo?.[model?.name]?.costFactor}/5
+								{:else}
+									N/A
+								{/if}
+							</div>
+							<div
+								class="border-r border-lightGray-400 dark:border-customGray-700 flex justify-center items-center"
+							>
 								<div class="flex items-center justify-center">
 									<div
 										class="bg-lightGray-700 dark:bg-customGray-900 px-2 py-1 rounded-lg"
@@ -297,32 +320,29 @@
 									>
 										{#if !model.is_active}
 											<div
-													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-												>
-													<PrivateIcon className="size-3" />{$i18n.t('Disabled')}
+												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+											>
+												<PrivateIcon className="size-3" />{$i18n.t('Disabled')}
+											</div>
+										{:else if model.access_control === null}
+											<div
+												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+											>
+												<PublicIcon className="size-3" />{$i18n.t('Public')}
+											</div>
+										{:else if [...(model?.access_control?.read?.group_ids ?? []), ...(model?.access_control?.write?.group_ids ?? [])].length > 0}
+											<div
+												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+											>
+												<GroupIcon className="size-3" />{$i18n.t('Group')}
 											</div>
 										{:else}
-											{#if model.access_control === null}
-												<div
-													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-												>
-													<PublicIcon className="size-3" />{$i18n.t('Public')}
-												</div>
-											{:else if [...(model?.access_control?.read?.group_ids ?? []), ...(model?.access_control?.write?.group_ids ?? [])].length > 0}
-												<div
-													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-												>
-													<GroupIcon className="size-3" />{$i18n.t('Group')}
-												</div>
-											{:else}
-												<div
-													class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
-												>
-													<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
-												</div>
-											{/if}
+											<div
+												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
+											>
+												<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
+											</div>
 										{/if}
-									
 									</div>
 									<ChevronDown className="size-2 ml-[3px]" />
 								</div>
