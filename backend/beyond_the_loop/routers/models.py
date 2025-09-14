@@ -86,12 +86,12 @@ async def create_new_model(
     form_data: ModelForm,
     user=Depends(get_verified_user),
 ):
-    if user.role != "admin" and not has_permission(
-        user.id, "workspace.edit_assistants"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
+    # if user.role != "admin" and not has_permission(
+    #     user.id, "workspace.edit_assistants"):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+    #     )
 
     model = Models.get_model_by_name_and_company(form_data.name, user.company_id)
 

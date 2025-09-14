@@ -322,7 +322,6 @@
 	let baseModel = null;
 	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
 
-
 	$: colorMap = new Map(
     tags.map((t, i) => [
       t,
@@ -331,8 +330,6 @@
         : tagColors[i % tagColors.length],
     	])
   	);
-
-
 
 </script>
 
