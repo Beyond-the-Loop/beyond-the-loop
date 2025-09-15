@@ -91,7 +91,7 @@ async def get_all_models(request: Request):
         api_key = os.getenv('OPENAI_API_KEY')
         
         log.info(f"Fetching models from litellm server: {url}")
-        
+
         response = await send_get_request(url, api_key)
         
         if response is None:
@@ -142,7 +142,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 data=body,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {os.getenv("OPENAI_API_KEY")}",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
                     **(
                         {
                             "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
@@ -263,10 +263,10 @@ async def generate_chat_completion(
 
         r = await session.request(
             method="POST",
-            url=f"{os.getenv("OPENAI_API_BASE_URL")}/chat/completions",
+            url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
             data=payload,
             headers={
-                "Authorization": f"Bearer {os.getenv("OPENAI_API_KEY")}",
+                "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
                 "Content-Type": "application/json",
                 **(
                     {
