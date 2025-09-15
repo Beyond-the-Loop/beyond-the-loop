@@ -17,6 +17,7 @@ from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
+from beyond_the_loop.models.models import ModelModel
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -41,7 +42,6 @@ from beyond_the_loop.models.files import Files
 from open_webui.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
 from open_webui.utils.task import (
-    get_task_model_id,
     rag_template,
     tools_function_calling_generation_template,
 )
@@ -168,7 +168,7 @@ async def chat_completion_filter_functions_handler(request, body, model, extra_p
 
 
 async def chat_completion_tools_handler(
-    request: Request, body: dict, user: UserModel, models, tools
+    request: Request, body: dict, user: UserModel, tools
 ) -> tuple[dict, dict]:
     async def get_content_from_response(response) -> Optional[str]:
         content = None
@@ -203,12 +203,7 @@ async def chat_completion_tools_handler(
             "metadata": {"task": str(TASKS.FUNCTION_CALLING)},
         }
 
-    task_model_id = get_task_model_id(
-        body["model"],
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     skip_files = False
     sources = []
@@ -345,7 +340,6 @@ async def chat_web_search_handler(
     messages = form_data["messages"]
     user_message = get_last_user_message(messages)
 
-    queries = []
     try:
         res = await generate_queries(
             request,
@@ -390,7 +384,9 @@ async def chat_web_search_handler(
         )
         return form_data
 
-    searchQuery = queries[0]
+    search_query = queries[0]
+
+    print(queries)
 
     await event_emitter(
         {
@@ -398,7 +394,7 @@ async def chat_web_search_handler(
             "data": {
                 "action": "web_search",
                 "description": 'Searching "{{searchQuery}}"',
-                "query": searchQuery,
+                "query": search_query,
                 "done": False,
             },
         }
@@ -415,7 +411,7 @@ async def chat_web_search_handler(
                     request,
                     SearchForm(
                         **{
-                            "query": searchQuery,
+                            "query": search_query,
                         }
                     ),
                     user,
@@ -429,7 +425,7 @@ async def chat_web_search_handler(
                     "data": {
                         "action": "web_search",
                         "description": "Searched {{count}} sites",
-                        "query": searchQuery,
+                        "query": search_query,
                         "urls": results["filenames"],
                         "done": True,
                     },
@@ -440,7 +436,7 @@ async def chat_web_search_handler(
             files.append(
                 {
                     "collection_name": results["collection_name"],
-                    "name": searchQuery,
+                    "name": search_query,
                     "type": "web_search_results",
                     "urls": results["filenames"],
                 }
@@ -453,7 +449,7 @@ async def chat_web_search_handler(
                     "data": {
                         "action": "web_search",
                         "description": "No search results found",
-                        "query": searchQuery,
+                        "query": search_query,
                         "done": True,
                         "error": True,
                     },
@@ -467,7 +463,7 @@ async def chat_web_search_handler(
                 "data": {
                     "action": "web_search",
                     "description": 'Error searching "{{searchQuery}}"',
-                    "query": searchQuery,
+                    "query": search_query,
                     "done": True,
                     "error": True,
                 },
@@ -630,6 +626,7 @@ async def chat_file_intent_decision_handler(
 
     # Filter out image files - only process non-image files
     non_image_files = []
+
     for file_item in files:
         if isinstance(file_item, dict):
             # Check if it's a regular file (not web search results or collections)
@@ -685,12 +682,12 @@ async def chat_file_intent_decision_handler(
             "temperature": 0.0
         }
         
-        response = await generate_openai_chat_completion(request, decision_form_data, user, None, True)
+        response = await generate_openai_chat_completion(decision_form_data, user, None, True)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
         log.debug(f"File intent decision: {response_content} -> is_rag_task: {is_rag_task}")
-        
+
         return body, is_rag_task
         
     except Exception as e:
@@ -802,44 +799,36 @@ async def chat_completion_files_handler(
     return body, {"sources": sources}
 
 
-def apply_params_to_form_data(form_data, model):
+def apply_params_to_form_data(form_data):
     params = form_data.pop("params", {})
-    if model.get("ollama"):
-        form_data["options"] = params
 
-        if "format" in params:
-            form_data["format"] = params["format"]
+    if "seed" in params:
+        form_data["seed"] = params["seed"]
 
-        if "keep_alive" in params:
-            form_data["keep_alive"] = params["keep_alive"]
-    else:
-        if "seed" in params:
-            form_data["seed"] = params["seed"]
+    if "stop" in params:
+        form_data["stop"] = params["stop"]
 
-        if "stop" in params:
-            form_data["stop"] = params["stop"]
+    if "temperature" in params:
+        form_data["temperature"] = params["temperature"]
 
-        if "temperature" in params:
-            form_data["temperature"] = params["temperature"]
+    if "max_tokens" in params:
+        form_data["max_tokens"] = params["max_tokens"]
 
-        if "max_tokens" in params:
-            form_data["max_tokens"] = params["max_tokens"]
+    if "top_p" in params:
+        form_data["top_p"] = params["top_p"]
 
-        if "top_p" in params:
-            form_data["top_p"] = params["top_p"]
+    if "frequency_penalty" in params:
+        form_data["frequency_penalty"] = params["frequency_penalty"]
 
-        if "frequency_penalty" in params:
-            form_data["frequency_penalty"] = params["frequency_penalty"]
-
-        if "reasoning_effort" in params:
-            form_data["reasoning_effort"] = params["reasoning_effort"]
+    if "reasoning_effort" in params:
+        form_data["reasoning_effort"] = params["reasoning_effort"]
 
     return form_data
 
 
-async def process_chat_payload(request, form_data, metadata, user, model):
+async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
 
-    form_data = apply_params_to_form_data(form_data, model)
+    form_data = apply_params_to_form_data(form_data)
     log.debug(f"form_data: {form_data}")
 
     event_emitter = get_event_emitter(metadata)
@@ -861,21 +850,16 @@ async def process_chat_payload(request, form_data, metadata, user, model):
 
     # Initialize events to store additional event to be sent to the client
     # Initialize contexts and citation
-    models = request.app.state.MODELS
-    task_model_id = get_task_model_id(
-        form_data["model"],
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     events = []
     sources = []
     is_rag_task = True  # Default to RAG behavior
 
     user_message = get_last_user_message(form_data["messages"])
-    model_knowledge = model.get("info", {}).get("meta", {}).get("knowledge", False)
-    model_files = model.get("info", {}).get("meta", {}).get("files", False)
+
+    model_knowledge = model.meta.knowledge
+    model_files = model.meta.files
 
     if model_knowledge or model_files:
                 await event_emitter(
@@ -925,6 +909,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
     variables = form_data.pop("variables", None)
 
     features = form_data.pop("features", None)
+
     if features:
         if "web_search" in features and features["web_search"]:
             form_data = await chat_web_search_handler(
@@ -959,6 +944,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
         "tool_ids": tool_ids,
         "files": files,
     }
+
     form_data["metadata"] = metadata
 
     tool_ids = metadata.get("tool_ids", None)
@@ -972,7 +958,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
             user,
             {
                 **extra_params,
-                "__model__": models[task_model_id],
+                "__model__": model,
                 "__messages__": form_data["messages"],
                 "__files__": metadata.get("files", []),
             },
@@ -990,7 +976,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
             # If the function calling is not native, then call the tools function calling handler
             try:
                 form_data, flags = await chat_completion_tools_handler(
-                    request, form_data, user, models, tools
+                    request, form_data, user, tools
                 )
                 sources.extend(flags.get("sources", []))
 
@@ -999,8 +985,7 @@ async def process_chat_payload(request, form_data, metadata, user, model):
 
     # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user)
-        print("IS RAG TASK:", is_rag_task)
+        form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user) if not model_knowledge else (form_data, True)
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
@@ -1082,22 +1067,12 @@ async def process_chat_payload(request, form_data, metadata, user, model):
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-        # Workaround for Ollama 2.0+ system prompt issue
-        # TODO: replace with add_or_update_system_message
-        if model["owned_by"] == "ollama":
-            form_data["messages"] = prepend_to_first_user_message_content(
-                rag_template(
-                    request.app.state.config.RAG_TEMPLATE, context_string, prompt
-                ),
-                form_data["messages"],
-            )
-        else:
-            form_data["messages"] = add_or_update_system_message(
-                rag_template(
-                    request.app.state.config.RAG_TEMPLATE, context_string, prompt
-                ),
-                form_data["messages"],
-            )
+        form_data["messages"] = add_or_update_system_message(
+            rag_template(
+                request.app.state.config.RAG_TEMPLATE, context_string, prompt
+            ),
+            form_data["messages"],
+        )
 
     # If there are citations, add them to the data_items
     sources = [source for source in sources if source.get("source", {}).get("name", "")]

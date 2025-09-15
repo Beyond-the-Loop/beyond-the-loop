@@ -1,24 +1,21 @@
-import asyncio
 import hashlib
 import json
 import logging
 from pathlib import Path
 from typing import Optional
-import uuid
 
 import aiohttp
-from aiocache import cached
 import requests
+
+import os
 
 from fastapi import Depends, HTTPException, Request, APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
-from beyond_the_loop.services.credit_service import CreditService
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
 
 from beyond_the_loop.config import (
@@ -29,7 +26,6 @@ from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
     ENABLE_FORWARD_USER_INFO_HEADERS,
-    BYPASS_MODEL_ACCESS_CONTROL,
 )
 
 from open_webui.constants import ERROR_MESSAGES
@@ -41,9 +37,9 @@ from open_webui.utils.payload import (
     apply_model_system_prompt_to_body,
 )
 
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_access
-
+from beyond_the_loop.services.credit_service import CreditService
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -79,21 +75,41 @@ async def cleanup_response(
         await session.close()
 
 
-def openai_o1_handler(payload):
+##########################################
+#
+# Model management functions
+#
+##########################################
+
+async def get_all_models(request: Request):
     """
-    Handle O1 specific parameters
+    Fetch all available models from the litellm server.
+    Returns the models in OpenAI API format.
     """
-    if "max_tokens" in payload:
-        # Remove "max_tokens" from the payload
-        payload["max_completion_tokens"] = payload["max_tokens"]
-        del payload["max_tokens"]
-
-    # Fix: O1 does not support the "system" parameter, Modify "system" to "user"
-    if payload["messages"][0]["role"] == "system":
-        payload["messages"][0]["role"] = "user"
-
-    return payload
-
+    try:
+        url = f"{os.getenv('OPENAI_API_BASE_URL')}/models"
+        api_key = os.getenv('OPENAI_API_KEY')
+        
+        log.info(f"Fetching models from litellm server: {url}")
+        
+        response = await send_get_request(url, api_key)
+        
+        if response is None:
+            log.error("Failed to fetch models from litellm server")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch models from litellm server"
+            )
+        
+        log.info(f"Successfully fetched {len(response.get('data', []))} models from litellm")
+        return response
+        
+    except Exception as e:
+        log.error(f"Error fetching models from litellm: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching models: {str(e)}"
+        )
 
 ##########################################
 #
@@ -103,76 +119,10 @@ def openai_o1_handler(payload):
 
 router = APIRouter()
 
-
-@router.get("/config")
-async def get_config(request: Request, user=Depends(get_admin_user)):
-    return {
-        "ENABLE_OPENAI_API": request.app.state.config.ENABLE_OPENAI_API,
-        "OPENAI_API_BASE_URLS": request.app.state.config.OPENAI_API_BASE_URLS,
-        "OPENAI_API_KEYS": request.app.state.config.OPENAI_API_KEYS,
-        "OPENAI_API_CONFIGS": request.app.state.config.OPENAI_API_CONFIGS,
-    }
-
-
-class OpenAIConfigForm(BaseModel):
-    ENABLE_OPENAI_API: Optional[bool] = None
-    OPENAI_API_BASE_URLS: list[str]
-    OPENAI_API_KEYS: list[str]
-    OPENAI_API_CONFIGS: dict
-
-
-@router.post("/config/update")
-async def update_config(
-    request: Request, form_data: OpenAIConfigForm, user=Depends(get_admin_user)
-):
-    request.app.state.config.ENABLE_OPENAI_API = form_data.ENABLE_OPENAI_API
-    request.app.state.config.OPENAI_API_BASE_URLS = form_data.OPENAI_API_BASE_URLS
-    request.app.state.config.OPENAI_API_KEYS = form_data.OPENAI_API_KEYS
-
-    # Check if API KEYS length is same than API URLS length
-    if len(request.app.state.config.OPENAI_API_KEYS) != len(
-        request.app.state.config.OPENAI_API_BASE_URLS
-    ):
-        if len(request.app.state.config.OPENAI_API_KEYS) > len(
-            request.app.state.config.OPENAI_API_BASE_URLS
-        ):
-            request.app.state.config.OPENAI_API_KEYS = (
-                request.app.state.config.OPENAI_API_KEYS[
-                    : len(request.app.state.config.OPENAI_API_BASE_URLS)
-                ]
-            )
-        else:
-            request.app.state.config.OPENAI_API_KEYS += [""] * (
-                len(request.app.state.config.OPENAI_API_BASE_URLS)
-                - len(request.app.state.config.OPENAI_API_KEYS)
-            )
-
-    request.app.state.config.OPENAI_API_CONFIGS = form_data.OPENAI_API_CONFIGS
-
-    # Remove the API configs that are not in the API URLS
-    keys = list(map(str, range(len(request.app.state.config.OPENAI_API_BASE_URLS))))
-    request.app.state.config.OPENAI_API_CONFIGS = {
-        key: value
-        for key, value in request.app.state.config.OPENAI_API_CONFIGS.items()
-        if key in keys
-    }
-
-    return {
-        "ENABLE_OPENAI_API": request.app.state.config.ENABLE_OPENAI_API,
-        "OPENAI_API_BASE_URLS": request.app.state.config.OPENAI_API_BASE_URLS,
-        "OPENAI_API_KEYS": request.app.state.config.OPENAI_API_KEYS,
-        "OPENAI_API_CONFIGS": request.app.state.config.OPENAI_API_CONFIGS,
-    }
-
-
 @router.post("/audio/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
     idx = None
     try:
-        idx = request.app.state.config.OPENAI_API_BASE_URLS.index(
-            "https://api.openai.com/v1"
-        )
-
         body = await request.body()
         name = hashlib.sha256(body).hexdigest()
 
@@ -185,24 +135,14 @@ async def speech(request: Request, user=Depends(get_verified_user)):
         if file_path.is_file():
             return FileResponse(file_path)
 
-        url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
-
         r = None
         try:
             r = requests.post(
-                url=f"{url}/audio/speech",
+                url=f"{os.getenv('OPENAI_API_BASE_URL')}/audio/speech",
                 data=body,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {request.app.state.config.OPENAI_API_KEYS[idx]}",
-                    **(
-                        {
-                            "HTTP-Referer": "https://openwebui.com/",
-                            "X-Title": "Open WebUI",
-                        }
-                        if "openrouter.ai" in url
-                        else {}
-                    ),
+                    "Authorization": f"Bearer {os.getenv("OPENAI_API_KEY")}",
                     **(
                         {
                             "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
@@ -251,311 +191,13 @@ async def speech(request: Request, user=Depends(get_verified_user)):
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
 
-async def get_all_models_responses(request: Request) -> list:
-    if not request.app.state.config.ENABLE_OPENAI_API:
-        return []
-
-    # Check if API KEYS length is same than API URLS length
-    num_urls = len(request.app.state.config.OPENAI_API_BASE_URLS)
-    num_keys = len(request.app.state.config.OPENAI_API_KEYS)
-
-    if num_keys != num_urls:
-        # if there are more keys than urls, remove the extra keys
-        if num_keys > num_urls:
-            new_keys = request.app.state.config.OPENAI_API_KEYS[:num_urls]
-            request.app.state.config.OPENAI_API_KEYS = new_keys
-        # if there are more urls than keys, add empty keys
-        else:
-            request.app.state.config.OPENAI_API_KEYS += [""] * (num_urls - num_keys)
-
-    request_tasks = []
-    for idx, url in enumerate(request.app.state.config.OPENAI_API_BASE_URLS):
-        if (str(idx) not in request.app.state.config.OPENAI_API_CONFIGS) and (
-            url not in request.app.state.config.OPENAI_API_CONFIGS  # Legacy support
-        ):
-            request_tasks.append(
-                send_get_request(
-                    f"{url}/models", request.app.state.config.OPENAI_API_KEYS[idx]
-                )
-            )
-        else:
-            api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
-                str(idx),
-                request.app.state.config.OPENAI_API_CONFIGS.get(
-                    url, {}
-                ),  # Legacy support
-            )
-
-            enable = api_config.get("enable", True)
-            model_ids = api_config.get("model_ids", [])
-
-            if enable:
-                if len(model_ids) == 0:
-                    request_tasks.append(
-                        send_get_request(
-                            f"{url}/models",
-                            request.app.state.config.OPENAI_API_KEYS[idx],
-                        )
-                    )
-                else:
-                    model_list = {
-                        "object": "list",
-                        "data": [
-                            {
-                                "id": model_id,
-                                "name": model_id,
-                                "owned_by": "openai",
-                                "openai": {"id": model_id},
-                                "urlIdx": idx,
-                            }
-                            for model_id in model_ids
-                        ],
-                    }
-
-                    request_tasks.append(
-                        asyncio.ensure_future(asyncio.sleep(0, model_list))
-                    )
-            else:
-                request_tasks.append(asyncio.ensure_future(asyncio.sleep(0, None)))
-
-    responses = await asyncio.gather(*request_tasks)
-
-    for idx, response in enumerate(responses):
-        if response:
-            url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
-            api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
-                str(idx),
-                request.app.state.config.OPENAI_API_CONFIGS.get(
-                    url, {}
-                ),  # Legacy support
-            )
-
-            prefix_id = api_config.get("prefix_id", None)
-
-            if prefix_id:
-                for model in (
-                    response if isinstance(response, list) else response.get("data", [])
-                ):
-                    model["id"] = f"{prefix_id}.{model['id']}"
-
-    log.debug(f"get_all_models:responses() {responses}")
-    return responses
-
-
-async def get_filtered_models(models, user):
-    # Filter models based on user access control
-    filtered_models = []
-    for model in models.get("data", []):
-        model_info = Models.get_model_by_id(model["id"])
-        if model_info:
-            if has_access(
-                user.id, type="read", access_control=model_info.access_control
-            ):
-                filtered_models.append(model)
-    return filtered_models
-
-
-@cached(ttl=3)
-async def get_all_models(request: Request) -> dict[str, list]:
-    log.info("get_all_models()")
-
-    if not request.app.state.config.ENABLE_OPENAI_API:
-        return {"data": []}
-
-    responses = await get_all_models_responses(request)
-
-    def extract_data(response):
-        if response and "data" in response:
-            return response["data"]
-        if isinstance(response, list):
-            return response
-        return None
-
-    def merge_models_lists(model_lists):
-        log.debug(f"merge_models_lists {model_lists}")
-        merged_list = []
-
-        for idx, models in enumerate(model_lists):
-            if models is not None and "error" not in models:
-                merged_list.extend(
-                    [
-                        {
-                            **model,
-                            "name": model.get("name", model["id"]),
-                            "owned_by": "openai",
-                            "openai": model,
-                            "urlIdx": idx,
-                        }
-                        for model in models
-                        if "api.openai.com"
-                        not in request.app.state.config.OPENAI_API_BASE_URLS[idx]
-                        or not any(
-                            name in model["id"]
-                            for name in [
-                                "babbage",
-                                "dall-e",
-                                "davinci",
-                                "embedding",
-                                "tts",
-                                "whisper",
-                            ]
-                        )
-                    ]
-                )
-
-        return merged_list
-
-    models = {"data": merge_models_lists(map(extract_data, responses))}
-    log.debug(f"models: {models}")
-
-    request.app.state.OPENAI_MODELS = {model["id"]: model for model in models["data"]}
-    return models
-
-
-@router.get("/models")
-@router.get("/models/{url_idx}")
-async def get_models(
-    request: Request, url_idx: Optional[int] = None, user=Depends(get_verified_user)
-):
-    models = {
-        "data": [],
-    }
-
-    if url_idx is None:
-        models = await get_all_models(request)
-    else:
-        url = request.app.state.config.OPENAI_API_BASE_URLS[url_idx]
-        key = request.app.state.config.OPENAI_API_KEYS[url_idx]
-
-        r = None
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(
-                total=AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST
-            )
-        ) as session:
-            try:
-                async with session.get(
-                    f"{url}/models",
-                    headers={
-                        "Authorization": f"Bearer {key}",
-                        "Content-Type": "application/json",
-                        **(
-                            {
-                                "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
-                                "X-OpenWebUI-User-Id": user.id,
-                                "X-OpenWebUI-User-Email": user.email,
-                                "X-OpenWebUI-User-Role": user.role,
-                            }
-                            if ENABLE_FORWARD_USER_INFO_HEADERS
-                            else {}
-                        ),
-                    },
-                ) as r:
-                    if r.status != 200:
-                        # Extract response error details if available
-                        error_detail = f"HTTP Error: {r.status}"
-                        res = await r.json()
-                        if "error" in res:
-                            error_detail = f"External Error: {res['error']}"
-                        raise Exception(error_detail)
-
-                    response_data = await r.json()
-
-                    # Check if we're calling OpenAI API based on the URL
-                    if "api.openai.com" in url:
-                        # Filter models according to the specified conditions
-                        response_data["data"] = [
-                            model
-                            for model in response_data.get("data", [])
-                            if not any(
-                                name in model["id"]
-                                for name in [
-                                    "babbage",
-                                    "dall-e",
-                                    "davinci",
-                                    "embedding",
-                                    "tts",
-                                    "whisper",
-                                ]
-                            )
-                        ]
-
-                    models = response_data
-            except aiohttp.ClientError as e:
-                # ClientError covers all aiohttp requests issues
-                log.exception(f"Client error: {str(e)}")
-                raise HTTPException(
-                    status_code=500, detail="Open WebUI: Server Connection Error"
-                )
-            except Exception as e:
-                log.exception(f"Unexpected error: {e}")
-                error_detail = f"Unexpected error: {str(e)}"
-                raise HTTPException(status_code=500, detail=error_detail)
-
-    if user.role == "user" and not BYPASS_MODEL_ACCESS_CONTROL:
-        models["data"] = await get_filtered_models(models, user)
-
-    return models
-
-
-class ConnectionVerificationForm(BaseModel):
-    url: str
-    key: str
-
-
-@router.post("/verify")
-async def verify_connection(
-    form_data: ConnectionVerificationForm, user=Depends(get_admin_user)
-):
-    url = form_data.url
-    key = form_data.key
-
-    async with aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST)
-    ) as session:
-        try:
-            async with session.get(
-                f"{url}/models",
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                },
-            ) as r:
-                if r.status != 200:
-                    # Extract response error details if available
-                    error_detail = f"HTTP Error: {r.status}"
-                    res = await r.json()
-                    if "error" in res:
-                        error_detail = f"External Error: {res['error']}"
-                    raise Exception(error_detail)
-
-                response_data = await r.json()
-                return response_data
-
-        except aiohttp.ClientError as e:
-            # ClientError covers all aiohttp requests issues
-            log.exception(f"Client error: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail="Open WebUI: Server Connection Error"
-            )
-        except Exception as e:
-            log.exception(f"Unexpected error: {e}")
-            error_detail = f"Unexpected error: {str(e)}"
-            raise HTTPException(status_code=500, detail=error_detail)
-
-
 @router.post("/chat/completions")
 async def generate_chat_completion(
-    request: Request,
     form_data: dict,
     user=Depends(get_verified_user),
     bypass_filter: Optional[bool] = False,
     agent_prompt: Optional[bool] = False
 ):
-    global credit_service
-    if BYPASS_MODEL_ACCESS_CONTROL:
-        bypass_filter = True
-
     payload = {**form_data}
     metadata = payload.pop("metadata", None)
 
@@ -570,11 +212,7 @@ async def generate_chat_completion(
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
     if model_info.base_model_id:
-        try:
-            if uuid.UUID(model_info.base_model_id):
-                model_name = Models.get_model_by_id(model_info.base_model_id).name
-        except ValueError:
-            model_name = model_info.base_model_id
+        model_name = Models.get_model_by_id(model_info.base_model_id).name
     else:
         model_name = model_info.name
 
@@ -583,80 +221,24 @@ async def generate_chat_completion(
     if model_name == "Mistral Large 2":
         payload["stream"] = False
 
+    credit_service = CreditService()
+
     if has_chat_id or agent_prompt:
-        credit_service = CreditService()
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     params = model_info.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    # Check if user has access to the model
-    if not bypass_filter:
-        if not (
-            model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
-                user.id, type="read", access_control=model_info.access_control
-            ))
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Model not found, no access for user",
-            )
-
-    elif not bypass_filter:
+    if not (
+        model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
+            user.id, type="read", access_control=model_info.access_control
+        ))
+    ):
         raise HTTPException(
             status_code=403,
-            detail="Model not found, user is no admin",
+            detail="Model not found, no access for user",
         )
-
-    await get_all_models(request)
-    model = request.app.state.OPENAI_MODELS.get(model_name)
-
-    if model:
-        idx = model["urlIdx"]
-    else:
-        raise HTTPException(
-            status_code=404,
-            detail="Model not found, not defined",
-        )
-
-    # Get the API config for the model
-    api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
-        str(idx),
-        request.app.state.config.OPENAI_API_CONFIGS.get(
-            request.app.state.config.OPENAI_API_BASE_URLS[idx], {}
-        ),  # Legacy support
-    )
-
-    prefix_id = api_config.get("prefix_id", None)
-    if prefix_id:
-        payload["model"] = payload["model"].replace(f"{prefix_id}.", "")
-
-    # Add user info to the payload if the model is a pipeline
-    if "pipeline" in model and model.get("pipeline"):
-        payload["user"] = {
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "id": user.id,
-            "email": user.email,
-            "role": user.role,
-        }
-
-    url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
-    key = request.app.state.config.OPENAI_API_KEYS[idx]
-
-    # Fix: O1 does not support the "max_tokens" parameter, Modify "max_tokens" to "max_completion_tokens"
-    is_o1 = payload["model"].lower().startswith("o1-")
-    if is_o1:
-        payload = openai_o1_handler(payload)
-    elif "api.openai.com" not in url:
-        # Remove "max_completion_tokens" from the payload for backward compatibility
-        if "max_completion_tokens" in payload:
-            payload["max_tokens"] = payload["max_completion_tokens"]
-            del payload["max_completion_tokens"]
-
-    if "max_tokens" in payload and "max_completion_tokens" in payload:
-        del payload["max_tokens"]
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
@@ -681,19 +263,11 @@ async def generate_chat_completion(
 
         r = await session.request(
             method="POST",
-            url=f"{url}/chat/completions",
+            url=f"{os.getenv("OPENAI_API_BASE_URL")}/chat/completions",
             data=payload,
             headers={
-                "Authorization": f"Bearer {key}",
+                "Authorization": f"Bearer {os.getenv("OPENAI_API_KEY")}",
                 "Content-Type": "application/json",
-                **(
-                    {
-                        "HTTP-Referer": "https://openwebui.com/",
-                        "X-Title": "Open WebUI",
-                    }
-                    if "openrouter.ai" in url
-                    else {}
-                ),
                 **(
                     {
                         "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
@@ -710,7 +284,7 @@ async def generate_chat_completion(
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
-            
+
             async def insert_completion_if_streaming_is_done():
                 full_response = ""
                 async for chunk in r.content:
@@ -836,78 +410,3 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
         extracted_prompt_template = message.get('choices', [{}])[0].get('message', {}).get('content', '')
 
     return extracted_prompt_template
-
-@router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
-    """
-    Deprecated: proxy all requests to OpenAI API
-    """
-
-    body = await request.body()
-
-    idx = 0
-    url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
-    key = request.app.state.config.OPENAI_API_KEYS[idx]
-
-    r = None
-    session = None
-    streaming = False
-
-    try:
-        session = aiohttp.ClientSession(trust_env=True)
-        r = await session.request(
-            method=request.method,
-            url=f"{url}/{path}",
-            data=body,
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                **(
-                    {
-                        "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
-                        "X-OpenWebUI-User-Id": user.id,
-                        "X-OpenWebUI-User-Email": user.email,
-                        "X-OpenWebUI-User-Role": user.role,
-                    }
-                    if ENABLE_FORWARD_USER_INFO_HEADERS
-                    else {}
-                ),
-            },
-        )
-        r.raise_for_status()
-
-        # Check if response is SSE
-        if "text/event-stream" in r.headers.get("Content-Type", ""):
-            streaming = True
-            return StreamingResponse(
-                r.content,
-                status_code=r.status,
-                headers=dict(r.headers),
-                background=BackgroundTask(
-                    cleanup_response, response=r, session=session
-                ),
-            )
-        else:
-            response_data = await r.json()
-            return response_data
-
-    except Exception as e:
-        log.exception(e)
-
-        detail = None
-        if r is not None:
-            try:
-                res = await r.json()
-                if "error" in res:
-                    detail = f"External Error: {res['error']['message'] if 'message' in res['error'] else res['error']}"
-            except Exception:
-                detail = f"External: {e}"
-        raise HTTPException(
-            status_code=r.status if r else 500,
-            detail=detail if detail else "Open WebUI: Server Connection Error",
-        )
-    finally:
-        if not streaming and session:
-            if r:
-                r.close()
-            await session.close()

@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 
 from pydantic import BaseModel
-from typing import Optional
 import logging
 import re
 
+from beyond_the_loop.models.models import Models
 from open_webui.utils.chat import generate_chat_completion
 from open_webui.utils.task import (
     title_generation_template,
@@ -13,14 +15,9 @@ from open_webui.utils.task import (
     image_prompt_generation_template,
     autocomplete_generation_template,
     tags_generation_template,
-    emoji_generation_template,
-    moa_response_generation_template,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.constants import TASKS
-
-from open_webui.routers.pipelines import process_pipeline_inlet_filter
-from open_webui.utils.task import get_task_model_id
 
 from beyond_the_loop.config import (
     DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE,
@@ -28,11 +25,8 @@ from beyond_the_loop.config import (
     DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_QUERY_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE,
-    DEFAULT_EMOJI_GENERATION_PROMPT_TEMPLATE,
-    DEFAULT_MOA_GENERATION_PROMPT_TEMPLATE,
 )
 from open_webui.env import SRC_LOG_LEVELS
-from open_webui.utils.models import get_all_models
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -50,8 +44,6 @@ router = APIRouter()
 @router.get("/config")
 async def get_task_config(request: Request, user=Depends(get_verified_user)):
     return {
-        "TASK_MODEL": request.app.state.config.TASK_MODEL,
-        "TASK_MODEL_EXTERNAL": request.app.state.config.TASK_MODEL_EXTERNAL,
         "TITLE_GENERATION_PROMPT_TEMPLATE": request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE,
         "IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE": request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
         "ENABLE_AUTOCOMPLETE_GENERATION": request.app.state.config.ENABLE_AUTOCOMPLETE_GENERATION,
@@ -66,8 +58,6 @@ async def get_task_config(request: Request, user=Depends(get_verified_user)):
 
 
 class TaskConfigForm(BaseModel):
-    TASK_MODEL: Optional[str]
-    TASK_MODEL_EXTERNAL: Optional[str]
     TITLE_GENERATION_PROMPT_TEMPLATE: str
     IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE: str
     ENABLE_AUTOCOMPLETE_GENERATION: bool
@@ -84,8 +74,6 @@ class TaskConfigForm(BaseModel):
 async def update_task_config(
     request: Request, form_data: TaskConfigForm, user=Depends(get_admin_user)
 ):
-    request.app.state.config.TASK_MODEL = form_data.TASK_MODEL
-    request.app.state.config.TASK_MODEL_EXTERNAL = form_data.TASK_MODEL_EXTERNAL
     request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE = (
         form_data.TITLE_GENERATION_PROMPT_TEMPLATE
     )
@@ -120,8 +108,6 @@ async def update_task_config(
     )
 
     return {
-        "TASK_MODEL": request.app.state.config.TASK_MODEL,
-        "TASK_MODEL_EXTERNAL": request.app.state.config.TASK_MODEL_EXTERNAL,
         "TITLE_GENERATION_PROMPT_TEMPLATE": request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE,
         "IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE": request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
         "ENABLE_AUTOCOMPLETE_GENERATION": request.app.state.config.ENABLE_AUTOCOMPLETE_GENERATION,
@@ -139,23 +125,7 @@ async def update_task_config(
 async def generate_title(
     request: Request, form_data: dict, user=Depends(get_verified_user)
 ):
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     log.debug(
         f"generating chat title using model {task_model_id} for user {user.email} "
@@ -199,7 +169,7 @@ async def generate_title(
     }
 
     try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -219,23 +189,7 @@ async def generate_chat_tags(
             content={"detail": "Tags generation is disabled"},
         )
 
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     log.debug(
         f"generating chat tags using model {task_model_id} for user {user.email} "
@@ -275,23 +229,7 @@ async def generate_chat_tags(
 async def generate_image_prompt(
     request: Request, form_data: dict, user=Depends(get_verified_user)
 ):
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     log.debug(
         f"generating image prompt using model {task_model_id} for user {user.email} "
@@ -323,7 +261,7 @@ async def generate_image_prompt(
     }
 
     try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -351,29 +289,13 @@ async def generate_queries(
                 detail=f"Query generation is disabled",
             )
 
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     log.debug(
         f"generating {type} queries using model {task_model_id} for user {user.email}"
     )
 
-    if (request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE).strip() != "":
+    if request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE.strip() != "":
         template = request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE
     else:
         template = DEFAULT_QUERY_GENERATION_PROMPT_TEMPLATE
@@ -394,7 +316,7 @@ async def generate_queries(
     }
 
     try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -426,26 +348,7 @@ async def generate_autocompletion(
                 detail=f"Input prompt exceeds maximum length of {request.app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH}",
             )
 
-    await get_all_models(request, user)
-
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found, model id not in models",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
+    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
 
     log.debug(
         f"generating autocompletion using model {task_model_id} for user {user.email}"
@@ -478,57 +381,4 @@ async def generate_autocompletion(
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "An internal error has occurred."},
-        )
-
-
-@router.post("/moa/completions")
-async def generate_moa_response(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
-):
-
-    models = request.app.state.MODELS
-    model_id = form_data["model"]
-
-    if model_id not in models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Model not found",
-        )
-
-    # Check if the user has a custom task model
-    # If the user has a custom task model, use that model
-    task_model_id = get_task_model_id(
-        model_id,
-        request.app.state.config.TASK_MODEL,
-        request.app.state.config.TASK_MODEL_EXTERNAL,
-        models,
-    )
-
-    log.debug(f"generating MOA model {task_model_id} for user {user.email} ")
-
-    template = DEFAULT_MOA_GENERATION_PROMPT_TEMPLATE
-
-    content = moa_response_generation_template(
-        template,
-        form_data["prompt"],
-        form_data["responses"],
-    )
-
-    payload = {
-        "model": task_model_id,
-        "messages": [{"role": "user", "content": content}],
-        "stream": form_data.get("stream", False),
-        "metadata": {
-            "chat_id": form_data.get("chat_id", None),
-            "task": str(TASKS.MOA_RESPONSE_GENERATION),
-            "task_body": form_data,
-        },
-    }
-
-    try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": str(e)},
         )

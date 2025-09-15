@@ -17,38 +17,20 @@ from fastapi import (
 from pydantic import BaseModel
 import tiktoken
 
-
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain_core.documents import Document
 
 from beyond_the_loop.models.files import FileModel, Files
 from open_webui.storage.provider import Storage
 
-
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 # Document loaders
 from beyond_the_loop.retrieval.loaders.main import Loader
-from beyond_the_loop.retrieval.loaders.youtube import YoutubeLoader
 
-# Web search engines
-from beyond_the_loop.retrieval.web.main import SearchResult
-from beyond_the_loop.retrieval.web.utils import get_web_loader
-from beyond_the_loop.retrieval.web.brave import search_brave
-from beyond_the_loop.retrieval.web.kagi import search_kagi
-from beyond_the_loop.retrieval.web.mojeek import search_mojeek
-from beyond_the_loop.retrieval.web.duckduckgo import search_duckduckgo
-from beyond_the_loop.retrieval.web.google_pse import search_google_pse
-from beyond_the_loop.retrieval.web.jina_search import search_jina
-from beyond_the_loop.retrieval.web.searchapi import search_searchapi
-from beyond_the_loop.retrieval.web.searxng import search_searxng
-from beyond_the_loop.retrieval.web.serper import search_serper
-from beyond_the_loop.retrieval.web.serply import search_serply
-from beyond_the_loop.retrieval.web.serpstack import search_serpstack
-from beyond_the_loop.retrieval.web.tavily import search_tavily
-from beyond_the_loop.retrieval.web.bing import search_bing
-from beyond_the_loop.retrieval.web.exa import search_exa
-
+from firecrawl import Firecrawl
+from firecrawl.v2.types import SearchResultWeb
+from firecrawl.v2.types import Document as Firecrawl_Document
 
 from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
@@ -87,6 +69,7 @@ log.setLevel(SRC_LOG_LEVELS["RAG"])
 #
 ##########################################
 
+firecrawl = Firecrawl(api_key=os.getenv("FIRECRAWL_API_KEY"))
 
 def get_ef(
     engine: str,
@@ -222,108 +205,8 @@ class EmbeddingModelUpdateForm(BaseModel):
     embedding_batch_size: Optional[int] = 1
 
 
-@router.post("/embedding/update")
-async def update_embedding_config(
-    request: Request, form_data: EmbeddingModelUpdateForm, user=Depends(get_admin_user)
-):
-    log.info(
-        f"Updating embedding model: {request.app.state.config.RAG_EMBEDDING_MODEL} to {form_data.embedding_model}"
-    )
-    try:
-        request.app.state.config.RAG_EMBEDDING_ENGINE = form_data.embedding_engine
-        request.app.state.config.RAG_EMBEDDING_MODEL = form_data.embedding_model
-
-        if request.app.state.config.RAG_EMBEDDING_ENGINE in ["ollama", "openai"]:
-            if form_data.openai_config is not None:
-                request.app.state.config.RAG_OPENAI_API_BASE_URL = (
-                    form_data.openai_config.url
-                )
-                request.app.state.config.RAG_OPENAI_API_KEY = (
-                    form_data.openai_config.key
-                )
-
-            if form_data.ollama_config is not None:
-                request.app.state.config.RAG_OLLAMA_BASE_URL = (
-                    form_data.ollama_config.url
-                )
-                request.app.state.config.RAG_OLLAMA_API_KEY = (
-                    form_data.ollama_config.key
-                )
-
-            request.app.state.config.RAG_EMBEDDING_BATCH_SIZE = (
-                form_data.embedding_batch_size
-            )
-
-        request.app.state.ef = get_ef(
-            request.app.state.config.RAG_EMBEDDING_ENGINE,
-            request.app.state.config.RAG_EMBEDDING_MODEL,
-        )
-
-        request.app.state.EMBEDDING_FUNCTION = get_embedding_function(
-            request.app.state.config.RAG_EMBEDDING_ENGINE,
-            request.app.state.config.RAG_EMBEDDING_MODEL,
-            request.app.state.ef,
-            request.app.state.config.RAG_OPENAI_API_BASE_URL,
-            request.app.state.config.RAG_OPENAI_API_KEY,
-            request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
-        )
-
-        return {
-            "status": True,
-            "embedding_engine": request.app.state.config.RAG_EMBEDDING_ENGINE,
-            "embedding_model": request.app.state.config.RAG_EMBEDDING_MODEL,
-            "embedding_batch_size": request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
-            "openai_config": {
-                "url": request.app.state.config.RAG_OPENAI_API_BASE_URL,
-                "key": request.app.state.config.RAG_OPENAI_API_KEY,
-            },
-            "ollama_config": {
-                "url": request.app.state.config.RAG_OLLAMA_BASE_URL,
-                "key": request.app.state.config.RAG_OLLAMA_API_KEY,
-            },
-        }
-    except Exception as e:
-        log.exception(f"Problem updating embedding model: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ERROR_MESSAGES.DEFAULT(e),
-        )
-
-
 class RerankingModelUpdateForm(BaseModel):
     reranking_model: str
-
-
-@router.post("/reranking/update")
-async def update_reranking_config(
-    request: Request, form_data: RerankingModelUpdateForm, user=Depends(get_admin_user)
-):
-    log.info(
-        f"Updating reranking model: {request.app.state.config.RAG_RERANKING_MODEL} to {form_data.reranking_model}"
-    )
-    try:
-        request.app.state.config.RAG_RERANKING_MODEL = form_data.reranking_model
-
-        try:
-            request.app.state.rf = get_rf(
-                request.app.state.config.RAG_RERANKING_MODEL,
-                True,
-            )
-        except Exception as e:
-            log.error(f"Error loading reranking model: {e}")
-            request.app.state.config.ENABLE_RAG_HYBRID_SEARCH = False
-
-        return {
-            "status": True,
-            "reranking_model": request.app.state.config.RAG_RERANKING_MODEL,
-        }
-    except Exception as e:
-        log.exception(f"Problem updating reranking model: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ERROR_MESSAGES.DEFAULT(e),
-        )
-
 
 @router.get("/config")
 async def get_rag_config(request: Request, user=Depends(get_admin_user)):
@@ -351,28 +234,8 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
         "web": {
             "web_loader_ssl_verification": request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
             "search": {
-                "enabled": request.app.state.config.ENABLE_RAG_WEB_SEARCH,
                 "drive": request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
-                "engine": request.app.state.config.RAG_WEB_SEARCH_ENGINE,
-                "searxng_query_url": request.app.state.config.SEARXNG_QUERY_URL,
-                "google_pse_api_key": request.app.state.config.GOOGLE_PSE_API_KEY,
-                "google_pse_engine_id": request.app.state.config.GOOGLE_PSE_ENGINE_ID,
-                "brave_search_api_key": request.app.state.config.BRAVE_SEARCH_API_KEY,
-                "kagi_search_api_key": request.app.state.config.KAGI_SEARCH_API_KEY,
-                "mojeek_search_api_key": request.app.state.config.MOJEEK_SEARCH_API_KEY,
-                "serpstack_api_key": request.app.state.config.SERPSTACK_API_KEY,
-                "serpstack_https": request.app.state.config.SERPSTACK_HTTPS,
-                "serper_api_key": request.app.state.config.SERPER_API_KEY,
-                "serply_api_key": request.app.state.config.SERPLY_API_KEY,
-                "tavily_api_key": request.app.state.config.TAVILY_API_KEY,
-                "searchapi_api_key": request.app.state.config.SEARCHAPI_API_KEY,
-                "searchapi_engine": request.app.state.config.SEARCHAPI_ENGINE,
-                "jina_api_key": request.app.state.config.JINA_API_KEY,
-                "bing_search_v7_endpoint": request.app.state.config.BING_SEARCH_V7_ENDPOINT,
-                "bing_search_v7_subscription_key": request.app.state.config.BING_SEARCH_V7_SUBSCRIPTION_KEY,
-                "exa_api_key": request.app.state.config.EXA_API_KEY,
                 "result_count": request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                "concurrent_requests": request.app.state.config.RAG_WEB_SEARCH_CONCURRENT_REQUESTS,
             },
         },
     }
@@ -402,24 +265,6 @@ class YoutubeLoaderConfig(BaseModel):
 
 class WebSearchConfig(BaseModel):
     enabled: bool
-    engine: Optional[str] = None
-    searxng_query_url: Optional[str] = None
-    google_pse_api_key: Optional[str] = None
-    google_pse_engine_id: Optional[str] = None
-    brave_search_api_key: Optional[str] = None
-    kagi_search_api_key: Optional[str] = None
-    mojeek_search_api_key: Optional[str] = None
-    serpstack_api_key: Optional[str] = None
-    serpstack_https: Optional[bool] = None
-    serper_api_key: Optional[str] = None
-    serply_api_key: Optional[str] = None
-    tavily_api_key: Optional[str] = None
-    searchapi_api_key: Optional[str] = None
-    searchapi_engine: Optional[str] = None
-    jina_api_key: Optional[str] = None
-    bing_search_v7_endpoint: Optional[str] = None
-    bing_search_v7_subscription_key: Optional[str] = None
-    exa_api_key: Optional[str] = None
     result_count: Optional[int] = None
     concurrent_requests: Optional[int] = None
 
@@ -436,145 +281,6 @@ class ConfigUpdateForm(BaseModel):
     chunk: Optional[ChunkParamUpdateForm] = None
     youtube: Optional[YoutubeLoaderConfig] = None
     web: Optional[WebConfig] = None
-
-
-@router.post("/config/update")
-async def update_rag_config(
-    request: Request, form_data: ConfigUpdateForm, user=Depends(get_admin_user)
-):
-    request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = (
-        form_data.enable_google_drive_integration
-        if form_data.enable_google_drive_integration is not None
-        else request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION
-    )
-
-    if form_data.file is not None:
-        request.app.state.config.FILE_MAX_SIZE = form_data.file.max_size
-        request.app.state.config.FILE_MAX_COUNT = form_data.file.max_count
-
-    if form_data.content_extraction is not None:
-        log.info(f"Updating text settings: {form_data.content_extraction}")
-        request.app.state.config.CONTENT_EXTRACTION_ENGINE = (
-            form_data.content_extraction.engine
-        )
-        request.app.state.config.TIKA_SERVER_URL = (
-            form_data.content_extraction.tika_server_url
-        )
-
-    if form_data.chunk is not None:
-        request.app.state.config.TEXT_SPLITTER = form_data.chunk.text_splitter
-        request.app.state.config.CHUNK_SIZE = form_data.chunk.chunk_size
-        request.app.state.config.CHUNK_OVERLAP = form_data.chunk.chunk_overlap
-
-    if form_data.youtube is not None:
-        request.app.state.config.YOUTUBE_LOADER_LANGUAGE = form_data.youtube.language
-        request.app.state.config.YOUTUBE_LOADER_PROXY_URL = form_data.youtube.proxy_url
-        request.app.state.YOUTUBE_LOADER_TRANSLATION = form_data.youtube.translation
-
-    if form_data.web is not None:
-        request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION = (
-            # Note: When UI "Bypass SSL verification for Websites"=True then ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION=False
-            form_data.web.web_loader_ssl_verification
-        )
-
-        request.app.state.config.ENABLE_RAG_WEB_SEARCH = form_data.web.search.enabled
-        request.app.state.config.RAG_WEB_SEARCH_ENGINE = form_data.web.search.engine
-        request.app.state.config.SEARXNG_QUERY_URL = (
-            form_data.web.search.searxng_query_url
-        )
-        request.app.state.config.GOOGLE_PSE_API_KEY = (
-            form_data.web.search.google_pse_api_key
-        )
-        request.app.state.config.GOOGLE_PSE_ENGINE_ID = (
-            form_data.web.search.google_pse_engine_id
-        )
-        request.app.state.config.BRAVE_SEARCH_API_KEY = (
-            form_data.web.search.brave_search_api_key
-        )
-        request.app.state.config.KAGI_SEARCH_API_KEY = (
-            form_data.web.search.kagi_search_api_key
-        )
-        request.app.state.config.MOJEEK_SEARCH_API_KEY = (
-            form_data.web.search.mojeek_search_api_key
-        )
-        request.app.state.config.SERPSTACK_API_KEY = (
-            form_data.web.search.serpstack_api_key
-        )
-        request.app.state.config.SERPSTACK_HTTPS = form_data.web.search.serpstack_https
-        request.app.state.config.SERPER_API_KEY = form_data.web.search.serper_api_key
-        request.app.state.config.SERPLY_API_KEY = form_data.web.search.serply_api_key
-        request.app.state.config.TAVILY_API_KEY = form_data.web.search.tavily_api_key
-        request.app.state.config.SEARCHAPI_API_KEY = (
-            form_data.web.search.searchapi_api_key
-        )
-        request.app.state.config.SEARCHAPI_ENGINE = (
-            form_data.web.search.searchapi_engine
-        )
-
-        request.app.state.config.JINA_API_KEY = form_data.web.search.jina_api_key
-        request.app.state.config.BING_SEARCH_V7_ENDPOINT = (
-            form_data.web.search.bing_search_v7_endpoint
-        )
-        request.app.state.config.BING_SEARCH_V7_SUBSCRIPTION_KEY = (
-            form_data.web.search.bing_search_v7_subscription_key
-        )
-
-        request.app.state.config.EXA_API_KEY = form_data.web.search.exa_api_key
-
-        request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT = (
-            form_data.web.search.result_count
-        )
-        request.app.state.config.RAG_WEB_SEARCH_CONCURRENT_REQUESTS = (
-            form_data.web.search.concurrent_requests
-        )
-
-    return {
-        "status": True,
-        "file": {
-            "max_size": request.app.state.config.FILE_MAX_SIZE,
-            "max_count": request.app.state.config.FILE_MAX_COUNT,
-        },
-        "content_extraction": {
-            "engine": request.app.state.config.CONTENT_EXTRACTION_ENGINE,
-            "tika_server_url": request.app.state.config.TIKA_SERVER_URL,
-        },
-        "chunk": {
-            "text_splitter": request.app.state.config.TEXT_SPLITTER,
-            "chunk_size": request.app.state.config.CHUNK_SIZE,
-            "chunk_overlap": request.app.state.config.CHUNK_OVERLAP,
-        },
-        "youtube": {
-            "language": request.app.state.config.YOUTUBE_LOADER_LANGUAGE,
-            "proxy_url": request.app.state.config.YOUTUBE_LOADER_PROXY_URL,
-            "translation": request.app.state.YOUTUBE_LOADER_TRANSLATION,
-        },
-        "web": {
-            "web_loader_ssl_verification": request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
-            "search": {
-                "enabled": request.app.state.config.ENABLE_RAG_WEB_SEARCH,
-                "engine": request.app.state.config.RAG_WEB_SEARCH_ENGINE,
-                "searxng_query_url": request.app.state.config.SEARXNG_QUERY_URL,
-                "google_pse_api_key": request.app.state.config.GOOGLE_PSE_API_KEY,
-                "google_pse_engine_id": request.app.state.config.GOOGLE_PSE_ENGINE_ID,
-                "brave_search_api_key": request.app.state.config.BRAVE_SEARCH_API_KEY,
-                "kagi_search_api_key": request.app.state.config.KAGI_SEARCH_API_KEY,
-                "mojeek_search_api_key": request.app.state.config.MOJEEK_SEARCH_API_KEY,
-                "serpstack_api_key": request.app.state.config.SERPSTACK_API_KEY,
-                "serpstack_https": request.app.state.config.SERPSTACK_HTTPS,
-                "serper_api_key": request.app.state.config.SERPER_API_KEY,
-                "serply_api_key": request.app.state.config.SERPLY_API_KEY,
-                "serachapi_api_key": request.app.state.config.SEARCHAPI_API_KEY,
-                "searchapi_engine": request.app.state.config.SEARCHAPI_ENGINE,
-                "tavily_api_key": request.app.state.config.TAVILY_API_KEY,
-                "jina_api_key": request.app.state.config.JINA_API_KEY,
-                "bing_search_v7_endpoint": request.app.state.config.BING_SEARCH_V7_ENDPOINT,
-                "bing_search_v7_subscription_key": request.app.state.config.BING_SEARCH_V7_SUBSCRIPTION_KEY,
-                "exa_api_key": request.app.state.config.EXA_API_KEY,
-                "result_count": request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                "concurrent_requests": request.app.state.config.RAG_WEB_SEARCH_CONCURRENT_REQUESTS,
-            },
-        },
-    }
 
 
 @router.get("/template")
@@ -601,27 +307,6 @@ class QuerySettingsForm(BaseModel):
     r: Optional[float] = None
     template: Optional[str] = None
     hybrid: Optional[bool] = None
-
-
-@router.post("/query/settings/update")
-async def update_query_settings(
-    request: Request, form_data: QuerySettingsForm, user=Depends(get_admin_user)
-):
-    request.app.state.config.RAG_TEMPLATE = form_data.template
-    request.app.state.config.TOP_K = form_data.k if form_data.k else 4
-    request.app.state.config.RELEVANCE_THRESHOLD = form_data.r if form_data.r else 0.0
-
-    request.app.state.config.ENABLE_RAG_HYBRID_SEARCH = (
-        form_data.hybrid if form_data.hybrid else False
-    )
-
-    return {
-        "status": True,
-        "template": request.app.state.config.RAG_TEMPLATE,
-        "k": request.app.state.config.TOP_K,
-        "r": request.app.state.config.RELEVANCE_THRESHOLD,
-        "hybrid": request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
-    }
 
 
 ####################################
@@ -941,322 +626,64 @@ class ProcessTextForm(BaseModel):
     collection_name: Optional[str] = None
 
 
-@router.post("/process/text")
-def process_text(
-    request: Request,
-    form_data: ProcessTextForm,
-    user=Depends(get_verified_user),
-):
-    collection_name = form_data.collection_name
-    if collection_name is None:
-        collection_name = calculate_sha256_string(form_data.content)
-
-    docs = [
-        Document(
-            page_content=form_data.content,
-            metadata={"name": form_data.name, "created_by": user.id},
-        )
-    ]
-    text_content = form_data.content
-    log.debug(f"text_content: {text_content}")
-
-    result = save_docs_to_vector_db(request, docs, collection_name, user=user)
-    if result:
-        return {
-            "status": True,
-            "collection_name": collection_name,
-            "content": text_content,
-        }
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ERROR_MESSAGES.DEFAULT(),
-        )
-
-
-@router.post("/process/youtube")
-def process_youtube_video(
-    request: Request, form_data: ProcessUrlForm, user=Depends(get_verified_user)
-):
-    try:
-        collection_name = form_data.collection_name
-        if not collection_name:
-            collection_name = calculate_sha256_string(form_data.url)[:63]
-
-        loader = YoutubeLoader(
-            form_data.url,
-            language=request.app.state.config.YOUTUBE_LOADER_LANGUAGE,
-            proxy_url=request.app.state.config.YOUTUBE_LOADER_PROXY_URL,
-        )
-
-        docs = loader.load()
-        content = " ".join([doc.page_content for doc in docs])
-        log.debug(f"text_content: {content}")
-
-        save_docs_to_vector_db(
-            request, docs, collection_name, overwrite=True, user=user
-        )
-
-        return {
-            "status": True,
-            "collection_name": collection_name,
-            "filename": form_data.url,
-            "file": {
-                "data": {
-                    "content": content,
-                },
-                "meta": {
-                    "name": form_data.url,
-                },
-            },
-        }
-    except Exception as e:
-        log.exception(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
-        )
-
-
-@router.post("/process/web")
-def process_web(
-    request: Request, form_data: ProcessUrlForm, user=Depends(get_verified_user)
-):
-    try:
-        collection_name = form_data.collection_name
-        if not collection_name:
-            collection_name = calculate_sha256_string(form_data.url)[:63]
-
-        loader = get_web_loader(
-            form_data.url,
-            verify_ssl=request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
-            requests_per_second=request.app.state.config.RAG_WEB_SEARCH_CONCURRENT_REQUESTS,
-        )
-        docs = loader.load()
-        content = " ".join([doc.page_content for doc in docs])
-
-        log.debug(f"text_content: {content}")
-        save_docs_to_vector_db(
-            request, docs, collection_name, overwrite=True, user=user
-        )
-
-        return {
-            "status": True,
-            "collection_name": collection_name,
-            "filename": form_data.url,
-            "file": {
-                "data": {
-                    "content": content,
-                },
-                "meta": {
-                    "name": form_data.url,
-                },
-            },
-        }
-    except Exception as e:
-        log.exception(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
-        )
-
-
-def search_web(request: Request, engine: str, query: str) -> list[SearchResult]:
-    """Search the web using a search engine and return the results as a list of SearchResult objects.
-    Will look for a search engine API key in environment variables in the following order:
-    - SEARXNG_QUERY_URL
-    - GOOGLE_PSE_API_KEY + GOOGLE_PSE_ENGINE_ID
-    - BRAVE_SEARCH_API_KEY
-    - KAGI_SEARCH_API_KEY
-    - MOJEEK_SEARCH_API_KEY
-    - SERPSTACK_API_KEY
-    - SERPER_API_KEY
-    - SERPLY_API_KEY
-    - TAVILY_API_KEY
-    - EXA_API_KEY
-    - SEARCHAPI_API_KEY + SEARCHAPI_ENGINE (by default `google`)
-    Args:
-        query (str): The query to search for
-    """
-
-    # TODO: add playwright to search the web
-    if engine == "searxng":
-        if request.app.state.config.SEARXNG_QUERY_URL:
-            return search_searxng(
-                request.app.state.config.SEARXNG_QUERY_URL,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No SEARXNG_QUERY_URL found in environment variables")
-    elif engine == "google_pse":
-        if (
-            request.app.state.config.GOOGLE_PSE_API_KEY
-            and request.app.state.config.GOOGLE_PSE_ENGINE_ID
-        ):
-            return search_google_pse(
-                request.app.state.config.GOOGLE_PSE_API_KEY,
-                request.app.state.config.GOOGLE_PSE_ENGINE_ID,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception(
-                "No GOOGLE_PSE_API_KEY or GOOGLE_PSE_ENGINE_ID found in environment variables"
-            )
-    elif engine == "brave":
-        if request.app.state.config.BRAVE_SEARCH_API_KEY:
-            return search_brave(
-                request.app.state.config.BRAVE_SEARCH_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No BRAVE_SEARCH_API_KEY found in environment variables")
-    elif engine == "kagi":
-        if request.app.state.config.KAGI_SEARCH_API_KEY:
-            return search_kagi(
-                request.app.state.config.KAGI_SEARCH_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No KAGI_SEARCH_API_KEY found in environment variables")
-    elif engine == "mojeek":
-        if request.app.state.config.MOJEEK_SEARCH_API_KEY:
-            return search_mojeek(
-                request.app.state.config.MOJEEK_SEARCH_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No MOJEEK_SEARCH_API_KEY found in environment variables")
-    elif engine == "serpstack":
-        if request.app.state.config.SERPSTACK_API_KEY:
-            return search_serpstack(
-                request.app.state.config.SERPSTACK_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-                https_enabled=request.app.state.config.SERPSTACK_HTTPS,
-            )
-        else:
-            raise Exception("No SERPSTACK_API_KEY found in environment variables")
-    elif engine == "serper":
-        if request.app.state.config.SERPER_API_KEY:
-            return search_serper(
-                request.app.state.config.SERPER_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No SERPER_API_KEY found in environment variables")
-    elif engine == "serply":
-        if request.app.state.config.SERPLY_API_KEY:
-            return search_serply(
-                request.app.state.config.SERPLY_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No SERPLY_API_KEY found in environment variables")
-    elif engine == "duckduckgo":
-        return search_duckduckgo(
-            query,
-            request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-            request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-        )
-    elif engine == "tavily":
-        if request.app.state.config.TAVILY_API_KEY:
-            return search_tavily(
-                request.app.state.config.TAVILY_API_KEY,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-            )
-        else:
-            raise Exception("No TAVILY_API_KEY found in environment variables")
-    elif engine == "searchapi":
-        if request.app.state.config.SEARCHAPI_API_KEY:
-            return search_searchapi(
-                request.app.state.config.SEARCHAPI_API_KEY,
-                request.app.state.config.SEARCHAPI_ENGINE,
-                query,
-                request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-                request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-            )
-        else:
-            raise Exception("No SEARCHAPI_API_KEY found in environment variables")
-    elif engine == "jina":
-        return search_jina(
-            request.app.state.config.JINA_API_KEY,
-            query,
-            request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-        )
-    elif engine == "bing":
-        return search_bing(
-            request.app.state.config.BING_SEARCH_V7_SUBSCRIPTION_KEY,
-            request.app.state.config.BING_SEARCH_V7_ENDPOINT,
-            str(DEFAULT_LOCALE),
-            query,
-            request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-            request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-        )
-    elif engine == "exa":
-        return search_exa(
-            request.app.state.config.EXA_API_KEY,
-            query,
-            request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-            request.app.state.config.RAG_WEB_SEARCH_DOMAIN_FILTER_LIST,
-        )
-    else:
-        raise Exception("No search engine API key found in environment variables")
-
-
 @router.post("/process/web/search")
 def process_web_search(
     request: Request, form_data: SearchForm, user=Depends(get_verified_user)
 ):
     try:
         logging.info(
-            f"trying to web search with {request.app.state.config.RAG_WEB_SEARCH_ENGINE, form_data.query}"
-        )
-        web_results = search_web(
-            request, request.app.state.config.RAG_WEB_SEARCH_ENGINE, form_data.query
-        )
-    except Exception as e:
-        log.exception(e)
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.WEB_SEARCH_ERROR(e),
+            f"trying to web search with {form_data.query}"
         )
 
-    log.debug(f"web_results: {web_results}")
+        web_results = firecrawl.search(
+            form_data.query,
+            limit = 3,
+            scrape_options = {
+            "formats": ["markdown"]
+            }
+        )
 
-    try:
+        docs = []
+
+        for result in web_results.web:
+            if isinstance(result, Firecrawl_Document):
+                docs.append(
+                    Document(
+                        page_content=result.markdown or "",
+                        metadata={
+                            "source": result.metadata.url or "",
+                            "title": result.metadata.title or "",
+                            "description": result.metadata.description or "",
+                            "language": result.metadata.language or "",
+                        }
+                    )
+                )
+            elif isinstance(result, SearchResultWeb):
+                # Fallback: use description or title as content
+                docs.append(
+                    Document(
+                        page_content=result.description or "",
+                        metadata={
+                            "source": result.url or "",
+                            "title": result.title or "",
+                            "description": result.description or "",
+                            "language": "",
+                        }
+                    )
+                )
+
+        log.debug(f"web_results: {web_results}")
+
         collection_name = form_data.collection_name
-        if collection_name == "" or collection_name is None:
-            collection_name = f"web-search-{calculate_sha256_string(form_data.query)}"[
-                :63
-            ]
 
-        urls = [result.link for result in web_results]
-        loader = get_web_loader(
-            urls,
-            verify_ssl=request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
-            requests_per_second=request.app.state.config.RAG_WEB_SEARCH_CONCURRENT_REQUESTS,
-        )
-        docs = loader.load()
+        if collection_name == "" or collection_name is None:
+            collection_name = f"web-search-{calculate_sha256_string(form_data.query)}"[:63]
+
         save_docs_to_vector_db(
             request, docs, collection_name, overwrite=True, user=user
         )
+
+        urls = [docs.metadata["source"] for docs in docs]
 
         return {
             "status": True,

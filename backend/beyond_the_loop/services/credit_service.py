@@ -1,5 +1,3 @@
-import math
-
 import stripe
 from typing import Optional
 from fastapi import HTTPException
@@ -8,6 +6,8 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.models.model_costs import ModelCosts
+
+from beyond_the_loop.routers.payments import get_subscription
 
 PROFIT_MARGIN_FACTOR = 1.15
 EUR_PER_DOLLAR = 0.9
@@ -30,7 +30,7 @@ class CreditService:
         """
 
         # Get current balance
-        current_balance = Companies.get_credit_balance(user.company_id)
+        current_balance = CreditService.get_credit_balance(user.company_id)
 
         # Get the dynamic credit limit based on subscription
         eighty_percent_credit_limit = Companies.get_eighty_percent_credit_limit(user.company_id)
@@ -134,7 +134,8 @@ class CreditService:
         from beyond_the_loop.routers.payments import recharge_flex_credits
         return await recharge_flex_credits(user)
 
-    def get_credit_balance(self, company_id: str) -> Optional[int]:
+    @staticmethod
+    def get_credit_balance(company_id: str) -> Optional[int]:
         """
         Get the current credit balance for a company.
         
@@ -146,15 +147,12 @@ class CreditService:
         """
         return Companies.get_credit_balance(company_id)
 
-    async def check_for_subscription_and_sufficient_balance_and_seats(self, user):
+    @staticmethod
+    async def check_for_subscription_and_sufficient_balance_and_seats(user):
         # First check if the user has an active subscription in Stripe
         company = Companies.get_company_by_id(user.company_id)
 
         # Get the active subscription to check seat limits
-        from beyond_the_loop.routers.payments import get_subscription
-        from beyond_the_loop.models.users import Users
-
-        # Get subscription details
         subscription_details = await get_subscription(user)
 
         if not company.subscription_not_required:
@@ -170,38 +168,18 @@ class CreditService:
                     detail="You have reached the maximum number of seats in your subscription. Please upgrade your plan or remove some users.",
                 )
 
-            if not company or not company.stripe_customer_id:
+            if not company or not company.stripe_customer_id or not (subscription_details.get("status") == "active" or subscription_details.get("plan") == "free"):
                 raise HTTPException(
                     status_code=402,  # 402 Payment Required
                     detail="No active subscription found. Please subscribe to a plan.",
                 )
 
-            # Check for active subscription in Stripe
-            import stripe
-            subscriptions = stripe.Subscription.list(
-                customer=company.stripe_customer_id,
-                status='active',
-                limit=1
-            )
-
-            trails = stripe.Subscription.list(
-                customer=company.stripe_customer_id,
-                status='trialing',
-                limit=1
-            )
-
-            if not subscriptions.data and not trails.data:
-                raise HTTPException(
-                    status_code=402,  # 402 Payment Required
-                    detail="No active subscription found. Please subscribe to a plan.",
-                )
-        
         # Proceed with credit balance check
-        current_balance = Companies.get_credit_balance(user.company_id)
+        current_balance = company.credit_balance + (company.flex_credit_balance or 0) if company else None
 
         # Check if company has sufficient credits
         if current_balance == 0:
-            if not Companies.get_company_by_id(user.company_id).budget_mail_100_sent:
+            if not company.budget_mail_100_sent:
                 email_service = EmailService()
                 email_service.send_budget_mail_100(to_email=user.email, recipient_name=user.first_name + " " + user.last_name)
 
