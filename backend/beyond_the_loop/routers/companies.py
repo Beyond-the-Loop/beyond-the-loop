@@ -240,35 +240,35 @@ async def create_company(
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
-        if request.app.state.config.ENABLE_OPENAI_API:
-            openai_models = await openai.get_all_models(request)
-            openai_models = openai_models["data"]
+        openai_models = await openai.get_all_models(request)
 
-            disabled_models = [
-                "Claude Opus 4.1",
-                "Perplexity Sonar Reasoning Pro",
-                "Perplexity Sonar Deep Research"
-            ]
+        openai_models = openai_models["data"]
 
-            # Register OpenAI models in the database if they don't exist
-            for model in openai_models:
-                Models.insert_new_model(
-                    ModelForm(
-                        id=str(uuid.uuid4()),
-                        name=model[
-                            "id"
-                        ],  # Use ID as name since OpenAI models don't have separate names
-                        meta=ModelMeta(
-                            description="OpenAI model",
-                            profile_image_url="/static/favicon.png",
-                        ),
-                        params=ModelParams(),
-                        access_control=None,  # None means public access
-                        is_active=model["id"] not in disabled_models
+        disabled_models = [
+            "Claude Opus 4.1",
+            "Perplexity Sonar Reasoning Pro",
+            "Perplexity Sonar Deep Research"
+        ]
+
+        # Register OpenAI models in the database if they don't exist
+        for model in openai_models:
+            Models.insert_new_model(
+                ModelForm(
+                    id=str(uuid.uuid4()),
+                    name=model[
+                        "id"
+                    ],  # Use ID as name since OpenAI models don't have separate names
+                    meta=ModelMeta(
+                        description="OpenAI model",
+                        profile_image_url="/static/favicon.png",
                     ),
-                    user_id=user.id,
-                    company_id=company_id,
-                )
+                    params=ModelParams(),
+                    access_control=None,  # None means public access
+                    is_active=model["id"] not in disabled_models
+                ),
+                user_id=user.id,
+                company_id=company_id,
+            )
 
         # Create Stripe customer for the new company
         from beyond_the_loop.routers.payments import stripe
@@ -302,5 +302,5 @@ async def create_company(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=e,
+            detail=f"Error creating company: {str(e)}"
         )

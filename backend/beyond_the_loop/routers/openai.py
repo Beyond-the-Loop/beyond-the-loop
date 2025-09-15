@@ -77,6 +77,42 @@ async def cleanup_response(
 
 ##########################################
 #
+# Model management functions
+#
+##########################################
+
+async def get_all_models(request: Request):
+    """
+    Fetch all available models from the litellm server.
+    Returns the models in OpenAI API format.
+    """
+    try:
+        url = f"{os.getenv('OPENAI_API_BASE_URL')}/models"
+        api_key = os.getenv('OPENAI_API_KEY')
+        
+        log.info(f"Fetching models from litellm server: {url}")
+        
+        response = await send_get_request(url, api_key)
+        
+        if response is None:
+            log.error("Failed to fetch models from litellm server")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch models from litellm server"
+            )
+        
+        log.info(f"Successfully fetched {len(response.get('data', []))} models from litellm")
+        return response
+        
+    except Exception as e:
+        log.error(f"Error fetching models from litellm: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching models: {str(e)}"
+        )
+
+##########################################
+#
 # API routes
 #
 ##########################################
