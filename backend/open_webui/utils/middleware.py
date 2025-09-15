@@ -345,7 +345,6 @@ async def chat_web_search_handler(
     messages = form_data["messages"]
     user_message = get_last_user_message(messages)
 
-    queries = []
     try:
         res = await generate_queries(
             request,
@@ -390,7 +389,9 @@ async def chat_web_search_handler(
         )
         return form_data
 
-    searchQuery = queries[0]
+    search_query = queries[0]
+
+    print(queries)
 
     await event_emitter(
         {
@@ -398,7 +399,7 @@ async def chat_web_search_handler(
             "data": {
                 "action": "web_search",
                 "description": 'Searching "{{searchQuery}}"',
-                "query": searchQuery,
+                "query": search_query,
                 "done": False,
             },
         }
@@ -415,7 +416,7 @@ async def chat_web_search_handler(
                     request,
                     SearchForm(
                         **{
-                            "query": searchQuery,
+                            "query": search_query,
                         }
                     ),
                     user,
@@ -429,7 +430,7 @@ async def chat_web_search_handler(
                     "data": {
                         "action": "web_search",
                         "description": "Searched {{count}} sites",
-                        "query": searchQuery,
+                        "query": search_query,
                         "urls": results["filenames"],
                         "done": True,
                     },
@@ -440,7 +441,7 @@ async def chat_web_search_handler(
             files.append(
                 {
                     "collection_name": results["collection_name"],
-                    "name": searchQuery,
+                    "name": search_query,
                     "type": "web_search_results",
                     "urls": results["filenames"],
                 }
@@ -453,7 +454,7 @@ async def chat_web_search_handler(
                     "data": {
                         "action": "web_search",
                         "description": "No search results found",
-                        "query": searchQuery,
+                        "query": search_query,
                         "done": True,
                         "error": True,
                     },
@@ -467,7 +468,7 @@ async def chat_web_search_handler(
                 "data": {
                     "action": "web_search",
                     "description": 'Error searching "{{searchQuery}}"',
-                    "query": searchQuery,
+                    "query": search_query,
                     "done": True,
                     "error": True,
                 },
@@ -1000,7 +1001,6 @@ async def process_chat_payload(request, form_data, metadata, user, model):
     # First, decide if this is a RAG task or content extraction task
     try:
         form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user)
-        print("IS RAG TASK:", is_rag_task)
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
