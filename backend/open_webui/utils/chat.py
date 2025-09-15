@@ -2,172 +2,30 @@ import logging
 import sys
 
 from typing import Any
-import random
-import json
 import inspect
 
 from fastapi import Request
-from starlette.responses import StreamingResponse
 
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
 )
-from open_webui.functions import generate_function_chat_completion
-
-from beyond_the_loop.routers.openai import (
-    generate_chat_completion as generate_openai_chat_completion,
-)
-
-from open_webui.routers.ollama import (
-    generate_chat_completion as generate_ollama_chat_completion,
-)
-
-from open_webui.routers.pipelines import (
-    process_pipeline_inlet_filter,
-    process_pipeline_outlet_filter,
-)
 
 from open_webui.models.functions import Functions
 
 from open_webui.utils.plugin import load_function_module_by_id
-from open_webui.utils.models import get_all_models, check_model_access
-from open_webui.utils.payload import convert_payload_openai_to_ollama
-from open_webui.utils.response import (
-    convert_response_ollama_to_openai,
-    convert_streaming_response_ollama_to_openai,
-)
 
-from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL, BYPASS_MODEL_ACCESS_CONTROL
+from beyond_the_loop.routers.openai import generate_chat_completion
+
+from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
 
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
-
-async def generate_chat_completion(
-    request: Request,
-    form_data: dict,
-    user: Any,
-    bypass_filter: bool = False,
-):
-    if BYPASS_MODEL_ACCESS_CONTROL:
-        bypass_filter = True
-
-    models = request.app.state.MODELS
-
-    model_id = form_data["model"]
-    if model_id not in models:
-        raise Exception("Model not found")
-
-    # Process the form_data through the pipeline
-    try:
-        form_data = process_pipeline_inlet_filter(request, form_data, user, models)
-    except Exception as e:
-        raise e
-
-    model = models[model_id]
-
-    # Check if user has access to the model
-    if not bypass_filter and user.role == "user":
-        try:
-            check_model_access(user, model)
-        except Exception as e:
-            raise e
-
-    if model["owned_by"] == "arena":
-        model_ids = model.get("info", {}).get("meta", {}).get("model_ids")
-        filter_mode = model.get("info", {}).get("meta", {}).get("filter_mode")
-        if model_ids and filter_mode == "exclude":
-            model_ids = [
-                model["id"]
-                for model in list(request.app.state.MODELS.values())
-                if model.get("owned_by") != "arena" and model["id"] not in model_ids
-            ]
-
-        selected_model_id = None
-        if isinstance(model_ids, list) and model_ids:
-            selected_model_id = random.choice(model_ids)
-        else:
-            model_ids = [
-                model["id"]
-                for model in list(request.app.state.MODELS.values())
-                if model.get("owned_by") != "arena"
-            ]
-            selected_model_id = random.choice(model_ids)
-
-        form_data["model"] = selected_model_id
-
-        if form_data.get("stream") == True:
-
-            async def stream_wrapper(stream):
-                yield f"data: {json.dumps({'selected_model_id': selected_model_id})}\n\n"
-                async for chunk in stream:
-                    yield chunk
-
-            response = await generate_chat_completion(
-                request, form_data, user, bypass_filter=True
-            )
-            return StreamingResponse(
-                stream_wrapper(response.body_iterator),
-                media_type="text/event-stream",
-                background=response.background,
-            )
-        else:
-            return {
-                **(
-                    await generate_chat_completion(
-                        request, form_data, user, bypass_filter=True
-                    )
-                ),
-                "selected_model_id": selected_model_id,
-            }
-
-    if model.get("pipe"):
-        # Below does not require bypass_filter because this is the only route the uses this function and it is already bypassing the filter
-        return await generate_function_chat_completion(
-            request, form_data, user=user, models=models
-        )
-    if model["owned_by"] == "ollama":
-        # Using /ollama/api/chat endpoint
-        form_data = convert_payload_openai_to_ollama(form_data)
-        response = await generate_ollama_chat_completion(
-            request=request, form_data=form_data, user=user, bypass_filter=bypass_filter
-        )
-        if form_data.get("stream"):
-            response.headers["content-type"] = "text/event-stream"
-            return StreamingResponse(
-                convert_streaming_response_ollama_to_openai(response),
-                headers=dict(response.headers),
-                background=response.background,
-            )
-        else:
-            return convert_response_ollama_to_openai(response)
-    else:
-        return await generate_openai_chat_completion(
-            request=request, form_data=form_data, user=user, bypass_filter=bypass_filter
-        )
-
-
-chat_completion = generate_chat_completion
-
-
 async def chat_completed(request: Request, form_data: dict, user: Any):
-    await get_all_models(request, user)
-    models = request.app.state.MODELS
-
     data = form_data
-    model_id = data["model"]
-    if model_id not in models:
-        raise Exception("Model not found")
-
-    model = models[model_id]
-
-    try:
-        data = process_pipeline_outlet_filter(request, data, user, models)
-    except Exception as e:
-        return Exception(f"Error: {e}")
 
     __event_emitter__ = get_event_emitter(
         {
@@ -195,9 +53,6 @@ async def chat_completed(request: Request, form_data: dict, user: Any):
         return 0
 
     filter_ids = [function.id for function in Functions.get_global_filter_functions()]
-    if "info" in model and "meta" in model["info"]:
-        filter_ids.extend(model["info"]["meta"].get("filterIds", []))
-        filter_ids = list(set(filter_ids))
 
     enabled_filter_ids = [
         function.id
@@ -238,7 +93,7 @@ async def chat_completed(request: Request, form_data: dict, user: Any):
 
             # Extra parameters to be passed to the function
             extra_params = {
-                "__model__": model,
+                "__model__": None,
                 "__id__": filter_id,
                 "__event_emitter__": __event_emitter__,
                 "__event_call__": __event_call__,
@@ -292,15 +147,7 @@ async def chat_action(request: Request, action_id: str, form_data: dict, user: A
     if not action:
         raise Exception(f"Action not found: {action_id}")
 
-    await get_all_models(request, user)
-    models = request.app.state.MODELS
-
     data = form_data
-    model_id = data["model"]
-
-    if model_id not in models:
-        raise Exception("Model not found")
-    model = models[model_id]
 
     __event_emitter__ = get_event_emitter(
         {
@@ -339,7 +186,7 @@ async def chat_action(request: Request, action_id: str, form_data: dict, user: A
 
             # Extra parameters to be passed to the function
             extra_params = {
-                "__model__": model,
+                "__model__": None,
                 "__id__": sub_action_id if sub_action_id is not None else action_id,
                 "__event_emitter__": __event_emitter__,
                 "__event_call__": __event_call__,
