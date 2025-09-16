@@ -4,11 +4,11 @@ from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, Header, APIRouter
 import os
 from typing import Optional
-import time
+from time import strftime
 
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
-
+from beyond_the_loop.services.crm_service import crm_service
 from open_webui.utils.auth import get_verified_user
 
 router = APIRouter()
@@ -35,37 +35,43 @@ SUBSCRIPTION_PLANS = {
         "price": 2500,  # 25€ in cents
         "credits_per_month": 5,
         "stripe_price_id": stripe_price_id_starter_monthly,
-        "seats": 5
+        "seats": 5,
+        "attio_plan_name": "Starter"
     },
     "starter_yearly": {
         "price": 27000,  # 270,00€ in cents
         "credits_per_month": 5,
         "stripe_price_id": stripe_price_id_starter_yearly,
-        "seats": 5
+        "seats": 5,
+        "attio_plan_name": "Starter"
     },
     "team_monthly": {
         "price": 14900,  # 149,00€ in cents
         "credits_per_month": 50,
         "stripe_price_id": stripe_price_id_team_monthly,
-        "seats": 25
+        "seats": 25,
+        "attio_plan_name": "Team"
     },
     "team_yearly": {
         "price": 161000,  # 1.610,00€ in cents
         "credits_per_month": 50,
         "stripe_price_id": stripe_price_id_team_yearly,
-        "seats": 25
+        "seats": 25,
+        "attio_plan_name": "Team"
     },
     "business_monthly": {
         "price": 44900,  # 449€ in cents
         "credits_per_month": 150,
         "stripe_price_id": stripe_price_id_business_monthly,
-        "seats": 100
+        "seats": 100,
+        "attio_plan_name": "Business"
     },
     "business_yearly": {
         "price": 484900,  # 4.849,00€ in cents
         "credits_per_month": 150,
         "stripe_price_id": stripe_price_id_business_yearly,
-        "seats": 100
+        "seats": 100,
+        "attio_plan_name": "Business"
     }
 }
 
@@ -391,7 +397,14 @@ def _update_company_credits_from_subscription(event_data, action_description="pr
             })
             
             print(f"{action_description.capitalize()} {credits_per_month} credits to company {company.id} for subscription {subscription_id}")
-        
+
+        try:
+            crm_service.update_company_plan(company_name=company.name, plan=SUBSCRIPTION_PLANS[plan_id].get("attio_plan_name", "Free"))
+            crm_service.update_company_last_subscription_renewal_date(company_name=company.name, renewal_date=strftime('%Y-%m-%d'))
+            crm_service.update_user_credit_usage(company_name=company.name, credit_consumption=0.0, reset=True)
+        except Exception as e:
+            print(f"Error updating CRM data for company {company.name}: {e}")
+
         return company, credits_per_month, plan_id
         
     except Exception as e:
