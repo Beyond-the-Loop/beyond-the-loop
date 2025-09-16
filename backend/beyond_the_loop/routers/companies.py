@@ -22,6 +22,7 @@ from open_webui.utils.auth import get_current_user, get_admin_user
 from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.config import save_config, get_config
 from beyond_the_loop.models.users import Users
+from beyond_the_loop.services.crm_service import crm_service
 
 router = APIRouter()
 
@@ -296,6 +297,12 @@ async def create_company(
             },
             items=[{"price": SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
         )
+
+        try:
+            crm_service.create_company(company_name=company.name)
+            crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin")
+        except Exception as e:
+            log.error(f"Error creating company/user in CRM: {e}")
 
         return company
 

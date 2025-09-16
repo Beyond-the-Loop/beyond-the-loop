@@ -29,6 +29,7 @@ from open_webui.utils.auth import get_admin_user, get_password_hash, get_verifie
 from open_webui.utils.misc import validate_email_format
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
+from beyond_the_loop.services.crm_service import crm_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -307,6 +308,12 @@ async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
 @router.post("/update/role", response_model=Optional[UserModel])
 async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin_user)):
     if user.id != form_data.id and form_data.id != Users.get_first_user().id:
+
+        try:
+            crm_service.update_user_access_level(user_email=Users.get_user_by_id(form_data.id).email, access_level=form_data.role.capitalize())
+        except Exception as e:
+            log.error(f"Error updating user access level in CRM: {e}")
+
         return Users.update_user_role_by_id(form_data.id, form_data.role)
 
     raise HTTPException(

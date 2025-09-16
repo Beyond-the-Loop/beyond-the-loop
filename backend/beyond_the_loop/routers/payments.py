@@ -4,10 +4,12 @@ from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, Header, APIRouter
 import os
 from typing import Optional
+from time import strftime
 import time
 
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.services.crm_service import crm_service
 
 from open_webui.utils.auth import get_verified_user
 
@@ -339,7 +341,7 @@ def _update_company_credits_from_subscription(event_data, action_description, is
         stripe_customer_id = event_data.get('customer')
 
         if not subscription_id or not stripe_customer_id:
-            print(f"Missing subscription_id or customer_id in event data")
+            print("Missing subscription_id or customer_id in event data")
             return None, None, None
             
         # Get the company associated with this Stripe customer
@@ -418,6 +420,17 @@ def _update_company_credits_from_subscription(event_data, action_description, is
             credit_source = "custom metadata" if custom_credit_amount else "plan default"
             print(f"{action_description.capitalize()} {credits_per_month} credits to company {company.id} for subscription {subscription_id} (source: {credit_source})")
         
+        try:
+            crm_service.update_company_plan(company_name=company.name, plan=plan_id.replace("_", " ").title())
+            crm_service.update_company_last_subscription_renewal_date(company_name=company.name, renewal_date=strftime('%Y-%m-%d'))
+            crm_service.update_company_credit_consumption(company_name=company.name, credit_consumption=0.0, reset=True)
+
+            company_users = Users.get_users_by_company_id(company_id=company.id)
+            for user in company_users:
+                crm_service.update_user_plan(user_email=user.email, plan=plan_id.replace("_", " ").title())
+        except Exception as e:
+            print(f"Error updating CRM for company {company.id}: {e}")
+
         return company, credits_per_month, plan_id
         
     except Exception as e:

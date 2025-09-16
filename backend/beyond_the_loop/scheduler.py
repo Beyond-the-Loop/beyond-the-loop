@@ -16,6 +16,8 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 
 from beyond_the_loop.services.chat_archival_service import chat_archival_service
 from beyond_the_loop.services.file_archival_service import file_archival_service
+from beyond_the_loop.models.companies import calculate_companies_adoption_rate
+from beyond_the_loop.services.crm_service import crm_service
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +69,16 @@ class TaskScheduler:
                 name='Daily File Cleanup Process',
                 replace_existing=True
             )
-            
+
+            # Schedule monthly companies adoption rate calculation on the 1st of each month at 01:00
+            self.scheduler.add_job(
+                func=self._run_calculate_companies_adoption_rate,
+                trigger=CronTrigger(day=1, hour=1, minute=0),  # Monthly on the 1st at 01:00
+                id='monthly_companies_adoption_rate_calculation',
+                name='Monthly Companies Adoption Rate Calculation',
+                replace_existing=True
+            )
+
             # Start the scheduler
             self.scheduler.start()
             self.is_running = True
@@ -127,7 +138,16 @@ class TaskScheduler:
                 
         except Exception as e:
             log.error(f"Error during scheduled file cleanup: {e}", exc_info=True)
-    
+
+    def _run_calculate_companies_adoption_rate(self):
+        """Calculate and update adoption rates for all companies"""
+        log.info("Starting scheduled companies adoption rate calculation")
+
+        try:
+            calculate_companies_adoption_rate()
+        except Exception as e:
+            log.error(f"Error during companies adoption rate calculation: {e}", exc_info=True)
+
     def get_scheduler_status(self) -> dict:
         """Get current scheduler status and job information"""
         if not self.scheduler:
@@ -181,6 +201,20 @@ class TaskScheduler:
                 "error": str(e)
             }
 
+    def trigger_calculate_companies_adoption_rate(self) -> dict:
+        """Manually trigger the companies adoption rate calculation process (for testing/admin purposes)"""
+        log.info("Manually triggering companies adoption rate calculation process")
+
+        try:
+            calculate_companies_adoption_rate()
+            log.info(f"Manual companies adoption rate calculation completed")
+            return {"success": True}
+        except Exception as e:
+            log.error(f"Error during manual companies adoption rate calculation: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 # Global scheduler instance
 task_scheduler = TaskScheduler()
