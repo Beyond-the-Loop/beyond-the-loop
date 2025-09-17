@@ -201,6 +201,7 @@ async def generate_chat_completion(
     payload = {**form_data}
     metadata = payload.pop("metadata", None)
 
+
     model_info = Models.get_model_by_id(form_data.get("model"))
 
     if model_info is None:
@@ -212,7 +213,7 @@ async def generate_chat_completion(
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
     if model_info.base_model_id:
-        model_name = Models.get_model_by_id(model_info.base_model_id).name
+        model_name = model_info.base_model_id if model_info.user_id == "system" else Models.get_model_by_id(model_info.base_model_id).name
     else:
         model_name = model_info.name
 
@@ -389,7 +390,7 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(request, form_data, user, None, True)
+    message = await generate_chat_completion(form_data, user, None, True)
 
     extracted_prompt_template = magic_prompt_util.extract_prompt(message.get('choices', [{}])[0].get('message', {}).get('content', ''))
 
@@ -405,7 +406,7 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
             "temperature": 0.0
         }
 
-        message = await generate_chat_completion(request, form_data, user, None, True)
+        message = await generate_chat_completion(form_data, user, None, True)
 
         extracted_prompt_template = message.get('choices', [{}])[0].get('message', {}).get('content', '')
 
