@@ -12,7 +12,6 @@ from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.models.model_costs import ModelCosts
 
 from beyond_the_loop.routers.payments import get_subscription
-from beyond_the_loop.services.crm_service import crm_service
 
 PROFIT_MARGIN_FACTOR = 1.15
 EUR_PER_DOLLAR = 0.9
@@ -92,12 +91,6 @@ class CreditService:
 
         # Subtract credits from balance
         Companies.subtract_credit_balance(user.company_id, credit_cost)
-
-        try:
-            crm_service.update_company_credit_consumption(company_name=Companies.get_company_by_id(user.company_id).name, credit_consumption=credit_cost, reset=False)
-            crm_service.update_user_credit_usage(user_email=user.email, credit_usage=credit_cost, reset=False)
-        except Exception as e:
-            log.error(f"Error updating credit consumption in CRM: {e}")
 
         return credit_cost
 

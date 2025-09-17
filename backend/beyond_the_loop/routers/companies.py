@@ -302,7 +302,7 @@ async def create_company(
             crm_service.create_company(company_name=company.name)
             crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin")
         except Exception as e:
-            log.error(f"Error creating company/user in CRM: {e}")
+            log.error(f"Failed to create company or user in CRM: {e}")
 
         return company
 

@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request, Header, APIRouter
 import os
 from typing import Optional
 from time import strftime
+import time
 
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
@@ -399,11 +400,11 @@ def _update_company_credits_from_subscription(event_data, action_description="pr
             print(f"{action_description.capitalize()} {credits_per_month} credits to company {company.id} for subscription {subscription_id}")
 
         try:
-            crm_service.update_company_plan(company_name=company.name, plan=SUBSCRIPTION_PLANS[plan_id].get("attio_plan_name", "Free"))
+            crm_service.update_company_plan(company_name=company.name, plan=SUBSCRIPTION_PLANS[plan_id].get("attio_plan_name", "Starter"))
             crm_service.update_company_last_subscription_renewal_date(company_name=company.name, renewal_date=strftime('%Y-%m-%d'))
             crm_service.update_user_credit_usage(company_name=company.name, credit_consumption=0.0, reset=True)
         except Exception as e:
-            print(f"Error updating CRM data for company {company.name}: {e}")
+            print(f"Failed to update CRM for company {company.name}: {e}")
 
         return company, credits_per_month, plan_id
         
