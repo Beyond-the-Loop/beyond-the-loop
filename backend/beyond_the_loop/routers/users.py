@@ -308,11 +308,10 @@ async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
 @router.post("/update/role", response_model=Optional[UserModel])
 async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin_user)):
     if user.id != form_data.id and form_data.id != Users.get_first_user().id:
-
         try:
-            crm_service.update_user_access_level(user_email=Users.get_user_by_id(form_data.id).email, access_level=form_data.role.capitalize())
+            crm_service.update_user_access_level(user_email=Users.get_user_by_id(form_data.id).email, access_level=form_data.role)
         except Exception as e:
-            log.error(f"Error updating user access level in CRM: {e}")
+            log.error(f"Failed to update user access level in CRM: {e}")
 
         return Users.update_user_role_by_id(form_data.id, form_data.role)
 

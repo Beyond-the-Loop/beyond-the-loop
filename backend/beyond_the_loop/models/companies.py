@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+import time
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 
@@ -357,21 +358,32 @@ class CompanyTable:
             print(f"Error calculating credit limit for company {company_id}: {e}")
             return 1  # Default fallback value
 
-def calculate_companies_adoption_rate():
+def crm_sync_companies_adoption_rate():
     try:
         thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
+        requests_per_second = 25
+        batch_size = requests_per_second
+
         with get_db() as db:
             companies = db.query(Company).all()
             companies = [CompanyModel.model_validate(company) for company in companies]
 
-            for company in companies:
-                total_users = len(get_users_by_company(company.id))
-                active_users = len(get_active_users_by_company(company.id, thirty_days_ago))
-                adoption_rate = (active_users / total_users * 100) if total_users > 0 else 0
+            for i in range(0, len(companies), batch_size):
+                batch_start_time = time.time()
+                batch = companies[i:i + batch_size]
 
-                crm_service.update_company_adoption_rate(company_name=company.name, adoption_rate=adoption_rate)
+                for company in batch:
+                    total_users = len(get_users_by_company(company.id))
+                    active_users = len(get_active_users_by_company(company.id, thirty_days_ago))
+                    adoption_rate = (active_users / total_users * 100) if total_users > 0 else 0
+
+                    crm_service.update_company_adoption_rate(company_name=company.name, adoption_rate=adoption_rate)
+
+                batch_processing_time = time.time() - batch_start_time
+                if batch_processing_time < 1.0:
+                    time.sleep(1.0 - batch_processing_time)
 
     except Exception as e:
-        print(f"Error calculating adoption rates for all companies: {e}")
+        print(f"Error calculating companies adoption rate: {e}")
 
 Companies = CompanyTable()

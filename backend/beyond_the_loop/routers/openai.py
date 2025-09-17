@@ -17,6 +17,8 @@ from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
+from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.services.crm_service import crm_service
 
 from beyond_the_loop.config import (
     CACHE_DIR,
@@ -315,6 +317,13 @@ async def generate_chat_completion(
                                     credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
 
                                     Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, full_response))
+
+                                    try:
+                                        crm_service.update_company_credit_consumption(company_name=Companies.get_company_by_id(user.company_id).name, credit_consumption=credit_cost, reset=False)
+                                        crm_service.update_user_credit_usage(user_email=user.email, credit_usage=credit_cost, reset=False)
+                                    except Exception as e:
+                                        log.error(f"Failed to update credit usage in CRM: {e}")
+
                         except json.JSONDecodeError:
                             print(f"\n{chunk_str}")
                     yield chunk
@@ -354,6 +363,12 @@ async def generate_chat_completion(
                 credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
 
                 Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, response_content))
+
+                try:
+                    crm_service.update_company_credit_consumption(company_name=Companies.get_company_by_id(user.company_id).name, credit_consumption=credit_cost, reset=False)
+                    crm_service.update_user_credit_usage(user_email=user.email, credit_usage=credit_cost, reset=False)
+                except Exception as e:
+                    log.error(f"Failed to update credit usage in CRM: {e}")
 
             return response
     except Exception as e:
