@@ -12,11 +12,15 @@ class CRMService:
         self.base_url = f"{os.getenv('ATTIO_API_BASE_URL')}"
         self.headers = {"Authorization": f"Bearer {os.getenv('ATTIO_API_KEY')}", "Content-Type": "application/json"}
         self.timeout = 5
+        self.execute = os.getenv('ATTIO_SYNC_DATA', 'false').lower() == 'true'
 
         self._company_cache = TTLCache(maxsize=512, ttl=600)
         self._user_cache = TTLCache(maxsize=512, ttl=600)
 
     def get_company_by_company_name(self, company_name: str):
+        if not self.execute:
+            return None
+
         try:
             if company_name in self._company_cache:
                 return self._company_cache[company_name]
@@ -47,6 +51,9 @@ class CRMService:
             return None
 
     def create_company(self, company_name: str):
+        if not self.execute:
+            return
+
         try:
             if self.get_company_by_company_name(company_name):
                 log.warning(f"create_company skipped, company {company_name} already exists.")
@@ -78,6 +85,9 @@ class CRMService:
             return
 
     def update_company_plan(self, company_name: str, plan: str):
+        if not self.execute:
+            return
+
         try:
             company = self.get_company_by_company_name(company_name)
 
@@ -104,6 +114,9 @@ class CRMService:
             return
 
     def update_company_adoption_rate(self, company_name: str, adoption_rate: float):
+        if not self.execute:
+            return
+
         try:
             company = self.get_company_by_company_name(company_name)
 
@@ -130,6 +143,9 @@ class CRMService:
             return
 
     def update_company_credit_consumption(self, company_name: str, credit_consumption: float, reset: bool):
+        if not self.execute:
+            return
+
         try:
             company = self.get_company_by_company_name(company_name)
 
@@ -160,6 +176,9 @@ class CRMService:
             return
 
     def update_company_last_subscription_renewal_date(self, company_name: str, renewal_date: str):
+        if not self.execute:
+            return
+
         try:
             company = self.get_company_by_company_name(company_name)
 
@@ -183,8 +202,12 @@ class CRMService:
 
         except Exception as e:
             log.error(f"update_company_last_subscription_renewal_date exception for {company_name}: {e}")
+            return
 
     def get_user_by_email(self, user_email: str):
+        if not self.execute:
+            return None
+
         try:
             if user_email in self._user_cache:
                 return self._user_cache[user_email]
@@ -215,6 +238,9 @@ class CRMService:
             return None
 
     def create_user(self, company_name: str, user_email: str, user_firstname: str, user_lastname: str, access_level: str):
+        if not self.execute:
+            return
+
         try:
             if self.get_user_by_email(user_email):
                 return
@@ -247,8 +273,12 @@ class CRMService:
 
         except Exception as e:
             log.error(f"create_user exception for {user_email}: {e}")
+            return
 
     def update_user_access_level(self, user_email: str, access_level: str):
+        if not self.execute:
+            return
+
         try:
             user = self.get_user_by_email(user_email)
 
@@ -272,8 +302,12 @@ class CRMService:
 
         except Exception as e:
             log.error(f"update_user_access_level exception for {user_email}: {e}")
+            return
 
     def update_user_credit_usage(self, user_email: str, credit_usage: float, reset: bool):
+        if not self.execute:
+            return
+
         try:
             user = self.get_user_by_email(user_email)
 
@@ -301,6 +335,7 @@ class CRMService:
 
         except Exception as e:
             log.error(f"update_user_credit_usage exception for {user_email}: {e}")
+            return
 
 
 crm_service = CRMService()
