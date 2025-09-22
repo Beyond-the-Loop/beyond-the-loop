@@ -308,8 +308,14 @@ async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
 @router.post("/update/role", response_model=Optional[UserModel])
 async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin_user)):
     if user.id != form_data.id and form_data.id != Users.get_first_user().id:
+        user_obj = Users.get_user_by_id(form_data.id)
+        if user_obj is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found.",
+            )
         try:
-            crm_service.update_user_access_level(user_email=Users.get_user_by_id(form_data.id).email, access_level=form_data.role)
+            crm_service.update_user_access_level(user_email=user_obj.email, access_level=form_data.role)
         except Exception as e:
             log.error(f"Failed to update user access level in CRM: {e}")
 
