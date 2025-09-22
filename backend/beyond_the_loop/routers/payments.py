@@ -310,7 +310,7 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         print(f"Webhook processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def _update_company_credits_from_subscription(event_data, action_description="processing", is_invoice=False):
+def _update_company_credits_from_subscription(event_data, action_description, is_invoice=False):
     """
     Helper function to update company credits based on subscription data.
     
@@ -378,8 +378,33 @@ def _update_company_credits_from_subscription(event_data, action_description="pr
             print(f"No plan found for price ID: {price_id}")
             return None, None, None
             
-        # Get the credits per month for this plan
-        credits_per_month = SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+        # Check for custom credit amount in subscription metadata
+        subscription_metadata = {}
+        if is_invoice:
+            # For invoice events, get metadata from the subscription
+            try:
+                subscription = stripe.Subscription.retrieve(subscription_id)
+                subscription_metadata = subscription.get('metadata', {})
+            except Exception as e:
+                print(f"Error retrieving subscription metadata for {subscription_id}: {e}")
+                subscription_metadata = {}
+        else:
+            # For subscription events, get metadata directly from event data
+            subscription_metadata = event_data.get('metadata', {})
+        
+        # Check if custom_credit_amount is specified in metadata
+        custom_credit_amount = subscription_metadata.get('custom_credit_amount')
+        
+        if custom_credit_amount:
+            try:
+                credits_per_month = int(custom_credit_amount)
+                print(f"Using custom credit amount from metadata: {credits_per_month}")
+            except (ValueError, TypeError):
+                print(f"Invalid custom_credit_amount in metadata: {custom_credit_amount}, falling back to plan default")
+                credits_per_month = SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+        else:
+            # Get the credits per month for this plan
+            credits_per_month = SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
         
         # Add the credits to the company's balance
         if credits_per_month > 0:
@@ -390,7 +415,8 @@ def _update_company_credits_from_subscription(event_data, action_description="pr
                 "budget_mail_100_sent": False
             })
             
-            print(f"{action_description.capitalize()} {credits_per_month} credits to company {company.id} for subscription {subscription_id}")
+            credit_source = "custom metadata" if custom_credit_amount else "plan default"
+            print(f"{action_description.capitalize()} {credits_per_month} credits to company {company.id} for subscription {subscription_id} (source: {credit_source})")
         
         return company, credits_per_month, plan_id
         
