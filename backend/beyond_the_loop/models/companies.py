@@ -375,7 +375,7 @@ def crm_sync_companies_adoption_rate():
                 for company in batch:
                     total_users = len(get_users_by_company(company.id))
                     active_users = len(get_active_users_by_company(company.id, thirty_days_ago))
-                    adoption_rate = (active_users / total_users * 100) if total_users > 0 else 0
+                    adoption_rate = round((active_users / total_users * 100), 2) if total_users > 0 else 0
 
                     crm_service.update_company_adoption_rate(company_name=company.name, adoption_rate=adoption_rate)
 
