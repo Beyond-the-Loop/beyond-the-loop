@@ -74,11 +74,12 @@ def upgrade() -> None:
     for company in companies:
         company_id = company[0]
         company_name = company[1]
-        created_at = connection.execute(
+        created_at_row = connection.execute(
             sqlalchemy.text("SELECT created_at FROM user WHERE company_id = :company_id ORDER BY created_at ASC LIMIT 1"),
             {"company_id": company_id}
-        ).fetchone()[0]
-        
+        ).fetchone()
+        created_at = int(time.time()) if created_at_row is None else created_at_row[0]
+
         print(f"Syncing data for company: {company_name} with ID: {company_id} and created at {created_at}")
 
         company_attio = None
