@@ -253,7 +253,7 @@ class CRMService:
                     f"{self.base_url}/objects/people/records",
                     headers=self.headers,
                     json={"data": {"values": {
-                        "access_level": access_level,
+                        "access_level": access_level.capitalize(),
                         "company": [{"target_object": "companies", "target_record_id": company_id}],
                         "credit_usage": [{"value": 0.0}],
                         "email_addresses": [user_email],

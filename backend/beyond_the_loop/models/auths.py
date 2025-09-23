@@ -129,20 +129,21 @@ class AuthsTable:
                 id, first_name, last_name, email, company_id, profile_image_url, role, oauth_sub
             )
 
-            try:
-                crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
-            except Exception as e:
-                log.error(f"Failed to create user in CRM: {e}")
-
             db.commit()
             db.refresh(result)
+
+            try:
+                if company_id != "NEW":
+                    crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
+            except Exception as e:
+                log.error(f"Failed to create user in CRM: {e}")
 
             if result and user:
                 return user
             else:
                 return None
 
-    def insert_auth_for_existing_user(self, user_id: str, email: str, password: str):
+    def insert_auth_for_existing_user(self, user_id: str, email: str, password: str, company_id: str, first_name: str, last_name: str, role: str):
         with get_db() as db:
             auth = AuthModel(
                 **{"id": user_id, "email": email, "password": password, "active": True}
@@ -151,6 +152,12 @@ class AuthsTable:
             db.add(result)
             db.commit()
             db.refresh(result)
+
+            try:
+                if company_id != "NEW":
+                    crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=email, user_firstname=first_name, user_lastname=last_name, access_level=role)
+            except Exception as e:
+                log.error(f"Failed to create user in CRM: {e}")
 
             if result:
                 return True

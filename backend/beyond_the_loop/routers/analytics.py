@@ -3,11 +3,12 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends
 from fastapi.params import Query
 
-from beyond_the_loop.models.users import get_users_by_company, get_active_users_by_company
+from beyond_the_loop.models.users import get_users_by_company
 from open_webui.internal.db import get_db
 from beyond_the_loop.models.completions import Completion
 from beyond_the_loop.models.users import User
 from beyond_the_loop.models.models import Model
+from beyond_the_loop.services.analytics import analytics_service
 
 from sqlalchemy import func
 
@@ -233,73 +234,7 @@ async def get_total_billing(
     filtered by the user's company.
     """
     try:
-        current_date = datetime.now()
-        one_year_ago = current_date.replace(day=1) - timedelta(days=365)
-
-        # Parse start_date
-        if start_date:
-            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        else:
-            start_date_dt = one_year_ago  # Default to one year ago
-
-        # Parse end_date
-        if end_date:
-            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
-        else:
-            end_date_dt = current_date  # Default to current date
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
-
-        if start_date_dt > end_date_dt:
-            raise HTTPException(status_code=400, detail="Start date must be before end date.")
-
-        with get_db() as db:
-            query = db.query(
-                func.strftime('%Y-%m', func.datetime(Completion.created_at, 'unixepoch')).label("month"),
-                func.sum(Completion.credits_used).label("total_billing")
-            ).filter(
-                func.datetime(Completion.created_at, 'unixepoch') >= start_date_dt.strftime('%Y-%m-%d 00:00:00'),
-                func.datetime(Completion.created_at, 'unixepoch') <= end_date_dt.strftime('%Y-%m-%d %H:%M:%S')
-            )
-
-            query = query.filter(Completion.user_id == user.id)
-
-            # Execute the query and fetch results
-            results = query.group_by("month").order_by("month").all()
-
-            # Convert results to a dictionary
-            monthly_billing = {row[0]: float(row[1]) for row in results}
-
-        # Generate all months within the specified range
-        months = []
-        current_month = start_date_dt.replace(day=1)
-        end_month = end_date_dt.replace(day=1)
-
-        while current_month <= end_month:
-            months.append(current_month.strftime('%Y-%m'))
-            # Move to the first day of next month
-            if current_month.month == 12:
-                current_month = current_month.replace(year=current_month.year + 1, month=1)
-            else:
-                current_month = current_month.replace(month=current_month.month + 1)
-
-        billing_data = {month: monthly_billing.get(month, 0) for month in months}
-
-        # Calculate percentage changes month-over-month
-        percentage_changes = {}
-        previous_value = None
-        for month, value in billing_data.items():
-            if previous_value is not None:
-                change = ((value - previous_value) / previous_value) * 100 if previous_value != 0 else None
-                percentage_changes[month] = round(change, 2) if change is not None else "N/A"
-            else:
-                percentage_changes[month] = "N/A"
-            previous_value = value
-
-        return {
-            "monthly_billing": billing_data,
-            "percentage_changes": percentage_changes
-        }
+        return analytics_service.calculate_user_credit_consumption(user=user, start_date=start_date, end_date=end_date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
@@ -571,29 +506,8 @@ async def get_total_users(user=Depends(get_verified_user)):
 
 @router.get("/stats/adoption-rate")
 async def get_adoption_rate(user=Depends(get_verified_user)):
-    """
-    Returns the adoption rate: percentage of users for the user's company 
-    that logged in in the last 30 days.
-    """
     try:
-        # Calculate timestamp for 30 days ago
-        thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
-
-        with get_db() as db:
-            # Get total number of users in the company
-            total_users = len(get_users_by_company(user.company_id))
-
-            # Get number of active users in the last 30 days
-            active_users = len(get_active_users_by_company(user.company_id, thirty_days_ago))
-
-            # Calculate adoption rate as a percentage
-            adoption_rate = (active_users / total_users * 100) if total_users > 0 else 0
-
-        return {
-            "total_users": total_users,
-            "active_users": active_users,
-            "adoption_rate": round(adoption_rate, 2)  # Round to 2 decimal places
-        }
+        return analytics_service.calculate_adoption_rate(user=user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating adoption rate: {e}")
 
