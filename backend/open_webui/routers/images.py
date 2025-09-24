@@ -149,7 +149,7 @@ async def image_generations(
             # Make the initial request to start generation
             r = await asyncio.to_thread(
                 requests.post,
-                url="https://api.bfl.ai/v1/flux-kontext-max",
+                url="https://api.eu.bfl.ai/v1/flux-kontext-max",
                 json=data,
                 headers=headers,
             )
