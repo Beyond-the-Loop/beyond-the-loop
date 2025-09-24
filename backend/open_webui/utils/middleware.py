@@ -36,8 +36,7 @@ from beyond_the_loop.models.users import UserModel
 from open_webui.models.functions import Functions
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
-from open_webui.utils.chat import generate_chat_completion
-from beyond_the_loop.routers.openai import generate_chat_completion as generate_openai_chat_completion
+from beyond_the_loop.routers.openai import generate_chat_completion
 from beyond_the_loop.models.files import Files
 from open_webui.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
@@ -225,7 +224,7 @@ async def chat_completion_tools_handler(
     )
 
     try:
-        response = await generate_chat_completion(request, form_data=payload, user=user)
+        response = await generate_chat_completion(form_data=payload, user=user)
         log.debug(f"{response=}")
         content = await get_content_from_response(response)
         log.debug(f"{content=}")
@@ -514,7 +513,7 @@ async def chat_image_generation_handler(
             "temperature": 0.0
         }
 
-        response = await generate_openai_chat_completion(request, decision_form_data, user, None, True)
+        response = await generate_chat_completion(decision_form_data, user, None, True)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -682,7 +681,7 @@ async def chat_file_intent_decision_handler(
             "temperature": 0.0
         }
         
-        response = await generate_openai_chat_completion(decision_form_data, user, None, True)
+        response = await generate_chat_completion(decision_form_data, user, None, True)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -1854,7 +1853,6 @@ async def process_chat_response(
 
                     try:
                         res = await generate_chat_completion(
-                            request,
                             {
                                 "model": model_id,
                                 "stream": True,
@@ -1967,7 +1965,6 @@ async def process_chat_response(
 
                         try:
                             res = await generate_chat_completion(
-                                request,
                                 {
                                     "model": model_id,
                                     "stream": True,

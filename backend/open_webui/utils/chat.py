@@ -15,8 +15,6 @@ from open_webui.models.functions import Functions
 
 from open_webui.utils.plugin import load_function_module_by_id
 
-from beyond_the_loop.routers.openai import generate_chat_completion
-
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
 
 

@@ -215,8 +215,9 @@ from open_webui.env import (
     OFFLINE_MODE,
 )
 
+from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
+
 from open_webui.utils.chat import (
-    generate_chat_completion as chat_completion_handler,
     chat_completed as chat_completed_handler,
     chat_action as chat_action_handler,
 )
