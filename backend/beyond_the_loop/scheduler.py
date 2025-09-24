@@ -84,7 +84,7 @@ class TaskScheduler:
             # Schedule daily company credit consumption calculation at 01:00
             self.scheduler.add_job(
                 func=self._trigger_update_company_credit_consumption_current_subscription,
-                trigger=CronTrigger(hour=1, minute=0),  # Daily at 01:00
+                trigger=CronTrigger(hour=2, minute=0),  # Daily at 01:00
                 id='daily_company_credit_consumption_calculation',
                 name='Daily Company Credit Consumption Calculation',
                 replace_existing=True
@@ -93,7 +93,7 @@ class TaskScheduler:
             # Schedule daily user credit consumption calculation at 01:00
             self.scheduler.add_job(
                 func=self._trigger_update_user_credit_consumption_current_subscription,
-                trigger=CronTrigger(hour=1, minute=0),  # Daily at 01:00
+                trigger=CronTrigger(hour=3, minute=0),  # Daily at 01:00
                 id='daily_user_credit_consumption_calculation',
                 name='Daily User Credit Consumption Calculation',
                 replace_existing=True

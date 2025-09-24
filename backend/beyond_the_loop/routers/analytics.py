@@ -1,16 +1,9 @@
-from datetime import datetime, timedelta
-
 from fastapi import HTTPException, Depends
 from fastapi.params import Query
 
 from beyond_the_loop.models.users import get_users_by_company
 from open_webui.internal.db import get_db
-from beyond_the_loop.models.completions import Completion
-from beyond_the_loop.models.users import User
 from beyond_the_loop.models.models import Model
-from beyond_the_loop.services.analytics_service import analytics_service
-
-from sqlalchemy import func
 
 from fastapi import APIRouter
 
@@ -18,6 +11,7 @@ import logging
 
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.utils.auth import get_verified_user
+from services.analytics_service import AnalyticsService
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -34,7 +28,7 @@ async def get_top_models(
     Returns the top 5 models based on usage for the user's company within the specified date range.
     """
     try:
-        return analytics_service.get_top_models_by_company(user.company_id, start_date, end_date)
+        return AnalyticsService.get_top_models_by_company(user.company_id, start_date, end_date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
@@ -52,7 +46,7 @@ async def get_top_users(
     for the user's company and within a specified date range.
     """
     try:
-        return analytics_service.get_top_users_by_company(user.company_id, start_date, end_date)
+        return AnalyticsService.get_top_users_by_company(user.company_id, start_date, end_date)
     except ValueError as ve:
         # Add more detailed error information
         log.error(f"ValueError in get_top_users: {ve}")
@@ -74,7 +68,7 @@ async def get_total_billing(
     filtered by the user's company.
     """
     try:
-        return analytics_service.calculate_credit_consumption_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
+        return AnalyticsService.calculate_credit_consumption_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
@@ -91,7 +85,7 @@ async def get_total_messages(
     filtered by the user's company.
     """
     try:
-        return analytics_service.get_total_messages_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
+        return AnalyticsService.get_total_messages_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
@@ -109,7 +103,7 @@ async def get_total_chats(
     filtered by the user's company.
     """
     try:
-        return analytics_service.get_total_chats_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
+        return AnalyticsService.get_total_chats_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
@@ -127,7 +121,7 @@ async def get_saved_time_in_seconds(
     filtered by the user's completions.
     """
     try:
-        return analytics_service.get_saved_time_in_seconds_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
+        return AnalyticsService.get_saved_time_in_seconds_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
@@ -148,7 +142,7 @@ async def get_total_users(user=Depends(get_verified_user)):
 @router.get("/stats/adoption-rate")
 async def get_adoption_rate(user=Depends(get_verified_user)):
     try:
-        return analytics_service.calculate_adoption_rate_by_company(user.company_id)
+        return AnalyticsService.calculate_adoption_rate_by_company(user.company_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating adoption rate: {e}")
 
@@ -160,7 +154,7 @@ async def get_power_users(user=Depends(get_verified_user)):
     in the last 30 days.
     """
     try:
-        return analytics_service.get_power_users_by_company(user.company_id)
+        return AnalyticsService.get_power_users_by_company(user.company_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching power users: {e}")
 
