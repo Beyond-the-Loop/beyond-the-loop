@@ -8,7 +8,7 @@ import logging
 import re
 
 from beyond_the_loop.models.models import Models
-from open_webui.utils.chat import generate_chat_completion
+from beyond_the_loop.routers.openai import generate_chat_completion
 from open_webui.utils.task import (
     title_generation_template,
     query_generation_template,
@@ -216,7 +216,7 @@ async def generate_chat_tags(
     }
 
     try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error(f"Error generating chat completion: {e}")
         return JSONResponse(
@@ -375,7 +375,7 @@ async def generate_autocompletion(
     }
 
     try:
-        return await generate_chat_completion(request, form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error(f"Error generating chat completion: {e}")
         return JSONResponse(
