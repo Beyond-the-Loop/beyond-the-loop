@@ -136,12 +136,6 @@ class CreditService:
 
         print(f" Model: {model_name}", f"Reasoning tokens: {reasoning_tokens}", f"Search query cost: {search_query_cost}", f"Credit cost: {credit_cost}", f"Cost per input token: {costs_per_input_token}", f"Cost per output token: {cost_per_output_token}", f"Total costs: {total_costs}", f"Input tokens: {input_tokens}", f"Output tokens: {output_tokens}")
 
-        try:
-            crm_service.update_company_credit_consumption(company_name=Companies.get_company_by_id(user.company_id).name, credit_consumption=credit_cost, reset=False)
-            crm_service.update_user_credit_usage(user_email=user.email, credit_usage=credit_cost, reset=False)
-        except Exception as e:
-            log.error(f"Failed to update credit usage in CRM: {e}")
-
         return await self.subtract_credits_by_user_and_credits(user, credit_cost)
 
     @staticmethod

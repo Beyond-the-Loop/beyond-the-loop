@@ -422,11 +422,6 @@ def _update_company_credits_from_subscription(event_data, action_description, is
         try:
             crm_service.update_company_plan(company_name=company.name, plan=plan_id.replace("_", " ").title())
             crm_service.update_company_last_subscription_renewal_date(company_name=company.name, renewal_date=strftime('%Y-%m-%d'))
-            crm_service.update_company_credit_consumption(company_name=company.name, credit_consumption=0.0, reset=True)
-
-            company_users = Users.get_users_by_company_id(company_id=company.id)
-            for user in company_users:
-                crm_service.update_user_credit_usage(user_email=user.email, credit_usage=0.0, reset=True)
         except Exception as e:
             print(f"Failed to update CRM for company {company.name}: {e}")
 

@@ -142,7 +142,7 @@ class CRMService:
             log.error(f"update_company_adoption_rate exception for {company_name}: {e}")
             return
 
-    def update_company_credit_consumption(self, company_name: str, credit_consumption: float, reset: bool):
+    def update_company_credit_consumption(self, company_name: str, credit_consumption: float):
         if not self.execute:
             return
 
@@ -151,10 +151,7 @@ class CRMService:
 
             if company:
                 record_id = company["id"]["record_id"]
-                credits_used = (
-                    0 if reset
-                    else company["values"]["credit_consumption"][0]["value"] + credit_consumption
-                )
+                credits_used = credit_consumption
                 response = requests.patch(
                     f"{self.base_url}/objects/companies/records/{record_id}",
                     headers=self.headers,
