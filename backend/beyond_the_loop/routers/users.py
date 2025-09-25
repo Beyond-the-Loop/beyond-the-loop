@@ -308,7 +308,7 @@ async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
 @router.post("/update/role", response_model=Optional[UserModel])
 async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin_user)):
     # Prevent updating the first user (super admin) - they should be protected
-    if user.id != form_data.id:
+    if user.id == form_data.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="An admin can't update his own role.",
