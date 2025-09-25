@@ -692,5 +692,3 @@ class AnalyticsService:
             log.error(f"Error calculating current subscription credit consumption for user {user_id}: {e}")
             return {"monthly_billing": {}, "percentage_changes": {}}
 
-
-analytics_service = AnalyticsService()
