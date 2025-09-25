@@ -66,7 +66,7 @@ class CRMService:
                     "adoption_rate": [{"value": 0.0}],
                     "credit_consumption": [{"value": 0.0}],
                     "name": [{"value": company_name}],
-                    "plan": "Starter",
+                    "plan": "Starter Monthly",
                     "sign_up_date": [{"value": strftime("%Y-%m-%d")}],
                 }}},
                 timeout=self.timeout,
