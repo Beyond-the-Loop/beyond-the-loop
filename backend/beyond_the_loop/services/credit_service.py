@@ -1,16 +1,25 @@
+import logging
+import math
+
 import stripe
 from typing import Optional
 from fastapi import HTTPException
 
+from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.models.model_costs import ModelCosts
+from beyond_the_loop.services.crm_service import crm_service
 
 from beyond_the_loop.routers.payments import get_subscription
 
 PROFIT_MARGIN_FACTOR = 1.15
 EUR_PER_DOLLAR = 0.9
+
+log = logging.getLogger(__name__)
+log.setLevel(SRC_LOG_LEVELS["MAIN"])
+
 
 class CreditService:
     def __init__(self):

@@ -17,6 +17,8 @@ from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
+from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.services.crm_service import crm_service
 
 from beyond_the_loop.config import (
     CACHE_DIR,
@@ -315,6 +317,7 @@ async def generate_chat_completion(
                                     credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
 
                                     Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, full_response))
+
                         except json.JSONDecodeError:
                             print(f"\n{chunk_str}")
                     yield chunk
