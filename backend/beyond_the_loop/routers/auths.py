@@ -438,9 +438,9 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 
         hashed_password = get_password_hash(form_data.password)
 
-        Auths.insert_auth_for_existing_user(user.id, user.email, hashed_password)
-
         user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url)
+
+        Auths.insert_auth_for_existing_user(user_id=user.id, email=user.email, password=hashed_password, company_id=user.company_id, first_name=user.first_name, last_name=user.last_name, role=user.role)
 
     except Exception as err:
         raise HTTPException(500, detail=ERROR_MESSAGES.DEFAULT(err))

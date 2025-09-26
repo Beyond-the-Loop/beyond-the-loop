@@ -151,6 +151,15 @@ class UserRevokeInviteForm(BaseModel):
 
 
 class UsersTable:
+    def get_all(self) -> list[UserModel]:
+        try:
+            with get_db() as db:
+                users = db.query(User).all()
+                return [UserModel.model_validate(user) for user in users]
+        except Exception as e:
+            print(f"Error getting all users: {e}")
+            return []
+
     def insert_new_user(
         self,
         id: str,
