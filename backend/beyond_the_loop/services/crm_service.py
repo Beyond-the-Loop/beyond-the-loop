@@ -151,11 +151,10 @@ class CRMService:
 
             if company:
                 record_id = company["id"]["record_id"]
-                credits_used = credit_consumption
                 response = requests.patch(
                     f"{self.base_url}/objects/companies/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"credit_consumption": credits_used}}},
+                    json={"data": {"values": {"credit_consumption": credit_consumption}}},
                     timeout=self.timeout,
                 )
                 
@@ -184,10 +183,13 @@ class CRMService:
                 response = requests.patch(
                     f"{self.base_url}/objects/companies/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"last_subscription_renewal_date": renewal_date}}},
+                    json={"data": {"values": {
+                        "credit_consumption": 0,
+                        "last_subscription_renewal_date": renewal_date,
+                    }}},
                     timeout=self.timeout,
                 )
-                
+
                 if response.status_code == 200:
                     company = response.json().get("data", None)
                     self._company_cache[company_name] = company
@@ -301,7 +303,7 @@ class CRMService:
             log.error(f"update_user_access_level exception for {user_email}: {e}")
             return
 
-    def update_user_credit_usage(self, user_email: str, credit_usage: float, reset: bool):
+    def update_user_credit_usage(self, user_email: str, credit_usage: float):
         if not self.execute:
             return
 
@@ -310,14 +312,10 @@ class CRMService:
 
             if user:
                 record_id = user["id"]["record_id"]
-                credits_used = (
-                    0 if reset
-                    else user["values"]["credit_usage"][0]["value"] + credit_usage
-                )
                 response = requests.patch(
                     f"{self.base_url}/objects/people/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"credit_usage": credits_used}}},
+                    json={"data": {"values": {"credit_usage": credit_usage}}},
                     timeout=self.timeout,
                 )
 

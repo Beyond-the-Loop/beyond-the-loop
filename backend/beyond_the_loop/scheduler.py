@@ -81,19 +81,19 @@ class TaskScheduler:
                 replace_existing=True
             )
 
-            # Schedule daily company credit consumption calculation at 01:00
+            # Schedule daily company credit consumption calculation at 01:30
             self.scheduler.add_job(
                 func=self._trigger_update_company_credit_consumption_current_subscription,
-                trigger=CronTrigger(hour=2, minute=0),  # Daily at 01:00
+                trigger=CronTrigger(hour=1, minute=30),  # Daily at 01:30
                 id='daily_company_credit_consumption_calculation',
                 name='Daily Company Credit Consumption Calculation',
                 replace_existing=True
             )
 
-            # Schedule daily user credit consumption calculation at 01:00
+            # Schedule daily user credit consumption calculation at 02:00
             self.scheduler.add_job(
                 func=self._trigger_update_user_credit_consumption_current_subscription,
-                trigger=CronTrigger(hour=3, minute=0),  # Daily at 01:00
+                trigger=CronTrigger(hour=2, minute=0),  # Daily at 02:00
                 id='daily_user_credit_consumption_calculation',
                 name='Daily User Credit Consumption Calculation',
                 replace_existing=True
@@ -160,8 +160,8 @@ class TaskScheduler:
             log.error(f"Error during scheduled file cleanup: {e}", exc_info=True)
 
     def _trigger_update_companies_adoption_rate(self) -> dict:
-        """Manually trigger the companies adoption rate calculation process (for testing/admin purposes)"""
-        log.info("Manually triggering companies adoption rate calculation process")
+        """Execute the daily companies adoption rate calculation process"""
+        log.info("Starting companies adoption rate calculation process")
 
         try:
             companies = Companies.get_all()
@@ -181,18 +181,12 @@ class TaskScheduler:
                 if batch_processing_time < 1.0:
                     time.sleep(1.0 - batch_processing_time)
 
-            log.info(f"Manual companies adoption rate calculation completed")
-            return {"success": True}
         except Exception as e:
-            log.error(f"Error during manual companies adoption rate calculation: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            log.error(f"Error during companies adoption rate calculation: {e}", exc_info=True)
 
     def _trigger_update_company_credit_consumption_current_subscription(self) -> dict:
-        """Manually trigger the update company credit consumption process"""
-        log.info("Manually triggering update company credit consumption process")
+        """Execute the daily company credit consumption calculation process"""
+        log.info("Starting company credit consumption calculation process")
 
         try:
             companies = Companies.get_all()
@@ -212,18 +206,12 @@ class TaskScheduler:
                 if batch_processing_time < 1.0:
                     time.sleep(1.0 - batch_processing_time)
 
-            log.info(f"Manual companies credit consumption calculation completed")
-            return {"success": True}
         except Exception as e:
-            log.error(f"Error during manual update company credit consumption: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            log.error(f"Error during update company credit consumption: {e}", exc_info=True)
 
     def _trigger_update_user_credit_consumption_current_subscription(self) -> dict:
-        """Manually trigger the update user credit consumption process"""
-        log.info("Manually triggering update user credit consumption process")
+        """Execute the daily user credit consumption calculation process"""
+        log.info("Starting user credit consumption calculation process")
 
         try:
             users = Users.get_all()
@@ -236,21 +224,15 @@ class TaskScheduler:
                 batch = users[i:i + batch_size]
 
                 for user in batch:
-                    credit_consumption = AnalyticsService.calculate_credit_consumption_current_subscription_by_user(user.id, user.company_id).get("monthly_billing", 0)
-                    crm_service.update_user_credit_usage(user_email=user.email, credit_consumption=credit_consumption)
+                    credit_usage = AnalyticsService.calculate_credit_consumption_current_subscription_by_user(user).get("monthly_billing", 0)
+                    crm_service.update_user_credit_usage(user_email=user.email, credit_usage=credit_usage)
 
                 batch_processing_time = time.time() - batch_start_time
                 if batch_processing_time < 1.0:
                     time.sleep(1.0 - batch_processing_time)
 
-            log.info(f"Manual user credit consumption calculation completed")
-            return {"success": True}
         except Exception as e:
-            log.error(f"Error during manual update company credit consumption: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            log.error(f"Error during user credit consumption calculation: {e}", exc_info=True)
 
     def get_scheduler_status(self) -> dict:
         """Get current scheduler status and job information"""

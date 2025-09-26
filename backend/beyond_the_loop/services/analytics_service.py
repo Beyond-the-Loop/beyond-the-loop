@@ -639,56 +639,43 @@ class AnalyticsService:
         start_date_str, end_date_str = AnalyticsService._get_current_subscription_date_range(company_id)
         
         if not start_date_str or not end_date_str:
-            return {"monthly_billing": {}, "percentage_changes": {}}
+            return {"monthly_billing": 0, "percentage_changes": 0}
         
         log.info(f"Calculating credit consumption for company {company_id} from {start_date_str} to {end_date_str} (current billing period)")
         
         # Call the existing method with the calculated date range
-        return AnalyticsService.calculate_credit_consumption_by_company(
+        credit_consumption_data = AnalyticsService.calculate_credit_consumption_by_company(
             company_id=company_id, 
             start_date=start_date_str, 
             end_date=end_date_str
         )
+        return {"monthly_billing": sum(credit_consumption_data.get("monthly_billing", {}).values()), "percentage_changes": 0},
 
     @staticmethod
-    def calculate_credit_consumption_current_subscription_by_user(user_id: str, company_id: str):
+    def calculate_credit_consumption_current_subscription_by_user(user: User):
         """
         Calculate credit consumption for the current subscription billing period for a specific user.
         Gets the user's company subscription from Stripe, uses the current billing period start
         as the start date and today as the end date, then calls calculate_credit_consumption_by_user.
-        
+
         Args:
-            user_id (str): The user ID to calculate credit consumption for
-            company_id (str): The company ID to calculate the subscription timespan for
-            
+            user (User): The user object to calculate credit consumption for
+
         Returns:
             dict: Credit consumption data for the current billing period
         """
-        try:
-            # Get the user to retrieve their company_id
-            with get_db() as db:
-                user = db.query(User).filter(User.id == user_id).first()
-                
-            if not user:
-                log.error(f"User {user_id} not found")
-                return {"monthly_billing": {}, "percentage_changes": {}}
-            
-            # Get the subscription date range using the user's company
-            start_date_str, end_date_str = AnalyticsService._get_current_subscription_date_range(company_id)
-            
-            if not start_date_str or not end_date_str:
-                return {"monthly_billing": {}, "percentage_changes": {}}
-            
-            log.info(f"Calculating credit consumption for user {user_id} from {start_date_str} to {end_date_str} (current billing period)")
-            
-            # Call the existing method with the calculated date range
-            return AnalyticsService.calculate_credit_consumption_by_user(
-                user_id=user_id, 
-                start_date=start_date_str, 
-                end_date=end_date_str
-            )
-            
-        except Exception as e:
-            log.error(f"Error calculating current subscription credit consumption for user {user_id}: {e}")
-            return {"monthly_billing": {}, "percentage_changes": {}}
+        # Get the user to retrieve their company_id
+        start_date_str, end_date_str = AnalyticsService._get_current_subscription_date_range(user.company_id)
 
+        if not start_date_str or not end_date_str:
+            return {"monthly_billing": 0, "percentage_changes": 0}
+
+        log.info(f"Calculating credit consumption for user {user.id} from {start_date_str} to {end_date_str} (current billing period)")
+
+        # Call the existing method with the calculated date range
+        credit_consumption_data = AnalyticsService.calculate_credit_consumption_by_user(
+            user_id=user.id,
+            start_date=start_date_str,
+            end_date=end_date_str
+        )
+        return {"monthly_billing": sum(credit_consumption_data.get("monthly_billing", {}).values()), "percentage_changes": 0}
