@@ -244,7 +244,7 @@
 					</DropdownMenu.Item>
 				</DropdownMenu.SubContent>
 			</DropdownMenu.Sub>
-			<DropdownMenu.Item
+			<!-- <DropdownMenu.Item
 				class="font-medium flex  gap-2  items-center px-2 py-1.5 text-sm text-lightGray-100 dark:text-customGray-100  cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white rounded-md"
 				on:click={() => {
 					deleteHandler();
@@ -252,7 +252,7 @@
 			>
 				<DeleteIcon/>
 				<div class="flex items-center">{$i18n.t('Delete')}</div>
-			</DropdownMenu.Item>
+			</DropdownMenu.Item> -->
 
 			<!-- <hr class="border-gray-50 dark:border-gray-850 my-0.5" /> -->
 
