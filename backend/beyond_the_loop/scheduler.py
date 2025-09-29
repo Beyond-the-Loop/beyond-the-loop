@@ -199,7 +199,7 @@ class TaskScheduler:
                 batch = companies[i:i + batch_size]
 
                 for company in batch:
-                    credit_consumption = AnalyticsService.calculate_credit_consumption_current_subscription_by_company(company.id).get("monthly_billing", 0)
+                    credit_consumption = AnalyticsService.calculate_credit_consumption_current_subscription_by_company(company).get("monthly_billing", 0)
                     crm_service.update_company_credit_consumption(company_name=company.name, credit_consumption=credit_consumption)
 
                 batch_processing_time = time.time() - batch_start_time

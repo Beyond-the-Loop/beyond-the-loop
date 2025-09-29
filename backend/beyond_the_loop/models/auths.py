@@ -133,7 +133,7 @@ class AuthsTable:
             db.refresh(result)
 
             try:
-                if company_id != "NEW":
+                if company_id not in ["NEW", "NO_COMPANY"]:
                     crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
             except Exception as e:
                 log.error(f"Failed to create user in CRM: {e}")

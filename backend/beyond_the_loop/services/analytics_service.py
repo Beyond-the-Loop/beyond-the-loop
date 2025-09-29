@@ -12,7 +12,7 @@ from beyond_the_loop.models.users import (
     get_users_by_company,
     get_active_users_by_company,
 )
-from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.models.companies import Companies, Company
 from sqlalchemy import func
 
 log = logging.getLogger(__name__)
@@ -623,7 +623,7 @@ class AnalyticsService:
         return percentage_changes
 
     @staticmethod
-    def calculate_credit_consumption_current_subscription_by_company(company_id: str):
+    def calculate_credit_consumption_current_subscription_by_company(company: Company):
         """
         Calculate credit consumption for the current subscription billing period.
         Gets the current subscription from Stripe, uses the current billing period start
@@ -636,20 +636,20 @@ class AnalyticsService:
             dict: Credit consumption data for the current billing period
         """
         # Get the subscription date range
-        start_date_str, end_date_str = AnalyticsService._get_current_subscription_date_range(company_id)
+        start_date_str, end_date_str = AnalyticsService._get_current_subscription_date_range(company.id)
         
         if not start_date_str or not end_date_str:
             return {"monthly_billing": 0, "percentage_changes": 0}
-        
-        log.info(f"Calculating credit consumption for company {company_id} from {start_date_str} to {end_date_str} (current billing period)")
+
+        log.info(f"Calculating credit consumption for company {company.id} from {start_date_str} to {end_date_str} (current billing period)")
         
         # Call the existing method with the calculated date range
         credit_consumption_data = AnalyticsService.calculate_credit_consumption_by_company(
-            company_id=company_id, 
+            company_id=company.id,
             start_date=start_date_str, 
             end_date=end_date_str
         )
-        return {"monthly_billing": sum(credit_consumption_data.get("monthly_billing", {}).values()), "percentage_changes": 0},
+        return {"monthly_billing": sum(credit_consumption_data.get("monthly_billing", {}).values()), "percentage_changes": 0}
 
     @staticmethod
     def calculate_credit_consumption_current_subscription_by_user(user: User):
