@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 import json
+import time
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 
@@ -7,6 +9,8 @@ from sqlalchemy import String, Column, Text, Boolean, Float
 
 from open_webui.internal.db import get_db, Base
 from enum import Enum
+from beyond_the_loop.models.users import get_active_users_by_company, get_users_by_company
+from beyond_the_loop.services.crm_service import crm_service
 
 # Constants
 NO_COMPANY = "NO_COMPANY"
@@ -124,6 +128,15 @@ class CompanyResponse(BaseModel):
 
 
 class CompanyTable:
+    def get_all(self):
+        try:
+            with get_db() as db:
+                companies = db.query(Company).all()
+                return [CompanyModel.model_validate(company) for company in companies]
+        except Exception as e:
+            print(f"Error getting companies: {e}")
+            return None
+
     def get_company_by_id(self, company_id: str):
         try:
             with get_db() as db:

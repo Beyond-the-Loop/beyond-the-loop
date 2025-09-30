@@ -4,10 +4,12 @@ from typing import Optional
 
 from open_webui.internal.db import Base, get_db
 from beyond_the_loop.models.users import UserModel, Users
+from beyond_the_loop.models.companies import Companies
 from open_webui.env import SRC_LOG_LEVELS
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, String, Text
 from open_webui.utils.auth import verify_password
+from beyond_the_loop.services.crm_service import crm_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -130,12 +132,18 @@ class AuthsTable:
             db.commit()
             db.refresh(result)
 
+            try:
+                if company_id not in ["NEW", "NO_COMPANY"]:
+                    crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
+            except Exception as e:
+                log.error(f"Failed to create user in CRM: {e}")
+
             if result and user:
                 return user
             else:
                 return None
 
-    def insert_auth_for_existing_user(self, user_id: str, email: str, password: str):
+    def insert_auth_for_existing_user(self, user_id: str, email: str, password: str, company_id: str, first_name: str, last_name: str, role: str):
         with get_db() as db:
             auth = AuthModel(
                 **{"id": user_id, "email": email, "password": password, "active": True}
@@ -144,6 +152,12 @@ class AuthsTable:
             db.add(result)
             db.commit()
             db.refresh(result)
+
+            try:
+                if company_id != "NEW":
+                    crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=email, user_firstname=first_name, user_lastname=last_name, access_level=role)
+            except Exception as e:
+                log.error(f"Failed to create user in CRM: {e}")
 
             if result:
                 return True

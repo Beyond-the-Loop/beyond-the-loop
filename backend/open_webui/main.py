@@ -32,6 +32,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
+from beyond_the_loop.routers import users
 from open_webui.middleware.company_config import CompanyConfigMiddleware
 from open_webui.socket.main import (
     app as socket_app,
@@ -52,7 +53,6 @@ from open_webui.routers import (
     knowledge,
     evaluations,
     tools,
-    users,
     utils,
 )
 from beyond_the_loop.routers import models

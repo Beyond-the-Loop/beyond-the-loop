@@ -7,8 +7,8 @@ Uses APScheduler to run tasks at specified times.
 
 import logging
 import atexit
-from datetime import datetime
 from typing import Optional
+import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -16,6 +16,10 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 
 from beyond_the_loop.services.chat_archival_service import chat_archival_service
 from beyond_the_loop.services.file_archival_service import file_archival_service
+from beyond_the_loop.services.crm_service import crm_service
+from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.models.users import Users
+from beyond_the_loop.services.analytics_service import AnalyticsService
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +71,34 @@ class TaskScheduler:
                 name='Daily File Cleanup Process',
                 replace_existing=True
             )
-            
+
+            # Schedule daily companies adoption rate calculation at 01:00
+            self.scheduler.add_job(
+                func=self._trigger_update_companies_adoption_rate,
+                trigger=CronTrigger(hour=1, minute=0),  # Daily at 01:00
+                id='daily_companies_adoption_rate_calculation',
+                name='Daily Companies Adoption Rate Calculation',
+                replace_existing=True
+            )
+
+            # Schedule daily company credit consumption calculation at 01:30
+            self.scheduler.add_job(
+                func=self._trigger_update_company_credit_consumption_current_subscription,
+                trigger=CronTrigger(hour=1, minute=30),  # Daily at 01:30
+                id='daily_company_credit_consumption_calculation',
+                name='Daily Company Credit Consumption Calculation',
+                replace_existing=True
+            )
+
+            # Schedule daily user credit consumption calculation at 02:00
+            self.scheduler.add_job(
+                func=self._trigger_update_user_credit_consumption_current_subscription,
+                trigger=CronTrigger(hour=2, minute=0),  # Daily at 02:00
+                id='daily_user_credit_consumption_calculation',
+                name='Daily User Credit Consumption Calculation',
+                replace_existing=True
+            )
+
             # Start the scheduler
             self.scheduler.start()
             self.is_running = True
@@ -127,7 +158,82 @@ class TaskScheduler:
                 
         except Exception as e:
             log.error(f"Error during scheduled file cleanup: {e}", exc_info=True)
-    
+
+    def _trigger_update_companies_adoption_rate(self) -> dict:
+        """Execute the daily companies adoption rate calculation process"""
+        log.info("Starting companies adoption rate calculation process")
+
+        try:
+            companies = Companies.get_all()
+
+            requests_per_second = 25
+            batch_size = requests_per_second
+
+            for i in range(0, len(companies), batch_size):
+                batch_start_time = time.time()
+                batch = companies[i:i + batch_size]
+
+                for company in batch:
+                    adoption_rate = AnalyticsService.calculate_adoption_rate_by_company(company.id).get("adoption_rate", 0)
+                    crm_service.update_company_adoption_rate(company_name=company.name, adoption_rate=adoption_rate)
+
+                batch_processing_time = time.time() - batch_start_time
+                if batch_processing_time < 1.0:
+                    time.sleep(1.0 - batch_processing_time)
+
+        except Exception as e:
+            log.error(f"Error during companies adoption rate calculation: {e}", exc_info=True)
+
+    def _trigger_update_company_credit_consumption_current_subscription(self) -> dict:
+        """Execute the daily company credit consumption calculation process"""
+        log.info("Starting company credit consumption calculation process")
+
+        try:
+            companies = Companies.get_all()
+
+            requests_per_second = 25
+            batch_size = requests_per_second
+
+            for i in range(0, len(companies), batch_size):
+                batch_start_time = time.time()
+                batch = companies[i:i + batch_size]
+
+                for company in batch:
+                    credit_consumption = AnalyticsService.calculate_credit_consumption_current_subscription_by_company(company).get("monthly_billing", 0)
+                    crm_service.update_company_credit_consumption(company_name=company.name, credit_consumption=credit_consumption)
+
+                batch_processing_time = time.time() - batch_start_time
+                if batch_processing_time < 1.0:
+                    time.sleep(1.0 - batch_processing_time)
+
+        except Exception as e:
+            log.error(f"Error during update company credit consumption: {e}", exc_info=True)
+
+    def _trigger_update_user_credit_consumption_current_subscription(self) -> dict:
+        """Execute the daily user credit consumption calculation process"""
+        log.info("Starting user credit consumption calculation process")
+
+        try:
+            users = Users.get_all()
+
+            requests_per_second = 25
+            batch_size = requests_per_second
+
+            for i in range(0, len(users), batch_size):
+                batch_start_time = time.time()
+                batch = users[i:i + batch_size]
+
+                for user in batch:
+                    credit_usage = AnalyticsService.calculate_credit_consumption_current_subscription_by_user(user).get("monthly_billing", 0)
+                    crm_service.update_user_credit_usage(user_email=user.email, credit_usage=credit_usage)
+
+                batch_processing_time = time.time() - batch_start_time
+                if batch_processing_time < 1.0:
+                    time.sleep(1.0 - batch_processing_time)
+
+        except Exception as e:
+            log.error(f"Error during user credit consumption calculation: {e}", exc_info=True)
+
     def get_scheduler_status(self) -> dict:
         """Get current scheduler status and job information"""
         if not self.scheduler:
@@ -151,7 +257,8 @@ class TaskScheduler:
             "jobs": jobs
         }
     
-    def trigger_chat_archival_now(self) -> dict:
+    @staticmethod
+    def trigger_chat_archival_now() -> dict:
         """Manually trigger the chat archival process (for testing/admin purposes)"""
         log.info("Manually triggering chat archival process")
         
@@ -166,7 +273,8 @@ class TaskScheduler:
                 "error": str(e)
             }
     
-    def trigger_file_cleanup_now(self) -> dict:
+    @staticmethod
+    def trigger_file_cleanup_now() -> dict:
         """Manually trigger the file cleanup process (for testing/admin purposes)"""
         log.info("Manually triggering file cleanup process")
         
@@ -180,7 +288,6 @@ class TaskScheduler:
                 "success": False,
                 "error": str(e)
             }
-
 
 # Global scheduler instance
 task_scheduler = TaskScheduler()
