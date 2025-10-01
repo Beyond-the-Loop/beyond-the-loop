@@ -131,6 +131,9 @@
 	const archiveChatHandler = async (id) => {
 		await archiveChatById(localStorage.token, id);
 		dispatch('change');
+		if(id === $chatId) {
+			dispatch('initNewChat');
+		}
 	};
 
 	const focusEdit = async (node: HTMLInputElement) => {

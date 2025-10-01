@@ -354,6 +354,18 @@
 		selectedChatId = null;
 	};
 
+	const initNewChat = async () => {
+		selectedChatId = null;
+		await goto('/');
+		const newChatButton = document.getElementById('new-chat-button');
+		setTimeout(() => {
+			newChatButton?.click();
+			if ($mobile) {
+				showSidebar.set(false);
+			}
+		}, 0);									
+	}
+
 	onMount(async () => {
 		showPinnedChat = localStorage?.showPinnedChat ? localStorage.showPinnedChat === 'true' : true;
 
@@ -855,6 +867,7 @@
 											const { type, name } = e.detail;
 											tagEventHandler(type, name, chat.id);
 										}}
+										on:initNewChat={initNewChat}
 									/>
 								{/each}
 							</div>
@@ -930,6 +943,7 @@
 										const { type, name } = e.detail;
 										tagEventHandler(type, name, chat.id);
 									}}
+									on:initNewChat={initNewChat}
 								/>
 							{/each}
 
