@@ -234,14 +234,14 @@
 						<div class="flex items-center line-clamp-1">{$i18n.t('Plain text (.txt)')}</div>
 					</DropdownMenu.Item>
 
-					<DropdownMenu.Item
+					<!-- <DropdownMenu.Item
 						class="font-medium flex gap-2 items-center px-2 py-2 text-sm text-lightGray-100 dark:text-customGray-100  cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white rounded-md"
 						on:click={() => {
 							downloadPdf();
 						}}
 					>
 						<div class="flex items-center line-clamp-1">{$i18n.t('PDF document (.pdf)')}</div>
-					</DropdownMenu.Item>
+					</DropdownMenu.Item> -->
 				</DropdownMenu.SubContent>
 			</DropdownMenu.Sub>
 			<!-- <DropdownMenu.Item
