@@ -53,7 +53,6 @@
 	import { showLibrary } from '$lib/stores';
 	import Intercom from "@intercom/messenger-js-sdk";
 	import { getIntercomToken } from '$lib/apis/auths';
-	import { PUBLIC_INTERCOM_APP_ID, PUBLIC_INTERCOM_APP_URL } from '$env/static/public';
 
 	page.subscribe(($page) => {
 		const path = $page.url.pathname;
@@ -269,8 +268,8 @@
 		});
 
 		Intercom({
-			api_base: PUBLIC_INTERCOM_APP_URL,
-			app_id: PUBLIC_INTERCOM_APP_ID,
+			api_base: "https://api-iam.intercom.io",
+			app_id: "uu5yw1jk",
 			intercom_user_jwt: res.token
 		});
 	})

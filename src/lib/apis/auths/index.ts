@@ -113,7 +113,7 @@ export const getSessionUser = async (token: string) => {
 export const getIntercomToken = async (token: string) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/intercom/token/`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/intercom/token`, {
 		method: 'GET',
 		headers: {
 			'Content-Type': 'application/json',
