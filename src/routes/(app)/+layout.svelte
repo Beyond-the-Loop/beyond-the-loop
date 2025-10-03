@@ -51,6 +51,8 @@
 	import { getCurrentSubscription } from '$lib/apis/payments';
 	import LibrarySidebar from '$lib/components/layout/Sidebar/LibrarySidebar.svelte';
 	import { showLibrary } from '$lib/stores';
+	import Intercom from "@intercom/messenger-js-sdk";
+	import { getIntercomToken } from '$lib/apis/auths';
 
 	page.subscribe(($page) => {
 		const path = $page.url.pathname;
@@ -256,6 +258,20 @@
 		if(sub){
 			subscription.set(sub);
 		}
+	})
+
+
+	onMount(async () => {
+		const res = await getIntercomToken(localStorage.token).catch((error) => {
+			toast.error(`${error}`);
+			return null;
+		});
+
+		Intercom({
+			api_base: "https://api-iam.intercom.io",
+			app_id: "uu5yw1jk",
+			intercom_user_jwt: res.token
+		});
 	})
 
 	
