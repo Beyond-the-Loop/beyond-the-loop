@@ -12,6 +12,7 @@
 	import SettingsIcon from '$lib/components/icons/SettingsIcon.svelte';
 	import SignOutIcon from '$lib/components/icons/SignOutIcon.svelte';
 	import CompanySettingsIcon from '$lib/components/icons/CompanySettingsIcon.svelte';
+	import { shutdown } from '@intercom/messenger-js-sdk';
 
 	const i18n = getContext('i18n');
 
@@ -168,6 +169,7 @@
 				class="font-medium flex rounded-md text-sm text-lightGray-100 dark:text-customGray-100 py-2 px-3 w-full hover:bg-lightGray-700 dark:hover:text-white dark:hover:bg-customGray-950 transition"
 				on:click={async () => {
 					await userSignOut();
+					shutdown();
 					localStorage.removeItem('token');
 					location.href = '/login';
 					show = false;
