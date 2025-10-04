@@ -63,6 +63,7 @@ from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import file_archival
+from beyond_the_loop.routers import intercom
 
 from open_webui.routers.retrieval import (
     get_embedding_function,
@@ -621,6 +622,7 @@ app.include_router(companies.router, prefix="/api/v1/companies", tags=["companie
 app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
 app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["chat-archival"])
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
+app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
 
 ##################################
 #
