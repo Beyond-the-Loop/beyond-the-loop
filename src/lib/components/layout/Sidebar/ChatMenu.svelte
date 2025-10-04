@@ -35,7 +35,8 @@
 	import CloneIcon from '$lib/components/icons/CloneIcon.svelte';
 	import PinChatIcon from '$lib/components/icons/PinChatIcon.svelte';
 	import UnpinChatIcon from '$lib/components/icons/UnpinChatIcon.svelte';
-
+	import { text } from '@sveltejs/kit';
+	import { remapCitations } from '$lib/utils';
 
 	const i18n = getContext('i18n');
 
@@ -63,11 +64,33 @@
 	const getChatAsText = async (chat) => {
 		const history = chat.chat.history;
 		const messages = createMessagesList(history, history.currentId);
-		const chatText = messages.reduce((a, message, i, arr) => {
-			return `${a}### ${message.role.toUpperCase()}\n${message.content}\n\n`;
+
+		const urlToGlobalIndex = new Map(); 
+		const globalSources = []; 
+
+		const chatText = messages.reduce((acc, message) => {
+			
+			const remappedContent = remapCitations(
+				message.content ?? '',
+				message.sources ?? message.source ?? [], 
+				urlToGlobalIndex,
+				globalSources
+			);
+
+			return `${acc}### ${String(message.role || 'user').toUpperCase()}\n${remappedContent}\n\n`;
 		}, '');
 
-		return chatText.trim();
+		
+		let sourcesBlock = '';
+		if (globalSources.length > 0) {
+			const lines = globalSources.map((s, i) => {
+				const n = i + 1;
+				return s.title && s.title !== s.url ? `[${n}] ${s.title} — ${s.url}` : `[${n}] ${s.url}`;
+			});
+			sourcesBlock = `---\nSources\n${lines.join('\n')}\n`;
+		}
+
+		return (chatText.trim() + (sourcesBlock ? '\n\n' + sourcesBlock : '')).trim();
 	};
 
 	const downloadTxt = async () => {
@@ -156,10 +179,10 @@
 				}}
 			>
 				{#if pinned}
-					<UnpinChatIcon/>
+					<UnpinChatIcon />
 					<div class="flex items-center">{$i18n.t('Unpin')}</div>
 				{:else}
-					<PinChatIcon/>
+					<PinChatIcon />
 					<div class="flex items-center">{$i18n.t('Pin')}</div>
 				{/if}
 			</DropdownMenu.Item>
@@ -170,7 +193,7 @@
 					renameHandler();
 				}}
 			>
-				<RenameIcon/>
+				<RenameIcon />
 				<div class="flex items-center">{$i18n.t('Rename')}</div>
 			</DropdownMenu.Item>
 
@@ -180,7 +203,7 @@
 					cloneChatHandler();
 				}}
 			>
-				<CloneIcon/>
+				<CloneIcon />
 				<div class="flex items-center">{$i18n.t('Clone')}</div>
 			</DropdownMenu.Item>
 
@@ -208,7 +231,7 @@
 				<DropdownMenu.SubTrigger
 					class="font-medium flex gap-2 items-center px-2 py-2 text-sm text-lightGray-100 dark:text-customGray-100  cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white rounded-md"
 				>
-					<ExportIcon/>
+					<ExportIcon />
 
 					<div class="flex items-center">{$i18n.t('Download')}</div>
 				</DropdownMenu.SubTrigger>
@@ -244,15 +267,15 @@
 					</DropdownMenu.Item>
 				</DropdownMenu.SubContent>
 			</DropdownMenu.Sub>
-			<DropdownMenu.Item
+			<!-- <DropdownMenu.Item
 				class="font-medium flex  gap-2  items-center px-2 py-1.5 text-sm text-lightGray-100 dark:text-customGray-100  cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white rounded-md"
 				on:click={() => {
 					deleteHandler();
 				}}
 			>
-				<DeleteIcon/>
+				<DeleteIcon />
 				<div class="flex items-center">{$i18n.t('Delete')}</div>
-			</DropdownMenu.Item>
+			</DropdownMenu.Item> -->
 
 			<!-- <hr class="border-gray-50 dark:border-gray-850 my-0.5" /> -->
 

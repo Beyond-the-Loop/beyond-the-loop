@@ -1334,3 +1334,57 @@ export const emojiToBase64 = (emoji) => {
 
 export const tagColorsLight = ['#D6F1D9', '#DCFFCA', '#D1FCE4', '#FDF2C8', '#FDE3C8', '#F5FDC8', '#E4ECFD', '#CFF6F2', '#CFEBF6', '#E4CFF6', '#F6CFEB', '#F6CFD8'];
 export const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14', '#556111', '#112550', '#12595A', '#114558', '#340E56', '#4D123D', '#591626'];
+
+
+export function extractUrlFromSourceObj(obj) {
+  // Try priority order: source.name (if URL), first document, metadata[0].source
+  const candidates = [
+    obj?.source?.name,
+    Array.isArray(obj?.document) ? obj.document[0] : null,
+    Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null,
+  ].filter(Boolean);
+
+  const first = candidates.find((v) => typeof v === 'string');
+  return first || null;
+}
+
+export function normalizeUrl(url) {
+  try {
+    const u = new URL(url);
+    // Normalize: lower host, strip default ports & trailing slash
+    u.host = u.host.toLowerCase();
+    if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
+      u.port = '';
+    }
+    // Remove trailing slash except root
+    if (u.pathname.endsWith('/') && u.pathname !== '/') {
+      u.pathname = u.pathname.slice(0, -1);
+    }
+    return u.toString();
+  } catch {
+    // If it's not a valid URL, return as-is for display but can't dedupe well
+    return url;
+  }
+}
+
+// Remap local [n] citations in one message to global indices
+export function remapCitations(content, messageSources, urlToGlobalIndex, globalList) {
+  if (!Array.isArray(messageSources) || messageSources.length === 0) return content;
+
+  return content.replace(/\[(\d+)\]/g, (match, numStr) => {
+    const n = Number(numStr);
+    const srcObj = messageSources[n - 1];
+    if (!srcObj) return match; // out of range, leave as-is
+
+    const urlRaw = extractUrlFromSourceObj(srcObj);
+    if (!urlRaw) return match;
+
+    const url = normalizeUrl(urlRaw);
+    if (!urlToGlobalIndex.has(url)) {
+      globalList.push({ url, title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null });
+      urlToGlobalIndex.set(url, globalList.length); // 1-based index
+    }
+    const idx = urlToGlobalIndex.get(url);
+    return `[${idx}]`;
+  });
+}
