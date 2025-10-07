@@ -53,7 +53,7 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
     <InfoIcon className="size-6" />
 	<div
 	bind:this={tooltipEl}
-	class={`invisible group-hover:visible absolute -left-7 md:left-0 px-3 py-1 left-full ml-2 w-[21rem] p-2 rounded-xl border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50 shadow
+	class={`invisible group-hover:visible absolute -left-7 md:left-0 px-3 py-1 left-full ml-2 w-[23rem] p-2 rounded-xl border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50 shadow
 		${placeAbove ? 'bottom-full mb-2' : 'top-0'}`}
 	>
 		<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.name}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{modelsInfo?.[hoveredItem?.name]?.organization}</span></div>
@@ -77,6 +77,14 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 						<CheckmarkIcon className="size-6" />
 					</div>
 					<p class="text-xs dark:text-customGray-100">{$i18n.t('Reasoning')}</p>
+				</div>
+			{/if}
+			{#if modelsInfo?.[hoveredItem?.name]?.zdr}
+				<div class="py-2.5 flex items-center">
+					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
+						<CheckmarkIcon className="size-6" />
+					</div>
+					<p class="text-xs dark:text-customGray-100">{$i18n.t('Zero Data Retention')}</p>
 				</div>
 			{/if}
 		</div>

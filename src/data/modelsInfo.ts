@@ -1,3 +1,5 @@
+import { temporaryChatEnabled } from "$lib/stores";
+
 export const modelsInfo = {
 	'Claude 3.5 Haiku': {
 		organization: 'Anthropic',
@@ -69,6 +71,7 @@ export const modelsInfo = {
 		included: true,
 		credit_multiple: 15,
 		research: false,
+		zdr: true,
 		costFactor: 2
 	},
 	"Google 2.5 Flash": {
@@ -84,6 +87,7 @@ export const modelsInfo = {
 		included: true,
 		credit_multiple: 1,
 		research: false,
+		zdr: true,
 		costFactor: 0.5
 	},
 	"Google 2.5 Flash-Lite": {
@@ -99,6 +103,7 @@ export const modelsInfo = {
 		included: true,
 		credit_multiple: 1,
 		research: false,
+		zdr: true,
 		costFactor: 0.5
 	},
 	'Mistral Large 2': {
