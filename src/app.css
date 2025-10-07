@@ -506,4 +506,17 @@ html.dark #editor .ProseMirror a {
 }
 
 
-
+@media (max-width: 990px) {
+	.intercom-lightweight-app-launcher {
+		display: none !important;
+	}
+	
+	/*localhost*/
+	.intercom-dfosxs {
+		display: none !important;
+	}
+	
+	iframe[name='intercom-notifications-frame'] {
+		display: none !important;
+	}
+}
