@@ -26,6 +26,7 @@ stripe_price_id_business_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_MONT
 stripe_price_id_starter_yearly = os.environ.get('STRIPE_PRICE_ID_STARTER_YEARLY', "price_1RNq8xBBwyxb4MZjfz68raOh")
 stripe_price_id_team_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_YEARLY', "price_1RNqAcBBwyxb4MZjNdS4XrNc")
 stripe_price_id_business_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_YEARLY', "price_1RglAcBBwyxb4MZjRYcvp9dr")
+stripe_price_id_business_two_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_TWO_YEARLY', "price_1SFK4QBBwyxb4MZjdHFP4AJh")
 
 # Constants
 FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS = 2000 # Amount in cents (20 euro)
@@ -66,6 +67,12 @@ SUBSCRIPTION_PLANS = {
         "price": 484900,  # 4.849,00€ in cents
         "credits_per_month": 150,
         "stripe_price_id": stripe_price_id_business_yearly,
+        "seats": 100
+    },
+    "business_two_yearly": {
+        "price": 969800,  # 9.698,00€ in cents
+        "credits_per_month": 150,
+        "stripe_price_id": stripe_price_id_business_two_yearly,
         "seats": 100
     }
 }
