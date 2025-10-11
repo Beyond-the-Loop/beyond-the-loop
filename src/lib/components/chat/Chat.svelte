@@ -1630,7 +1630,11 @@
 			`${WEBUI_BASE_URL}/api`
 		).catch((error) => {
 			if(!error?.includes('402')) {
-				toast.error(`${error}`);
+				if(error?.includes('ContentPolicyViolationError')) {
+					toast.error("The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry.");
+				} else {
+					toast.error(`${error}`);
+				}	
 			}
 			
 			responseMessage.error = {
