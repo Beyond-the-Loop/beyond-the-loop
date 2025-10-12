@@ -120,7 +120,7 @@ export const modelsInfo = {
 	"GPT-5 mini": {
 		organization: 'OpenAI',
 		hosted_in: 'EU',
-		description: "OpenAI's flagship model for coding, reasoning, and agent tasks. Highest reasoning capabilities with moderate speed for complex domains.",
+		description: "A faster, cost-effective GPT-5 version for clearly defined tasks. High reasoning capabilities at a reduced price for precise prompts.",
 		context_window: '400K',
 		knowledge_cutoff: '2024-04-01',
 		intelligence_score: 4,
@@ -132,7 +132,7 @@ export const modelsInfo = {
 	"GPT-5 nano": {
 		organization: 'OpenAI',
 		hosted_in: 'EU',
-		description: "OpenAI's flagship model for coding, reasoning, and agent tasks. Highest reasoning capabilities with moderate speed for complex domains.",
+		description: "Fastest and most affordable GPT-5 model. Optimized for summarization and classification with average reasoning capabilities.",
 		context_window: '400K',
 		knowledge_cutoff: '2024-01-04',
 		intelligence_score: 3.5,
