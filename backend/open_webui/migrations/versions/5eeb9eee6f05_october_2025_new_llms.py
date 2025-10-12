@@ -89,6 +89,7 @@ def upgrade() -> None:
     }
     # companies
     companies = connection.execute(sqlalchemy.text("SELECT id FROM company")).fetchall()
+    system_models = connection.execute(sqlalchemy.text("SELECT id, base_model_id, params FROM model WHERE company_id = :company_id"), {"company_id": "system"}).fetchall()
 
     # add new models to model_cost table
     for model_name, model_data in new_models_list.items():
@@ -120,6 +121,28 @@ def upgrade() -> None:
             },
         )
 
+    # update system models with new models
+    for system_model in system_models:
+        system_model_id = system_model[0]
+        system_model_base_model_id = system_model[1]
+        system_model_params_str = system_model[2]
+        system_model_params = json.loads(system_model_params_str)
+
+        if system_model_base_model_id in legacy_models_list:
+            new_base_model_name = legacy_models_list[system_model_base_model_id]["replace_with"]
+            if system_model_base_model_id == "GPT 4.1":
+                system_model_params["temperature"] = 1.0
+
+            connection.execute(
+                sqlalchemy.text("UPDATE model SET base_model_id = :new_base_model_name, params = :params WHERE id = :system_model_id"),
+                {
+                    "new_base_model_name": new_base_model_name,
+                    "params": json.dumps(system_model_params),
+                    "system_model_id": system_model_id,
+                },
+            )
+
+    # update companies with new models
     for company in companies:
         company_id = company[0]
 
@@ -144,25 +167,6 @@ def upgrade() -> None:
     # remove legacy models
     for model_name, model_data in legacy_models_list.items():
         replace_with = model_data["replace_with"]
-
-        # update system models
-        if model_name == "GPT 4.1":
-            gpt_41_system_model_params = connection.execute(
-                sqlalchemy.text("SELECT params FROM model WHERE base_model_id = :name AND company_id = :company_id"),
-                {"name": "GPT 4.1", "company_id": "system"},
-            ).fetchone()[0]
-            gpt_41_system_model_params_json = json.loads(gpt_41_system_model_params) if gpt_41_system_model_params else {}
-            gpt_41_system_model_params_json["temperature"] = 1.0
-
-            connection.execute(
-                sqlalchemy.text("UPDATE model SET base_model_id = :replace_with, params = :params WHERE base_model_id = :model_name AND company_id = :company_id"),
-                {"replace_with": replace_with, "params": json.dumps(gpt_41_system_model_params_json), "model_name": model_name, "company_id": "system"},
-            )
-        else:
-            connection.execute(
-                sqlalchemy.text("UPDATE model SET base_model_id = :replace_with WHERE base_model_id = :model_name AND company_id = :company_id"),
-                {"replace_with": replace_with, "model_name": model_name, "company_id": "system"},
-            )
 
         # update references and delete legacy models from companies
         for company in companies:
