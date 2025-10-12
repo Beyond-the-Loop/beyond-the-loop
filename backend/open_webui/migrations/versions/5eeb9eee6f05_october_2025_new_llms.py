@@ -39,8 +39,7 @@ def upgrade() -> None:
             },
             "meta": {},
             "params": {},
-            "visibility": "show",
-            "is_active": 0,
+            "is_active": 1,
         },
         "GPT-5 mini": {
             "cost": {
@@ -54,8 +53,7 @@ def upgrade() -> None:
             },
             "meta": {},
             "params": {},
-            "visibility": "show",
-            "is_active": 0,
+            "is_active": 1,
         },
         "GPT-5 nano": {
             "cost": {
@@ -69,8 +67,7 @@ def upgrade() -> None:
             },
             "meta": {},
             "params": {},
-            "visibility": "show",
-            "is_active": 0,
+            "is_active": 1,
         },
     }
     legacy_models_list = {
