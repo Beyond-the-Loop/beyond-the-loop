@@ -27,6 +27,20 @@ def upgrade() -> None:
 
     # models data
     new_models_list = {
+        "Claude 4.5 Haiku": {
+            "cost": {
+                "cost_per_million_input_tokens": 1,
+                "cost_per_million_output_tokens": 5,
+                "cost_per_image": None,
+                "cost_per_minute": None,
+                "cost_per_million_characters": None,
+                "cost_per_million_reasoning_tokens": None,
+                "cost_per_thousand_search_queries": None,
+            },
+            "meta": {},
+            "params": {},
+            "is_active": 1,
+        },
         "Claude Sonnet 4.5": {
             "cost": {
                 "cost_per_million_input_tokens": 3,
@@ -71,6 +85,12 @@ def upgrade() -> None:
         },
     }
     legacy_models_list = {
+        "Claude 3.5 Haiku": {
+            "replace_with": "Claude 4.5 Haiku",
+        },
+        "Claude Opus 4.1": {
+            "replace_with": "Claude Sonnet 4.5",
+        },
         "Claude Sonnet 4": {
             "replace_with": "Claude Sonnet 4.5",
         },
