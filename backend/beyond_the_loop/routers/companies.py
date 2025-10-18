@@ -246,7 +246,6 @@ async def create_company(
         openai_models = openai_models["data"]
 
         disabled_models = [
-            "Claude Opus 4.1",
             "Perplexity Sonar Reasoning Pro",
             "Perplexity Sonar Deep Research"
         ]
