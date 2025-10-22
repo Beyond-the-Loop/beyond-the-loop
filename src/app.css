@@ -507,6 +507,9 @@ html.dark #editor .ProseMirror a {
 
 
 @media (max-width: 990px) {
+	.intercom-app {
+		display: none !important;
+	}
 	.intercom-lightweight-app-launcher {
 		display: none !important;
 	}
