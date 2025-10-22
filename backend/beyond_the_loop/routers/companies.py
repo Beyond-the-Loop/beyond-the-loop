@@ -246,8 +246,8 @@ async def create_company(
         openai_models = openai_models["data"]
 
         disabled_models = [
+            "Perplexity Sonar Deep Research",
             "Perplexity Sonar Reasoning Pro",
-            "Perplexity Sonar Deep Research"
         ]
 
         # Register OpenAI models in the database if they don't exist
