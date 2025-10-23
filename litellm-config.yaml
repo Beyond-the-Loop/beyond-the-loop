@@ -4,21 +4,16 @@ litellm_settings:
   load_env_variables: true
 
 model_list:
-  - model_name: "Claude 3.5 Haiku"
+  - model_name: "Claude 4.5 Haiku"
     litellm_params:
-      model: 'vertex_ai/claude-3-5-haiku@20241022'
+      model: 'vertex_ai/claude-haiku-4-5@20251001'
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'us-east5'
-  - model_name: "Claude Opus 4.1"
+      vertex_location: 'europe-west1'
+  - model_name: "Claude Sonnet 4.5"
     litellm_params:
-      model: 'vertex_ai/claude-opus-4-1@20250805'
+      model: 'vertex_ai/claude-sonnet-4-5@20250929'
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'us-east5'
-  - model_name: "Claude Sonnet 4"
-    litellm_params:
-      model: 'vertex_ai/claude-sonnet-4@20250514'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'us-east5'
+      vertex_location: 'europe-west1'
   - model_name: "Google 2.5 Flash"
     litellm_params:
       model: 'gemini-2.5-flash'
@@ -41,24 +36,19 @@ model_list:
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2024-12-01-preview"
-  - model_name: "GPT 4.1"
-    litellm_params:
-      model: "azure/gpt-4.1"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-  - model_name: "GPT-4.1 mini"
-    litellm_params:
-      model: "azure/gpt-4.1-mini"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-  - model_name: "GPT-4.1 nano"
-    litellm_params:
-      model: "azure/gpt-4.1-nano"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
   - model_name: "GPT-5"
     litellm_params:
       model: "azure/gpt-5"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "GPT-5 mini"
+    litellm_params:
+      model: "azure/gpt-5-mini"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "GPT-5 nano"
+    litellm_params:
+      model: "azure/gpt-5-nano"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
   - model_name: "Grok 4"
