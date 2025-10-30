@@ -65,15 +65,8 @@ async def get_prompt_list(user=Depends(get_verified_user)):
 
 @router.post("/create", response_model=Optional[PromptModel])
 async def create_new_prompt(
-    request: Request, form_data: PromptForm, user=Depends(get_verified_user)
+    form_data: PromptForm, user=Depends(get_verified_user)
 ):
-    if user.role != "admin" and not has_permission(
-        user.id, "workspace.edit_prompts"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
     prompt = Prompts.get_prompt_by_command_and_company(form_data.command, user.company_id)
 
     if prompt is None:
@@ -83,7 +76,7 @@ async def create_new_prompt(
             return prompt
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(),
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
     raise HTTPException(
