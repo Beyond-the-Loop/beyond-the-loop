@@ -194,11 +194,7 @@
 					{/if}
 					<div class="flex items-center gap-2.5">
 						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
-							{#if $subscription?.plan === 'free' && $subscription?.is_trial}
-								{$i18n.t('starter')}
-							{:else}
 								{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', ''))}
-							{/if}
 						</div>
 						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
 							<div
@@ -254,11 +250,11 @@
 						<div class="text-xs dark:text-customGray-590">
 							Active until {dayjs($subscription?.end_date * 1000)?.format('DD.MM.YYYY')}
 						</div>
-					{:else if $subscription?.plan !== 'free'}
+					{:else if !$subscription?.is_trial}
 						<div class="text-xs dark:text-customGray-590">
 							{$subscription?.plan?.includes('yearly') ? 'Yearly' : 'Monthly'} (renews {dayjs($subscription?.next_billing_date * 1000)?.format('DD.MM.YYYY')})
 						</div>
-					{:else if $subscription?.plan === 'free'}
+					{:else}
 						<div class="text-xs dark:text-customGray-590">
 							Trial ends {dayjs($subscription?.trial_end * 1000)?.format('DD.MM.YYYY')}
 						</div>
@@ -294,7 +290,7 @@
 				<div class="flex items-center justify-between pb-2.5 border-b dark:border-customGray-700 mb-5">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Base credits')}</div>
 					<div class="text-xs dark:text-customGray-590">
-						{#if $subscription?.plan !== 'free'}
+						{#if $subscription?.is_trial}
 						<span class="text-xs text-lightGray-100 dark:text-customGray-100">€{(currentPlan?.credits_per_month - $subscription?.credits_remaining)?.toFixed(2)} {$i18n.t('used')}</span><span
 							class="dark:text-customGray-590">/ €{(currentPlan?.credits_per_month).toFixed(2)} {$i18n.t('included')}</span
 						>
@@ -309,7 +305,7 @@
 					<div style={`width: ${creditsWidth};`} class="absolute left-0 h-1 rounded-sm bg-[#024D15]/80 dark:bg-[#024D15]"></div>
 				</div>
 				<div class="flex items-center justify-between pt-2.5">
-					{#if $subscription?.plan !== 'free' && $subscription?.cancel_at_period_end !== true && $subscription?.status !== "canceled"}
+					{#if !$subscription?.is_trial && $subscription?.cancel_at_period_end !== true && $subscription?.status !== "canceled"}
 						<div class="text-xs dark:text-customGray-590">
 							{$i18n.t('Credits will reset on')} {dayjs($subscription?.next_billing_date * 1000)?.format('DD.MM.YYYY')}
 						</div>
@@ -331,9 +327,9 @@
 			</div>
 		{/if}
 
-		{#if $subscription?.plan !== "free"}
+		{#if !$subscription?.is_trial}
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 pb-4">
-				<div class="flex items-center justify-between {$subscription?.status !== 'canceled' && "border-b dark:border-customGray-700 pb-2.5"}">
+				<div class="flex items-center justify-between {$subscription?.status !== 'canceled' && 'border-b dark:border-customGray-700 pb-2.5'}">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Flex credits')}</div>
 					<div class="text-xs dark:text-customGray-590">
 						<!-- <span class="text-xs dark:text-customGray-100">0 {$i18n.t('used')}</span> -->

@@ -101,6 +101,29 @@ class UpdateSubscriptionRequest(BaseModel):
     plan_id: str  # "basic", "pro", or "team"
 
 
+def get_plan_details_from_subscription(subscription):
+    """
+    Extract plan details and product image from a Stripe subscription.
+    
+    Args:
+        subscription: Stripe subscription object
+        
+    Returns:
+        tuple: (plan_id, plan_details, image_url)
+    """
+    price_id = subscription.plan.id
+    
+    plan_id, plan = next(
+        ((plan, details) for plan, details in SUBSCRIPTION_PLANS.items() if details.get("stripe_price_id") == price_id),
+        (None, {}))
+    
+    # Get the image url of the product
+    product = stripe.Product.retrieve(subscription.plan.product)
+    image_url = product.images[0] if product.images and len(product.images) > 0 else None
+    
+    return plan_id, plan, image_url
+
+
 @router.get("/create-billing-portal-session/")
 async def create_billing_portal_session(user=Depends(get_verified_user)):
     try:
@@ -168,25 +191,23 @@ async def get_subscription(user=Depends(get_verified_user)):
             limit=1
         )
 
-        # If there's an active trial subscription
+        # If there's an active trial subscription and no active subscription
         if trial_subscriptions.data and len(trial_subscriptions.data) > 0 and not active_subscriptions.data:
             trial_subscription = trial_subscriptions.data[0]
-
-            # Get the image url of the product
-            product = stripe.Product.retrieve(trial_subscription.plan.product)
-            image_url = product.images[0] if product.images else None
             
             # Calculate days remaining in trial
             current_time = int(time.time())
             trial_end = trial_subscription.trial_end
             days_remaining = max(0, int((trial_end - current_time) / (24 * 60 * 60)))
+
+            plan_id, plan, image_url = get_plan_details_from_subscription(trial_subscription)
             
             return {
                 'credits_remaining': company.credit_balance,
                 'flex_credits_remaining': company.flex_credit_balance,
-                'plan': 'free',
+                'plan': plan_id,
                 'is_trial': True,
-                "seats": 5,
+                "seats": plan.get("seats", 0),
                 "seats_taken": Users.count_users_by_company_id(user.company_id),
                 'trial_end': trial_end,
                 'days_remaining': days_remaining,
@@ -201,17 +222,7 @@ async def get_subscription(user=Depends(get_verified_user)):
                 limit=1
             ).data[0]
 
-            price_id = last_subscription.plan.id
-
-            plan_id = next(
-                (plan for plan, details in SUBSCRIPTION_PLANS.items() if details.get("stripe_price_id") == price_id),
-                None)
-
-            plan = SUBSCRIPTION_PLANS[plan_id] or {}
-
-            # Get the image url of the product
-            product = stripe.Product.retrieve(last_subscription.plan.product)
-            image_url = product.images[0] if product.images and len(product.images) > 0 else None
+            plan_id, plan, image_url = get_plan_details_from_subscription(last_subscription)
 
             return {
                 'credits_remaining': company.credit_balance,
@@ -226,15 +237,7 @@ async def get_subscription(user=Depends(get_verified_user)):
 
         subscription = active_subscriptions.data[0]
 
-        price_id = subscription.plan.id
-
-        plan_id = next((plan for plan, details in SUBSCRIPTION_PLANS.items() if details.get("stripe_price_id") == price_id), None)
-
-        plan = SUBSCRIPTION_PLANS[plan_id] or {}
-
-        # Get the image url of the product
-        product = stripe.Product.retrieve(subscription.plan.product)
-        image_url = product.images[0] if product.images and len(product.images) > 0 else None
+        plan_id, plan, image_url = get_plan_details_from_subscription(subscription)
 
         return {
             "plan": plan_id,
