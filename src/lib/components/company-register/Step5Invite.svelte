@@ -79,8 +79,14 @@
 
 	async function inviteHandler() {
 		const invitees = invitedEmails.map((item) => ({ email: item, role: 'user' }));
-		await inviteUsers(localStorage.token, invitees).catch((error) => showToast('error', error));
-		goto('/');
+		try {
+			const res = await inviteUsers(localStorage.token, invitees);
+			if(res.success) {
+				goto('/');
+			}
+		} catch (err) {
+			showToast('error', err, 8000)
+		}
 	}
 
 	let logoSrc = '/logo_light.png';
@@ -92,7 +98,7 @@
 	});
 </script>
 
-<CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
+<CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} duration={8000}/>
 
 <form
 	class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-8 md:px-24"
