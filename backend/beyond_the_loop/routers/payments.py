@@ -255,6 +255,7 @@ async def get_subscription(user=Depends(get_verified_user)):
             "auto_recharge": company.auto_recharge,
             "image_url": image_url
         }
+
     except Exception as e:
         print(f"Error getting subscription: {e}")
         raise HTTPException(status_code=500, detail=str(e))

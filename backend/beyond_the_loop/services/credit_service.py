@@ -177,7 +177,7 @@ class CreditService:
                     detail="You have reached the maximum number of seats in your subscription. Please upgrade your plan or remove some users.",
                 )
 
-            if not company or not company.stripe_customer_id or not (subscription_details.get("status") == "active" or subscription_details.get("plan") == "free"):
+            if not company or not company.stripe_customer_id or not (subscription_details.get("status") == "active" or subscription_details.get("is_trial")):
                 raise HTTPException(
                     status_code=402,  # 402 Payment Required
                     detail="No active subscription found. Please subscribe to a plan.",
