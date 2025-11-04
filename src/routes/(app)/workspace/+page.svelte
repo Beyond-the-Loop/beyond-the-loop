@@ -7,7 +7,7 @@
 		if ($user?.role !== 'admin') {
 			if ($user?.permissions?.workspace?.view_assistants) {
 				goto('/workspace/models');
-			} else if ($user?.permissions?.workspace?.knowledge) {
+			} else if ($user?.permissions?.workspace?.view_knowledge) {
 				goto('/workspace/knowledge');
 			} else if ($user?.permissions?.workspace?.view_prompts) {
 				goto('/workspace/prompts');

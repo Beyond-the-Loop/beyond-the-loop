@@ -56,6 +56,8 @@
 		edit_assistants: false,
 		view_prompts: true,
 		edit_prompts: false,
+		view_knowledge: true,
+		edit_knowledge: false
 	}
 
 	function setPermission(key, checked) {
@@ -87,7 +89,9 @@
 		        view_assistants: group.permissions.workspace.view_assistants,
 		        edit_assistants: group.permissions.workspace.edit_assistants,
 		        view_prompts: group.permissions.workspace.view_prompts,
-				edit_prompts: group.permissions.workspace.edit_prompts
+						edit_prompts: group.permissions.workspace.edit_prompts,
+						view_knowledge: group.permissions.workspace.view_knowledge,
+						edit_knowledge: group.permissions.workspace.edit_knowledge
 	        };
         }
             initialized = true;
@@ -305,7 +309,7 @@
 							}}
 						>
 							{#each Object.keys(permissions).filter(
-								p => !['view_assistants', 'view_prompts'].includes(p)
+								p => !['view_assistants', 'view_prompts', "view_knowledge"].includes(p)
 							) as permission}
 								<div
 									role="button"

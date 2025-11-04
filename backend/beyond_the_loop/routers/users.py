@@ -260,10 +260,12 @@ async def get_users(
 class WorkspacePermissions(BaseModel):
     view_assistants: bool
     edit_assistants: bool
-    knowledge: bool
+    view_knowledge: bool
+    edit_knowledge: bool
     tools: bool
     view_prompts: bool
     edit_prompts: bool
+
 
 class ChatPermissions(BaseModel):
     controls: bool

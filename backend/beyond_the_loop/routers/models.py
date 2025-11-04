@@ -18,7 +18,7 @@ from beyond_the_loop.utils.access_control import has_access, has_permission
 router = APIRouter()
 
 
-def _validate_model_edit_permissions(model: ModelModel, user):
+def _validate_model_write_access(model: ModelModel, user):
     """
     Validates that a user has permission to edit/delete a model.
     
@@ -33,22 +33,44 @@ def _validate_model_edit_permissions(model: ModelModel, user):
     """
     if not model:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
     # Avoid editing prebuilt models
     if model.user_id == "system":
         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
+    # Base models can not be edited
+    if not model.base_model_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
+    if (user.role != "admin"
+        and model.user_id != user.id
+        and not has_access(user.id, "write", model.access_control)
+        and not has_permission(user.id, "workspace.edit_assistants")):
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-    if (not model.base_model_id
-        and user.role != "admin"
-        and model.user_id != user.id
-        and not has_access(user.id, "write", model.access_control)
-        and not has_permission(user.id, "workspace.edit_assistants")):
+def _validate_model_read_access(model: ModelModel, user):
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    if (user.role != "admin"
+            and model.user_id != user.id
+            and not has_access(user.id, "read", model.access_control)
+            and not has_permission(user.id, "workspace.view_assistants")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -86,26 +108,31 @@ async def create_new_model(
     form_data: ModelForm,
     user=Depends(get_verified_user),
 ):
+    if not has_permission(user.id, "workspace.view_assistants"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.UNAUTHORIZED,
+        )
+
     model = Models.get_model_by_name_and_company(form_data.name, user.company_id)
 
     if model:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.MODEL_NAME_TAKEN,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
+    form_data.id = str(uuid.uuid4())
+
+    model = Models.insert_new_model(form_data, user.id, user.company_id)
+
+    if model:
+        return model
     else:
-        form_data.id = str(uuid.uuid4())
-
-        model = Models.insert_new_model(form_data, user.id, user.company_id)
-
-        if model:
-            return model
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=ERROR_MESSAGES.DEFAULT,
-            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT,
+        )
 
 
 ###########################
@@ -117,17 +144,10 @@ async def create_new_model(
 @router.get("/model", response_model=Optional[ModelResponse])
 async def get_model_by_id(id: str, user=Depends(get_verified_user)):
     model = Models.get_model_by_id(id)
-    if model:
-        if (
-            model.user_id == user.id
-            or has_access(user.id, "read", model.access_control)
-        ):
-            return model
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
+
+    _validate_model_read_access(model, user)
+
+    return model
 
 
 ############################
@@ -138,29 +158,26 @@ async def get_model_by_id(id: str, user=Depends(get_verified_user)):
 @router.post("/model/toggle", response_model=Optional[ModelResponse])
 async def toggle_model_by_id(id: str, user=Depends(get_verified_user)):
     model = Models.get_model_by_id(id)
-    if model:
-        if (
-            model.user_id == user.id
-            or has_access(user.id, "write", model.access_control)
-        ):
-            model = Models.toggle_model_by_id_and_company(id, user.company_id)
 
-            if model:
-                return model
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=ERROR_MESSAGES.DEFAULT("Error updating function"),
-                )
+    _validate_model_write_access(model, user)
+
+    if (
+        model.user_id == user.id
+        or has_access(user.id, "write", model.access_control)
+    ):
+        model = Models.toggle_model_by_id_and_company(id, user.company_id)
+
+        if model:
+            return model
         else:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=ERROR_MESSAGES.UNAUTHORIZED,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ERROR_MESSAGES.DEFAULT,
             )
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.NOT_FOUND,
+            detail=ERROR_MESSAGES.UNAUTHORIZED,
         )
 
 #################################
@@ -170,6 +187,8 @@ async def toggle_model_by_id(id: str, user=Depends(get_verified_user)):
 @router.post("/model/{model}/bookmark/update")
 async def update_model_bookmark(model: str, user=Depends(get_verified_user)):
     model = Models.get_model_by_id(model)
+
+    _validate_model_read_access(model, user)
 
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -189,7 +208,7 @@ async def update_model_by_id(
 ):
     model = Models.get_model_by_id(id)
 
-    _validate_model_edit_permissions(model, user)
+    _validate_model_write_access(model, user)
 
     updated_model = Models.update_model_by_id_and_company(id, form_data, user.company_id)
 
@@ -207,7 +226,7 @@ async def delete_model_by_id(
 ):
     model = Models.get_model_by_id(id)
 
-    _validate_model_edit_permissions(model, user)
+    _validate_model_write_access(model, user)
 
     updated_model = Models.delete_model_by_id_and_company(id, user.company_id)
     return updated_model

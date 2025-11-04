@@ -254,4 +254,14 @@ type SessionUser = {
 	last_name: string;
 	role: string;
 	profile_image_url: string;
+	permissions?: {
+		workspace?: {
+			view_knowledge?: boolean;
+			edit_knowledge?: boolean;
+			view_assistants?: boolean;
+			edit_assistants?: boolean;
+			view_prompts?: boolean;
+			edit_prompts?: boolean;
+		};
+	};
 };

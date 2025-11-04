@@ -49,7 +49,6 @@ from open_webui.utils.misc import (
     add_or_update_system_message,
     add_or_update_user_message,
     get_last_user_message,
-    prepend_to_first_user_message_content,
 )
 from open_webui.utils.tools import get_tools
 from open_webui.utils.plugin import load_function_module_by_id
