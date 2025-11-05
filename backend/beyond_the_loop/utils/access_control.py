@@ -6,7 +6,8 @@ import json
 
 DEFAULT_USER_PERMISSIONS = {
     "workspace": {
-        "knowledge": True,
+        "view_knowledge": True,
+        "edit_knowledge": False,
         "view_prompts": True,
         "edit_prompts": False,
         "view_assistants": True,

@@ -307,7 +307,7 @@
 									)
 								);
 							} else {
-								if($user.id === item.user_id || $user?.role === 'admin')
+								if($user.id === item.user_id || $user?.role === 'admin' || $user?.permissions?.workspace?.edit_knowledge)
 								goto(`/workspace/knowledge/${item.id}`);
 							}
 						}}
@@ -342,7 +342,7 @@
 										{/if}
 									</div>
 								</div>
-								{#if ($user.id === item.user_id || $user?.role === 'admin')}
+								{#if ($user.id === item.user_id || $user?.role === 'admin' || $user?.permissions?.workspace?.edit_knowledge)}
 								<div class="{(hoveredKowledge === item.id || menuIdOpened === item.id) ? 'md:visible' : 'md:invisible'}">
 									<ItemMenu
 										{item}

@@ -40,21 +40,15 @@ from open_webui.socket.main import (
 )
 from open_webui.routers import (
     images,
-    retrieval,
     tasks,
     channels,
-    chats,
-    folders,
-    configs,
-    groups,
-    files,
     functions,
     memories,
-    knowledge,
     evaluations,
     tools,
     utils,
 )
+from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
 from beyond_the_loop.routers import models
 from beyond_the_loop.routers import prompts
 from beyond_the_loop.routers import openai, audio
@@ -183,8 +177,6 @@ from beyond_the_loop.config import (
     ENABLE_ADMIN_CHAT_ACCESS,
     ENABLE_ADMIN_EXPORT,
     # Tasks
-    TASK_MODEL,
-    TASK_MODEL_EXTERNAL,
     ENABLE_TAGS_GENERATION,
     ENABLE_SEARCH_QUERY_GENERATION,
     ENABLE_RETRIEVAL_QUERY_GENERATION,
@@ -233,6 +225,7 @@ from beyond_the_loop.utils.oauth import oauth_manager
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
+from open_webui.routers import retrieval
 
 if SAFE_MODE:
     print("SAFE MODE ENABLED")

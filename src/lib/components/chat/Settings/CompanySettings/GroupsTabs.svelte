@@ -24,7 +24,8 @@
 		workspace: {
 			view_assistants: true,
 			edit_assistants: true,
-			knowledge: true,
+			view_knowledge: true,
+			edit_knowledge: true,
 			view_prompts: true,
 			edit_prompts: true,
 			tools: false
@@ -232,7 +233,9 @@
                                     view_assistants: e.detail.view_assistants,
 			                        edit_assistants: e.detail.edit_assistants,
 			                        view_prompts: e.detail.view_prompts,
-									edit_prompts: e.detail.edit_prompts
+									edit_prompts: e.detail.edit_prompts,
+									view_knowledge: e.detail.view_knowledge,
+									edit_knowledge: e.detail.edit_knowledge
                                 }}
 							});
 						}}

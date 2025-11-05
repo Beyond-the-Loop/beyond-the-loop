@@ -625,7 +625,7 @@
 				</div>
 			{/if}
 
-			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.knowledge}
+			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_knowledge}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/knowledge')
 						? 'dark:bg-customGray-900 bg-lightGray-700'

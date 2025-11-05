@@ -8,14 +8,12 @@ This service handles automatic deletion of files after 3 months.
 
 import logging
 import os
-import time
 from datetime import datetime, timedelta
 from typing import List, Optional, Set
 
-from sqlalchemy import and_
 from open_webui.internal.db import get_db
 from beyond_the_loop.models.files import File, Files
-from open_webui.models.knowledge import Knowledge
+from beyond_the_loop.models.knowledge import Knowledge
 from beyond_the_loop.models.users import User
 
 log = logging.getLogger(__name__)

@@ -26,7 +26,7 @@
 				goto('/');
 			} else if (
 				$page.url.pathname.includes('/knowledge') &&
-				!$user?.permissions?.workspace?.knowledge
+				!$user?.permissions?.workspace?.view_knowledge
 			) {
 				goto('/');
 			} else if (
