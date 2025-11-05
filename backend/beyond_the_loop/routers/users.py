@@ -36,6 +36,8 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 router = APIRouter()
 
+NEW_INDICATOR = "NEW"
+INVITED_INDICATOR = "INVITED"
 
 @router.post("/invite")
 async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
@@ -84,8 +86,9 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
             # Check if user already exists
             existing_user = Users.get_user_by_email(email)
-            if existing_user and not existing_user.registration_code:
-                validation_errors.append({"reason": f"{email} is already taken"})
+
+            if existing_user and not existing_user.company_id == NEW_INDICATOR and not existing_user.company_id == user.company_id:
+                validation_errors.append({"reason": f"{email} is already associated with another company."})
                 
         # If any validation errors, throw exception with details
         if validation_errors:
@@ -131,12 +134,14 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                 
         # Second pass: actually invite the users (all should succeed)
         successful_invites = []
+
         for invitee in form_data.invitees:
             email = invitee.email.lower()
             
             # Check if user already exists and is not fully registered
             existing_user = Users.get_user_by_email(email)
-            if existing_user and existing_user.registration_code:
+
+            if existing_user:
                 # Generate invite token
                 invite_token = hashlib.sha256(email.encode()).hexdigest()
                 
@@ -151,8 +156,8 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                 updated_user = Users.update_user_by_id(
                     existing_user.id,
                     {
-                        "first_name": "INVITED",
-                        "last_name": "INVITED",
+                        "first_name": INVITED_INDICATOR,
+                        "last_name": INVITED_INDICATOR,
                         "role": invitee.role,
                         "registration_code": None,
                         "company_id": user.company_id,
@@ -181,8 +186,8 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                 # Create new user
                 new_user = Users.insert_new_user(
                     str(uuid.uuid4()), 
-                    "INVITED", 
-                    "INVITED", 
+                    INVITED_INDICATOR,
+                    INVITED_INDICATOR,
                     email, 
                     user.company_id,
                     role=invitee.role,
@@ -212,6 +217,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 ############################
 
 
+# Used to create a user at signup that will get linked to a company later in the registration process
 @router.post("/create")
 async def create_user(form_data: UserCreateForm):
     if not validate_email_format(form_data.email.lower()):
@@ -221,14 +227,22 @@ async def create_user(form_data: UserCreateForm):
 
     user = Users.get_user_by_email(form_data.email.lower())
 
-    if user and not user.registration_code:
+    # Check if user exists and already linked to a company
+    if user and not user.company_id == NEW_INDICATOR:
         raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
 
-    if not user:
-        registration_code = str(random.randint(10**8, 10**9 - 1))
-        user = Users.insert_new_user(str(uuid.uuid4()), "NEW", "NEW", form_data.email.lower(), "NEW", role="admin", registration_code=registration_code)
+    registration_code = str(random.randint(10 ** 8, 10 ** 9 - 1))
+
+    if user:
+        Users.update_user_by_id(user.id, {
+            "first_name": NEW_INDICATOR,
+            "last_name": NEW_INDICATOR,
+            "role": form_data.role,
+            "company_id": form_data.company_id,
+            "registration_code": registration_code
+        })
     else:
-        registration_code = user.registration_code
+        user = Users.insert_new_user(str(uuid.uuid4()), NEW_INDICATOR, NEW_INDICATOR, form_data.email.lower(), NEW_INDICATOR, role="admin", registration_code=registration_code)
 
     # Send welcome email with the generated password
     email_service = EmailService()
@@ -288,7 +302,7 @@ class UserPermissions(BaseModel):
 
 
 @router.get("/permissions", response_model=UserPermissions)
-async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
+async def get_user_permissions(user=Depends(get_admin_user)):
     return {
         "workspace": WorkspacePermissions(
             **DEFAULT_USER_PERMISSIONS.get("workspace", {})
@@ -550,6 +564,7 @@ async def reinvite_user(form_data: UserReinviteForm, user=Depends(get_admin_user
         )
 
     existing_user = Users.get_user_by_email(form_data.email.lower())
+
     if not existing_user:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.USER_NOT_FOUND
