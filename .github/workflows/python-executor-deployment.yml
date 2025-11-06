@@ -84,6 +84,15 @@ jobs:
       IMAGE: ghcr.io/${{ github.repository }}-python-executor:sha-${{ github.sha }}
 
     steps:
+      - name: Debug secret presence
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ Secret GCP_SA_KEY is empty or missing"
+            exit 1
+          else
+            echo "✅ Secret GCP_SA_KEY is set"
+          fi
+
       - name: Authenticate to Google Cloud (staging)
         if: ${{ github.event.inputs.environment == 'staging' }}
         uses: google-github-actions/auth@v2
