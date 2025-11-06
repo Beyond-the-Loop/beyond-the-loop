@@ -69,10 +69,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  deploy:
-    name: Deploy to Cloud Run (${{ github.event.inputs.environment }})
+  deploy-staging:
+    name: Deploy to Cloud Run (staging)
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: staging
     permissions:
       contents: read
       id-token: write
@@ -84,36 +85,52 @@ jobs:
       IMAGE: ghcr.io/${{ github.repository }}-python-executor:sha-${{ github.sha }}
 
     steps:
-      - name: Debug secret presence
-        run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "❌ Secret GCP_SA_KEY is empty or missing"
-            exit 1
-          else
-            echo "✅ Secret GCP_SA_KEY is set"
-          fi
-
-      - name: Authenticate to Google Cloud (staging)
-        if: ${{ github.event.inputs.environment == 'staging' }}
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Authenticate to Google Cloud (production)
-        if: ${{ github.event.inputs.environment == 'production' }}
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set GCP environment variables (staging)
-        if: ${{ github.event.inputs.environment == 'staging' }}
+      - name: Set GCP environment variables
         run: |
           echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
           echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_STAGING }}" >> $GITHUB_ENV
           echo "GCP_REGION=${{ secrets.GCP_REGION }}" >> $GITHUB_ENV
 
-      - name: Set GCP environment variables (production)
-        if: ${{ github.event.inputs.environment == 'production' }}
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          image: ${{ env.IMAGE }}
+          region: ${{ env.GCP_REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+  deploy-production:
+    name: Deploy to Cloud Run (production)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}-python-executor
+      IMAGE_SHA_TAG: sha-${{ github.sha }}
+      IMAGE: ghcr.io/${{ github.repository }}-python-executor:sha-${{ github.sha }}
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set GCP environment variables
         run: |
           echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
           echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_PRODUCTION }}" >> $GITHUB_ENV
@@ -125,7 +142,6 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Deploy to Cloud Run
-        id: deploy
         uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ env.CLOUD_RUN_SERVICE }}
