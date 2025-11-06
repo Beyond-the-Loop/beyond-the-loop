@@ -426,7 +426,7 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
         user = Users.get_user_by_invite_token(form_data.signup_token)
 
     if not user:
-        raise HTTPException(404, detail=ERROR_MESSAGES.NOT_FOUND)
+        raise HTTPException(404, detail=ERROR_MESSAGES.LINK_EXPIRED)
 
     try:
         # Validate the password
