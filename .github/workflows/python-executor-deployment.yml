@@ -78,7 +78,10 @@ jobs:
       id-token: write
 
     env:
-      IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}-python-executor
+      IMAGE_SHA_TAG: sha-${{ github.sha }}
+      IMAGE: ghcr.io/${{ github.repository }}-python-executor:sha-${{ github.sha }}
 
     steps:
       - name: Authenticate to Google Cloud (staging)
