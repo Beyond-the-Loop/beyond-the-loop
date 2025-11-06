@@ -27,10 +27,10 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
 
     try:
         from google.cloud import storage
+        client = storage.Client()
     except Exception:
         return []
 
-    client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     file_infos = []
 
