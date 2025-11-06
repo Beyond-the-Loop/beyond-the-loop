@@ -1,0 +1,8 @@
+# Dependencies for the Python Executor FastAPI service
+# Pinned with compatible upper bounds to avoid unexpected breaking changes.
+
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.23,<1.0
+pydantic>=2.0,<3.0
+# Optional at runtime: used when uploading generated files to Google Cloud Storage.
+google-cloud-storage>=2.10,<3.0
