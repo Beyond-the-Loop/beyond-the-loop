@@ -1,4 +1,4 @@
-name: Python Executor Build and Deploy
+name: Python Executor Deployment
 
 on:
   workflow_dispatch:
