@@ -16,14 +16,13 @@ env:
   REGISTRY: europe-west3-docker.pkg.dev
   IMAGE_NAME: beyond-chat-1111/python-executor/python-executor
   IMAGE_SHA_TAG: sha-${{ github.sha }}
-  IMAGE: europe-west3-docker.pkg.dev/beyond-chat-1111/python-executor/python-executor:sha-${{ github.sha }}
+  IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
 
 jobs:
-  build-push-deploy-staging:
-    name: Deploy to Cloud Run (staging)
+  build-push-deploy:
+    name: Build, Push & Deploy
     runs-on: ubuntu-latest
-    if: github.event.inputs.environment == 'staging'
-    environment: staging
+    environment: ${{ github.event.inputs.environment }}
     permissions:
       contents: read
       id-token: write
@@ -44,8 +43,7 @@ jobs:
           python -m pip install pytest
 
       - name: Run tests
-        run: |
-          python -m pytest -q tools/python_executor/tests
+        run: python -m pytest -q tools/python_executor/tests
 
       - name: Authenticate Docker to Google Artifact Registry
         uses: google-github-actions/auth@v2
@@ -53,18 +51,15 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${REGISTRY}
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
           tags: |
             type=sha,format=long
-            type=ref,event=branch
-            type=ref,event=tag
             type=raw,value=${{ github.event.inputs.environment }}
 
       - name: Build and push Docker image
@@ -83,87 +78,11 @@ jobs:
       - name: Set GCP environment variables
         run: |
           echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
-          echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_STAGING }}" >> $GITHUB_ENV
-          echo "GCP_REGION=${{ secrets.GCP_REGION }}" >> $GITHUB_ENV
-
-      - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          service: ${{ env.CLOUD_RUN_SERVICE }}
-          image: ${{ env.IMAGE }}
-          region: ${{ env.GCP_REGION }}
-          project_id: ${{ env.PROJECT_ID }}
-
-  build-push-deploy-production:
-    name: Deploy to Cloud Run (production)
-    runs-on: ubuntu-latest
-    if: github.event.inputs.environment == 'production'
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies for tests
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r tools/python_executor/requirements.txt
-          python -m pip install pytest
-
-      - name: Run tests
-        run: |
-          python -m pytest -q tools/python_executor/tests
-
-      - name: Authenticate Docker to Google Artifact Registry
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${REGISTRY}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=sha,format=long
-            type=ref,event=branch
-            type=ref,event=tag
-            type=raw,value=${{ github.event.inputs.environment }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./tools/python_executor
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set GCP environment variables
-        run: |
-          echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
-          echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_PRODUCTION }}" >> $GITHUB_ENV
+          if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_STAGING }}" >> $GITHUB_ENV
+          else
+            echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_PRODUCTION }}" >> $GITHUB_ENV
+          fi
           echo "GCP_REGION=${{ secrets.GCP_REGION }}" >> $GITHUB_ENV
 
       - name: Set up gcloud SDK
