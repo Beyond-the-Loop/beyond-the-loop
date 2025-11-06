@@ -16,7 +16,6 @@ env:
   REGISTRY: europe-west3-docker.pkg.dev
   IMAGE_NAME: beyond-chat-1111/python-executor/python-executor
   IMAGE_SHA_TAG: sha-${{ github.sha }}
-  IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
 
 jobs:
   build-push-deploy:
@@ -53,22 +52,14 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=sha,format=long
-            type=raw,value=${{ github.event.inputs.environment }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./tools/python_executor
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -94,6 +85,6 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ env.CLOUD_RUN_SERVICE }}
-          image: ${{ env.IMAGE }}
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}
           region: ${{ env.GCP_REGION }}
           project_id: ${{ env.PROJECT_ID }}
