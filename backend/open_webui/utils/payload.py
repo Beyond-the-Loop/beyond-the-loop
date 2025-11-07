@@ -1,4 +1,4 @@
-from open_webui.utils.task import prompt_template, prompt_variables_template
+from open_webui.utils.task import prompt_template
 from open_webui.utils.misc import (
     add_or_update_system_message,
 )
@@ -24,12 +24,6 @@ def apply_model_system_prompt_to_body(
         template_params = {}
 
     system = prompt_template(system, **template_params)
-
-    # Metadata (WebUI Usage)
-    if metadata:
-        variables = metadata.get("variables", {})
-        if variables:
-            system = prompt_variables_template(system, variables)
 
     form_data["messages"] = add_or_update_system_message(
         system, form_data.get("messages", [])

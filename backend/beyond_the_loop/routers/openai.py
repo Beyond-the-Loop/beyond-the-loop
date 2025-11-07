@@ -201,8 +201,7 @@ async def generate_chat_completion(
     agent_prompt: Optional[bool] = False
 ):
     payload = {**form_data}
-    metadata = payload.pop("metadata", None)
-
+    metadata = payload.pop("metadata", {})
 
     model_info = Models.get_model_by_id(form_data.get("model"))
 
@@ -263,6 +262,8 @@ async def generate_chat_completion(
         session = aiohttp.ClientSession(
             trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
         )
+
+        print("PAYLOAD MESSAGES:", payload_dict['messages'])
 
         r = await session.request(
             method="POST",

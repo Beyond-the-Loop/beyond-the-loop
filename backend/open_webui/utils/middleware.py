@@ -6,10 +6,9 @@ import base64
 import re
 import mimetypes
 import asyncio
-from typing import Optional
+import httpx
 import json
 import html
-import inspect
 import ast
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
@@ -33,7 +32,6 @@ from open_webui.routers.retrieval import process_web_search, SearchForm
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
-from open_webui.models.functions import Functions
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
 from beyond_the_loop.routers.openai import generate_chat_completion
@@ -42,7 +40,6 @@ from open_webui.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
 from open_webui.utils.task import (
     rag_template,
-    tools_function_calling_generation_template,
 )
 from open_webui.utils.misc import (
     get_message_list,
@@ -50,12 +47,9 @@ from open_webui.utils.misc import (
     add_or_update_user_message,
     get_last_user_message,
 )
-from open_webui.utils.tools import get_tools
-from open_webui.utils.plugin import load_function_module_by_id
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     CACHE_DIR,
-    DEFAULT_TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     DEFAULT_CODE_INTERPRETER_PROMPT,
     DEFAULT_AGENT_MODEL,
 )
@@ -70,255 +64,6 @@ from open_webui.constants import TASKS
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
-
-
-async def chat_completion_filter_functions_handler(request, body, model, extra_params):
-    skip_files = None
-
-    def get_filter_function_ids(model):
-        def get_priority(function_id):
-            function = Functions.get_function_by_id(function_id)
-            if function is not None and hasattr(function, "valves"):
-                # TODO: Fix FunctionModel
-                return (function.valves if function.valves else {}).get("priority", 0)
-            return 0
-
-        filter_ids = [
-            function.id for function in Functions.get_global_filter_functions()
-        ]
-        if "info" in model and "meta" in model["info"]:
-            filter_ids.extend(model["info"]["meta"].get("filterIds", []))
-            filter_ids = list(set(filter_ids))
-
-        enabled_filter_ids = [
-            function.id
-            for function in Functions.get_functions_by_type("filter", active_only=True)
-        ]
-
-        filter_ids = [
-            filter_id for filter_id in filter_ids if filter_id in enabled_filter_ids
-        ]
-
-        filter_ids.sort(key=get_priority)
-        return filter_ids
-
-    filter_ids = get_filter_function_ids(model)
-    for filter_id in filter_ids:
-        filter = Functions.get_function_by_id(filter_id)
-        if not filter:
-            continue
-
-        if filter_id in request.app.state.FUNCTIONS:
-            function_module = request.app.state.FUNCTIONS[filter_id]
-        else:
-            function_module, _, _ = load_function_module_by_id(filter_id)
-            request.app.state.FUNCTIONS[filter_id] = function_module
-
-        # Check if the function has a file_handler variable
-        if hasattr(function_module, "file_handler"):
-            skip_files = function_module.file_handler
-
-        # Apply valves to the function
-        if hasattr(function_module, "valves") and hasattr(function_module, "Valves"):
-            valves = Functions.get_function_valves_by_id(filter_id)
-            function_module.valves = function_module.Valves(
-                **(valves if valves else {})
-            )
-
-        if hasattr(function_module, "inlet"):
-            try:
-                inlet = function_module.inlet
-
-                # Create a dictionary of parameters to be passed to the function
-                params = {"body": body} | {
-                    k: v
-                    for k, v in {
-                        **extra_params,
-                        "__model__": model,
-                        "__id__": filter_id,
-                    }.items()
-                    if k in inspect.signature(inlet).parameters
-                }
-
-                if "__user__" in params and hasattr(function_module, "UserValves"):
-                    try:
-                        params["__user__"]["valves"] = function_module.UserValves(
-                            **Functions.get_user_valves_by_id_and_user_id(
-                                filter_id, params["__user__"]["id"]
-                            )
-                        )
-                    except Exception as e:
-                        print(e)
-
-                if inspect.iscoroutinefunction(inlet):
-                    body = await inlet(**params)
-                else:
-                    body = inlet(**params)
-
-            except Exception as e:
-                print(f"Error: {e}")
-                raise e
-
-    if skip_files and "files" in body.get("metadata", {}):
-        del body["metadata"]["files"]
-
-    return body, {}
-
-
-async def chat_completion_tools_handler(
-    request: Request, body: dict, user: UserModel, tools
-) -> tuple[dict, dict]:
-    async def get_content_from_response(response) -> Optional[str]:
-        content = None
-        if hasattr(response, "body_iterator"):
-            async for chunk in response.body_iterator:
-                data = json.loads(chunk.decode("utf-8"))
-                content = data["choices"][0]["message"]["content"]
-
-            # Cleanup any remaining background tasks if necessary
-            if response.background is not None:
-                await response.background()
-        else:
-            content = response["choices"][0]["message"]["content"]
-        return content
-
-    def get_tools_function_calling_payload(messages, task_model_id, content):
-        user_message = get_last_user_message(messages)
-        history = "\n".join(
-            f"{message['role'].upper()}: \"\"\"{message['content']}\"\"\""
-            for message in messages[::-1][:4]
-        )
-
-        prompt = f"History:\n{history}\nQuery: {user_message}"
-
-        return {
-            "model": task_model_id,
-            "messages": [
-                {"role": "system", "content": content},
-                {"role": "user", "content": f"Query: {prompt}"},
-            ],
-            "stream": False,
-            "metadata": {"task": str(TASKS.FUNCTION_CALLING)},
-        }
-
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
-
-    skip_files = False
-    sources = []
-
-    specs = [tool["spec"] for tool in tools.values()]
-    tools_specs = json.dumps(specs)
-
-    if request.app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE != "":
-        template = request.app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE
-    else:
-        template = DEFAULT_TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE
-
-    tools_function_calling_prompt = tools_function_calling_generation_template(
-        template, tools_specs
-    )
-    log.info(f"{tools_function_calling_prompt=}")
-    payload = get_tools_function_calling_payload(
-        body["messages"], task_model_id, tools_function_calling_prompt
-    )
-
-    try:
-        response = await generate_chat_completion(form_data=payload, user=user)
-        log.debug(f"{response=}")
-        content = await get_content_from_response(response)
-        log.debug(f"{content=}")
-
-        if not content:
-            return body, {}
-
-        try:
-            content = content[content.find("{") : content.rfind("}") + 1]
-            if not content:
-                raise Exception("No JSON object found in the response")
-
-            result = json.loads(content)
-
-            async def tool_call_handler(tool_call):
-                nonlocal skip_files
-
-                log.debug(f"{tool_call=}")
-
-                tool_function_name = tool_call.get("name", None)
-                if tool_function_name not in tools:
-                    return body, {}
-
-                tool_function_params = tool_call.get("parameters", {})
-
-                try:
-                    required_params = (
-                        tools[tool_function_name]
-                        .get("spec", {})
-                        .get("parameters", {})
-                        .get("required", [])
-                    )
-                    tool_function = tools[tool_function_name]["callable"]
-                    tool_function_params = {
-                        k: v
-                        for k, v in tool_function_params.items()
-                        if k in required_params
-                    }
-                    tool_output = await tool_function(**tool_function_params)
-
-                except Exception as e:
-                    tool_output = str(e)
-
-                if isinstance(tool_output, str):
-                    if tools[tool_function_name]["citation"]:
-                        sources.append(
-                            {
-                                "source": {
-                                    "name": f"TOOL:{tools[tool_function_name]['toolkit_id']}/{tool_function_name}"
-                                },
-                                "document": [tool_output],
-                                "metadata": [
-                                    {
-                                        "source": f"TOOL:{tools[tool_function_name]['toolkit_id']}/{tool_function_name}"
-                                    }
-                                ],
-                            }
-                        )
-                    else:
-                        sources.append(
-                            {
-                                "source": {},
-                                "document": [tool_output],
-                                "metadata": [
-                                    {
-                                        "source": f"TOOL:{tools[tool_function_name]['toolkit_id']}/{tool_function_name}"
-                                    }
-                                ],
-                            }
-                        )
-
-                    if tools[tool_function_name]["file_handler"]:
-                        skip_files = True
-
-            # check if "tool_calls" in result
-            if result.get("tool_calls"):
-                for tool_call in result.get("tool_calls"):
-                    await tool_call_handler(tool_call)
-            else:
-                await tool_call_handler(result)
-
-        except Exception as e:
-            log.exception(f"Error: {e}")
-            content = None
-    except Exception as e:
-        log.exception(f"Error: {e}")
-        content = None
-
-    log.debug(f"tool_contexts: {sources}")
-
-    if skip_files and "files" in body.get("metadata", {}):
-        del body["metadata"]["files"]
-
-    return body, {"sources": sources}
-
 
 async def chat_web_search_handler(
     request: Request, form_data: dict, extra_params: dict, user
@@ -825,8 +570,8 @@ def apply_params_to_form_data(form_data):
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
-
     form_data = apply_params_to_form_data(form_data)
+
     log.debug(f"form_data: {form_data}")
 
     event_emitter = get_event_emitter(metadata)
@@ -846,13 +591,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         "__request__": request,
     }
 
-    # Initialize events to store additional event to be sent to the client
-    # Initialize contexts and citation
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
-
     events = []
     sources = []
-    is_rag_task = True  # Default to RAG behavior
 
     user_message = get_last_user_message(form_data["messages"])
 
@@ -904,8 +644,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         files.extend(model_files)
         form_data["files"] = files
 
-    variables = form_data.pop("variables", None)
-
     features = form_data.pop("features", None)
 
     if features:
@@ -924,62 +662,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 DEFAULT_CODE_INTERPRETER_PROMPT, form_data["messages"]
             )
 
-    try:
-        form_data, flags = await chat_completion_filter_functions_handler(
-            request, form_data, model, extra_params
-        )
-    except Exception as e:
-        raise Exception(f"Error: {e}")
+    files = form_data.pop("files", [])
 
-    tool_ids = form_data.pop("tool_ids", None)
-    files = form_data.pop("files", None)
     # Remove files duplicates
     if files:
         files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
 
     metadata = {
         **metadata,
-        "tool_ids": tool_ids,
         "files": files,
     }
 
     form_data["metadata"] = metadata
-
-    tool_ids = metadata.get("tool_ids", None)
-    log.debug(f"{tool_ids=}")
-
-    if tool_ids:
-        # If tool_ids field is present, then get the tools
-        tools = get_tools(
-            request,
-            tool_ids,
-            user,
-            {
-                **extra_params,
-                "__model__": model,
-                "__messages__": form_data["messages"],
-                "__files__": metadata.get("files", []),
-            },
-        )
-        log.info(f"{tools=}")
-
-        if metadata.get("function_calling") == "native":
-            # If the function calling is native, then call the tools function calling handler
-            metadata["tools"] = tools
-            form_data["tools"] = [
-                {"type": "function", "function": tool.get("spec", {})}
-                for tool in tools.values()
-            ]
-        else:
-            # If the function calling is not native, then call the tools function calling handler
-            try:
-                form_data, flags = await chat_completion_tools_handler(
-                    request, form_data, user, tools
-                )
-                sources.extend(flags.get("sources", []))
-
-            except Exception as e:
-                log.exception(e)
 
     # First, decide if this is a RAG task or content extraction task
     try:
@@ -1203,6 +897,7 @@ async def process_chat_response(
 
     event_emitter = None
     event_caller = None
+
     if (
         "session_id" in metadata
         and metadata["session_id"]
@@ -1290,7 +985,6 @@ async def process_chat_response(
 
     # Streaming response
     if event_emitter and event_caller:
-        task_id = str(uuid4())  # Create a unique task ID.
         model_id = form_data.get("model", "")
 
         Chats.upsert_message_to_chat_by_id_and_message_id(
@@ -1487,7 +1181,6 @@ async def process_chat_response(
                             # Reset the content_blocks by appending a new text block
                             if content_type != "code_interpreter":
                                 if leftover_content:
-
                                     content_blocks.append(
                                         {
                                             "type": "text",
@@ -1536,6 +1229,7 @@ async def process_chat_response(
             )
 
             tool_calls = []
+
             content = message.get("content", "") if message else ""
             content_blocks = [
                 {
@@ -1543,11 +1237,12 @@ async def process_chat_response(
                     "content": content,
                 }
             ]
+
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
             # We might want to disable this by default
-            DETECT_REASONING = True
-            DETECT_CODE_INTERPRETER = metadata.get("features", {}).get(
+            detect_reasoning = True
+            detect_code_interpreter = metadata.get("features", {}).get(
                 "code_interpreter", False
             )
 
@@ -1559,6 +1254,7 @@ async def process_chat_response(
                 "thought",
                 "Thought",
             ]
+
             code_interpreter_tags = ["code_interpreter"]
 
             try:
@@ -1681,7 +1377,7 @@ async def process_chat_response(
                                         content_blocks[-1]["content"] + value
                                     )
 
-                                    if DETECT_REASONING:
+                                    if detect_reasoning:
                                         content, content_blocks, _ = (
                                             tag_content_handler(
                                                 "reasoning",
@@ -1691,7 +1387,7 @@ async def process_chat_response(
                                             )
                                         )
 
-                                    if DETECT_CODE_INTERPRETER:
+                                    if detect_code_interpreter:
                                         content, content_blocks, end = (
                                             tag_content_handler(
                                                 "code_interpreter",
@@ -1700,6 +1396,34 @@ async def process_chat_response(
                                                 content_blocks,
                                             )
                                         )
+
+                                        # When a code_interpreter block is active, emit a backend-driven
+                                        # code_execution "source" event to start the chip in the UI.
+                                        try:
+                                            if content_blocks and content_blocks[-1].get("type") == "code_interpreter":
+                                                block = content_blocks[-1]
+                                                # Ensure a stable id for this execution
+                                                if "code_execution_id" not in block:
+                                                    block["code_execution_id"] = str(uuid4())
+
+                                                # Emit the start event only once
+                                                if not block.get("code_execution_emitted"):
+                                                    lang = (block.get("attributes", {}) or {}).get("lang", "")
+                                                    await event_emitter(
+                                                        {
+                                                            "type": "source",
+                                                            "data": {
+                                                                "type": "code_execution",
+                                                                "id": block["code_execution_id"],
+                                                                "name": f"{lang or 'code'} execution",
+                                                                "language": lang,
+                                                                "code": block.get("content", ""),
+                                                            },
+                                                        }
+                                                    )
+                                                    block["code_execution_emitted"] = True
+                                        except Exception as _emit_err:
+                                            log.debug(f"Failed to emit code_execution start: {_emit_err}")
 
                                         if end:
                                             break
@@ -1885,7 +1609,7 @@ async def process_chat_response(
                         log.debug(e)
                         break
 
-                if DETECT_CODE_INTERPRETER:
+                if detect_code_interpreter:
                     MAX_RETRIES = 5
                     retries = 0
 
@@ -1899,52 +1623,101 @@ async def process_chat_response(
                         output = ""
                         try:
                             if content_blocks[-1]["attributes"].get("type") == "code":
-                                output = await event_caller(
-                                    {
-                                        "type": "execute:python",
-                                        "data": {
-                                            "id": str(uuid4()),
-                                            "code": content_blocks[-1]["content"],
-                                        },
-                                    }
-                                )
+                                # Execute code via external Python executor service instead of frontend event
+                                try:
+                                    executor_url = os.getenv("PYTHON_EXECUTER_URL")
 
-                                if isinstance(output, dict):
-                                    stdout = output.get("stdout", "")
+                                    if not executor_url:
+                                        raise RuntimeError("PYTHON_EXECUTER_URL environment variable is not set")
 
-                                    if stdout:
-                                        stdoutLines = stdout.split("\n")
-                                        for idx, line in enumerate(stdoutLines):
-                                            if "data:image/png;base64" in line:
-                                                id = str(uuid4())
+                                    code_to_run = content_blocks[-1]["content"]
+                                    async with httpx.AsyncClient(timeout=60) as client:
+                                        resp = await client.post(executor_url, json={"code": code_to_run})
+                                        resp.raise_for_status()
+                                        data = resp.json()
 
-                                                # ensure the path exists
-                                                os.makedirs(
-                                                    os.path.join(CACHE_DIR, "images"),
-                                                    exist_ok=True,
-                                                )
+                                    # Expecting structure:
+                                    # {
+                                    #   "success": true,
+                                    #   "stdout": "...",
+                                    #   "stderr": "...",
+                                    #   "files": ["http://...", ...],
+                                    #   "execution_id": "..."
+                                    # }
 
-                                                image_path = os.path.join(
-                                                    CACHE_DIR,
-                                                    f"images/{id}.png",
-                                                )
+                                    if isinstance(data, dict):
+                                        output = data
+                                        # Ensure keys exist
+                                        output.setdefault("success", False)
+                                        output.setdefault("stdout", "")
+                                        output.setdefault("stderr", "")
+                                        output.setdefault("files", [])
+                                        output.setdefault("execution_id", "")
 
-                                                with open(image_path, "wb") as f:
-                                                    f.write(
-                                                        base64.b64decode(
-                                                            line.split(",")[1]
-                                                        )
-                                                    )
+                                        # Make sure file URLs are visible even if UI doesn't parse JSON output
+                                        files_list = output.get("files") or []
 
-                                                stdoutLines[idx] = (
-                                                    f"![Output Image {idx}](/cache/images/{id}.png)"
-                                                )
-
-                                        output["stdout"] = "\n".join(stdoutLines)
+                                        if files_list:
+                                            extra = "\n\nFiles:\n" + "\n".join(str(u) for u in files_list)
+                                            output["stdout"] = (output.get("stdout", "") or "") + extra
+                                    else:
+                                        output = str(data)
+                                except Exception as exec_err:
+                                    output = f"Python executor error: {exec_err}"
                         except Exception as e:
                             output = str(e)
 
                         content_blocks[-1]["output"] = output
+
+                        # Emit final code_execution result event with the same id
+                        try:
+                            block = content_blocks[-1]
+                            exec_id = block.get("code_execution_id") or str(uuid4())
+                            block["code_execution_id"] = exec_id
+
+                            # Normalize executor output to UI schema
+                            result_error = None
+                            result_files = []
+
+                            if isinstance(output, dict):
+                                success = bool(output.get("success", False))
+                                stdout = output.get("stdout") or ""
+                                stderr = output.get("stderr") or ""
+                                files = output.get("files") or []
+
+                                result_output = stdout if success or stdout else None
+                                result_error = None if success else (stderr or ("Execution failed"))
+
+                                # Convert files into objects with name/url if strings
+                                if isinstance(files, list):
+                                    for f in files:
+                                        if isinstance(f, str):
+                                            result_files.append({"name": f.split("/")[-1] or "file", "url": f})
+                                        elif isinstance(f, dict):
+                                            result_files.append(f)
+                            else:
+                                # Plain string; treat as output
+                                result_output = str(output)
+
+                            await event_emitter(
+                                {
+                                    "type": "source",
+                                    "data": {
+                                        "type": "code_execution",
+                                        "id": exec_id,
+                                        "name": f"{(block.get('attributes', {}) or {}).get('lang', '') or 'code'} execution",
+                                        "language": (block.get("attributes", {}) or {}).get("lang", ""),
+                                        "code": block.get("content", ""),
+                                        "result": {
+                                            **({"output": result_output} if result_output else {}),
+                                            **({"error": result_error} if result_error else {}),
+                                            **({"files": result_files} if result_files else {}),
+                                        },
+                                    },
+                                }
+                            )
+                        except Exception as _emit_done_err:
+                            log.debug(f"Failed to emit code_execution result: {_emit_done_err}")
 
                         content_blocks.append(
                             {
@@ -1966,7 +1739,7 @@ async def process_chat_response(
                             res = await generate_chat_completion(
                                 {
                                     "model": model_id,
-                                    "stream": True,
+                                    "stream": False,
                                     "messages": [
                                         *form_data["messages"],
                                         {
@@ -1976,12 +1749,67 @@ async def process_chat_response(
                                             ),
                                         },
                                     ],
+                                    "metadata": metadata,
                                 },
                                 user,
                             )
 
-                            if isinstance(res, StreamingResponse):
-                                await stream_body_handler(res)
+                            if isinstance(res, dict):
+                                # Handle non-streaming response
+                                try:
+                                    message_content = (
+                                        res.get("choices", [{}])[0]
+                                           .get("message", {})
+                                           .get("content", "")
+                                    )
+                                except Exception:
+                                    message_content = ""
+
+                                if message_content:
+                                    content = f"{content}{message_content}"
+
+                                    if not content_blocks:
+                                        content_blocks.append(
+                                            {
+                                                "type": "text",
+                                                "content": "",
+                                            }
+                                        )
+
+                                    content_blocks[-1]["content"] = (
+                                        content_blocks[-1]["content"] + message_content
+                                    )
+
+                                    if detect_reasoning:
+                                        content, content_blocks, _ = (
+                                            tag_content_handler(
+                                                "reasoning",
+                                                reasoning_tags,
+                                                content,
+                                                content_blocks,
+                                            )
+                                        )
+
+                                    if detect_code_interpreter:
+                                        content, content_blocks, _ = (
+                                            tag_content_handler(
+                                                "code_interpreter",
+                                                code_interpreter_tags,
+                                                content,
+                                                content_blocks,
+                                            )
+                                        )
+
+                                    await event_emitter(
+                                        {
+                                            "type": "chat:completion",
+                                            "data": {
+                                                "content": serialize_content_blocks(content_blocks),
+                                            },
+                                        }
+                                    )
+
+                                break
                             else:
                                 break
                         except Exception as e:
@@ -2072,7 +1900,6 @@ async def process_chat_response(
         return {"status": True, "task_id": task_id}
 
     else:
-
         # Fallback to the original response
         async def stream_wrapper(original_generator, events):
             def wrap_item(item):

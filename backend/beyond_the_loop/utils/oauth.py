@@ -14,7 +14,6 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import NO_COMPANY, Companies
 from beyond_the_loop.models.groups import Groups, GroupModel, GroupUpdateForm
 from beyond_the_loop.config import (
-    DEFAULT_USER_ROLE,
     ENABLE_OAUTH_SIGNUP,
     OAUTH_MERGE_ACCOUNTS_BY_EMAIL,
     OAUTH_PROVIDERS,
@@ -31,7 +30,6 @@ from beyond_the_loop.config import (
     OAUTH_ALLOWED_ROLES,
     OAUTH_ADMIN_ROLES,
     OAUTH_ALLOWED_DOMAINS,
-    WEBHOOK_URL,
     JWT_EXPIRES_IN,
     AppConfig,
 )
@@ -45,7 +43,6 @@ from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 log = logging.getLogger(__name__)
 
 auth_manager_config = AppConfig()
-auth_manager_config.DEFAULT_USER_ROLE = DEFAULT_USER_ROLE
 auth_manager_config.ENABLE_OAUTH_SIGNUP = ENABLE_OAUTH_SIGNUP
 auth_manager_config.OAUTH_MERGE_ACCOUNTS_BY_EMAIL = OAUTH_MERGE_ACCOUNTS_BY_EMAIL
 auth_manager_config.ENABLE_OAUTH_ROLE_MANAGEMENT = ENABLE_OAUTH_ROLE_MANAGEMENT
@@ -61,7 +58,6 @@ auth_manager_config.OAUTH_MICROSOFT_PREFERRED_EMAIL_CLAIM = OAUTH_MICROSOFT_PREF
 auth_manager_config.OAUTH_ALLOWED_ROLES = OAUTH_ALLOWED_ROLES
 auth_manager_config.OAUTH_ADMIN_ROLES = OAUTH_ADMIN_ROLES
 auth_manager_config.OAUTH_ALLOWED_DOMAINS = OAUTH_ALLOWED_DOMAINS
-auth_manager_config.WEBHOOK_URL = WEBHOOK_URL
 auth_manager_config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
 class OAUTH_ERROR_CODES:

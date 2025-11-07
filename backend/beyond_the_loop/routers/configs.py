@@ -16,14 +16,12 @@ router = APIRouter()
 # SetDefaultModels
 ############################
 class ModelsConfigForm(BaseModel):
-    DEFAULT_MODELS: Optional[str]
     MODEL_ORDER_LIST: Optional[list[str]]
 
 
 @router.get("/models", response_model=ModelsConfigForm)
 async def get_models_config(request: Request, user=Depends(get_admin_user)):
     return {
-        "DEFAULT_MODELS": request.app.state.config.DEFAULT_MODELS,
         "MODEL_ORDER_LIST": request.app.state.config.MODEL_ORDER_LIST,
     }
 
@@ -36,21 +34,18 @@ async def set_models_config(
     company_id = user.company_id
     
     # Update app state config
-    request.app.state.config.DEFAULT_MODELS = form_data.DEFAULT_MODELS
     request.app.state.config.MODEL_ORDER_LIST = form_data.MODEL_ORDER_LIST
     
     # Get current config and update it
     current_config = get_config(company_id)
     if "models" not in current_config:
         current_config["models"] = {}
-    current_config["models"]["DEFAULT_MODELS"] = form_data.DEFAULT_MODELS
     current_config["models"]["MODEL_ORDER_LIST"] = form_data.MODEL_ORDER_LIST
     
     # Save the updated config
     save_config(current_config, company_id)
     
     return {
-        "DEFAULT_MODELS": form_data.DEFAULT_MODELS,
         "MODEL_ORDER_LIST": form_data.MODEL_ORDER_LIST,
     }
 
