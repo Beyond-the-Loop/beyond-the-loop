@@ -14,9 +14,6 @@
 		config,
 		user,
 		socket,
-		toastVisible,
-		toastMessage,
-		toastType,
 		showToast
 	} from '$lib/stores';
 
@@ -29,7 +26,7 @@
 	import ChevronDown from '../icons/ChevronDown.svelte';
 	import { inviteUsers } from '$lib/apis/auths';
 	import { error } from '@sveltejs/kit';
-	  import { theme, systemTheme } from '$lib/stores';
+	import { theme, systemTheme } from '$lib/stores';
 
 	const dispatch = createEventDispatcher();
 	const i18n = getContext('i18n');
@@ -97,8 +94,6 @@
 		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
 	});
 </script>
-
-<CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} duration={8000}/>
 
 <form
 	class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-8 md:px-24"

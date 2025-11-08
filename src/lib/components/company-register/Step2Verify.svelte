@@ -58,8 +58,6 @@
 	</title>
 </svelte:head>
 
-<CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
-
 <form
 	class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-8 md:px-24"
 	on:submit={(e) => {
