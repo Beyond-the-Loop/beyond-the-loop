@@ -17,7 +17,7 @@ from fastapi import (
 from pydantic import BaseModel
 import tiktoken
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain_core.documents import Document
 
 from beyond_the_loop.models.files import FileModel, Files
@@ -40,18 +40,17 @@ from beyond_the_loop.retrieval.utils import (
     query_doc,
     query_doc_with_hybrid_search,
 )
+
 from open_webui.utils.misc import (
     calculate_sha256_string,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
-
 
 from beyond_the_loop.config import (
     ENV,
     RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE,
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
     UPLOAD_DIR,
-    DEFAULT_LOCALE,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -694,7 +693,7 @@ def process_web_search(
         log.exception(e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
 

@@ -324,6 +324,7 @@ async def chat_web_search_handler(
     request: Request, form_data: dict, extra_params: dict, user
 ):
     event_emitter = extra_params["__event_emitter__"]
+
     await event_emitter(
         {
             "type": "status",
@@ -363,6 +364,7 @@ async def chat_web_search_handler(
             queries = json.loads(response)
             queries = queries.get("queries", [])
         except Exception as e:
+            log.exception(e)
             queries = [response]
 
     except Exception as e:
@@ -383,8 +385,6 @@ async def chat_web_search_handler(
         return form_data
 
     search_query = queries[0]
-
-    print(queries)
 
     await event_emitter(
         {

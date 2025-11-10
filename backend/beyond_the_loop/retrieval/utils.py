@@ -2,12 +2,11 @@ import logging
 import os
 from typing import Optional, Union
 from huggingface_hub import snapshot_download
-from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriever
+from langchain_classic.retrievers import ContextualCompressionRetriever, EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
 from beyond_the_loop.config import VECTOR_DB
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
-from beyond_the_loop.models.users import UserModel
 
 from open_webui.env import (
     SRC_LOG_LEVELS,
