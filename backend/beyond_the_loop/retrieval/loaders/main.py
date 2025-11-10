@@ -16,6 +16,7 @@ from langchain_community.document_loaders import (
     UnstructuredRSTLoader,
     UnstructuredXMLLoader,
 )
+
 from langchain_core.documents import Document
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
 
@@ -122,6 +123,7 @@ class Loader:
         self, filename: str, file_content_type: str, file_path: str
     ) -> list[Document]:
         loader = self._get_loader(filename, file_content_type, file_path)
+
         docs = loader.load()
 
         return [

@@ -1118,29 +1118,48 @@ QUERY_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     os.environ.get("QUERY_GENERATION_PROMPT_TEMPLATE", ""),
 )
 
-DEFAULT_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Analyze the chat history to determine the necessity of generating search queries, in the given language. By default, **prioritize generating 1-3 broad and relevant search queries** unless it is absolutely certain that no additional information is required. The aim is to retrieve comprehensive, updated, and valuable information even with minimal uncertainty. If no search is unequivocally needed, return an empty list.
+WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
+Analyze the chat history to generate web search queries in the given language. By default, **prioritize generating 1–3 broad and relevant search queries** that can retrieve **updated, comprehensive, and trustworthy** information from the web.
 
 ### Guidelines:
-- Respond **EXCLUSIVELY** with a JSON object. Any form of extra commentary, explanation, or additional text is strictly prohibited.
-- When generating search queries, respond in the format: { "queries": ["query1", "query2"] }, ensuring each query is distinct, concise, and relevant to the topic.
-- If and only if it is entirely certain that no useful results can be retrieved by a search, return: { "queries": [] }.
-- Err on the side of suggesting search queries if there is **any chance** they might provide useful or updated information.
-- Be concise and focused on composing high-quality search queries, avoiding unnecessary elaboration, commentary, or assumptions.
+- Respond **EXCLUSIVELY** with a JSON object. No extra commentary or explanation.
+- Response format: { "queries": ["query1", "query2"] }
+- Err on the side of suggesting search queries if there’s any potential value.
+- Use the chat’s language; default to English if unclear.
+- Always prioritize **web scraping or API-based retrieval** services (e.g., Firecrawl).
 - Today's date is: {{CURRENT_DATE}}.
-- Always prioritize providing search queries for a webscraping service (e.g. firecrawl).
-- IMPORTANT! Use the chat's primary language for the queries; default to English if multilingual.
+- IMPORTANT: Generate at lease one query!
 
 ### URL Extraction Rules:
-- **CRITICAL**: Scan user messages for URLs (http:// or https://)
-- If URLs are found, include them as contextual search queries in the FIRST position of the queries array
-- URLs must be the FIRST query in the array since only queries[0] is used by firecrawl
-- Create the search query as usual but include the the URL without any additional formatting or changes as it is in the query
-- It must not be formatted as "search for https://example.com" or "analyze https://docs.site.com/page" but with context from the chat if possible
-- Don't return just the URL in the first query
+- Scan messages for URLs (http:// or https://)
+- If found, insert the URL (unaltered) as the **first element** of the "queries" array
+- Example: { "queries": ["https://example.com", "related search query"] }
+- Do **not** wrap URLs in phrases like “search for” or “analyze”.
 
 ### Output:
-Strictly return in JSON format: 
+{
+  "queries": ["query1", "query2"]
+}
+
+### Chat History:
+<chat_history>
+{{MESSAGES:END:6}}
+</chat_history>
+"""
+
+RAG_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
+Analyze the chat history to generate search queries that retrieve **relevant information from a local RAG (Retrieval-Augmented Generation) document store**. The goal is to identify **semantically rich, specific, and content-focused** queries rather than broad web searches.
+
+### Guidelines:
+- Respond **EXCLUSIVELY** with a JSON object. No commentary or explanations.
+- Response format: { "queries": ["query1", "query2"] }
+- Focus on **semantic retrieval** — generate queries that align with document embeddings and maximize recall of relevant context.
+- Prefer **topic-specific, question-style**, or **phrase-based** queries that match possible file content.
+- If no meaningful retrieval is possible, return: { "queries": [] }
+- Use the chat’s language; default to English if unclear.
+- Today's date is: {{CURRENT_DATE}}.
+
+### Output:
 {
   "queries": ["query1", "query2"]
 }
