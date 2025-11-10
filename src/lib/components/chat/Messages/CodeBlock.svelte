@@ -51,9 +51,6 @@ export let code = '';
 		toast.success($i18n.t('Copied code to clipboard!'));
 	};
 
-
-	// Python execution removed; code is view-only now.
-
 	const drawMermaidDiagram = async () => {
 		try {
 			if (await mermaid.parse(code)) {

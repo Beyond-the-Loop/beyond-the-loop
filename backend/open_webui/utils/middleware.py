@@ -1735,88 +1735,8 @@ async def process_chat_response(
                             }
                         )
 
-                        try:
-                            res = await generate_chat_completion(
-                                {
-                                    "model": model_id,
-                                    "stream": False,
-                                    "messages": [
-                                        *form_data["messages"],
-                                        {
-                                            "role": "assistant",
-                                            "content": serialize_content_blocks(
-                                                content_blocks, raw=True
-                                            ),
-                                        },
-                                    ],
-                                    "metadata": metadata,
-                                },
-                                user,
-                            )
-
-                            if isinstance(res, dict):
-                                # Handle non-streaming response
-                                try:
-                                    message_content = (
-                                        res.get("choices", [{}])[0]
-                                           .get("message", {})
-                                           .get("content", "")
-                                    )
-                                except Exception:
-                                    message_content = ""
-
-                                if message_content:
-                                    content = f"{content}{message_content}"
-
-                                    if not content_blocks:
-                                        content_blocks.append(
-                                            {
-                                                "type": "text",
-                                                "content": "",
-                                            }
-                                        )
-
-                                    content_blocks[-1]["content"] = (
-                                        content_blocks[-1]["content"] + message_content
-                                    )
-
-                                    if detect_reasoning:
-                                        content, content_blocks, _ = (
-                                            tag_content_handler(
-                                                "reasoning",
-                                                reasoning_tags,
-                                                content,
-                                                content_blocks,
-                                            )
-                                        )
-
-                                    if detect_code_interpreter:
-                                        content, content_blocks, _ = (
-                                            tag_content_handler(
-                                                "code_interpreter",
-                                                code_interpreter_tags,
-                                                content,
-                                                content_blocks,
-                                            )
-                                        )
-
-                                    await event_emitter(
-                                        {
-                                            "type": "chat:completion",
-                                            "data": {
-                                                "content": serialize_content_blocks(content_blocks),
-                                            },
-                                        }
-                                    )
-
-                                break
-                            else:
-                                break
-                        except Exception as e:
-                            log.debug(e)
-                            break
-
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
+
                 data = {
                     "done": True,
                     "content": serialize_content_blocks(content_blocks),
