@@ -20,11 +20,12 @@ stripe_pricing_table_id = os.environ.get('STRIPE_PRICING_TABLE_ID')
 stripe_publishable_key = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 
 stripe_price_id_starter_monthly = os.environ.get('STRIPE_PRICE_ID_STARTER_MONTHLY', "price_1RNq8xBBwyxb4MZjy1k0SneL")
-stripe_price_id_team_monthly = os.environ.get('STRIPE_PRICE_ID_TEAM_MONTHLY', "price_1RNqAcBBwyxb4MZjAGivhdo7")
-stripe_price_id_business_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_MONTHLY', "price_1Rgl6vBBwyxb4MZjHFAg6034")
-
 stripe_price_id_starter_yearly = os.environ.get('STRIPE_PRICE_ID_STARTER_YEARLY', "price_1RNq8xBBwyxb4MZjfz68raOh")
+
+stripe_price_id_team_monthly = os.environ.get('STRIPE_PRICE_ID_TEAM_MONTHLY', "price_1RNqAcBBwyxb4MZjAGivhdo7")
 stripe_price_id_team_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_YEARLY', "price_1RNqAcBBwyxb4MZjNdS4XrNc")
+
+stripe_price_id_business_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_MONTHLY', "price_1Rgl6vBBwyxb4MZjHFAg6034")
 stripe_price_id_business_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_YEARLY', "price_1RglAcBBwyxb4MZjRYcvp9dr")
 stripe_price_id_business_two_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_TWO_YEARLY', "price_1SFK4QBBwyxb4MZjdHFP4AJh")
 

@@ -73,7 +73,7 @@ async def add_memory(
 
 class QueryMemoryForm(BaseModel):
     content: str
-    k: Optional[int] = 1
+    k: Optional[int] = 10
 
 
 @router.post("/query")

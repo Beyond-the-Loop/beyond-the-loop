@@ -290,15 +290,9 @@
 				<div class="flex items-center justify-between pb-2.5 border-b dark:border-customGray-700 mb-5">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Base credits')}</div>
 					<div class="text-xs dark:text-customGray-590">
-						{#if $subscription?.is_trial}
 						<span class="text-xs text-lightGray-100 dark:text-customGray-100">€{(currentPlan?.credits_per_month - $subscription?.credits_remaining)?.toFixed(2)} {$i18n.t('used')}</span><span
 							class="dark:text-customGray-590">/ €{(currentPlan?.credits_per_month).toFixed(2)} {$i18n.t('included')}</span
 						>
-						{:else}
-						<span class="text-xs text-lightGray-100 dark:text-customGray-100">€{(5 - $subscription?.credits_remaining)?.toFixed(2)} {$i18n.t('used')}</span><span
-							class="dark:text-customGray-590">/ €{(5).toFixed(2)} {$i18n.t('included')}</span
-						>
-						{/if}
 					</div>
 				</div>
 				<div class="relative w-full h-1 rounded-sm bg-lightGray-700 dark:bg-customGray-800 mb-2.5">
