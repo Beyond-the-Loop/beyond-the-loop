@@ -46,20 +46,12 @@
 		copyToClipboard,
 		getMessageContentParts,
 		createMessagesList,
-		extractSentencesForAudio,
 		promptTemplate,
-		splitStream,
-		sleep,
-		removeDetails,
-		getPromptVariables
+		removeDetails
 	} from '$lib/utils';
 
-	import { generateChatCompletion } from '$lib/apis/ollama';
 	import {
-		addTagById,
 		createNewChat,
-		deleteTagById,
-		deleteTagsById,
 		getAllTags,
 		getChatById,
 		getChatList,
@@ -67,13 +59,12 @@
 		updateChatById
 	} from '$lib/apis/chats';
 	import { generateOpenAIChatCompletion, generateMagicPrompt } from '$lib/apis/openai';
-	import { processWeb, processWebSearch, processYoutubeVideo } from '$lib/apis/retrieval';
+	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
 	import {
 		chatCompleted,
-		generateQueries,
 		chatAction,
 		generateMoACompletion,
 		stopTask
@@ -87,7 +78,6 @@
 	import ChatControls from './ChatControls.svelte';
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Placeholder from './Placeholder.svelte';
-	import NotificationToast from '../NotificationToast.svelte';
 	import Spinner from '../common/Spinner.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
@@ -1593,12 +1583,6 @@
 						($user.role === 'admin' || $user?.permissions?.features?.web_search)
 							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
 							: false
-				},
-				variables: {
-					...getPromptVariables(
-						`${$user.first_name} ${$user.last_name}`,
-						$settings?.userLocation ? await getAndUpdateUserLocation(localStorage.token) : undefined
-					)
 				},
 
 				session_id: $socket?.id,

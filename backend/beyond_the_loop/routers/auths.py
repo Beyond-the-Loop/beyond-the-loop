@@ -567,7 +567,6 @@ async def get_admin_config(request: Request, user=Depends(get_admin_user)):
     return {
         "SHOW_ADMIN_DETAILS": request.app.state.config.SHOW_ADMIN_DETAILS,
         "WEBUI_URL": request.app.state.config.WEBUI_URL,
-        "ENABLE_SIGNUP": request.app.state.config.ENABLE_SIGNUP,
         "ENABLE_API_KEY": request.app.state.config.ENABLE_API_KEY,
         "ENABLE_API_KEY_ENDPOINT_RESTRICTIONS": request.app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
         "API_KEY_ALLOWED_ENDPOINTS": request.app.state.config.API_KEY_ALLOWED_ENDPOINTS,
@@ -582,7 +581,6 @@ async def get_admin_config(request: Request, user=Depends(get_admin_user)):
 class AdminConfig(BaseModel):
     SHOW_ADMIN_DETAILS: bool
     WEBUI_URL: str
-    ENABLE_SIGNUP: bool
     ENABLE_API_KEY: bool
     ENABLE_API_KEY_ENDPOINT_RESTRICTIONS: bool
     API_KEY_ALLOWED_ENDPOINTS: str
@@ -599,7 +597,6 @@ async def update_admin_config(
 ):
     request.app.state.config.SHOW_ADMIN_DETAILS = form_data.SHOW_ADMIN_DETAILS
     request.app.state.config.WEBUI_URL = form_data.WEBUI_URL
-    request.app.state.config.ENABLE_SIGNUP = form_data.ENABLE_SIGNUP
 
     request.app.state.config.ENABLE_API_KEY = form_data.ENABLE_API_KEY
     request.app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS = (
@@ -628,7 +625,6 @@ async def update_admin_config(
     return {
         "SHOW_ADMIN_DETAILS": request.app.state.config.SHOW_ADMIN_DETAILS,
         "WEBUI_URL": request.app.state.config.WEBUI_URL,
-        "ENABLE_SIGNUP": request.app.state.config.ENABLE_SIGNUP,
         "ENABLE_API_KEY": request.app.state.config.ENABLE_API_KEY,
         "ENABLE_API_KEY_ENDPOINT_RESTRICTIONS": request.app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
         "API_KEY_ALLOWED_ENDPOINTS": request.app.state.config.API_KEY_ALLOWED_ENDPOINTS,

@@ -2,7 +2,7 @@ import black
 import markdown
 
 from beyond_the_loop.models.chats import ChatTitleMessagesForm
-from beyond_the_loop.config import DATA_DIR, ENABLE_ADMIN_EXPORT
+from beyond_the_loop.config import DATA_DIR
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
@@ -67,27 +67,6 @@ async def download_chat_as_pdf(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/db/download")
-async def download_db(user=Depends(get_admin_user)):
-    if not ENABLE_ADMIN_EXPORT:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-    from open_webui.internal.db import engine
-
-    if engine.name != "sqlite":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DB_NOT_SQLITE,
-        )
-    return FileResponse(
-        engine.url.database,
-        media_type="application/octet-stream",
-        filename="webui.db",
-    )
 
 
 @router.get("/litellm/config")

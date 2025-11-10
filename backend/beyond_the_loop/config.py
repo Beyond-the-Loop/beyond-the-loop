@@ -398,30 +398,6 @@ MICROSOFT_REDIRECT_URI = PersistentConfig(
     os.environ.get("MICROSOFT_REDIRECT_URI", ""),
 )
 
-GITHUB_CLIENT_ID = PersistentConfig(
-    "GITHUB_CLIENT_ID",
-    "oauth.github.client_id",
-    os.environ.get("GITHUB_CLIENT_ID", ""),
-)
-
-GITHUB_CLIENT_SECRET = PersistentConfig(
-    "GITHUB_CLIENT_SECRET",
-    "oauth.github.client_secret",
-    os.environ.get("GITHUB_CLIENT_SECRET", ""),
-)
-
-GITHUB_CLIENT_SCOPE = PersistentConfig(
-    "GITHUB_CLIENT_SCOPE",
-    "oauth.github.scope",
-    os.environ.get("GITHUB_CLIENT_SCOPE", "user:email"),
-)
-
-GITHUB_CLIENT_REDIRECT_URI = PersistentConfig(
-    "GITHUB_CLIENT_REDIRECT_URI",
-    "oauth.github.redirect_uri",
-    os.environ.get("GITHUB_CLIENT_REDIRECT_URI", ""),
-)
-
 OAUTH_CLIENT_ID = PersistentConfig(
     "OAUTH_CLIENT_ID",
     "oauth.oidc.client_id",
@@ -432,18 +408,6 @@ OAUTH_CLIENT_SECRET = PersistentConfig(
     "OAUTH_CLIENT_SECRET",
     "oauth.oidc.client_secret",
     os.environ.get("OAUTH_CLIENT_SECRET", ""),
-)
-
-OPENID_PROVIDER_URL = PersistentConfig(
-    "OPENID_PROVIDER_URL",
-    "oauth.oidc.provider_url",
-    os.environ.get("OPENID_PROVIDER_URL", ""),
-)
-
-OPENID_REDIRECT_URI = PersistentConfig(
-    "OPENID_REDIRECT_URI",
-    "oauth.oidc.redirect_uri",
-    os.environ.get("OPENID_REDIRECT_URI", ""),
 )
 
 OAUTH_SCOPES = PersistentConfig(
@@ -586,52 +550,6 @@ def load_oauth_providers():
             "register": microsoft_oauth_register,
         }
 
-    if GITHUB_CLIENT_ID.value and GITHUB_CLIENT_SECRET.value:
-
-        def github_oauth_register(client):
-            client.register(
-                name="github",
-                client_id=GITHUB_CLIENT_ID.value,
-                client_secret=GITHUB_CLIENT_SECRET.value,
-                access_token_url="https://github.com/login/oauth/access_token",
-                authorize_url="https://github.com/login/oauth/authorize",
-                api_base_url="https://api.github.com",
-                userinfo_endpoint="https://api.github.com/user",
-                client_kwargs={"scope": GITHUB_CLIENT_SCOPE.value},
-                redirect_uri=GITHUB_CLIENT_REDIRECT_URI.value,
-            )
-
-        OAUTH_PROVIDERS["github"] = {
-            "redirect_uri": GITHUB_CLIENT_REDIRECT_URI.value,
-            "register": github_oauth_register,
-            "sub_claim": "id",
-        }
-
-    if (
-        OAUTH_CLIENT_ID.value
-        and OAUTH_CLIENT_SECRET.value
-        and OPENID_PROVIDER_URL.value
-    ):
-
-        def oidc_oauth_register(client):
-            client.register(
-                name="oidc",
-                client_id=OAUTH_CLIENT_ID.value,
-                client_secret=OAUTH_CLIENT_SECRET.value,
-                server_metadata_url=OPENID_PROVIDER_URL.value,
-                client_kwargs={
-                    "scope": OAUTH_SCOPES.value,
-                },
-                redirect_uri=OPENID_REDIRECT_URI.value,
-            )
-
-        OAUTH_PROVIDERS["oidc"] = {
-            "name": OAUTH_PROVIDER_NAME.value,
-            "redirect_uri": OPENID_REDIRECT_URI.value,
-            "register": oidc_oauth_register,
-        }
-
-
 load_oauth_providers()
 
 ####################################
@@ -693,74 +611,14 @@ CACHE_DIR = f"{DATA_DIR}/cache"
 Path(CACHE_DIR).mkdir(parents=True, exist_ok=True)
 
 ####################################
-# OLLAMA_BASE_URL
-####################################
-
-ENABLE_OLLAMA_API = PersistentConfig(
-    "ENABLE_OLLAMA_API",
-    "ollama.enable",
-    os.environ.get("ENABLE_OLLAMA_API", "True").lower() == "true",
-)
-
-OLLAMA_API_BASE_URL = os.environ.get(
-    "OLLAMA_API_BASE_URL", "http://localhost:11434/api"
-)
-
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "")
-if OLLAMA_BASE_URL:
-    # Remove trailing slash
-    OLLAMA_BASE_URL = (
-        OLLAMA_BASE_URL[:-1] if OLLAMA_BASE_URL.endswith("/") else OLLAMA_BASE_URL
-    )
-
-
-K8S_FLAG = os.environ.get("K8S_FLAG", "")
-USE_OLLAMA_DOCKER = os.environ.get("USE_OLLAMA_DOCKER", "false")
-
-if OLLAMA_BASE_URL == "" and OLLAMA_API_BASE_URL != "":
-    OLLAMA_BASE_URL = (
-        OLLAMA_API_BASE_URL[:-4]
-        if OLLAMA_API_BASE_URL.endswith("/api")
-        else OLLAMA_API_BASE_URL
-    )
-
-if ENV == "prod":
-    if OLLAMA_BASE_URL == "/ollama" and not K8S_FLAG:
-        if USE_OLLAMA_DOCKER.lower() == "true":
-            # if you use all-in-one docker container (Open WebUI + Ollama)
-            # with the docker build arg USE_OLLAMA=true (--build-arg="USE_OLLAMA=true") this only works with http://localhost:11434
-            OLLAMA_BASE_URL = "http://localhost:11434"
-        else:
-            OLLAMA_BASE_URL = "http://host.docker.internal:11434"
-    elif K8S_FLAG:
-        OLLAMA_BASE_URL = "http://ollama-service.open-webui.svc.cluster.local:11434"
-
-
-OLLAMA_BASE_URLS = os.environ.get("OLLAMA_BASE_URLS", "")
-OLLAMA_BASE_URLS = OLLAMA_BASE_URLS if OLLAMA_BASE_URLS != "" else OLLAMA_BASE_URL
-
-OLLAMA_BASE_URLS = [url.strip() for url in OLLAMA_BASE_URLS.split(";")]
-OLLAMA_BASE_URLS = PersistentConfig(
-    "OLLAMA_BASE_URLS", "ollama.base_urls", OLLAMA_BASE_URLS
-)
-
-OLLAMA_API_CONFIGS = PersistentConfig(
-    "OLLAMA_API_CONFIGS",
-    "ollama.api_configs",
-    {},
-)
-
-####################################
 # OPENAI_API
 ####################################
-
 
 ENABLE_OPENAI_API = PersistentConfig(
     "ENABLE_OPENAI_API",
     "openai.enable",
     os.environ.get("ENABLE_OPENAI_API", "True").lower() == "true",
 )
-
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_API_BASE_URL = os.environ.get("OPENAI_API_BASE_URL", "")
@@ -815,32 +673,10 @@ WEBUI_URL = PersistentConfig(
     "WEBUI_URL", "webui.url", os.environ.get("WEBUI_URL", "http://localhost:3000")
 )
 
-
-ENABLE_SIGNUP = PersistentConfig(
-    "ENABLE_SIGNUP",
-    "ui.enable_signup",
-    (
-        False
-        if not WEBUI_AUTH
-        else os.environ.get("ENABLE_SIGNUP", "True").lower() == "true",
-    ),
-)
-
-ENABLE_LOGIN_FORM = PersistentConfig(
-    "ENABLE_LOGIN_FORM",
-    "ui.ENABLE_LOGIN_FORM",
-    os.environ.get("ENABLE_LOGIN_FORM", "True").lower() == "true",
-)
-
-
 DEFAULT_LOCALE = PersistentConfig(
     "DEFAULT_LOCALE",
     "ui.default_locale",
     os.environ.get("DEFAULT_LOCALE", ""),
-)
-
-DEFAULT_MODELS = PersistentConfig(
-    "DEFAULT_MODELS", "ui.default_models", os.environ.get("DEFAULT_MODELS", None)
 )
 
 DEFAULT_PROMPT_SUGGESTIONS = PersistentConfig(
@@ -877,32 +713,10 @@ DEFAULT_PROMPT_SUGGESTIONS = PersistentConfig(
     ],
 )
 
-MODEL_ORDER_LIST = PersistentConfig(
-    "MODEL_ORDER_LIST",
-    "ui.model_order_list",
-    [],
-)
-
-DEFAULT_USER_ROLE = PersistentConfig(
-    "DEFAULT_USER_ROLE",
-    "ui.default_user_role",
-    os.getenv("DEFAULT_USER_ROLE", "user"),
-)
-
 ENABLE_CHANNELS = PersistentConfig(
     "ENABLE_CHANNELS",
     "channels.enable",
     os.environ.get("ENABLE_CHANNELS", "False").lower() == "true",
-)
-
-WEBHOOK_URL = PersistentConfig(
-    "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
-)
-
-ENABLE_ADMIN_EXPORT = os.environ.get("ENABLE_ADMIN_EXPORT", "True").lower() == "true"
-
-ENABLE_ADMIN_CHAT_ACCESS = (
-    os.environ.get("ENABLE_ADMIN_CHAT_ACCESS", "True").lower() == "true"
 )
 
 ENABLE_COMMUNITY_SHARING = PersistentConfig(
@@ -916,7 +730,6 @@ ENABLE_MESSAGE_RATING = PersistentConfig(
     "ui.enable_message_rating",
     os.environ.get("ENABLE_MESSAGE_RATING", "True").lower() == "true",
 )
-
 
 HIDE_MODEL_LOGO_IN_CHAT = PersistentConfig(
     "HIDE_MODEL_LOGO_IN_CHAT",
@@ -986,35 +799,9 @@ except Exception as e:
 WEBUI_BANNERS = PersistentConfig("WEBUI_BANNERS", "ui.banners", banners)
 
 
-SHOW_ADMIN_DETAILS = PersistentConfig(
-    "SHOW_ADMIN_DETAILS",
-    "auth.admin.show",
-    os.environ.get("SHOW_ADMIN_DETAILS", "true").lower() == "true",
-)
-
-ADMIN_EMAIL = PersistentConfig(
-    "ADMIN_EMAIL",
-    "auth.admin.email",
-    os.environ.get("ADMIN_EMAIL", None),
-)
-
-
 ####################################
 # TASKS
 ####################################
-
-
-TASK_MODEL = PersistentConfig(
-    "TASK_MODEL",
-    "task.model.default",
-    os.environ.get("TASK_MODEL", ""),
-)
-
-TASK_MODEL_EXTERNAL = PersistentConfig(
-    "TASK_MODEL_EXTERNAL",
-    "task.model.external",
-    os.environ.get("TASK_MODEL_EXTERNAL", ""),
-)
 
 TITLE_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     "TITLE_GENERATION_PROMPT_TEMPLATE",
@@ -1098,19 +885,11 @@ ENABLE_TAGS_GENERATION = PersistentConfig(
     os.environ.get("ENABLE_TAGS_GENERATION", "False").lower() == "true",
 )
 
-
-ENABLE_SEARCH_QUERY_GENERATION = PersistentConfig(
-    "ENABLE_SEARCH_QUERY_GENERATION",
-    "task.query.search.enable",
-    os.environ.get("ENABLE_SEARCH_QUERY_GENERATION", "True").lower() == "true",
-)
-
 ENABLE_RETRIEVAL_QUERY_GENERATION = PersistentConfig(
     "ENABLE_RETRIEVAL_QUERY_GENERATION",
     "task.query.retrieval.enable",
     os.environ.get("ENABLE_RETRIEVAL_QUERY_GENERATION", "True").lower() == "true",
 )
-
 
 QUERY_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     "QUERY_GENERATION_PROMPT_TEMPLATE",
@@ -1170,102 +949,6 @@ Analyze the chat history to generate search queries that retrieve **relevant inf
 </chat_history>
 """
 
-ENABLE_AUTOCOMPLETE_GENERATION = PersistentConfig(
-    "ENABLE_AUTOCOMPLETE_GENERATION",
-    "task.autocomplete.enable",
-    os.environ.get("ENABLE_AUTOCOMPLETE_GENERATION", "False").lower() == "true",
-)
-
-AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH = PersistentConfig(
-    "AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH",
-    "task.autocomplete.input_max_length",
-    int(os.environ.get("AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH", "-1")),
-)
-
-AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
-    "AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE",
-    "task.autocomplete.prompt_template",
-    os.environ.get("AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE", ""),
-)
-
-
-DEFAULT_AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE = """### Task:
-You are an autocompletion system. Continue the text in `<text>` based on the **completion type** in `<type>` and the given language.  
-
-### **Instructions**:
-1. Analyze `<text>` for context and meaning.  
-2. Use `<type>` to guide your output:  
-   - **General**: Provide a natural, concise continuation.  
-   - **Search Query**: Complete as if generating a realistic search query.  
-3. Start as if you are directly continuing `<text>`. Do **not** repeat, paraphrase, or respond as a model. Simply complete the text.  
-4. Ensure the continuation:
-   - Flows naturally from `<text>`.  
-   - Avoids repetition, overexplaining, or unrelated ideas.  
-5. If unsure, return: `{ "text": "" }`.  
-
-### **Output Rules**:
-- Respond only in JSON format: `{ "text": "<your_completion>" }`.
-
-### **Examples**:
-#### Example 1:  
-Input:  
-<type>General</type>  
-<text>The sun was setting over the horizon, painting the sky</text>  
-Output:  
-{ "text": "with vibrant shades of orange and pink." }
-
-#### Example 2:  
-Input:  
-<type>Search Query</type>  
-<text>Top-rated restaurants in</text>  
-Output:  
-{ "text": "New York City for Italian cuisine." }  
-
----
-### Context:
-<chat_history>
-{{MESSAGES:END:6}}
-</chat_history>
-<type>{{TYPE}}</type>  
-<text>{{PROMPT}}</text>  
-#### Output:
-"""
-
-TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE = PersistentConfig(
-    "TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE",
-    "task.tools.prompt_template",
-    os.environ.get("TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE", ""),
-)
-
-
-DEFAULT_TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE = """Available Tools: {{TOOLS}}
-
-Your task is to choose and return the correct tool(s) from the list of available tools based on the query. Follow these guidelines:
-
-- Return only the JSON object, without any additional text or explanation.
-
-- If no tools match the query, return an empty array: 
-   {
-     "tool_calls": []
-   }
-
-- If one or more tools match the query, construct a JSON response containing a "tool_calls" array with objects that include:
-   - "name": The tool's name.
-   - "parameters": A dictionary of required parameters and their corresponding values.
-
-The format for the JSON response is strictly:
-{
-  "tool_calls": [
-    {"name": "toolName1", "parameters": {"key1": "value1"}},
-    {"name": "toolName2", "parameters": {"key2": "value2"}}
-  ]
-}"""
-
-
-DEFAULT_EMOJI_GENERATION_PROMPT_TEMPLATE = """Your task is to reflect the speaker's likely facial expression through a fitting emoji. Interpret emotions from the message and reflect their facial expression using fitting, diverse emojis (e.g., 😊, 😢, 😡, 😱).
-
-Message: ```{{prompt}}```"""
-
 DEFAULT_MOA_GENERATION_PROMPT_TEMPLATE = """You have been provided with a set of responses from various models to the latest user query: "{{prompt}}"
 
 Your task is to synthesize these responses into a single, high-quality response. It is crucial to critically evaluate the information provided in these responses, recognizing that some of it may be biased or incorrect. Your response should not simply replicate the given answers but should offer a refined, accurate, and comprehensive reply to the instruction. Ensure your response is well-structured, coherent, and adheres to the highest standards of accuracy and reliability.
@@ -1320,37 +1003,9 @@ else:
 CHROMA_HTTP_SSL = os.environ.get("CHROMA_HTTP_SSL", "false").lower() == "true"
 # this uses the model defined in the Dockerfile ENV variable. If you dont use docker or docker based deployments such as k8s, the default embedding model will be used (sentence-transformers/all-MiniLM-L6-v2)
 
-# Milvus
-
-MILVUS_URI = os.environ.get("MILVUS_URI", f"{DATA_DIR}/vector_db/milvus.db")
-MILVUS_DB = os.environ.get("MILVUS_DB", "default")
-MILVUS_TOKEN = os.environ.get("MILVUS_TOKEN", None)
-
-# Qdrant
-QDRANT_URI = os.environ.get("QDRANT_URI", None)
-QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", None)
-
-# OpenSearch
-OPENSEARCH_URI = os.environ.get("OPENSEARCH_URI", "https://localhost:9200")
-OPENSEARCH_SSL = os.environ.get("OPENSEARCH_SSL", True)
-OPENSEARCH_CERT_VERIFY = os.environ.get("OPENSEARCH_CERT_VERIFY", False)
-OPENSEARCH_USERNAME = os.environ.get("OPENSEARCH_USERNAME", None)
-OPENSEARCH_PASSWORD = os.environ.get("OPENSEARCH_PASSWORD", None)
-
-# Pgvector
-PGVECTOR_DB_URL = os.environ.get("PGVECTOR_DB_URL", DATABASE_URL)
-if VECTOR_DB == "pgvector" and not PGVECTOR_DB_URL.startswith("postgres"):
-    raise ValueError(
-        "Pgvector requires setting PGVECTOR_DB_URL or using Postgres with vector extension as the primary database."
-    )
-PGVECTOR_INITIALIZE_MAX_VECTOR_LENGTH = int(
-    os.environ.get("PGVECTOR_INITIALIZE_MAX_VECTOR_LENGTH", "1536")
-)
-
 ####################################
 # Information Retrieval (RAG)
 ####################################
-
 
 # If configured, Google Drive will be available as an upload option.
 ENABLE_GOOGLE_DRIVE_INTEGRATION = PersistentConfig(
@@ -1378,15 +1033,10 @@ CONTENT_EXTRACTION_ENGINE = PersistentConfig(
     os.environ.get("CONTENT_EXTRACTION_ENGINE", "").lower(),
 )
 
-TIKA_SERVER_URL = PersistentConfig(
-    "TIKA_SERVER_URL",
-    "rag.tika_server_url",
-    os.getenv("TIKA_SERVER_URL", "http://tika:9998"),  # Default for sidecar deployment
-)
-
 RAG_TOP_K = PersistentConfig(
     "RAG_TOP_K", "rag.top_k", int(os.environ.get("RAG_TOP_K", "3"))
 )
+
 RAG_RELEVANCE_THRESHOLD = PersistentConfig(
     "RAG_RELEVANCE_THRESHOLD",
     "rag.relevance_threshold",
@@ -1436,7 +1086,6 @@ RAG_EMBEDDING_MODEL = PersistentConfig(
     "rag.embedding_model",
     os.environ.get("RAG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
 )
-#log.info(f"Embedding model set: {RAG_EMBEDDING_MODEL.value}")
 
 RAG_EMBEDDING_MODEL_AUTO_UPDATE = (
     not OFFLINE_MODE
@@ -1560,183 +1209,6 @@ ENABLE_IMAGE_PROMPT_GENERATION = PersistentConfig(
     "ENABLE_IMAGE_PROMPT_GENERATION",
     "image_generation.prompt.enable",
     os.environ.get("ENABLE_IMAGE_PROMPT_GENERATION", "true").lower() == "true",
-)
-
-AUTOMATIC1111_BASE_URL = PersistentConfig(
-    "AUTOMATIC1111_BASE_URL",
-    "image_generation.automatic1111.base_url",
-    os.getenv("AUTOMATIC1111_BASE_URL", ""),
-)
-AUTOMATIC1111_API_AUTH = PersistentConfig(
-    "AUTOMATIC1111_API_AUTH",
-    "image_generation.automatic1111.api_auth",
-    os.getenv("AUTOMATIC1111_API_AUTH", ""),
-)
-
-AUTOMATIC1111_CFG_SCALE = PersistentConfig(
-    "AUTOMATIC1111_CFG_SCALE",
-    "image_generation.automatic1111.cfg_scale",
-    (
-        float(os.environ.get("AUTOMATIC1111_CFG_SCALE"))
-        if os.environ.get("AUTOMATIC1111_CFG_SCALE")
-        else None
-    ),
-)
-
-
-AUTOMATIC1111_SAMPLER = PersistentConfig(
-    "AUTOMATIC1111_SAMPLER",
-    "image_generation.automatic1111.sampler",
-    (
-        os.environ.get("AUTOMATIC1111_SAMPLER")
-        if os.environ.get("AUTOMATIC1111_SAMPLER")
-        else None
-    ),
-)
-
-AUTOMATIC1111_SCHEDULER = PersistentConfig(
-    "AUTOMATIC1111_SCHEDULER",
-    "image_generation.automatic1111.scheduler",
-    (
-        os.environ.get("AUTOMATIC1111_SCHEDULER")
-        if os.environ.get("AUTOMATIC1111_SCHEDULER")
-        else None
-    ),
-)
-
-COMFYUI_BASE_URL = PersistentConfig(
-    "COMFYUI_BASE_URL",
-    "image_generation.comfyui.base_url",
-    os.getenv("COMFYUI_BASE_URL", ""),
-)
-
-COMFYUI_API_KEY = PersistentConfig(
-    "COMFYUI_API_KEY",
-    "image_generation.comfyui.api_key",
-    os.getenv("COMFYUI_API_KEY", ""),
-)
-
-COMFYUI_DEFAULT_WORKFLOW = """
-{
-  "3": {
-    "inputs": {
-      "seed": 0,
-      "steps": 20,
-      "cfg": 8,
-      "sampler_name": "euler",
-      "scheduler": "normal",
-      "denoise": 1,
-      "model": [
-        "4",
-        0
-      ],
-      "positive": [
-        "6",
-        0
-      ],
-      "negative": [
-        "7",
-        0
-      ],
-      "latent_image": [
-        "5",
-        0
-      ]
-    },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "KSampler"
-    }
-  },
-  "4": {
-    "inputs": {
-      "ckpt_name": "model.safetensors"
-    },
-    "class_type": "CheckpointLoaderSimple",
-    "_meta": {
-      "title": "Load Checkpoint"
-    }
-  },
-  "5": {
-    "inputs": {
-      "width": 512,
-      "height": 512,
-      "batch_size": 1
-    },
-    "class_type": "EmptyLatentImage",
-    "_meta": {
-      "title": "Empty Latent Image"
-    }
-  },
-  "6": {
-    "inputs": {
-      "text": "Prompt",
-      "clip": [
-        "4",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
-  },
-  "7": {
-    "inputs": {
-      "text": "",
-      "clip": [
-        "4",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
-  },
-  "8": {
-    "inputs": {
-      "samples": [
-        "3",
-        0
-      ],
-      "vae": [
-        "4",
-        2
-      ]
-    },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "VAE Decode"
-    }
-  },
-  "9": {
-    "inputs": {
-      "filename_prefix": "ComfyUI",
-      "images": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  }
-}
-"""
-
-
-COMFYUI_WORKFLOW = PersistentConfig(
-    "COMFYUI_WORKFLOW",
-    "image_generation.comfyui.workflow",
-    os.getenv("COMFYUI_WORKFLOW", COMFYUI_DEFAULT_WORKFLOW),
-)
-
-COMFYUI_WORKFLOW_NODES = PersistentConfig(
-    "COMFYUI_WORKFLOW",
-    "image_generation.comfyui.nodes",
-    [],
 )
 
 IMAGES_OPENAI_API_BASE_URL = PersistentConfig(

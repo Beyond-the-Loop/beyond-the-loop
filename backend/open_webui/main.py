@@ -42,10 +42,8 @@ from open_webui.routers import (
     images,
     tasks,
     channels,
-    functions,
     memories,
     evaluations,
-    tools,
     utils,
 )
 from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
@@ -67,7 +65,6 @@ from open_webui.routers.retrieval import (
 
 from open_webui.internal.db import Session
 
-from open_webui.models.functions import Functions
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import auths
@@ -114,7 +111,6 @@ from beyond_the_loop.config import (
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     CONTENT_EXTRACTION_ENGINE,
-    TIKA_SERVER_URL,
     RAG_TOP_K,
     RAG_TEXT_SPLITTER,
     GOOGLE_DRIVE_CLIENT_ID,
@@ -126,22 +122,14 @@ from beyond_the_loop.config import (
     WEBUI_AUTH,
     WEBUI_NAME,
     WEBUI_BANNERS,
-    WEBHOOK_URL,
-    ADMIN_EMAIL,
-    SHOW_ADMIN_DETAILS,
     JWT_EXPIRES_IN,
-    ENABLE_SIGNUP,
-    ENABLE_LOGIN_FORM,
     ENABLE_API_KEY,
     ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
     API_KEY_ALLOWED_ENDPOINTS,
     ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
-    DEFAULT_USER_ROLE,
     DEFAULT_PROMPT_SUGGESTIONS,
-    DEFAULT_MODELS,
-    MODEL_ORDER_LIST,
     # WebUI (OAuth)
     ENABLE_OAUTH_ROLE_MANAGEMENT,
     OAUTH_ROLES_CLAIM,
@@ -173,21 +161,13 @@ from beyond_the_loop.config import (
     DEFAULT_LOCALE,
     OAUTH_PROVIDERS,
     WEBUI_URL,
-    # Admin
-    ENABLE_ADMIN_CHAT_ACCESS,
-    ENABLE_ADMIN_EXPORT,
     # Tasks
     ENABLE_TAGS_GENERATION,
-    ENABLE_SEARCH_QUERY_GENERATION,
     ENABLE_RETRIEVAL_QUERY_GENERATION,
-    ENABLE_AUTOCOMPLETE_GENERATION,
     TITLE_GENERATION_PROMPT_TEMPLATE,
     TAGS_GENERATION_PROMPT_TEMPLATE,
     IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
-    TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     QUERY_GENERATION_PROMPT_TEMPLATE,
-    AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE,
-    AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH,
     AppConfig,
     reset_config,
 )
@@ -211,8 +191,7 @@ from open_webui.env import (
 from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
 
 from open_webui.utils.chat import (
-    chat_completed as chat_completed_handler,
-    chat_action as chat_action_handler,
+    chat_completed as chat_completed_handler
 )
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 
@@ -229,7 +208,6 @@ from open_webui.routers import retrieval
 
 if SAFE_MODE:
     print("SAFE MODE ENABLED")
-    Functions.deactivate_all_functions()
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -297,8 +275,6 @@ app.state.config = AppConfig()
 ########################################
 
 app.state.config.WEBUI_URL = WEBUI_URL
-app.state.config.ENABLE_SIGNUP = ENABLE_SIGNUP
-app.state.config.ENABLE_LOGIN_FORM = ENABLE_LOGIN_FORM
 
 app.state.config.ENABLE_API_KEY = ENABLE_API_KEY
 app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS = (
@@ -308,17 +284,9 @@ app.state.config.API_KEY_ALLOWED_ENDPOINTS = API_KEY_ALLOWED_ENDPOINTS
 
 app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
-app.state.config.SHOW_ADMIN_DETAILS = SHOW_ADMIN_DETAILS
-app.state.config.ADMIN_EMAIL = ADMIN_EMAIL
-
-
-app.state.config.DEFAULT_MODELS = DEFAULT_MODELS
 app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
-app.state.config.DEFAULT_USER_ROLE = DEFAULT_USER_ROLE
 
-app.state.config.WEBHOOK_URL = WEBHOOK_URL
 app.state.config.BANNERS = WEBUI_BANNERS
-app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 
 
 app.state.config.ENABLE_CHANNELS = ENABLE_CHANNELS
@@ -351,10 +319,6 @@ app.state.config.LDAP_CIPHERS = LDAP_CIPHERS
 app.state.AUTH_TRUSTED_EMAIL_HEADER = WEBUI_AUTH_TRUSTED_EMAIL_HEADER
 app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 
-app.state.TOOLS = {}
-app.state.FUNCTIONS = {}
-
-
 ########################################
 #
 # RETRIEVAL
@@ -373,7 +337,6 @@ app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION = (
 )
 
 app.state.config.CONTENT_EXTRACTION_ENGINE = CONTENT_EXTRACTION_ENGINE
-app.state.config.TIKA_SERVER_URL = TIKA_SERVER_URL
 
 app.state.config.TEXT_SPLITTER = RAG_TEXT_SPLITTER
 
@@ -475,9 +438,7 @@ app.state.speech_speaker_embeddings_dataset = None
 # TASKS
 #
 ########################################
-app.state.config.ENABLE_SEARCH_QUERY_GENERATION = ENABLE_SEARCH_QUERY_GENERATION
 app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION = ENABLE_RETRIEVAL_QUERY_GENERATION
-app.state.config.ENABLE_AUTOCOMPLETE_GENERATION = ENABLE_AUTOCOMPLETE_GENERATION
 app.state.config.ENABLE_TAGS_GENERATION = ENABLE_TAGS_GENERATION
 
 
@@ -487,16 +448,7 @@ app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = (
     IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
 )
 
-app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE = (
-    TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE
-)
 app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE = QUERY_GENERATION_PROMPT_TEMPLATE
-app.state.config.AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE = (
-    AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE
-)
-app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH = (
-    AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH
-)
 
 
 ########################################
@@ -596,13 +548,11 @@ app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
 app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
 app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["prompts"])
-app.include_router(tools.router, prefix="/api/v1/tools", tags=["tools"])
 
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 app.include_router(groups.router, prefix="/api/v1/groups", tags=["groups"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
-app.include_router(functions.router, prefix="/api/v1/functions", tags=["functions"])
 app.include_router(
     evaluations.router, prefix="/api/v1/evaluations", tags=["evaluations"]
 )
@@ -652,22 +602,11 @@ async def chat_completion(
             "chat_id": form_data.pop("chat_id", None),
             "message_id": form_data.pop("id", None),
             "session_id": form_data.pop("session_id", None),
-            "tool_ids": form_data.get("tool_ids", None),
             "files": form_data.get("files", None),
             "features": form_data.get("features", None),
-            "variables": form_data.get("variables", None),
-            "model": model,
-            **(
-                {"function_calling": "native"}
-                if form_data.get("params", {}).get("function_calling") == "native"
-                or (
-                    model
-                    and model.params.model_dump().get("function_calling")
-                    == "native"
-                )
-                else {}
-            ),
+            "model": model
         }
+
         form_data["metadata"] = metadata
 
         form_data, metadata, events = await process_chat_payload(
@@ -706,19 +645,6 @@ async def chat_completed(
 ):
     try:
         return await chat_completed_handler(request, form_data, user)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-
-@app.post("/api/chat/actions/{action_id}")
-async def chat_action(
-    request: Request, action_id: str, form_data: dict, user=Depends(get_verified_user)
-):
-    try:
-        return await chat_action_handler(request, action_id, form_data, user)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -785,8 +711,6 @@ async def get_app_config(request: Request):
             "auth_trusted_header": bool(app.state.AUTH_TRUSTED_EMAIL_HEADER),
             "enable_ldap": app.state.config.ENABLE_LDAP,
             "enable_api_key": app.state.config.ENABLE_API_KEY,
-            "enable_signup": app.state.config.ENABLE_SIGNUP,
-            "enable_login_form": app.state.config.ENABLE_LOGIN_FORM,
             "enable_websocket": ENABLE_WEBSOCKET_SUPPORT,
             **(
                 {
@@ -796,8 +720,6 @@ async def get_app_config(request: Request):
                     "enable_image_generation": app.state.config.ENABLE_IMAGE_GENERATION,
                     "enable_community_sharing": app.state.config.ENABLE_COMMUNITY_SHARING,
                     "enable_message_rating": app.state.config.ENABLE_MESSAGE_RATING,
-                    "enable_admin_export": ENABLE_ADMIN_EXPORT,
-                    "enable_admin_chat_access": ENABLE_ADMIN_CHAT_ACCESS,
                 }
                 if user is not None
                 else {}
@@ -805,7 +727,6 @@ async def get_app_config(request: Request):
         },
         **(
             {
-                "default_models": app.state.config.DEFAULT_MODELS,
                 "default_prompt_suggestions": app.state.config.DEFAULT_PROMPT_SUGGESTIONS,
                 "audio": {
                     "tts": {

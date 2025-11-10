@@ -11,7 +11,6 @@ from beyond_the_loop.models.chats import (
 from open_webui.models.tags import TagModel, Tags
 from beyond_the_loop.models.folders import Folders
 
-from beyond_the_loop.config import ENABLE_ADMIN_CHAT_ACCESS, ENABLE_ADMIN_EXPORT
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -65,28 +64,6 @@ async def delete_all_user_chats(request: Request, user=Depends(get_verified_user
 
 
 ############################
-# GetUserChatList
-############################
-
-
-@router.get("/list/user/{user_id}", response_model=list[ChatTitleIdResponse])
-async def get_user_chat_list_by_user_id(
-    user_id: str,
-    user=Depends(get_admin_user),
-    skip: int = 0,
-    limit: int = 50,
-):
-    if not ENABLE_ADMIN_CHAT_ACCESS:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-    return Chats.get_chat_list_by_user_id(
-        user_id, include_archived=True, skip=skip, limit=limit
-    )
-
-
-############################
 # CreateNewChat
 ############################
 
@@ -127,7 +104,7 @@ async def import_chat(form_data: ChatImportForm, user=Depends(get_verified_user)
     except Exception as e:
         log.exception(e)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.DEFAULT()
+            status_code=status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.DEFAULT
         )
 
 
@@ -240,27 +217,9 @@ async def get_all_user_tags(user=Depends(get_verified_user)):
             status_code=status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.DEFAULT()
         )
 
-
-############################
-# GetAllChatsInDB
-############################
-
-
-@router.get("/all/db", response_model=list[ChatResponse])
-async def get_all_user_chats_in_db(user=Depends(get_admin_user)):
-    if not ENABLE_ADMIN_EXPORT:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-    return [ChatResponse(**chat.model_dump()) for chat in Chats.get_chats()]
-
-
 ############################
 # GetArchivedChats
 ############################
-
-
 @router.get("/archived", response_model=list[ChatTitleIdResponse])
 async def get_archived_session_user_chat_list(
     user=Depends(get_verified_user), skip: int = 0, limit: int = 50
@@ -290,14 +249,9 @@ async def get_shared_chat_by_id(share_id: str, user=Depends(get_verified_user)):
             status_code=status.HTTP_401_UNAUTHORIZED, detail=ERROR_MESSAGES.NOT_FOUND
         )
 
-    if user.role == "user" or (user.role == "admin" and not ENABLE_ADMIN_CHAT_ACCESS):
+    if user.role == "user" or user.role == "admin":
         chat = Chats.get_chat_by_share_id(share_id)
-    elif user.role == "admin" and ENABLE_ADMIN_CHAT_ACCESS:
-        chat = Chats.get_chat_by_id(share_id)
-
-    if chat:
         return ChatResponse(**chat.model_dump())
-
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=ERROR_MESSAGES.NOT_FOUND
