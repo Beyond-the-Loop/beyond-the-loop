@@ -897,6 +897,10 @@ QUERY_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     os.environ.get("QUERY_GENERATION_PROMPT_TEMPLATE", ""),
 )
 
+WEBHOOK_URL = PersistentConfig(
+    "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
+)
+
 WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
 Analyze the chat history to generate web search queries in the given language. By default, **prioritize generating 1–3 broad and relevant search queries** that can retrieve **updated, comprehensive, and trustworthy** information from the web.
 

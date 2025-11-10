@@ -237,8 +237,6 @@ async def create_user(form_data: UserCreateForm):
         Users.update_user_by_id(user.id, {
             "first_name": NEW_INDICATOR,
             "last_name": NEW_INDICATOR,
-            "role": form_data.role,
-            "company_id": form_data.company_id,
             "registration_code": registration_code
         })
     else:

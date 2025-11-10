@@ -13,7 +13,6 @@ from open_webui.utils.task import (
     title_generation_template,
     query_generation_template,
     image_prompt_generation_template,
-    autocomplete_generation_template,
     tags_generation_template,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
@@ -24,7 +23,7 @@ from beyond_the_loop.config import (
     DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
     WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE,
     RAG_QUERY_GENERATION_PROMPT_TEMPLATE,
-    DEFAULT_AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE,
+    DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE
 )
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -322,64 +321,4 @@ async def generate_queries(
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(e)},
-        )
-
-
-@router.post("/auto/completions")
-async def generate_autocompletion(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
-):
-    if not request.app.state.config.ENABLE_AUTOCOMPLETE_GENERATION:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Autocompletion generation is disabled",
-        )
-
-    type = form_data.get("type")
-    prompt = form_data.get("prompt")
-    messages = form_data.get("messages")
-
-    if request.app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH > 0:
-        if (
-            len(prompt)
-            > request.app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Input prompt exceeds maximum length of {request.app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH}",
-            )
-
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
-
-    log.debug(
-        f"generating autocompletion using model {task_model_id} for user {user.email}"
-    )
-
-    if (request.app.state.config.AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE).strip() != "":
-        template = request.app.state.config.AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE
-    else:
-        template = DEFAULT_AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE
-
-    content = autocomplete_generation_template(
-        template, prompt, messages, type, {"first_name": user.first_name, "last_name": user.last_name}
-    )
-
-    payload = {
-        "model": task_model_id,
-        "messages": [{"role": "user", "content": content}],
-        "stream": False,
-        "metadata": {
-            "task": str(TASKS.AUTOCOMPLETE_GENERATION),
-            "task_body": form_data,
-            "chat_id": form_data.get("chat_id", None),
-        },
-    }
-
-    try:
-        return await generate_chat_completion(form_data=payload, user=user)
-    except Exception as e:
-        log.error(f"Error generating chat completion: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "An internal error has occurred."},
         )

@@ -33,6 +33,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from beyond_the_loop.routers import users
+from beyond_the_loop.config import WEBHOOK_URL
 from open_webui.middleware.company_config import CompanyConfigMiddleware
 from open_webui.socket.main import (
     app as socket_app,
@@ -301,6 +302,8 @@ app.state.config.ENABLE_OAUTH_ROLE_MANAGEMENT = ENABLE_OAUTH_ROLE_MANAGEMENT
 app.state.config.OAUTH_ROLES_CLAIM = OAUTH_ROLES_CLAIM
 app.state.config.OAUTH_ALLOWED_ROLES = OAUTH_ALLOWED_ROLES
 app.state.config.OAUTH_ADMIN_ROLES = OAUTH_ADMIN_ROLES
+
+app.state.config.WEBHOOK_URL = WEBHOOK_URL
 
 app.state.config.ENABLE_LDAP = ENABLE_LDAP
 app.state.config.LDAP_SERVER_LABEL = LDAP_SERVER_LABEL
