@@ -22,7 +22,9 @@ from open_webui.constants import TASKS
 from beyond_the_loop.config import (
     DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
-    DEFAULT_QUERY_GENERATION_PROMPT_TEMPLATE,
+    WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE,
+    RAG_QUERY_GENERATION_PROMPT_TEMPLATE,
+    DEFAULT_AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE,
 )
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -274,6 +276,7 @@ async def generate_queries(
 ):
 
     type = form_data.get("type")
+
     if type == "web_search":
         if not request.app.state.config.ENABLE_SEARCH_QUERY_GENERATION:
             raise HTTPException(
@@ -296,7 +299,7 @@ async def generate_queries(
     if request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE.strip() != "":
         template = request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE
     else:
-        template = DEFAULT_QUERY_GENERATION_PROMPT_TEMPLATE
+        template = WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE if type == "web_search" else RAG_QUERY_GENERATION_PROMPT_TEMPLATE
 
     content = query_generation_template(
         template, form_data["messages"], {"first_name": user.first_name, "last_name": user.last_name}
