@@ -69,6 +69,7 @@ jobs:
       - name: Set GCP environment variables
         run: |
           echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GCP_SA_KEY }}" >> $GITHUB_ENV
           if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
             echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_STAGING }}" >> $GITHUB_ENV
           else
