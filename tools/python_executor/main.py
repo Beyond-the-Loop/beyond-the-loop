@@ -53,7 +53,9 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
         from google.cloud import storage
         import google
 
-        credentials = google.auth.default()
+        credentials = google.auth.default()[0]
+
+        print(credentials)
 
         client = storage.Client()
     except Exception as e:
