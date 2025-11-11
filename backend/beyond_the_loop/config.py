@@ -986,6 +986,16 @@ DEFAULT_AGENT_MODEL = PersistentConfig(
 # Vector Database
 ####################################
 
+MODEL_ORDER_LIST = PersistentConfig(
+    "MODEL_ORDER_LIST",
+    "ui.model_order_list",
+    [],
+)
+
+DEFAULT_MODELS = PersistentConfig(
+    "DEFAULT_MODELS", "ui.default_models", os.environ.get("DEFAULT_MODELS", None)
+)
+
 VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")
 
 # Chroma

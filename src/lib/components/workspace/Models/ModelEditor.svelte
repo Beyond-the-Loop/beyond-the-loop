@@ -204,6 +204,7 @@
 
 		info.params.stop = params.stop ? params.stop.split(',').filter((s) => s.trim()) : null;
 		const baseModel = $models?.find((item) => item.id === info.base_model_id);
+
 		Object.keys(info.params).forEach((key) => {
 			if (
 				info.params[key] === '' ||
@@ -236,8 +237,9 @@
 			const baseModel = $models?.find((item) => item.id === model.base_model_id);
 			if (isTemperatureUnsupportedModel(baseModel)) {
 				disableCreativity = true;
+				delete info.params["temperature"];
 			}
-			console.log(model);
+
 			name = model.name;
 			await tick();
 
@@ -910,6 +912,7 @@
 																	info.base_model_id = model.id;
 																	if (isTemperatureUnsupportedModel(model)) {
 																		disableCreativity = true;
+																		delete info.params["temperature"]
 																	} else {
 																		if (disableCreativity) {
 																			disableCreativity = false;

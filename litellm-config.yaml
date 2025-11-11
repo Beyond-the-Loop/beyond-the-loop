@@ -71,6 +71,9 @@ model_list:
       model: 'perplexity/sonar-reasoning-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
 
+litellm_settings:
+  drop_params: true # Drop unsupported params from the request body
+
 general_settings:
   alerting: ["slack"]
   alerting_threshold: 300 # sends alerts if requests hang for 5min+ and responses take 5min+

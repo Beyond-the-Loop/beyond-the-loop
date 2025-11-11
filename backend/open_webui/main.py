@@ -131,6 +131,8 @@ from beyond_the_loop.config import (
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
     DEFAULT_PROMPT_SUGGESTIONS,
+    DEFAULT_MODELS,
+    MODEL_ORDER_LIST,
     # WebUI (OAuth)
     ENABLE_OAUTH_ROLE_MANAGEMENT,
     OAUTH_ROLES_CLAIM,
@@ -289,6 +291,9 @@ app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
 
 app.state.config.BANNERS = WEBUI_BANNERS
 
+app.state.config.DEFAULT_MODELS = DEFAULT_MODELS
+
+app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 
 app.state.config.ENABLE_CHANNELS = ENABLE_CHANNELS
 app.state.config.ENABLE_COMMUNITY_SHARING = ENABLE_COMMUNITY_SHARING
@@ -730,6 +735,7 @@ async def get_app_config(request: Request):
         },
         **(
             {
+                "default_models": app.state.config.DEFAULT_MODELS,
                 "default_prompt_suggestions": app.state.config.DEFAULT_PROMPT_SUGGESTIONS,
                 "audio": {
                     "tts": {
