@@ -15,6 +15,21 @@
 
 set -euo pipefail
 
+# --- Google Cloud Credentials ---
+# Adjust this path to your actual service account key file
+GOOGLE_CREDENTIALS_PATH="/Users/philszalay/Documents/code/beyond-the-loop/gcp_python_executor_key.json"
+
+if [[ ! -f "$GOOGLE_CREDENTIALS_PATH" ]]; then
+  echo "Error: Google credentials file not found at $GOOGLE_CREDENTIALS_PATH" >&2
+  exit 1
+fi
+
+export GOOGLE_APPLICATION_CREDENTIALS="$GOOGLE_CREDENTIALS_PATH"
+echo "Using GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS"
+
+# --- End Google Cloud Credentials ---
+
+
 # Choose a python interpreter
 PYTHON_BIN="${PYTHON_BIN:-}"
 if [[ -z "${PYTHON_BIN}" ]]; then
