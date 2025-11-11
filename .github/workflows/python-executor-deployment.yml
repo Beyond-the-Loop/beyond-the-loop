@@ -69,20 +69,12 @@ jobs:
       - name: Set GCP environment variables
         run: |
           echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
-          
-          # Write the GCP service account key to a JSON file
-          echo '${{ secrets.GCP_SA_KEY }}' > $HOME/gcp-key.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcp-key.json" >> $GITHUB_ENV
-          
-          # Set service name depending on environment
           if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
             echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_STAGING }}" >> $GITHUB_ENV
           else
             echo "CLOUD_RUN_SERVICE=${{ secrets.CLOUD_RUN_SERVICE_PRODUCTION }}" >> $GITHUB_ENV
           fi
-
           echo "GCP_REGION=${{ secrets.GCP_REGION }}" >> $GITHUB_ENV
-
 
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v2

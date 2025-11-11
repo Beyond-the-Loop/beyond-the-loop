@@ -71,7 +71,10 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
                 version="v4",
                 expiration=timedelta(minutes=10),
                 method="GET",
-                query_parameters={"response-content-disposition": f"attachment; filename={file_path.name}"}
+                service_account_email=os.environ.get("PYTHON_EXECUTOR_SERVICE_ACCOUNT_EMAIL"),
+                query_parameters={
+                    "response-content-disposition": f"attachment; filename={file_path.name}"
+                },
             )
 
             file_infos.append({
