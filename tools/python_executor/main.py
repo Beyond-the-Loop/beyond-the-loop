@@ -51,6 +51,9 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
 
     try:
         from google.cloud import storage
+        import google
+
+        credentials = google.auth.default()
 
         client = storage.Client()
     except Exception as e:
@@ -71,7 +74,8 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
                 version="v4",
                 expiration=timedelta(minutes=10),
                 method="GET",
-                service_account_email=os.environ.get("PYTHON_EXECUTOR_SERVICE_ACCOUNT_EMAIL"),
+                service_account_email=credentials.service_account_email,
+                access_token=credentials.token,
                 query_parameters={
                     "response-content-disposition": f"attachment; filename={file_path.name}"
                 },
