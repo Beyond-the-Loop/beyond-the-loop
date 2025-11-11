@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from google.auth.transport.requests import Request
 
 app = FastAPI()
 
@@ -54,8 +55,7 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
         import google
 
         credentials = google.auth.default()[0]
-
-        print(credentials)
+        credentials.refresh(Request())
 
         client = storage.Client()
     except Exception as e:
@@ -91,10 +91,9 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
     return file_infos
 
 
-def _write_input_files(tmp: Path, files: list[FileItem] | None) -> list[str]:
+def _write_input_files(tmp: Path, files: list[FileItem] | None, execution_id) -> list[str]:
     written: list[str] = []
 
-    print("files to upload", files)
     if not files:
         return written
 
@@ -116,8 +115,9 @@ def _write_input_files(tmp: Path, files: list[FileItem] | None) -> list[str]:
                 target.write_bytes(raw)
                 written.append(filename)
                 continue
-        except Exception:
+        except Exception as e:
             # Ignore individual file failures
+            print(f"Failed to write input file {item.name} for execution_id {execution_id}. {e}")
             continue
     return written
 
@@ -127,14 +127,9 @@ def run_python_code(code: str, timeout: int = 10, files: list[FileItem] | None =
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
+
         # Stage any provided input files first
-        try:
-            written_files = _write_input_files(tmp, files)
-            print("Written files: ", written_files)
-        except Exception as e:
-            # Non-fatal; proceed without files
-            print(e)
-            pass
+        _write_input_files(tmp, files, execution_id)
 
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
