@@ -44,13 +44,6 @@ def _validate_model_write_access(model: ModelModel, user):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-    # Base models can not be edited
-    if not model.base_model_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
     if (user.role != "admin"
         and model.user_id != user.id
         and not has_access(user.id, "write", model.access_control)
@@ -210,6 +203,12 @@ async def update_model_by_id(
 
     _validate_model_write_access(model, user)
 
+    # For base models these parameters are not allowed to be edited
+    if not model.base_model_id:
+        del form_data.base_model_id
+        del form_data.id
+        del form_data.name
+
     updated_model = Models.update_model_by_id_and_company(id, form_data, user.company_id)
 
     return updated_model
@@ -225,6 +224,13 @@ async def delete_model_by_id(
         id: str, user=Depends(get_verified_user)
 ):
     model = Models.get_model_by_id(id)
+
+    # Base models can not be deleted
+    if not model.base_model_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
 
     _validate_model_write_access(model, user)
 
