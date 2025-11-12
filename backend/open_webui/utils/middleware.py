@@ -458,7 +458,7 @@ def extract_file_content_with_loader(file_id: str) -> str:
                 content_type = file_record.meta.get("content_type", "") if file_record.meta else ""
                 
                 # Load documents using the existing system
-                documents = loader.load(file_record.filename, content_type, file_path)
+                documents = load(file_record.filename, content_type, file_path)
                 
                 # Combine all document content
                 combined_content = "\n\n".join([doc.page_content for doc in documents])

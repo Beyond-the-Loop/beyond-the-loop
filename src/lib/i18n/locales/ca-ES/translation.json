@@ -380,7 +380,6 @@
 	"Enter system prompt": "Introdueix la indicació de sistema",
 	"Enter Tavily API Key": "Introdueix la clau API de Tavily",
 	"Enter the public URL of your WebUI. This URL will be used to generate links in the notifications.": "Entra la URL pública de WebUI. Aquesta URL s'utilitzarà per generar els enllaços en les notificacions.",
-	"Enter Tika Server URL": "Introdueix l'URL del servidor Tika",
 	"Enter Top K": "Introdueix Top K",
 	"Enter URL (e.g. http://127.0.0.1:7860/)": "Introdueix l'URL (p. ex. http://127.0.0.1:7860/)",
 	"Enter URL (e.g. http://localhost:11434)": "Introdueix l'URL (p. ex. http://localhost:11434)",

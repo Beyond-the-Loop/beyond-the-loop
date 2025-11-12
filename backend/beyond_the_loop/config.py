@@ -118,7 +118,6 @@ DEFAULT_CONFIG = {
         "reranking_model": "",
         "file": {"max_size": None, "max_count": None},
         "CONTENT_EXTRACTION_ENGINE": "",
-        "tika_server_url": "http://tika:9998",
         "text_splitter": "",
         "chunk_size": 1000,
         "chunk_overlap": 100,
@@ -965,14 +964,14 @@ DEFAULT_CODE_INTERPRETER_PROMPT = """
 
 1. **Code Interpreter**: `<code_interpreter type="code" lang="python"></code_interpreter>`
    - You have access to a Python shell that runs directly in the user's browser, enabling fast execution of code for analysis, calculations, or problem-solving.  Use it in this response.
-   - The Python code you write can incorporate a wide array of libraries, handle data manipulation or visualization, perform API calls for web-related tasks, or tackle virtually any computational challenge. Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
+   - The Python code you write can incorporate the entire Python standard library. Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
    - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags** and stop right away. If you don't, the code won't execute. Do NOT use triple backticks.
    - When coding, **always aim to print meaningful outputs** (e.g., results, tables, summaries, or visuals) to better interpret and verify the findings. Avoid relying on implicit outputs; prioritize explicit and clear print statements so the results are effectively communicated to the user.  
    - After obtaining the printed output, **always provide a concise analysis, interpretation, or next steps to help the user understand the findings or refine the outcome further.**  
    - If the results are unclear, unexpected, or require validation, refine the code and execute it again as needed. Always aim to deliver meaningful insights from the results, iterating if necessary.  
    - If a link is provided for an image, audio, or any file, include it in the response exactly as given to ensure the user has access to the original resource.  
    - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
-   - **If a link to an image, audio, or any file is provided in markdown format, ALWAYS regurgitate explicitly display it as part of the response to ensure the user can access it easily, do NOT change the link.**
+   - IMPORTANT: Don't use any packages that are not part of the standard Python library.
 
 Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user."""
 

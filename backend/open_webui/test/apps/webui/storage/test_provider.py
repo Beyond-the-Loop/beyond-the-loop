@@ -97,7 +97,7 @@ class TestS3StorageProvider:
     def __init__(self):
         self.Storage = provider.S3StorageProvider()
         self.Storage.bucket_name = "my-bucket"
-        self.s3_client = boto3.resource("s3", region_name="us-east-1")
+        self.s3_client = boto3
         self.file_content = b"test content"
         self.filename = "test.txt"
         self.filename_extra = "test_exyta.txt"
@@ -143,7 +143,7 @@ class TestS3StorageProvider:
         self.Storage.delete_file(s3_file_path)
         assert not (upload_dir / self.filename).exists()
         with pytest.raises(ClientError) as exc:
-            self.s3_client.Object(self.Storage.bucket_name, self.filename).load()
+            self.s3_client.load()
         error = exc.value.response["Error"]
         assert error["Code"] == "404"
         assert error["Message"] == "Not Found"
@@ -166,13 +166,13 @@ class TestS3StorageProvider:
         self.Storage.delete_all_files()
         assert not (upload_dir / self.filename).exists()
         with pytest.raises(ClientError) as exc:
-            self.s3_client.Object(self.Storage.bucket_name, self.filename).load()
+            self.s3_client.load()
         error = exc.value.response["Error"]
         assert error["Code"] == "404"
         assert error["Message"] == "Not Found"
         assert not (upload_dir / self.filename_extra).exists()
         with pytest.raises(ClientError) as exc:
-            self.s3_client.Object(self.Storage.bucket_name, self.filename_extra).load()
+            self.s3_client.load()
         error = exc.value.response["Error"]
         assert error["Code"] == "404"
         assert error["Message"] == "Not Found"

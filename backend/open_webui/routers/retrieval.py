@@ -214,7 +214,6 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
         "enable_google_drive_integration": request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
         "content_extraction": {
             "engine": request.app.state.config.CONTENT_EXTRACTION_ENGINE,
-            "tika_server_url": request.app.state.config.TIKA_SERVER_URL,
         },
         "chunk": {
             "text_splitter": request.app.state.config.TEXT_SPLITTER,
@@ -247,7 +246,6 @@ class FileConfig(BaseModel):
 
 class ContentExtractionConfig(BaseModel):
     engine: str = ""
-    tika_server_url: Optional[str] = None
 
 
 class ChunkParamUpdateForm(BaseModel):
@@ -532,8 +530,8 @@ def process_file(
                 file_path = Storage.get_file(file_path)
                 loader = Loader(
                     engine=request.app.state.config.CONTENT_EXTRACTION_ENGINE,
-                    TIKA_SERVER_URL=request.app.state.config.TIKA_SERVER_URL,
                 )
+
                 docs = loader.load(
                     file.filename, file.meta.get("content_type"), file_path
                 )

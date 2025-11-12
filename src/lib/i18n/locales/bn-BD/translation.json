@@ -380,7 +380,6 @@
 	"Enter system prompt": "",
 	"Enter Tavily API Key": "",
 	"Enter the public URL of your WebUI. This URL will be used to generate links in the notifications.": "",
-	"Enter Tika Server URL": "",
 	"Enter Top K": "Top K লিখুন",
 	"Enter URL (e.g. http://127.0.0.1:7860/)": "ইউআরএল দিন (যেমন http://127.0.0.1:7860/)",
 	"Enter URL (e.g. http://localhost:11434)": "ইউআরএল দিন (যেমন http://localhost:11434)",

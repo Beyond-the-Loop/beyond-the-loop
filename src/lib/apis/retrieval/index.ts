@@ -34,7 +34,6 @@ type ChunkConfigForm = {
 
 type ContentExtractConfigForm = {
 	engine: string;
-	tika_server_url: string | null;
 };
 
 type YoutubeConfigForm = {
