@@ -200,6 +200,8 @@ async def generate_chat_completion(
     bypass_filter: Optional[bool] = False,
     agent_prompt: Optional[bool] = False
 ):
+    print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
+
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
@@ -262,8 +264,6 @@ async def generate_chat_completion(
         session = aiohttp.ClientSession(
             trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
         )
-
-        print("PAYLOAD MESSAGES:", payload_dict['messages'])
 
         r = await session.request(
             method="POST",
