@@ -57,6 +57,8 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
         credentials = google.auth.default()[0]
         credentials.refresh(Request())
 
+        print(credentials.token, credentials.service_account_email)
+
         client = storage.Client()
     except Exception as e:
         print(e)

@@ -953,15 +953,9 @@ Analyze the chat history to generate search queries that retrieve **relevant inf
 </chat_history>
 """
 
-DEFAULT_MOA_GENERATION_PROMPT_TEMPLATE = """You have been provided with a set of responses from various models to the latest user query: "{{prompt}}"
 
-Your task is to synthesize these responses into a single, high-quality response. It is crucial to critically evaluate the information provided in these responses, recognizing that some of it may be biased or incorrect. Your response should not simply replicate the given answers but should offer a refined, accurate, and comprehensive reply to the instruction. Ensure your response is well-structured, coherent, and adheres to the highest standards of accuracy and reliability.
-
-Responses from models: {{responses}}"""
-
-
-DEFAULT_CODE_INTERPRETER_PROMPT = """
-#### Tools Available
+CODE_INTERPRETER_PROMPT = """
+#### Tools Available that you have to use:
 
 1. **Code Interpreter**: `<code_interpreter type="code" lang="python"></code_interpreter>`
    - You have access to a Python shell that runs on a dedicated python execution server, enabling fast execution of code for analysis, calculations, or problem-solving.  Use it in this response.
@@ -975,6 +969,21 @@ DEFAULT_CODE_INTERPRETER_PROMPT = """
    - **If a link to an image, audio, or any file is provided in markdown format, ALWAYS regurgitate explicitly display it as part of the response to ensure the user can access it easily, do NOT change the link.**
 
 Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user."""
+
+CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
+    The following uploaded files will be available
+    f"in your current working directory when your code runs: {{file_list}}
+    Open them directly by filename (for example: pandas.read_csv('data.csv')).
+    Do not attempt to download files from external URLs; use these local files.
+"""
+
+CODE_INTERPRETER_SUMMARY_PROMPT = """
+    Based on the most recent code execution, write a concise warup up from the execution_summary: 
+        - Clearly state whether the execution succeeded or failed. 
+        - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). 
+        - If there was an error, briefly summarize it in one sentence. 
+        - Do not repeat the code or the entire logs; keep it short.
+"""
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
     "DEFAULT_AGENT_MODEL",

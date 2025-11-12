@@ -17,6 +17,8 @@ from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
+from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -50,7 +52,7 @@ from open_webui.utils.misc import (
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     CACHE_DIR,
-    DEFAULT_CODE_INTERPRETER_PROMPT,
+    CODE_INTERPRETER_PROMPT,
     DEFAULT_AGENT_MODEL,
 )
 from open_webui.env import (
@@ -257,7 +259,7 @@ async def chat_image_generation_handler(
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user, None, True)
+        response = await generate_chat_completion(decision_form_data, user, True)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -425,7 +427,7 @@ async def chat_file_intent_decision_handler(
             "temperature": 0.0
         }
         
-        response = await generate_chat_completion(decision_form_data, user, None, True)
+        response = await generate_chat_completion(decision_form_data, user, True)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -611,6 +613,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
+    files = []
+
     if model_knowledge:
         knowledge_files = []
         for item in model_knowledge:
@@ -644,6 +648,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         files.extend(model_files)
         form_data["files"] = files
 
+    # Remove files duplicates
+    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
+
+    metadata = {
+        **metadata,
+        "files": files,
+    }
+
+    form_data["metadata"] = metadata
+
     features = form_data.pop("features", None)
 
     if features:
@@ -659,68 +673,52 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         if "code_interpreter" in features and features["code_interpreter"]:
             form_data["messages"] = add_or_update_user_message(
-                DEFAULT_CODE_INTERPRETER_PROMPT, form_data["messages"]
+                CODE_INTERPRETER_PROMPT, form_data["messages"]
             )
 
-    files = form_data.pop("files", [])
-
-    # Remove files duplicates
-    if files:
-        files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
-
-    metadata = {
-        **metadata,
-        "files": files,
-    }
-
-    form_data["metadata"] = metadata
-
-    # Inform the LLM about available uploaded files so it can reference them in generated code
-    try:
-        if files:
-            # Build a concise instruction listing accessible filenames (non-image, non-collection)
-            file_names = []
-            MAX_FILES_HINT = 10
-            for item in files:
-                if isinstance(item, dict) and item.get("type") not in ["collection", "web_search_results"]:
-                    fid = item.get("id")
-                    if not fid:
-                        continue
-                    try:
-                        fr = Files.get_file_by_id(fid)
-                        if not fr or not fr.meta:
+            # Inform the LLM about available uploaded files so it can reference them in generated code
+            if files:
+                # Build a concise instruction listing accessible filenames (non-image, non-collection)
+                file_names = []
+                MAX_FILES_HINT = 10
+                for item in files:
+                    if isinstance(item, dict) and item.get("type") not in ["collection", "web_search_results"]:
+                        fid = item.get("id")
+                        if not fid:
                             continue
-                        ct = (fr.meta.get("content_type", "") or "") if fr.meta else ""
-                        if ct.startswith("image/"):
+                        try:
+                            fr = Files.get_file_by_id(fid)
+                            if not fr or not fr.meta:
+                                continue
+
+                            name = fr.meta.get("name", fr.filename) if fr.meta else fr.filename
+                            # basic filename sanitization for display only
+                            name = name.strip()
+                            if name:
+                                file_names.append(name)
+                        except Exception:
+                            logging.warning(f"Error getting file for code interpreter {fid} metadata")
                             continue
-                        name = fr.meta.get("name", fr.filename) if fr.meta else fr.filename
-                        # basic filename sanitization for display only
-                        name = name.strip()
-                        if name:
-                            file_names.append(name)
-                    except Exception:
-                        continue
-                if len(file_names) >= MAX_FILES_HINT:
-                    break
-            if file_names:
-                # Deduplicate while preserving order
-                seen = set()
-                deduped = []
-                for n in file_names:
-                    if n not in seen:
-                        seen.add(n)
-                        deduped.append(n)
-                file_list_str = ", ".join(deduped[:MAX_FILES_HINT])
-                hint = (
-                    "You may need to write Python code. The following uploaded files will be available "
-                    f"in your current working directory when your code runs: {file_list_str}. "
-                    "Open them directly by filename (for example: pandas.read_csv('data.csv')). "
-                    "Do not attempt to download files from external URLs; use these local files."
-                )
-                form_data["messages"] = add_or_update_system_message(hint, form_data["messages"])
-    except Exception:
-        # Don't block the request if building the hint fails
-        pass
+
+                    if len(file_names) >= MAX_FILES_HINT:
+                        break
+
+                if file_names:
+                    # Deduplicate while preserving order
+                    seen = set()
+                    deduped = []
+                    for n in file_names:
+                        if n not in seen:
+                            seen.add(n)
+                            deduped.append(n)
+
+                    file_list_str = ", ".join(deduped[:MAX_FILES_HINT])
+
+                    code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
+
+                    code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str)
+
+                    form_data["messages"] = add_or_update_system_message(code_interpreter_file_hint_template, form_data["messages"])
 
     # First, decide if this is a RAG task or content extraction task
     try:
@@ -1050,8 +1048,6 @@ async def process_chat_response(
                     if block["type"] == "text":
                         content = f"{content}{block['content'].strip()}\n"
                     elif block["type"] == "tool_calls":
-                        attributes = block.get("attributes", {})
-
                         block_content = block.get("content", [])
                         results = block.get("results", [])
 
@@ -1622,31 +1618,28 @@ async def process_chat_response(
                     )
 
                     try:
-                        res = await generate_chat_completion(
-                            {
-                                "model": model_id,
-                                "stream": True,
-                                "messages": [
-                                    *form_data["messages"],
+                        res = await generate_chat_completion({
+                            "model": model_id,
+                            "stream": True,
+                            "messages": [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(
+                                        content_blocks, raw=True
+                                    ),
+                                    "tool_calls": response_tool_calls,
+                                },
+                                *[
                                     {
-                                        "role": "assistant",
-                                        "content": serialize_content_blocks(
-                                            content_blocks, raw=True
-                                        ),
-                                        "tool_calls": response_tool_calls,
-                                    },
-                                    *[
-                                        {
-                                            "role": "tool",
-                                            "tool_call_id": result["tool_call_id"],
-                                            "content": result["content"],
-                                        }
-                                        for result in results
-                                    ],
+                                        "role": "tool",
+                                        "tool_call_id": result["tool_call_id"],
+                                        "content": result["content"],
+                                    }
+                                    for result in results
                                 ],
-                            },
-                            user,
-                        )
+                            ],
+                        }, user)
 
                         if isinstance(res, StreamingResponse):
                             await stream_body_handler(res)
@@ -1847,14 +1840,6 @@ async def process_chat_response(
                             else:
                                 exec_summary = {"raw_output": str(out)}
 
-                        instructions = (
-                            "Based on the most recent code execution, write a concise assistant message: "
-                            "1) Clearly state whether the execution succeeded or failed. "
-                            "2) If any file URLs are available, include a Markdown link to the most relevant file (typically the first). "
-                            "3) If there was an error, briefly summarize it in one sentence. "
-                            "4) Do not repeat the code or the entire logs; keep it short."
-                        )
-
                         # Build follow-up messages
                         followup_messages = [
                             *form_data["messages"],
@@ -1865,20 +1850,17 @@ async def process_chat_response(
                             {
                                 "role": "user",
                                 "content": json.dumps({
-                                    "instruction": instructions,
+                                    "instruction": CODE_INTERPRETER_SUMMARY_PROMPT,
                                     "execution_summary": exec_summary,
                                 }),
                             },
                         ]
 
-                        res = await generate_chat_completion(
-                            {
-                                "model": model_id,
-                                "stream": True,
-                                "messages": followup_messages,
-                            },
-                            user,
-                        )
+                        res = await generate_chat_completion({
+                            "model": model_id,
+                            "stream": True,
+                            "messages": followup_messages,
+                        }, user)
 
                         if isinstance(res, StreamingResponse):
                             await stream_body_handler(res)
