@@ -40,12 +40,14 @@
 
 	export let id = '';
 	export let lang = '';
+	export let readOnly = false;
 
 	let codeEditor;
 
 	let isDarkMode = false;
 	let editorTheme = new Compartment();
-	let editorLanguage = new Compartment();
+ let editorLanguage = new Compartment();
+ let editorEditable = new Compartment();
 
 	languages.push(
 		LanguageDescription.of({
@@ -98,11 +100,19 @@
 			}
 		}),
 		editorTheme.of([]),
+		editorEditable.of(EditorView.editable.of(!readOnly)),
 		editorLanguage.of([])
 	];
 
 	$: if (lang) {
 		setLanguage();
+	}
+
+	$: if (codeEditor) {
+		// Reconfigure editability when readOnly changes
+		codeEditor.dispatch({
+			effects: editorEditable.reconfigure(EditorView.editable.of(!readOnly))
+		});
 	}
 
 	const setLanguage = async () => {
