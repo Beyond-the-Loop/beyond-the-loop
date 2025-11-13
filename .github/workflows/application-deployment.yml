@@ -143,9 +143,8 @@ jobs:
           key: ${{ secrets.PROD_EC2_SSH_KEY }}
           script: |
             cd ~/beyond-the-loop
-            docker-compose down
-            docker-compose pull
-            docker-compose up -d
+            docker-compose up -d --pull always --remove-orphans
+            docker image prune -f
 
   deploy-staging:
     needs: build-and-push
@@ -235,6 +234,5 @@ jobs:
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
           script: |
             cd ~/beyond-the-loop
-            docker-compose down
-            docker-compose pull
-            docker-compose up -d
+            docker-compose up -d --pull always --remove-orphans
+            docker image prune -f
