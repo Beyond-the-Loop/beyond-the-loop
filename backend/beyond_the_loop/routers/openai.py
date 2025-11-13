@@ -17,8 +17,8 @@ from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
-from beyond_the_loop.models.companies import Companies
-from beyond_the_loop.services.crm_service import crm_service
+from litellm.utils import trim_messages
+
 
 from beyond_the_loop.config import (
     CACHE_DIR,
@@ -246,6 +246,27 @@ async def generate_chat_completion(
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
+
+    # History shortening (TODO: Find a better place for this)
+    # Mapping internal model names to provider/base models
+    MODEL_MAPPING = {
+        "Claude 4.5 Haiku": "vertex_ai/claude-haiku-4-5@20251001",
+        "Claude Sonnet 4.5": "vertex_ai/claude-sonnet-4-5@20250929",
+        "Google 2.5 Flash": "gemini-2.5-flash",
+        "Google 2.5 Pro": "gemini-2.5-pro",
+        "GPT o3": "azure/o3",
+        "GPT o4-mini": "azure/o4-mini",
+        "GPT-5": "azure/gpt-5",
+        "GPT-5 mini": "azure/gpt-5-mini",
+        "GPT-5 nano": "azure/gpt-5-nano",
+        "Grok 4": "xai/grok-4",
+        "Mistral Large 2": "vertex_ai/mistral-large-2411@001",
+        "Perplexity Sonar Deep Research": "perplexity/sonar-deep-research",
+        "Perplexity Sonar Pro": "perplexity/sonar-pro",
+        "Perplexity Sonar Reasoning Pro": "perplexity/sonar-reasoning-pro",
+    }
+
+    payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
