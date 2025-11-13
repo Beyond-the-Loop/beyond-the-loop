@@ -90,3 +90,4 @@ general_settings:
       major_outage_alert_threshold: 10
       max_outage_alert_list_size: 1000
       log_to_console: true
+      log_request_body: true
