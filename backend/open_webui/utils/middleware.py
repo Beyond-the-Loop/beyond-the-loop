@@ -458,7 +458,7 @@ def extract_file_content_with_loader(file_id: str) -> str:
                 content_type = file_record.meta.get("content_type", "") if file_record.meta else ""
                 
                 # Load documents using the existing system
-                documents = load(file_record.filename, content_type, file_path)
+                documents = loader.load(file_record.filename, content_type, file_path)
                 
                 # Combine all document content
                 combined_content = "\n\n".join([doc.page_content for doc in documents])
@@ -571,6 +571,10 @@ def apply_params_to_form_data(form_data):
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
+
+    # Remove variables and tool_ids from form_data. They're legacy
+    form_data.pop("variables", None)
+    form_data.pop("tool_ids", None)
 
     log.debug(f"form_data: {form_data}")
 
