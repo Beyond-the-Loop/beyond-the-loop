@@ -23,7 +23,6 @@
 export let token;
 export let lang = '';
 export let code = '';
-export let readOnly = true;
 
 	export let className = 'my-2';
 	export let editorClassName = '';
@@ -147,7 +146,6 @@ export let readOnly = true;
 					value={code}
 					{id}
 					{lang}
-					{readOnly}
 					on:save={() => {
 						saveCode();
 					}}

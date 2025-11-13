@@ -952,15 +952,19 @@ Analyze the chat history to generate search queries that retrieve **relevant inf
 </chat_history>
 """
 
+DEFAULT_MOA_GENERATION_PROMPT_TEMPLATE = """You have been provided with a set of responses from various models to the latest user query: "{{prompt}}"
 
-CODE_INTERPRETER_PROMPT = """
-#### Tools Available that you have to use:
+Your task is to synthesize these responses into a single, high-quality response. It is crucial to critically evaluate the information provided in these responses, recognizing that some of it may be biased or incorrect. Your response should not simply replicate the given answers but should offer a refined, accurate, and comprehensive reply to the instruction. Ensure your response is well-structured, coherent, and adheres to the highest standards of accuracy and reliability.
+
+Responses from models: {{responses}}"""
+
+
+DEFAULT_CODE_INTERPRETER_PROMPT = """
+#### Tools Available
 
 1. **Code Interpreter**: `<code_interpreter type="code" lang="python"></code_interpreter>`
    - You have access to a Python shell that runs directly in the user's browser, enabling fast execution of code for analysis, calculations, or problem-solving.  Use it in this response.
    - The Python code you write can incorporate the entire Python standard library. Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
-   - You have access to a Python shell that runs on a dedicated python execution server, enabling fast execution of code for analysis, calculations, or problem-solving.  Use it in this response.
-   - The Python code you write can incorporate a wide array of libraries, handle data manipulation or visualization, or tackle virtually any computational challenge. Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
    - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags** and stop right away. If you don't, the code won't execute. Do NOT use triple backticks.
    - When coding, **always aim to print meaningful outputs** (e.g., results, tables, summaries, or visuals) to better interpret and verify the findings. Avoid relying on implicit outputs; prioritize explicit and clear print statements so the results are effectively communicated to the user.  
    - After obtaining the printed output, **always provide a concise analysis, interpretation, or next steps to help the user understand the findings or refine the outcome further.**  
@@ -970,21 +974,6 @@ CODE_INTERPRETER_PROMPT = """
    - IMPORTANT: Don't use any packages that are not part of the standard Python library.
 
 Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user."""
-
-CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
-    The following uploaded files will be available
-    f"in your current working directory when your code runs: {{file_list}}
-    Open them directly by filename (for example: pandas.read_csv('data.csv')).
-    Do not attempt to download files from external URLs; use these local files.
-"""
-
-CODE_INTERPRETER_SUMMARY_PROMPT = """
-    Based on the most recent code execution, write a concise warup up from the execution_summary: 
-        - Clearly state whether the execution succeeded or failed. 
-        - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). 
-        - If there was an error, briefly summarize it in one sentence. 
-        - Do not repeat the code or the entire logs; keep it short.
-"""
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
     "DEFAULT_AGENT_MODEL",

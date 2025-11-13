@@ -3,44 +3,19 @@ import subprocess
 import tempfile
 import uuid
 from datetime import timedelta
-import os
-import base64
 
 from pathlib import Path
 import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from google.auth.transport.requests import Request
 
 app = FastAPI()
 
 BUCKET_NAME = "python-executor"
 
-# Maximum size of a single input file staged into the executor (bytes)
-MAX_INPUT_FILE_SIZE = int(os.getenv("EXECUTOR_MAX_INPUT_FILE_SIZE", str(20 * 1024 * 1024)))  # 20 MB default
-
-
-def _sanitize_filename(name: str) -> str:
-    # Remove any path components and restrict to safe characters
-    name = os.path.basename(name)
-    # Avoid reserved name for script
-    if name.lower() == "script.py":
-        name = f"input_{uuid.uuid4().hex[:8]}.dat"
-    return name
-
-
-class FileItem(BaseModel):
-    name: str
-    # Base64-encoded content of the file; preferred input method
-    content: str | None = None
-
-
 class CodeRequest(BaseModel):
     code: str
     timeout: int = 10
-    # Optional list of files to stage before executing the code
-    files: list[FileItem] | None = None
-
 
 def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
     """Uploads all files from local_dir to GCS and returns signed URLs.
@@ -52,18 +27,10 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
 
     try:
         from google.cloud import storage
-        import google
-
-        credentials = google.auth.default()[0]
-        credentials.refresh(Request())
-
-        print(credentials.token, credentials.service_account_email)
-
         client = storage.Client()
-    except Exception as e:
-        print(e)
+    except Exception:
         return []
-
+      
     bucket = client.bucket(BUCKET_NAME)
     file_infos = []
 
@@ -74,65 +41,24 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
             blob.upload_from_filename(str(file_path))
 
             # Create signed URL valid for 10 minutes
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=10),
-                method="GET",
-                service_account_email=credentials.service_account_email,
-                access_token=credentials.token,
-                query_parameters={
-                    "response-content-disposition": f"attachment; filename={file_path.name}"
-                },
-            )
+            #url = blob.generate_signed_url(
+            #    version="v4",
+            #    expiration=timedelta(minutes=10),
+            #    method="GET"
+            #)
 
             file_infos.append({
-                "name": file_path.name,
-                "url": url
+                "filename": file_path.name,
+                "url": "-"
             })
 
     return file_infos
 
-
-def _write_input_files(tmp: Path, files: list[FileItem] | None, execution_id) -> list[str]:
-    written: list[str] = []
-
-    if not files:
-        return written
-
-    for item in files:
-        try:
-            filename = _sanitize_filename(item.name)
-
-            target = tmp / filename
-
-            if item.content:
-                try:
-                    raw = base64.b64decode(item.content, validate=True)
-                except Exception:
-                    # Try without validation fallback
-                    raw = base64.b64decode(item.content)
-                if len(raw) > MAX_INPUT_FILE_SIZE:
-                    # Skip oversized file
-                    continue
-                target.write_bytes(raw)
-                written.append(filename)
-                continue
-        except Exception as e:
-            # Ignore individual file failures
-            print(f"Failed to write input file {item.name} for execution_id {execution_id}. {e}")
-            continue
-    return written
-
-
-def run_python_code(code: str, timeout: int = 10, files: list[FileItem] | None = None):
+def run_python_code(code: str, timeout: int = 10):
     execution_id = str(uuid.uuid4())
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
-
-        # Stage any provided input files first
-        _write_input_files(tmp, files, execution_id)
-
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
 
@@ -148,13 +74,13 @@ def run_python_code(code: str, timeout: int = 10, files: list[FileItem] | None =
             stdout = result.stdout[-5000:] if result.stdout else ""
             stderr = result.stderr[-5000:] if result.stderr else ""
 
-            files_out = upload_to_gcs(tmp, execution_id)
+            files = upload_to_gcs(tmp, execution_id)
 
             return {
                 "success": result.returncode == 0,
                 "stdout": stdout.strip(),
                 "stderr": stderr.strip(),
-                "files": files_out,
+                "files": files,
                 "execution_id": execution_id
             }
 
@@ -179,7 +105,7 @@ def run_python_code(code: str, timeout: int = 10, files: list[FileItem] | None =
 @app.post("/execute")
 async def execute_code(request: CodeRequest):
     try:
-        result = run_python_code(request.code, timeout=request.timeout, files=request.files)
+        result = run_python_code(request.code, timeout=request.timeout)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

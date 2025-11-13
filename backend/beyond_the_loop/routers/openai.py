@@ -17,6 +17,8 @@ from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
+from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.services.crm_service import crm_service
 
 from beyond_the_loop.config import (
     CACHE_DIR,
@@ -193,8 +195,10 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 @router.post("/chat/completions")
 async def generate_chat_completion(
-        form_data: dict, user=Depends(get_verified_user),
-        agent_prompt: Optional[bool] = False
+    form_data: dict,
+    user=Depends(get_verified_user),
+    bypass_filter: Optional[bool] = False,
+    agent_prompt: Optional[bool] = False
 ):
     print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
 
@@ -253,7 +257,8 @@ async def generate_chat_completion(
 
     # Parse payload once for both streaming and non-streaming cases
     payload_dict = json.loads(payload)
-    last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
+    last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) 
+                            if msg['role'] == 'user'), '')
 
     try:
         session = aiohttp.ClientSession(
@@ -389,7 +394,7 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(form_data, user, True)
+    message = await generate_chat_completion(form_data, user, None, True)
 
     extracted_prompt_template = magic_prompt_util.extract_prompt(message.get('choices', [{}])[0].get('message', {}).get('content', ''))
 
@@ -405,7 +410,7 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
             "temperature": 0.0
         }
 
-        message = await generate_chat_completion(form_data, user, True)
+        message = await generate_chat_completion(form_data, user, None, True)
 
         extracted_prompt_template = message.get('choices', [{}])[0].get('message', {}).get('content', '')
 
