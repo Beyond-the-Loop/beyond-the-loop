@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import base64
 
 app = FastAPI()
 
@@ -16,6 +17,8 @@ BUCKET_NAME = "python-executor"
 class CodeRequest(BaseModel):
     code: str
     timeout: int = 10
+    files: list[dict] | None = None
+
 
 def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
     """Uploads all files from local_dir to GCS and returns signed URLs.
@@ -63,13 +66,25 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
 
     return file_infos
 
-def run_python_code(code: str, timeout: int = 10):
+def run_python_code(code: str, timeout: int = 10, request_files=None):
     execution_id = str(uuid.uuid4())
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
+
+        if request_files:
+            for f in request_files:
+                name = f.get("name")
+                content = f.get("content")
+                if not name or not content:
+                    continue
+                try:
+                    data = base64.b64decode(content)
+                    (tmp / name).write_bytes(data)
+                except Exception as e:
+                    print(f"Failed to write file {name}: {e}")
 
         try:
             result = subprocess.run(
@@ -114,7 +129,10 @@ def run_python_code(code: str, timeout: int = 10):
 @app.post("/execute")
 async def execute_code(request: CodeRequest):
     try:
-        result = run_python_code(request.code, timeout=request.timeout)
-        return result
+        return run_python_code(
+            request.code,
+            timeout=request.timeout,
+            request_files=request.files
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

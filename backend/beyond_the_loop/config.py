@@ -980,6 +980,7 @@ CODE_INTERPRETER_SUMMARY_PROMPT = """
         - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). 
         - If there was an error, briefly summarize it in one sentence. 
         - Do not repeat the code or the entire logs; keep it short.
+        - IMPORTANT: Don't return any new code.
 """
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
