@@ -56,7 +56,7 @@ COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
 RUN pip3 install -r requirements.txt --no-cache-dir
 
-chown -R $UID:$GID /app/backend/data/
+RUN chown -R $UID:$GID /app/backend/data/
 
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
