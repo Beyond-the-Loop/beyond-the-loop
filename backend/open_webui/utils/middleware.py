@@ -1705,13 +1705,6 @@ async def process_chat_response(
                                         output.setdefault("stderr", "")
                                         output.setdefault("files", [])
                                         output.setdefault("execution_id", "")
-
-                                        # Make sure file URLs are visible even if UI doesn't parse JSON output
-                                        files_list = output.get("files") or []
-
-                                        if files_list:
-                                            extra = "\n\nFiles:\n" + "\n".join(str(u) for u in files_list)
-                                            output["stdout"] = (output.get("stdout", "") or "") + extra
                                     else:
                                         output = str(data)
                                 except Exception as exec_err:
@@ -1721,55 +1714,28 @@ async def process_chat_response(
 
                         content_blocks[-1]["output"] = output
 
-                        # Emit final code_execution result event with the same id
-                        try:
-                            block = content_blocks[-1]
-                            exec_id = block.get("code_execution_id") or str(uuid4())
-                            block["code_execution_id"] = exec_id
+                        # Emit the final code execution result event with the same id
+                        block = content_blocks[-1]
+                        exec_id = block.get("code_execution_id") or str(uuid4())
+                        block["code_execution_id"] = exec_id
 
-                            # Normalize executor output to UI schema
-                            result_error = None
-                            result_files = []
-
-                            if isinstance(output, dict):
-                                success = bool(output.get("success", False))
-                                stdout = output.get("stdout") or ""
-                                stderr = output.get("stderr") or ""
-                                files = output.get("files") or []
-
-                                result_output = stdout if success or stdout else None
-                                result_error = None if success else (stderr or ("Execution failed"))
-
-                                # Convert files into objects with name/url if strings
-                                if isinstance(files, list):
-                                    for f in files:
-                                        if isinstance(f, str):
-                                            result_files.append({"name": f.split("/")[-1] or "file", "url": f})
-                                        elif isinstance(f, dict):
-                                            result_files.append(f)
-                            else:
-                                # Plain string; treat as output
-                                result_output = str(output)
-
-                            await event_emitter(
-                                {
-                                    "type": "source",
-                                    "data": {
-                                        "type": "code_execution",
-                                        "id": exec_id,
-                                        "name": f"{(block.get('attributes', {}) or {}).get('lang', '') or 'code'} execution",
-                                        "language": (block.get("attributes", {}) or {}).get("lang", ""),
-                                        "code": block.get("content", ""),
-                                        "result": {
-                                            **({"output": result_output} if result_output else {}),
-                                            **({"error": result_error} if result_error else {}),
-                                            **({"files": result_files} if result_files else {}),
-                                        },
+                        await event_emitter(
+                            {
+                                "type": "source",
+                                "data": {
+                                    "type": "code_execution",
+                                    "id": exec_id,
+                                    "name": f"{(block.get('attributes', {}) or {}).get('lang', '') or 'code'} execution",
+                                    "language": (block.get("attributes", {}) or {}).get("lang", ""),
+                                    "code": block.get("content", ""),
+                                    "result": {
+                                        **({"output": output.get(("stdout"))}),
+                                        **({"error": output.get(("stderr"))}),
+                                        **({"files": output.get("files")}),
                                     },
-                                }
-                            )
-                        except Exception as _emit_done_err:
-                            log.debug(f"Failed to emit code_execution result: {_emit_done_err}")
+                                },
+                            }
+                        )
 
                         content_blocks.append(
                             {
@@ -1789,26 +1755,6 @@ async def process_chat_response(
 
                     # After code execution completes, call the LLM again to summarize result
                     try:
-                        # Find the latest code_interpreter block and extract output summary for explicit context
-                        last_exec_block = None
-                        for b in reversed(content_blocks):
-                            if b.get("type") == "code_interpreter":
-                                last_exec_block = b
-                                break
-
-                        exec_summary = {}
-                        if last_exec_block is not None:
-                            out = last_exec_block.get("output")
-                            if isinstance(out, dict):
-                                exec_summary = {
-                                    "success": bool(out.get("success", False)),
-                                    "stdout": out.get("stdout") or "",
-                                    "stderr": out.get("stderr") or "",
-                                    "files": out.get("files") or [],
-                                }
-                            else:
-                                exec_summary = {"raw_output": str(out)}
-
                         # Build follow-up messages
                         followup_messages = [
                             *form_data["messages"],
@@ -1819,8 +1765,7 @@ async def process_chat_response(
                             {
                                 "role": "user",
                                 "content": json.dumps({
-                                    "instruction": CODE_INTERPRETER_SUMMARY_PROMPT,
-                                    "execution_summary": exec_summary,
+                                    "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
                                 }),
                             },
                         ]

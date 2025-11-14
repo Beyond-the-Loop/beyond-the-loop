@@ -34,8 +34,6 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
 
         credentials.refresh(Request())
 
-        print("CREDEMTOAÖS", credentials)
-
         client = storage.Client()
     except Exception:
         return []
@@ -59,7 +57,7 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
             )
 
             file_infos.append({
-                "filename": file_path.name,
+                "name": file_path.name,
                 "url": url
             })
 

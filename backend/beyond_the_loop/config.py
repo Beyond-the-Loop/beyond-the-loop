@@ -975,7 +975,7 @@ CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
 """
 
 CODE_INTERPRETER_SUMMARY_PROMPT = """
-    Based on the most recent code execution, write a concise wrap up from the execution_summary: 
+    Based on the most recent code execution output, write a concise wrap up to inform the user what happened: 
         - Clearly state whether the execution succeeded or failed. 
         - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). 
         - If there was an error, briefly summarize it in one sentence. 
