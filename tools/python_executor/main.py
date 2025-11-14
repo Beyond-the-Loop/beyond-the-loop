@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from google import Requ
 
 app = FastAPI()
 
@@ -27,6 +28,15 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
 
     try:
         from google.cloud import storage
+        from google import auth
+        from google.auth.transport.requests import Request
+
+        credentials, project_id = auth.default()
+
+        credentials.refresh(Request())
+
+        print("CREDEMTOAÖS", credentials)
+
         client = storage.Client()
     except Exception:
         return []
@@ -41,15 +51,17 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
             blob.upload_from_filename(str(file_path))
 
             # Create signed URL valid for 10 minutes
-            #url = blob.generate_signed_url(
-            #    version="v4",
-            #    expiration=timedelta(minutes=10),
-            #    method="GET"
-            #)
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(minutes=10),
+                service_account_email=credentials.service_account_email,
+                access_token=credentials.token,
+                method="GET"
+            )
 
             file_infos.append({
                 "filename": file_path.name,
-                "url": "-"
+                "url": url
             })
 
     return file_infos

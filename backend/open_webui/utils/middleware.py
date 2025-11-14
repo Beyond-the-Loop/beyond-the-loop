@@ -1017,8 +1017,6 @@ async def process_chat_response(
                     if block["type"] == "text":
                         content = f"{content}{block['content'].strip()}\n"
                     elif block["type"] == "tool_calls":
-                        attributes = block.get("attributes", {})
-
                         block_content = block.get("content", [])
                         results = block.get("results", [])
 
