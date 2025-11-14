@@ -17,6 +17,8 @@ from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
+from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -50,7 +52,7 @@ from open_webui.utils.misc import (
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     CACHE_DIR,
-    DEFAULT_CODE_INTERPRETER_PROMPT,
+    CODE_INTERPRETER_PROMPT,
     DEFAULT_AGENT_MODEL,
 )
 from open_webui.env import (
@@ -257,7 +259,7 @@ async def chat_image_generation_handler(
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user, None, True)
+        response = await generate_chat_completion(decision_form_data, user, True)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -425,7 +427,7 @@ async def chat_file_intent_decision_handler(
             "temperature": 0.0
         }
         
-        response = await generate_chat_completion(decision_form_data, user, None, True)
+        response = await generate_chat_completion(decision_form_data, user, True)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -648,6 +650,17 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         files.extend(model_files)
         form_data["files"] = files
 
+    # Remove file duplicates
+    files = form_data.pop("files", [])
+    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
+
+    metadata = {
+        **metadata,
+        "files": files,
+    }
+
+    form_data["metadata"] = metadata
+
     features = form_data.pop("features", None)
 
     if features:
@@ -661,23 +674,22 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 request, form_data, extra_params, user
             )
 
+            return form_data, metadata, events
+
         if "code_interpreter" in features and features["code_interpreter"]:
             form_data["messages"] = add_or_update_user_message(
-                DEFAULT_CODE_INTERPRETER_PROMPT, form_data["messages"]
+                CODE_INTERPRETER_PROMPT, form_data["messages"]
             )
 
-    files = form_data.pop("files", [])
+            # Inform the LLM about available uploaded files so it can reference them in generated code
+            if len(files) > 0:
+                # Build a concise instruction listing accessible filenames (non-image, non-collection)
+                    file_list_str = ", ".join(file["file"]["filename"] for file in files)
 
-    # Remove files duplicates
-    if files:
-        files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
+                    code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
+                    form_data["messages"] = add_or_update_user_message(code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
-    metadata = {
-        **metadata,
-        "files": files,
-    }
-
-    form_data["metadata"] = metadata
+            return form_data, metadata, events
 
     # First, decide if this is a RAG task or content extraction task
     try:
@@ -685,7 +697,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
-    
+
     if is_rag_task:
         # Proceed with normal RAG processing
         try:
@@ -698,7 +710,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         try:
             files = form_data.get("metadata", {}).get("files", [])
             file_contents = []
-            
+
             for file_item in files:
                 if isinstance(file_item, dict):
                     file_id = file_item.get("id")
@@ -715,18 +727,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                         file_contents.append(f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
                             except Exception as e:
                                 log.debug(f"Error processing file {file_id}: {e}")
-            
+
             # Append file contents to the last user message
             if file_contents:
                 combined_content = "".join(file_contents)
                 form_data["messages"] = add_or_update_user_message(
                     combined_content, form_data["messages"]
                 )
-                
+
                 # Remove files from metadata since we've processed them as content
                 if "metadata" in form_data and "files" in form_data["metadata"]:
                     del form_data["metadata"]["files"]
-                    
+
         except Exception as e:
             log.exception(f"Error processing files for content extraction: {e}")
 
@@ -1008,8 +1020,6 @@ async def process_chat_response(
                     if block["type"] == "text":
                         content = f"{content}{block['content'].strip()}\n"
                     elif block["type"] == "tool_calls":
-                        attributes = block.get("attributes", {})
-
                         block_content = block.get("content", [])
                         results = block.get("results", [])
 
@@ -1068,6 +1078,7 @@ async def process_chat_response(
                         if output:
                             output = html.escape(json.dumps(output))
 
+                            # RAW means without code interpreter activated - not code execution
                             if raw:
                                 content = f'{content}\n<code_interpreter type="code" lang="{lang}">\n{block["content"]}\n</code_interpreter>\n```output\n{output}\n```\n'
                             else:
@@ -1401,34 +1412,6 @@ async def process_chat_response(
                                             )
                                         )
 
-                                        # When a code_interpreter block is active, emit a backend-driven
-                                        # code_execution "source" event to start the chip in the UI.
-                                        try:
-                                            if content_blocks and content_blocks[-1].get("type") == "code_interpreter":
-                                                block = content_blocks[-1]
-                                                # Ensure a stable id for this execution
-                                                if "code_execution_id" not in block:
-                                                    block["code_execution_id"] = str(uuid4())
-
-                                                # Emit the start event only once
-                                                if not block.get("code_execution_emitted"):
-                                                    lang = (block.get("attributes", {}) or {}).get("lang", "")
-                                                    await event_emitter(
-                                                        {
-                                                            "type": "source",
-                                                            "data": {
-                                                                "type": "code_execution",
-                                                                "id": block["code_execution_id"],
-                                                                "name": f"{lang or 'code'} execution",
-                                                                "language": lang,
-                                                                "code": block.get("content", ""),
-                                                            },
-                                                        }
-                                                    )
-                                                    block["code_execution_emitted"] = True
-                                        except Exception as _emit_err:
-                                            log.debug(f"Failed to emit code_execution start: {_emit_err}")
-
                                         if end:
                                             break
 
@@ -1579,31 +1562,28 @@ async def process_chat_response(
                     )
 
                     try:
-                        res = await generate_chat_completion(
-                            {
-                                "model": model_id,
-                                "stream": True,
-                                "messages": [
-                                    *form_data["messages"],
+                        res = await generate_chat_completion({
+                            "model": model_id,
+                            "stream": True,
+                            "messages": [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(
+                                        content_blocks, raw=True
+                                    ),
+                                    "tool_calls": response_tool_calls,
+                                },
+                                *[
                                     {
-                                        "role": "assistant",
-                                        "content": serialize_content_blocks(
-                                            content_blocks, raw=True
-                                        ),
-                                        "tool_calls": response_tool_calls,
-                                    },
-                                    *[
-                                        {
-                                            "role": "tool",
-                                            "tool_call_id": result["tool_call_id"],
-                                            "content": result["content"],
-                                        }
-                                        for result in results
-                                    ],
+                                        "role": "tool",
+                                        "tool_call_id": result["tool_call_id"],
+                                        "content": result["content"],
+                                    }
+                                    for result in results
                                 ],
-                            },
-                            user,
-                        )
+                            ],
+                        }, user)
 
                         if isinstance(res, StreamingResponse):
                             await stream_body_handler(res)
@@ -1625,18 +1605,78 @@ async def process_chat_response(
                         log.debug(f"Attempt count: {retries}")
 
                         output = ""
+
                         try:
                             if content_blocks[-1]["attributes"].get("type") == "code":
                                 # Execute code via external Python executor service instead of frontend event
                                 try:
-                                    executor_url = os.getenv("PYTHON_EXECUTER_URL")
+                                    executor_url = os.getenv("PYTHON_EXECUTOR_URL")
 
                                     if not executor_url:
-                                        raise RuntimeError("PYTHON_EXECUTER_URL environment variable is not set")
+                                        raise RuntimeError("PYTHON_EXECUTOR_URL environment variable is not set")
 
                                     code_to_run = content_blocks[-1]["content"]
+
+                                    code_execution_id = str(uuid4())
+
+                                    await event_emitter(
+                                        {
+                                            "type": "source",
+                                            "data": {
+                                                "type": "code_execution",
+                                                "id": code_execution_id,
+                                                "name": "Python Execution",
+                                                "language": "Python",
+                                                "code": code_to_run,
+                                            },
+                                        }
+                                    )
+
+                                    # Prepare attached files for the Python executor: we embed small files as base64
+                                    files_to_send = []
+
+                                    try:
+                                        attached = (metadata or {}).get("files", [])
+                                        for file_item in attached or []:
+                                            if not isinstance(file_item, dict):
+                                                continue
+                                            file_id = file_item.get("id")
+                                            if not file_id:
+                                                continue
+                                            # Skip collections and web_search results
+                                            if file_item.get("type") in ["collection", "web_search_results"]:
+                                                continue
+                                            try:
+                                                file_record = Files.get_file_by_id(file_id)
+                                                if not file_record or not file_record.meta:
+                                                    continue
+
+                                                # Fetch local path and read bytes
+                                                try:
+                                                    local_path = Storage.get_file(file_record.path)
+                                                    with open(local_path, "rb") as f:
+                                                        raw = f.read()
+
+                                                    b64 = base64.b64encode(raw).decode("ascii")
+                                                    name = file_record.meta.get("name", file_record.filename) if file_record.meta else file_record.filename
+                                                    files_to_send.append({
+                                                        "name": name,
+                                                        "content": b64
+                                                    })
+                                                except Exception as file_err:
+                                                    log.debug(f"Failed to stage file {file_id} for executor: {file_err}")
+                                                    continue
+                                            except Exception as file_meta_err:
+                                                log.debug(f"Error accessing file metadata {file_id}: {file_meta_err}")
+                                                continue
+                                    except Exception as prep_err:
+                                        log.debug(f"Error preparing files for python executor: {prep_err}")
+
                                     async with httpx.AsyncClient(timeout=60) as client:
-                                        resp = await client.post(executor_url, json={"code": code_to_run})
+                                        payload = {"code": code_to_run}
+                                        if files_to_send:
+                                            payload["files"] = files_to_send
+                                        resp = await client.post(executor_url, json=payload)
                                         resp.raise_for_status()
                                         data = resp.json()
 
@@ -1645,7 +1685,7 @@ async def process_chat_response(
                                     #   "success": true,
                                     #   "stdout": "...",
                                     #   "stderr": "...",
-                                    #   "files": ["http://...", ...],
+                                    #   "files": [{name: "", url: ""}, ...],
                                     #   "execution_id": "..."
                                     # }
 
@@ -1657,71 +1697,35 @@ async def process_chat_response(
                                         output.setdefault("stderr", "")
                                         output.setdefault("files", [])
                                         output.setdefault("execution_id", "")
-
-                                        # Make sure file URLs are visible even if UI doesn't parse JSON output
-                                        files_list = output.get("files") or []
-
-                                        if files_list:
-                                            extra = "\n\nFiles:\n" + "\n".join(str(u) for u in files_list)
-                                            output["stdout"] = (output.get("stdout", "") or "") + extra
                                     else:
                                         output = str(data)
                                 except Exception as exec_err:
-                                    output = f"Python executor error: {exec_err}"
+                                    output = str(exec_err)
                         except Exception as e:
                             output = str(e)
 
                         content_blocks[-1]["output"] = output
 
-                        # Emit final code_execution result event with the same id
-                        try:
-                            block = content_blocks[-1]
-                            exec_id = block.get("code_execution_id") or str(uuid4())
-                            block["code_execution_id"] = exec_id
+                        # Emit the final code execution result event with the same id
+                        block = content_blocks[-1]
 
-                            # Normalize executor output to UI schema
-                            result_error = None
-                            result_files = []
-
-                            if isinstance(output, dict):
-                                success = bool(output.get("success", False))
-                                stdout = output.get("stdout") or ""
-                                stderr = output.get("stderr") or ""
-                                files = output.get("files") or []
-
-                                result_output = stdout if success or stdout else None
-                                result_error = None if success else (stderr or ("Execution failed"))
-
-                                # Convert files into objects with name/url if strings
-                                if isinstance(files, list):
-                                    for f in files:
-                                        if isinstance(f, str):
-                                            result_files.append({"name": f.split("/")[-1] or "file", "url": f})
-                                        elif isinstance(f, dict):
-                                            result_files.append(f)
-                            else:
-                                # Plain string; treat as output
-                                result_output = str(output)
-
-                            await event_emitter(
-                                {
-                                    "type": "source",
-                                    "data": {
-                                        "type": "code_execution",
-                                        "id": exec_id,
-                                        "name": f"{(block.get('attributes', {}) or {}).get('lang', '') or 'code'} execution",
-                                        "language": (block.get("attributes", {}) or {}).get("lang", ""),
-                                        "code": block.get("content", ""),
-                                        "result": {
-                                            **({"output": result_output} if result_output else {}),
-                                            **({"error": result_error} if result_error else {}),
-                                            **({"files": result_files} if result_files else {}),
-                                        },
+                        await event_emitter(
+                            {
+                                "type": "source",
+                                "data": {
+                                    "type": "code_execution",
+                                    "id": code_execution_id,
+                                    "name": "Python Execution",
+                                    "language": "Python",
+                                    "code": block.get("content", ""),
+                                    "result": {
+                                        **({"output": output.get("stdout") if isinstance(output, dict) else ""}),
+                                        **({"error": output.get("stderr") if isinstance(output, dict) else output}),
+                                        **({"files": output.get("files") if isinstance(output, dict) else []}),
                                     },
-                                }
-                            )
-                        except Exception as _emit_done_err:
-                            log.debug(f"Failed to emit code_execution result: {_emit_done_err}")
+                                },
+                            }
+                        )
 
                         content_blocks.append(
                             {
@@ -1738,6 +1742,34 @@ async def process_chat_response(
                                 },
                             }
                         )
+
+                    # After code execution completes, call the LLM again to summarize result
+                    try:
+                        # Build follow-up messages
+                        followup_messages = [
+                            *form_data["messages"],
+                            {
+                                "role": "assistant",
+                                "content": serialize_content_blocks(content_blocks, raw=True),
+                            },
+                            {
+                                "role": "user",
+                                "content": json.dumps({
+                                    "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
+                                }),
+                            },
+                        ]
+
+                        res = await generate_chat_completion({
+                            "model": model_id,
+                            "stream": True,
+                            "messages": followup_messages,
+                        }, user)
+
+                        if isinstance(res, StreamingResponse):
+                            await stream_body_handler(res)
+                    except Exception as follow_err:
+                        log.debug(f"Follow-up LLM generation failed: {follow_err}")
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
