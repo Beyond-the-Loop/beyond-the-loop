@@ -198,7 +198,7 @@ async def generate_chat_completion(
     form_data: dict,
     user=Depends(get_verified_user),
     bypass_filter: Optional[bool] = False,
-    agent_prompt: Optional[bool] = False
+    agent_or_task_prompt: Optional[bool] = False
 ):
     print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
 
@@ -224,17 +224,23 @@ async def generate_chat_completion(
 
     if model_name == "Mistral Large 2":
         payload["stream"] = False
+        for message in payload["messages"]:
+            if "content" in message and isinstance(message["content"], list):
+                message["content"] = [
+                    c for c in message["content"]
+                    if c.get("type") != "image_url"
+                ]
 
     credit_service = CreditService()
 
-    if has_chat_id or agent_prompt:
+    if has_chat_id or agent_or_task_prompt:
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     params = model_info.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    if not os.getenv("DEFAULT_AGENT_MODEL") == model_name and not (
+    if not agent_or_task_prompt and not (
         model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
             user.id, type="read", access_control=model_info.access_control
         ))
