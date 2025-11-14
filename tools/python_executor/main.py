@@ -8,7 +8,6 @@ from pathlib import Path
 import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from google import Requ
 
 app = FastAPI()
 
