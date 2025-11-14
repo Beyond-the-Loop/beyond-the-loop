@@ -730,8 +730,6 @@ def generate_magic_prompt_messages(task):
     prompt = metaprompt.replace("{{TASK}}", task)
 
     assistant_partial = "<Inputs>"
-    if variable_string:
-        assistant_partial += variable_string + "\n</Inputs>\n<Instructions Structure>"
 
     return [
             {
