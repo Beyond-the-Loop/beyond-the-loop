@@ -25,7 +25,7 @@ FROM python:3.11-slim-bookworm AS base
 
 ## Basis ##
 ENV ENV=prod \
-    PORT=8080 \
+    PORT=8080
 
 ## API Key and Security Config ##
 ENV SCARF_NO_ANALYTICS=true \
