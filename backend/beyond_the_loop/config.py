@@ -958,7 +958,52 @@ CODE_INTERPRETER_PROMPT = """
 
 1. **Code Interpreter**: `<code_interpreter type="code" lang="python"></code_interpreter>`
    - You have access to a Python shell that runs on a dedicated python executor server, enabling fast execution of code for analysis, calculations, or problem-solving.  Use it in this response.
-   - The Python code you write can incorporate all packages from the entire Python standard library. Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
+   - The Python code you write can incorporate all packages from the standard python library and packages from this list:
+        annotated-doc==0.0.4
+        annotated-types==0.7.0
+        anyio==4.11.0
+        cachetools==6.2.2
+        certifi==2025.11.12
+        charset-normalizer==3.4.4
+        click==8.3.1
+        et_xmlfile==2.0.0
+        fastapi==0.121.2
+        google-api-core==2.28.1
+        google-auth==2.43.0
+        google-cloud-core==2.5.0
+        google-cloud-storage==2.19.0
+        google-crc32c==1.7.1
+        google-resumable-media==2.7.2
+        googleapis-common-protos==1.72.0
+        h11==0.16.0
+        httptools==0.7.1
+        idna==3.11
+        lxml==6.0.2
+        openpyxl==3.1.5
+        pillow==12.0.0
+        proto-plus==1.26.1
+        protobuf==6.33.1
+        pyasn1==0.6.1
+        pyasn1_modules==0.4.2
+        pydantic==2.12.4
+        pydantic_core==2.41.5
+        pypdf==6.3.0
+        python-docx==1.2.0
+        python-dotenv==1.2.1
+        PyYAML==6.0.3
+        reportlab==4.4.4
+        requests==2.32.5
+        rsa==4.9.1
+        sniffio==1.3.1
+        starlette==0.49.3
+        typing-inspection==0.4.2
+        typing_extensions==4.15.0
+        urllib3==2.5.0
+        uvicorn==0.38.0
+        uvloop==0.22.1
+        watchfiles==1.1.1
+        websockets==15.0.1
+    - Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
    - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags** and stop right away. If you don't, the code won't execute. Do NOT use triple backticks.
    - When coding, **always aim to print meaningful outputs** (e.g., results, tables, summaries, or visuals) to better interpret and verify the findings. Avoid relying on implicit outputs; prioritize explicit and clear print statements so the results are effectively communicated to the user.  
    - After obtaining the printed output, **always provide a concise analysis, interpretation, or next steps to help the user understand the findings or refine the outcome further.**  
