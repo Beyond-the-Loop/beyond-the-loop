@@ -20,7 +20,7 @@ class CodeRequest(BaseModel):
     files: list[dict] | None = None
 
 
-def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
+def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: str[]) -> list[dict]:
     """Uploads all files from local_dir to GCS and returns signed URLs.
 
     Note: Importing google.cloud.storage lazily to avoid hard dependency during tests.
@@ -34,9 +34,7 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
         from google.auth.transport.requests import Request
 
         credentials, project_id = auth.default()
-
         credentials.refresh(Request())
-
         client = storage.Client()
     except Exception:
         return []
@@ -45,7 +43,7 @@ def upload_to_gcs(local_dir: Path, execution_id: str) -> list[dict]:
     file_infos = []
 
     for file_path in local_dir.iterdir():
-        if file_path.is_file() and file_path.name != "script.py":
+        if file_path.is_file() and file_path.name != "script.py" and file_path.name not in request_file_names:
             blob_path = f"executions/{execution_id}/{file_path.name}"
             blob = bucket.blob(blob_path)
             blob.upload_from_filename(str(file_path))
@@ -74,8 +72,6 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
 
-        print("REQUES TFILES", request_files)
-
         if request_files:
             for f in request_files:
                 name = f.get("name")
@@ -85,7 +81,6 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
                 try:
                     data = base64.b64decode(content)
                     (tmp / name).write_bytes(data)
-                    print("ADDED FILE", name)
                 except Exception as e:
                     print(f"Failed to write file {name}: {e}")
 
@@ -101,7 +96,7 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
             stdout = result.stdout[-5000:] if result.stdout else ""
             stderr = result.stderr[-5000:] if result.stderr else ""
 
-            files = upload_to_gcs(tmp, execution_id)
+            files = upload_to_gcs(tmp, execution_id, map(lambda rf: rf.get("name"), request_files))
 
             return {
                 "success": result.returncode == 0,

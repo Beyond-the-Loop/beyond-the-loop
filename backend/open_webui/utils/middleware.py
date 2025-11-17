@@ -673,6 +673,29 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 CODE_INTERPRETER_PROMPT, form_data["messages"]
             )
 
+            form_data["metadata"]["images"] = []
+
+            for message in form_data["messages"]:
+                if "content" in message and isinstance(message["content"], list):
+                    for c in message["content"]:
+                        if c.get("type") == "image_url":
+                            url = c.get("image_url", {}).get("url")
+
+                            if url:
+                                ext = get_extension_from_base64(url)
+                                filename = f"uploaded_image{len(form_data["metadata"]["images"]) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                                parts = url.split(',')
+                                if len(parts) > 1:
+                                    url = parts[1]
+                                else:
+                                    url = parts[0]
+
+                                form_data["metadata"]["images"].append({
+                                    "name": filename,
+                                    "content": url
+                                })
+
             # Inform the LLM about available uploaded files so it can reference them in generated code
             if len(files) > 0:
                 # Build a concise instruction listing accessible filenames (non-image, non-collection)
@@ -1635,7 +1658,6 @@ async def process_chat_response(
 
                                     # Prepare attached files for the Python executor: we embed small files as base64
                                     files_to_send = []
-                                    attached_images = []
 
                                     try:
                                         attached_files = (metadata or {}).get("files", [])
@@ -1673,20 +1695,6 @@ async def process_chat_response(
                                                 log.debug(f"Error accessing file metadata {file_id}: {file_meta_err}")
                                                 continue
 
-                                        for message in form_data["messages"]:
-                                            if "content" in message and isinstance(message["content"], list):
-                                                for c in message["content"]:
-                                                    if c.get("type") == "image_url":
-                                                        url = c.get("image_url", {}).get("url")
-                                                        if url:
-                                                            ext = get_extension_from_base64(url)
-                                                            filename = f"uploaded_image{len(attached_images) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                                                            attached_images.append({
-                                                                "name": filename,
-                                                                "content": url
-                                                            })
-
                                     except Exception as prep_err:
                                         print(f"Error preparing files for python executor: {prep_err}")
 
@@ -1695,8 +1703,10 @@ async def process_chat_response(
                                         if files_to_send:
                                             payload["files"] = files_to_send
 
-                                        if attached_images:
-                                            payload["files"] = payload.get("files", []) + attached_images
+                                        images = (metadata or {}).get("images", [])
+
+                                        if (metadata or {}).get("images", []):
+                                            payload["files"] = payload.get("files", []) + images
 
                                         resp = await client.post(executor_url, json=payload)
                                         resp.raise_for_status()
