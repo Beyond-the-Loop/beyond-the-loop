@@ -1,11 +1,16 @@
 # Dockerfile
 FROM python:3.11-slim
 
-# Install dependencies
-RUN pip install --no-cache-dir fastapi uvicorn google-cloud-storage
+# Set working directory
+WORKDIR /app
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Install dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code
-WORKDIR /app
 COPY . /app
 
 # Expose port for FastAPI

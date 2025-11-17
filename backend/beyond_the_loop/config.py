@@ -1022,10 +1022,11 @@ CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
 CODE_INTERPRETER_SUMMARY_PROMPT = """
     Based on the most recent code execution output, write a concise wrap up to inform the user what happened: 
         - Clearly state whether the execution succeeded or failed. 
-        - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). 
+        - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). IMPORTANT! Use the exact link from the response.
         - If there was an error, briefly summarize it in one sentence. 
         - Do not repeat the code or the entire logs; keep it short.
         - IMPORTANT: Don't return any new code.
+        - Don't write any tags like for example <execution results>. Don't add any tags at all.
 """
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
