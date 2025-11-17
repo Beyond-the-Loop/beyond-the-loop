@@ -683,7 +683,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
                             if url:
                                 ext = get_extension_from_base64(url)
-                                filename = f"uploaded_image{len(form_data["metadata"]["images"]) + 1}.{ext}" if ext else "uploaded_image.bin"
+                                filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
 
                                 parts = url.split(',')
                                 if len(parts) > 1:
