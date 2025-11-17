@@ -1008,7 +1008,7 @@ CODE_INTERPRETER_PROMPT = """
    - When coding, **always aim to print meaningful outputs** (e.g., results, tables, summaries, or visuals) to better interpret and verify the findings. Avoid relying on implicit outputs; prioritize explicit and clear print statements so the results are effectively communicated to the user.  
    - After obtaining the printed output, **always provide a concise analysis, interpretation, or next steps to help the user understand the findings or refine the outcome further.**  
    - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
-   - IMPORTANT: Don't use any packages that are not part of the standard Python library.
+   - Ignore all Base64 files and images from the messages.
 
 Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user.
 """
@@ -1023,7 +1023,7 @@ CODE_INTERPRETER_SUMMARY_PROMPT = """
     Based on the most recent code execution output, write a concise wrap up to inform the user what happened: 
         - Clearly state whether the execution succeeded or failed. 
         - If any file URLs are available, include a Markdown link to the most relevant file (typically the first). IMPORTANT! Use the exact link from the response.
-        - If there was an error, briefly summarize it in one sentence. 
+        - If there was an error, briefly summarize it in one sentence. If there was no error, do not include a sentence.
         - Do not repeat the code or the entire logs; keep it short.
         - IMPORTANT: Don't return any new code.
         - Don't write any tags like for example <execution results>. Don't add any tags at all.

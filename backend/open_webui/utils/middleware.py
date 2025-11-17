@@ -1635,10 +1635,12 @@ async def process_chat_response(
 
                                     # Prepare attached files for the Python executor: we embed small files as base64
                                     files_to_send = []
+                                    attached_images = []
 
                                     try:
-                                        attached = (metadata or {}).get("files", [])
-                                        for file_item in attached or []:
+                                        attached_files = (metadata or {}).get("files", [])
+
+                                        for file_item in attached_files or []:
                                             if not isinstance(file_item, dict):
                                                 continue
                                             file_id = file_item.get("id")
@@ -1670,13 +1672,32 @@ async def process_chat_response(
                                             except Exception as file_meta_err:
                                                 log.debug(f"Error accessing file metadata {file_id}: {file_meta_err}")
                                                 continue
+
+                                        for message in form_data["messages"]:
+                                            if "content" in message and isinstance(message["content"], list):
+                                                for c in message["content"]:
+                                                    if c.get("type") == "image_url":
+                                                        url = c.get("image_url", {}).get("url")
+                                                        if url:
+                                                            ext = get_extension_from_base64(url)
+                                                            filename = f"uploaded_image{len(attached_images) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                                                            attached_images.append({
+                                                                "name": filename,
+                                                                "content": url
+                                                            })
+
                                     except Exception as prep_err:
-                                        log.debug(f"Error preparing files for python executor: {prep_err}")
+                                        print(f"Error preparing files for python executor: {prep_err}")
 
                                     async with httpx.AsyncClient(timeout=60) as client:
                                         payload = {"code": code_to_run}
                                         if files_to_send:
                                             payload["files"] = files_to_send
+
+                                        if attached_images:
+                                            payload["files"] = payload.get("files", []) + attached_images
+
                                         resp = await client.post(executor_url, json=payload)
                                         resp.raise_for_status()
                                         data = resp.json()
@@ -1873,3 +1894,23 @@ async def process_chat_response(
             headers=dict(response.headers),
             background=response.background,
         )
+
+def get_extension_from_base64(b64_string):
+    match = re.match(r"data:(image/[^;]+);base64,", b64_string)
+    if not match:
+        return None  # Not a valid base64 image with MIME info
+
+    mime_type = match.group(1)  # e.g. "image/png"
+
+    # Map MIME → file extension
+    mapping = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+        "image/bmp": "bmp",
+        "image/svg+xml": "svg",
+    }
+
+    return mapping.get(mime_type, None)

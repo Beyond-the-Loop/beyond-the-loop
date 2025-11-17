@@ -74,6 +74,8 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
 
+        print("REQUES TFILES", request_files)
+
         if request_files:
             for f in request_files:
                 name = f.get("name")
@@ -83,6 +85,7 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
                 try:
                     data = base64.b64decode(content)
                     (tmp / name).write_bytes(data)
+                    print("ADDED FILE", name)
                 except Exception as e:
                     print(f"Failed to write file {name}: {e}")
 
