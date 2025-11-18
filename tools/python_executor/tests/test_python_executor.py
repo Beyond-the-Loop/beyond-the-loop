@@ -23,7 +23,7 @@ def test_run_python_code_success(monkeypatch):
         files: List[Dict] = []
         for p in local_dir.iterdir():
             if p.is_file() and p.name != "script.py":
-                files.append({"filename": p.name, "url": f"memory://{execution_id}/{p.name}"})
+                files.append({"name": p.name, "url": f"memory://{execution_id}/{p.name}"})
         captured_files = files
         return files
 
@@ -43,8 +43,8 @@ def test_run_python_code_success(monkeypatch):
     assert result["stdout"] == "hello world"
     assert isinstance(result["execution_id"], str) and result["execution_id"]
     # File listing should include output.txt but not script.py
-    assert any(f["filename"] == "output.txt" for f in captured_files)
-    assert not any(f["filename"] == "script.py" for f in captured_files)
+    assert any(f["name"] == "output.txt" for f in captured_files)
+    assert not any(f["name"] == "script.py" for f in captured_files)
 
 
 def test_run_python_code_error():
