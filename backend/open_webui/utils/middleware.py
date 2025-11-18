@@ -178,6 +178,7 @@ async def chat_web_search_handler(
             )
 
             files = form_data.get("files", [])
+
             files.append(
                 {
                     "collection_name": results["collection_name"],
@@ -650,15 +651,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         files.extend(model_files)
         form_data["files"] = files
 
-    # Remove file duplicates
-    files = form_data.pop("files", [])
-    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
-
-    metadata = {
-        **metadata,
-        "files": files,
-    }
-
     form_data["metadata"] = metadata
 
     features = form_data.pop("features", None)
@@ -690,6 +682,15 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     form_data["messages"] = add_or_update_user_message(code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
             return form_data, metadata, events
+
+    # Remove file duplicates and remove files from form_data, add it to metadata
+    files = form_data.pop("files", [])
+    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
+
+    metadata = {
+        **metadata,
+        "files": files,
+    }
 
     # First, decide if this is a RAG task or content extraction task
     try:
