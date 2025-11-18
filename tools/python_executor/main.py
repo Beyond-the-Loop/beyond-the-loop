@@ -65,7 +65,10 @@ def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[s
     return file_infos
 
 def run_python_code(code: str, timeout: int = 10, request_files=None):
+    if request_files is None:
+        request_files = []
     execution_id = str(uuid.uuid4())
+
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
@@ -96,7 +99,7 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
             stdout = result.stdout[-5000:] if result.stdout else ""
             stderr = result.stderr[-5000:] if result.stderr else ""
 
-            files = upload_to_gcs(tmp, execution_id, map(lambda rf: rf.get("name"), request_files))
+            files = upload_to_gcs(tmp, execution_id, [] if request_files else map(lambda rf: rf.get("name"), request_files))
 
             return {
                 "success": result.returncode == 0,
@@ -116,6 +119,7 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
             }
 
         except Exception as e:
+            print(e)
             return {
                 "success": False,
                 "stdout": "",
