@@ -1289,7 +1289,7 @@
 													</Tooltip>
 												{/if}
 
-												<!--{#if ($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true)}
+												{#if ($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true)}
 													<Tooltip content={$i18n.t('Execute code for analysis')} placement="top">
 														<button
 															on:click|preventDefault={() => {
@@ -1306,12 +1306,12 @@
 															{#if codeInterpreterEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Code Interpreter')}</span
+																	>{$i18n.t('Code Interpreter (Beta)')}</span
 																>
 															{/if}
 														</button>
 													</Tooltip>
-												{/if}-->
+												{/if}
 											{/if}
 										</div>
 									</div>

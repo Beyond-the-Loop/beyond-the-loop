@@ -72,6 +72,8 @@ async def chat_web_search_handler(
 ):
     event_emitter = extra_params["__event_emitter__"]
 
+    web_search_files = []
+
     await event_emitter(
         {
             "type": "status",
@@ -129,7 +131,7 @@ async def chat_web_search_handler(
                 },
             }
         )
-        return form_data
+        return web_search_files
 
     search_query = queries[0]
 
@@ -177,9 +179,7 @@ async def chat_web_search_handler(
                 }
             )
 
-            files = form_data.get("files", [])
-
-            files.append(
+            web_search_files.append(
                 {
                     "collection_name": results["collection_name"],
                     "name": search_query,
@@ -187,7 +187,6 @@ async def chat_web_search_handler(
                     "urls": results["filenames"],
                 }
             )
-            form_data["files"] = files
         else:
             await event_emitter(
                 {
@@ -216,7 +215,7 @@ async def chat_web_search_handler(
             }
         )
 
-    return form_data
+    return web_search_files
 
 
 async def chat_image_generation_handler(
@@ -606,6 +605,17 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     model_knowledge = model.meta.knowledge
     model_files = model.meta.files
 
+    # Remove file duplicates and remove files from form_data, add it to metadata
+    files = form_data.pop("files", [])
+    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
+
+    metadata = {
+        **metadata,
+        "files": files,
+    }
+
+    form_data["metadata"] = metadata
+
     if model_knowledge or model_files:
                 await event_emitter(
             {
@@ -641,25 +651,20 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             else:
                 knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
 
-        files = form_data.get("files", [])
         files.extend(knowledge_files)
 
-        form_data["files"] = files
-
     if model_files:
-        files = form_data.get("files", [])
         files.extend(model_files)
-        form_data["files"] = files
-
-    form_data["metadata"] = metadata
 
     features = form_data.pop("features", None)
 
     if features:
         if "web_search" in features and features["web_search"]:
-            form_data = await chat_web_search_handler(
+            web_search_files = await chat_web_search_handler(
                 request, form_data, extra_params, user
             )
+
+            files.extend(web_search_files)
 
         if "image_generation" in features and features["image_generation"]:
             form_data = await chat_image_generation_handler(
@@ -669,9 +674,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             return form_data, metadata, events
 
         if "code_interpreter" in features and features["code_interpreter"]:
-            form_data["messages"] = add_or_update_user_message(
+            form_data["messages"] = add_or_update_system_message(
                 CODE_INTERPRETER_PROMPT, form_data["messages"]
             )
+
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
+            form_data["model"]=model.id
 
             form_data["metadata"]["images"] = []
 
@@ -697,23 +705,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                 })
 
             # Inform the LLM about available uploaded files so it can reference them in generated code
-            if len(files) > 0:
+            if files or form_data["metadata"]["images"]:
                 # Build a concise instruction listing accessible filenames (non-image, non-collection)
-                    file_list_str = ", ".join(file["file"]["filename"] for file in files)
+                    file_list_str = ", ".join(file["file"]["filename"] for file in files) + ", ".join(image["name"] for image in form_data["metadata"]["images"])
 
                     code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
                     form_data["messages"] = add_or_update_user_message(code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
             return form_data, metadata, events
-
-    # Remove file duplicates and remove files from form_data, add it to metadata
-    files = form_data.pop("files", [])
-    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
-
-    metadata = {
-        **metadata,
-        "files": files,
-    }
 
     # First, decide if this is a RAG task or content extraction task
     try:
@@ -732,7 +731,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     else:
         # Handle non-RAG task: extract file content and append to user prompt
         try:
-            files = form_data.get("metadata", {}).get("files", [])
             file_contents = []
 
             for file_item in files:
@@ -759,9 +757,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     combined_content, form_data["messages"]
                 )
 
-                # Remove files from metadata since we've processed them as content
-                if "metadata" in form_data and "files" in form_data["metadata"]:
-                    del form_data["metadata"]["files"]
+                del form_data["metadata"]["files"]
 
         except Exception as e:
             log.exception(f"Error processing files for content extraction: {e}")
@@ -1740,6 +1736,8 @@ async def process_chat_response(
 
                         # Emit the final code execution result event with the same id
                         block = content_blocks[-1]
+
+                        print("CODE INTERPRETER OUTPUT", output)
 
                         await event_emitter(
                             {
