@@ -20,7 +20,7 @@ class CodeRequest(BaseModel):
     files: list[dict] | None = None
 
 
-def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: str[]) -> list[dict]:
+def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[str]) -> list[dict]:
     """Uploads all files from local_dir to GCS and returns signed URLs.
 
     Note: Importing google.cloud.storage lazily to avoid hard dependency during tests.
