@@ -1737,8 +1737,6 @@ async def process_chat_response(
                         # Emit the final code execution result event with the same id
                         block = content_blocks[-1]
 
-                        print("CODE INTERPRETER OUTPUT", output)
-
                         await event_emitter(
                             {
                                 "type": "source",
