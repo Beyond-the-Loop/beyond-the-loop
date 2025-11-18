@@ -37,6 +37,7 @@ def test_run_python_code_success(monkeypatch):
     # Act
     result = run_python_code(code, timeout=5)
 
+    print(result)
     # Assert
     assert result["success"] is True
     assert result["stderr"] == ""
