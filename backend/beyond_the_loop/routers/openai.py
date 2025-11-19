@@ -195,13 +195,14 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 @router.post("/chat/completions")
 async def generate_chat_completion(
-        form_data: dict, user=Depends(get_verified_user),
-        agent_or_task_prompt: Optional[bool] = False
+        form_data: dict, user=Depends(get_verified_user)
 ):
-    print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
+    #print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
 
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
+
+    agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
     model_info = Models.get_model_by_id(form_data.get("model"))
 
@@ -414,11 +415,14 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
         "model": model.id,
         "messages": messages,
         "stream": False,
-        "metadata": {"chat_id": None},
+        "metadata": {
+            "chat_id": None,
+            "agent_or_task_prompt": True
+        },
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(form_data, user, True)
+    message = await generate_chat_completion(form_data, user)
 
     extracted_prompt_template = magic_prompt_util.extract_prompt(message.get('choices', [{}])[0].get('message', {}).get('content', ''))
 
@@ -430,11 +434,14 @@ async def generate_prompt(request: Request, form_data: dict, user=Depends(get_ve
             "model": model.id,
             "messages": [{'role': "user", "content": magic_prompt_util.remove_floating_variables_prompt.replace("{$PROMPT}", extracted_prompt_template)}],
             "stream": False,
-            "metadata": {"chat_id": None},
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
             "temperature": 0.0
         }
 
-        message = await generate_chat_completion(form_data, user, True)
+        message = await generate_chat_completion(form_data, user)
 
         extracted_prompt_template = message.get('choices', [{}])[0].get('message', {}).get('content', '')
 

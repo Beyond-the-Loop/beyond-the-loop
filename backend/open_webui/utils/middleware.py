@@ -18,7 +18,7 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
-from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -255,11 +255,14 @@ async def chat_image_generation_handler(
             "model": model.id,
             "messages": decision_messages,
             "stream": False,
-            "metadata": {"chat_id": None},
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user, True)
+        response = await generate_chat_completion(decision_form_data, user)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -423,11 +426,14 @@ async def chat_file_intent_decision_handler(
             "model": model.id,
             "messages": decision_messages,
             "stream": False,
-            "metadata": {"chat_id": None},
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
             "temperature": 0.0
         }
         
-        response = await generate_chat_completion(decision_form_data, user, True)
+        response = await generate_chat_completion(decision_form_data, user)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -1614,12 +1620,12 @@ async def process_chat_response(
                         break
 
                 if detect_code_interpreter:
-                    MAX_RETRIES = 5
+                    max_retries = 3
                     retries = 0
 
                     while (
                         content_blocks[-1]["type"] == "code_interpreter"
-                        and retries < MAX_RETRIES
+                        and retries < max_retries
                     ):
                         retries += 1
                         log.debug(f"Attempt count: {retries}")
@@ -1771,33 +1777,51 @@ async def process_chat_response(
                             }
                         )
 
-                    # After code execution completes, call the LLM again to summarize result
-                    try:
-                        # Build follow-up messages
-                        followup_messages = [
-                            *form_data["messages"],
-                            {
-                                "role": "assistant",
-                                "content": serialize_content_blocks(content_blocks, raw=True),
-                            },
-                            {
-                                "role": "user",
-                                "content": json.dumps({
-                                    "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
-                                }),
-                            },
-                        ]
+                        # After code execution completes, call the LLM again to summarize the result
+                        try:
+                            # Build follow-up messages
+                            followup_messages = [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(content_blocks, raw=True),
+                                },
+                                {
+                                    "role": "user",
+                                    "content": json.dumps({
+                                        "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
+                                    }),
+                                }
+                            ] if retries < max_retries else [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(content_blocks, raw=True),
+                                },
+                                {
+                                    "role": "user",
+                                    "content": json.dumps({
+                                        "instruction": CODE_INTERPRETER_FAIL_PROMPT
+                                    }),
+                                }
+                            ]
 
-                        res = await generate_chat_completion({
-                            "model": model_id,
-                            "stream": True,
-                            "messages": followup_messages,
-                        }, user)
+                            res = await generate_chat_completion({
+                                "model": Models.get_model_by_name_and_company(
+                                    os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id).id,
+                                "stream": True,
+                                "messages": followup_messages,
+                                "metadata": {
+                                    "agent_or_task_prompt": True
+                                }
+                            }, user)
 
-                        if isinstance(res, StreamingResponse):
-                            await stream_body_handler(res)
-                    except Exception as follow_err:
-                        log.debug(f"Follow-up LLM generation failed: {follow_err}")
+                            if isinstance(res, StreamingResponse):
+                                await stream_body_handler(res)
+
+
+                        except Exception as follow_err:
+                            print(f"Follow-up LLM generation failed: {follow_err}")
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 

@@ -1299,15 +1299,18 @@
 															}}
 															type="button"
 															class="p-[3px] flex gap-1.5 items-center text-xs rounded-lg font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {codeInterpreterEnabled
-																? 'bg-gray-100 dark:bg-customBlue-700/60 text-gray-600 dark:text-white'
+																? 'bg-gray-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
 																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900 '}"
 														>
 															<CodeInterpreterIcon />
 															{#if codeInterpreterEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Code Interpreter (Beta)')}</span
-																>
+																	>{$i18n.t('Code Interpreter')}
+																</span>
+																<span class="text-[0.5rem] leading-[11px] ml-[-5px] self-start">
+																	Beta
+																</span>
 															{/if}
 														</button>
 													</Tooltip>
