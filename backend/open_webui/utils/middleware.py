@@ -6,6 +6,8 @@ import base64
 import re
 import mimetypes
 import asyncio
+from io import BytesIO
+
 import httpx
 import json
 import html
@@ -1739,15 +1741,16 @@ async def process_chat_response(
                                                 if not isinstance(file_item, dict):
                                                     continue
                                                 file_name = file_item.get("name")
-                                                file_binary = file_item.get("binary")
+                                                file_bytes = file_item.get("bytes")
 
                                                 try:
-                                                    print("NEUE DATEI", file_name)
-                                                    contents, file_path = Storage.upload_file(file_binary, file_name)
+                                                    contents, file_path = Storage.upload_file(BytesIO(base64.b64decode(file_bytes)), file_name)
 
                                                     new_file_id = str(uuid4())
 
                                                     print("1")
+
+                                                    content_type, _ = mimetypes.guess_type(file_name)
 
                                                     Files.insert_new_file(
                                                         user.id,
@@ -1759,6 +1762,7 @@ async def process_chat_response(
                                                                 "meta": {
                                                                     "name": file_name,
                                                                     "size": len(contents),
+                                                                    "content_type": content_type
                                                                 },
                                                             }
                                                         ),

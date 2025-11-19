@@ -3,7 +3,6 @@ import subprocess
 import tempfile
 import uuid
 from datetime import timedelta
-from io import BytesIO
 
 from pathlib import Path
 import sys
@@ -53,13 +52,15 @@ def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[s
                 method="GET"
             )
 
-            # Read file content as a binary stream
-            file_binary = None if file_path.suffix.lower() in [".png", ".jpg", ".jpeg", ".gif"] else BytesIO(file_path.read_bytes())
+            file_bytes = None
+
+            if file_path.suffix.lower() not in [".png", ".jpg", ".jpeg", ".gif"]:
+                file_bytes = base64.b64encode(file_path.read_bytes()).decode("utf-8")
 
             file_infos.append({
                 "name": file_path.name,
                 "url": url,
-                "binary": file_binary
+                "bytes": file_bytes
             })
 
     return file_infos
