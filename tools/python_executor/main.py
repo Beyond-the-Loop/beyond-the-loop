@@ -75,6 +75,8 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
 
+        print("FOLGENDE BILDER WERDEN GESPEICHERT", request_files)
+
         if request_files:
             for f in request_files:
                 name = f.get("name")
@@ -86,6 +88,11 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
                     (tmp / name).write_bytes(data)
                 except Exception as e:
                     print(f"Failed to write file {name}: {e}")
+
+        # show all files on local disk
+        print("BILDER WERDEN AUSGELESEN")
+        for file in tmp.iterdir():
+            print(file)
 
         try:
             result = subprocess.run(

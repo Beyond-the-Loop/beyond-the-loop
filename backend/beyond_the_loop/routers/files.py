@@ -39,7 +39,9 @@ router = APIRouter()
 
 @router.post("/", response_model=FileModelResponse)
 def upload_file(
-    request: Request, file: UploadFile = File(...), user=Depends(get_verified_user)
+    request: Request,
+    file: UploadFile = File(...),
+    user=Depends(get_verified_user)
 ):
     log.info(f"file.content_type: {file.content_type}")
     try:
@@ -86,14 +88,14 @@ def upload_file(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT("Error uploading file"),
+                detail=ERROR_MESSAGES.DEFAULT,
             )
 
     except Exception as e:
         log.exception(e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
 

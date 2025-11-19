@@ -10,6 +10,7 @@ import httpx
 import json
 import html
 import ast
+import requests
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import Request
@@ -30,6 +31,7 @@ from open_webui.routers.tasks import (
     generate_image_prompt,
     generate_chat_tags,
 )
+from beyond_the_loop.routers.files import upload_file
 from open_webui.routers.retrieval import process_web_search, SearchForm
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
