@@ -10,7 +10,6 @@ import httpx
 import json
 import html
 import ast
-import requests
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import Request
@@ -20,6 +19,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
 from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
+from beyond_the_loop.models.files import FileForm
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -31,7 +31,6 @@ from open_webui.routers.tasks import (
     generate_image_prompt,
     generate_chat_tags,
 )
-from beyond_the_loop.routers.files import upload_file
 from open_webui.routers.retrieval import process_web_search, SearchForm
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
@@ -63,7 +62,7 @@ from open_webui.env import (
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS
-
+from open_webui.routers.retrieval import process_file, ProcessFileForm
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -1721,7 +1720,7 @@ async def process_chat_response(
                                     #   "success": true,
                                     #   "stdout": "...",
                                     #   "stderr": "...",
-                                    #   "files": [{name: "", url: ""}, ...],
+                                    #   "files": [{name: "", url: "", binary: ""}, ...],
                                     #   "execution_id": "..."
                                     # }
 
@@ -1733,6 +1732,43 @@ async def process_chat_response(
                                         output.setdefault("stderr", "")
                                         output.setdefault("files", [])
                                         output.setdefault("execution_id", "")
+
+                                        # Process returned files (non-images)
+                                        if output.get("files"):
+                                            for file_item in output["files"]:
+                                                if not isinstance(file_item, dict):
+                                                    continue
+                                                file_name = file_item.get("name")
+                                                file_binary = file_item.get("binary")
+
+                                                try:
+                                                    print("NEUE DATEI", file_name)
+                                                    contents, file_path = Storage.upload_file(file_binary, file_name)
+
+                                                    new_file_id = str(uuid4())
+
+                                                    print("1")
+
+                                                    Files.insert_new_file(
+                                                        user.id,
+                                                        FileForm(
+                                                            **{
+                                                                "id": new_file_id,
+                                                                "filename": file_name,
+                                                                "path": file_path,
+                                                                "meta": {
+                                                                    "name": file_name,
+                                                                    "size": len(contents),
+                                                                },
+                                                            }
+                                                        ),
+                                                    )
+
+                                                    print("2")
+
+                                                    process_file(request, ProcessFileForm(file_id=new_file_id), user=user)
+                                                except Exception as file_upload_err:
+                                                    print("Error on created file processing", file_upload_err)
                                     else:
                                         output = str(data)
                                 except Exception as exec_err:

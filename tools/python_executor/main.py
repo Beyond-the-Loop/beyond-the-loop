@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import uuid
 from datetime import timedelta
+from io import BytesIO
 
 from pathlib import Path
 import sys
@@ -21,12 +22,7 @@ class CodeRequest(BaseModel):
 
 
 def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[str]) -> list[dict]:
-    """Uploads all files from local_dir to GCS and returns signed URLs.
-
-    Note: Importing google.cloud.storage lazily to avoid hard dependency during tests.
-    If google-cloud-storage is not installed or credentials are missing, this function
-    will return an empty list instead of raising, allowing local execution/tests.
-    """
+    """Uploads all files from local_dir to GCS and returns signed URLs and Base64 URLs."""
 
     try:
         from google.cloud import storage
@@ -57,9 +53,13 @@ def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[s
                 method="GET"
             )
 
+            # Read file content as a binary stream
+            file_binary = None if file_path.suffix.lower() in [".png", ".jpg", ".jpeg", ".gif"] else BytesIO(file_path.read_bytes())
+
             file_infos.append({
                 "name": file_path.name,
-                "url": url
+                "url": url,
+                "binary": file_binary
             })
 
     return file_infos
