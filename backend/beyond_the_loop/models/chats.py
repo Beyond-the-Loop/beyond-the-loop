@@ -158,6 +158,7 @@ class ChatTable:
         try:
             with get_db() as db:
                 chat_item = db.get(Chat, id)
+
                 chat_item.chat = chat
                 chat_item.title = chat["title"] if "title" in chat else "New Chat"
                 chat_item.updated_at = int(time.time())
