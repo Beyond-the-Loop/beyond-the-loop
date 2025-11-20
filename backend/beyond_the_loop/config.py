@@ -1026,6 +1026,7 @@ CODE_INTERPRETER_SUMMARY_PROMPT = """
         - Clearly state whether the execution succeeded or failed.
         - If any file URLs are available, include a Markdown link to each of the files. Inform the user that the link is valid for 48 hours.
         - IMPORTANT! Use the **exact** link from the response. Every letter is important, don't alter it. Otherwise the user will se a 404 Error what we want to avoid.
+        - Inform the user if you decided to not write the emojis or smileys in the file (e.g. because pdfs don't support it).
         - If there was an error, briefly summarize it in one sentence. If necessary generate adjusted code (Code Interpreter Tool).
 """
 
