@@ -46,7 +46,7 @@ def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[s
             # Create signed URL valid for 10 minutes
             url = blob.generate_signed_url(
                 version="v4",
-                expiration=timedelta(minutes=10),
+                expiration=timedelta(hours=48),
                 service_account_email=credentials.service_account_email,
                 access_token=credentials.token,
                 method="GET"

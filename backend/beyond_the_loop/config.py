@@ -1006,7 +1006,8 @@ CODE_INTERPRETER_PROMPT = """
         watchfiles==1.1.1
         websockets==15.0.1
    - Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
-   - You are allowed to create files if necessary.
+   - By default, you may create files when needed, using simple colors and minimal design. However, if the user explicitly asks for a different style, layout, or level of complexity, their instructions override this default.
+   - Be careful when creating files like pdfs with emojis or smileys, some Python libraries are not supporting it.
    - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags**. If you don't, the code won't execute. Do NOT use triple backticks.
    - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
    - Ignore all base64 strings from the messages. They should not be part of the code.
@@ -1023,12 +1024,13 @@ CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
 CODE_INTERPRETER_SUMMARY_PROMPT = """
     Based on the most recent code execution output, write a concise wrap up to inform the user what happened: 
         - Clearly state whether the execution succeeded or failed.
-        - If any file URLs are available, include a Markdown link to each of the files. IMPORTANT! Use the **exact** link from the response. Every letter is important, don't alter it. Otherwise the user will se a 404 Error what we want to avoid.
+        - If any file URLs are available, include a Markdown link to each of the files. Inform the user that the link is valid for 48 hours.
+        - IMPORTANT! Use the **exact** link from the response. Every letter is important, don't alter it. Otherwise the user will se a 404 Error what we want to avoid.
         - If there was an error, briefly summarize it in one sentence. If necessary generate adjusted code (Code Interpreter Tool).
 """
 
 CODE_INTERPRETER_FAIL_PROMPT = """
-    Tell the user kindly that it was not possible for you to execute the task with the code interpreter.
+    Tell the user kindly that it was not possible for you to execute the task with the code interpreter. IMPORTANT! Don't write any new code. It is over. Do not try again to solve the task. Just tell the user that he has to try again.
 """
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
