@@ -26,7 +26,7 @@ class CreditService:
         """Initialize the CreditService."""
         pass
 
-    async def subtract_credits_by_user_and_credits(self, user, credit_cost: int):
+    async def subtract_credits_by_user_and_credits(self, user, credit_cost: float):
         """
         Subtract credits from a company's balance and handle low balance scenarios.
         
@@ -115,6 +115,12 @@ class CreditService:
         credit_cost = image_cost
 
         return await self.subtract_credits_by_user_and_credits(user, credit_cost)
+
+    async def subtract_credits_by_user_for_web_search(self, user):
+        return await self.subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
+
+    async def subtract_credits_by_user_for_code_interpreter(self, user):
+        return await self.subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
     async def subtract_credits_by_user_and_tokens(self, user, model_name: str, input_tokens: int, output_tokens: int, reasoning_tokens: int, with_search_query_cost: bool):
         costs_per_input_token = ModelCosts.get_cost_per_million_input_tokens_by_model_name(model_name) / 1000000
