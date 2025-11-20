@@ -195,13 +195,14 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 @router.post("/chat/completions")
 async def generate_chat_completion(
-        form_data: dict, user=Depends(get_verified_user),
-        agent_or_task_prompt: Optional[bool] = False
+        form_data: dict, user=Depends(get_verified_user)
 ):
     print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
 
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
+
+    agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
     model_info = Models.get_model_by_id(form_data.get("model"))
 
@@ -557,7 +558,10 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
                 "content":  form_data["prompt"]
             }],
         "stream": False,
-        "metadata": {"chat_id": None},
+        "metadata": {
+            "chat_id": None,
+            "agent_or_task_prompt": True
+        },
         "temperature": 0.0
     }
 

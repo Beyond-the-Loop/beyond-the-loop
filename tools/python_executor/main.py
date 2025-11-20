@@ -21,12 +21,7 @@ class CodeRequest(BaseModel):
 
 
 def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[str]) -> list[dict]:
-    """Uploads all files from local_dir to GCS and returns signed URLs.
-
-    Note: Importing google.cloud.storage lazily to avoid hard dependency during tests.
-    If google-cloud-storage is not installed or credentials are missing, this function
-    will return an empty list instead of raising, allowing local execution/tests.
-    """
+    """Uploads all files from local_dir to GCS and returns signed URLs and Base64 URLs."""
 
     try:
         from google.cloud import storage
@@ -57,9 +52,15 @@ def upload_to_gcs(local_dir: Path, execution_id: str, request_file_names: list[s
                 method="GET"
             )
 
+            file_bytes = None
+
+            if file_path.suffix.lower() not in [".png", ".jpg", ".jpeg", ".gif"]:
+                file_bytes = base64.b64encode(file_path.read_bytes()).decode("utf-8")
+
             file_infos.append({
                 "name": file_path.name,
-                "url": url
+                "url": url,
+                "bytes": file_bytes
             })
 
     return file_infos
@@ -75,6 +76,8 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
         script_path = tmp / "script.py"
         script_path.write_text(code, encoding="utf-8")
 
+        print("FOLGENDE BILDER WERDEN GESPEICHERT", request_files)
+
         if request_files:
             for f in request_files:
                 name = f.get("name")
@@ -86,6 +89,11 @@ def run_python_code(code: str, timeout: int = 10, request_files=None):
                     (tmp / name).write_bytes(data)
                 except Exception as e:
                     print(f"Failed to write file {name}: {e}")
+
+        # show all files on local disk
+        print("BILDER WERDEN AUSGELESEN")
+        for file in tmp.iterdir():
+            print(file)
 
         try:
             result = subprocess.run(

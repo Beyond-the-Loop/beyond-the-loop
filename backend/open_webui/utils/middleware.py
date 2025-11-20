@@ -6,6 +6,8 @@ import base64
 import re
 import mimetypes
 import asyncio
+from io import BytesIO
+
 import httpx
 import json
 import html
@@ -18,7 +20,8 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
-from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
+from beyond_the_loop.models.files import FileForm
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -61,7 +64,7 @@ from open_webui.env import (
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS
-
+from open_webui.routers.retrieval import process_file, ProcessFileForm
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -255,11 +258,14 @@ async def chat_image_generation_handler(
             "model": model.id,
             "messages": decision_messages,
             "stream": False,
-            "metadata": {"chat_id": None},
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user, True)
+        response = await generate_chat_completion(decision_form_data, user)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -423,11 +429,14 @@ async def chat_file_intent_decision_handler(
             "model": model.id,
             "messages": decision_messages,
             "stream": False,
-            "metadata": {"chat_id": None},
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
             "temperature": 0.0
         }
         
-        response = await generate_chat_completion(decision_form_data, user, True)
+        response = await generate_chat_completion(decision_form_data, user)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -704,10 +713,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                     "content": url
                                 })
 
+            code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
+            form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
+
             # Inform the LLM about available uploaded files so it can reference them in generated code
-            if files or form_data["metadata"]["images"]:
+            if code_interpreter_files or files or form_data["metadata"]["images"]:
                 # Build a concise instruction listing accessible filenames (non-image, non-collection)
-                    file_list_str = ", ".join(file["file"]["filename"] for file in files) + ", ".join(image["name"] for image in form_data["metadata"]["images"])
+                    file_list_str = ", ".join(file["file"]["filename"] for file in files) + ", ".join(image["name"] for image in form_data["metadata"]["images"]) + ", ".join(file["name"] for file in code_interpreter_files)
 
                     code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
                     form_data["messages"] = add_or_update_user_message(code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
@@ -1614,12 +1626,12 @@ async def process_chat_response(
                         break
 
                 if detect_code_interpreter:
-                    MAX_RETRIES = 5
+                    max_retries = 3
                     retries = 0
 
                     while (
                         content_blocks[-1]["type"] == "code_interpreter"
-                        and retries < MAX_RETRIES
+                        and retries < max_retries
                     ):
                         retries += 1
                         log.debug(f"Attempt count: {retries}")
@@ -1656,12 +1668,13 @@ async def process_chat_response(
                                     files_to_send = []
 
                                     try:
-                                        attached_files = (metadata or {}).get("files", [])
+                                        attached_files = (metadata or {}).get("files", []) + (metadata or {}).get("code_interpreter_files", [])
 
                                         for file_item in attached_files or []:
                                             if not isinstance(file_item, dict):
                                                 continue
                                             file_id = file_item.get("id")
+
                                             if not file_id:
                                                 continue
                                             # Skip collections and web_search results
@@ -1685,10 +1698,10 @@ async def process_chat_response(
                                                         "content": b64
                                                     })
                                                 except Exception as file_err:
-                                                    log.debug(f"Failed to stage file {file_id} for executor: {file_err}")
+                                                    print(f"Failed to stage file {file_id} for executor: {file_err}")
                                                     continue
                                             except Exception as file_meta_err:
-                                                log.debug(f"Error accessing file metadata {file_id}: {file_meta_err}")
+                                                print(f"Error accessing file metadata {file_id}: {file_meta_err}")
                                                 continue
 
                                     except Exception as prep_err:
@@ -1700,6 +1713,8 @@ async def process_chat_response(
                                             payload["files"] = files_to_send
 
                                         images = (metadata or {}).get("images", [])
+
+                                        print("IMAGES TO SEND", images)
 
                                         if (metadata or {}).get("images", []):
                                             payload["files"] = payload.get("files", []) + images
@@ -1713,7 +1728,7 @@ async def process_chat_response(
                                     #   "success": true,
                                     #   "stdout": "...",
                                     #   "stderr": "...",
-                                    #   "files": [{name: "", url: ""}, ...],
+                                    #   "files": [{name: "", url: "", binary: ""}, ...],
                                     #   "execution_id": "..."
                                     # }
 
@@ -1725,6 +1740,61 @@ async def process_chat_response(
                                         output.setdefault("stderr", "")
                                         output.setdefault("files", [])
                                         output.setdefault("execution_id", "")
+
+                                        # Process returned files (non-images)
+                                        if output.get("files"):
+                                            for file_item in output["files"]:
+                                                if not isinstance(file_item, dict):
+                                                    continue
+                                                file_name = file_item.get("name")
+                                                file_bytes = file_item.get("bytes")
+
+                                                if not file_bytes:
+                                                    continue
+
+                                                try:
+                                                    contents, file_path = Storage.upload_file(BytesIO(base64.b64decode(file_bytes)), file_name)
+
+                                                    new_file_id = str(uuid4())
+
+                                                    content_type, _ = mimetypes.guess_type(file_name)
+
+                                                    Files.insert_new_file(
+                                                        user.id,
+                                                        FileForm(
+                                                            **{
+                                                                "id": new_file_id,
+                                                                "filename": file_name,
+                                                                "path": file_path,
+                                                                "meta": {
+                                                                    "name": file_name,
+                                                                    "size": len(contents),
+                                                                    "content_type": content_type
+                                                                },
+                                                            }
+                                                        ),
+                                                    )
+
+                                                    process_file(request, ProcessFileForm(file_id=new_file_id), user=user)
+
+                                                    file_item = Files.get_file_by_id(id=new_file_id)
+
+                                                    chat_file_item = {
+                                                        "type": "file",
+                                                        "file": file_item.model_dump(),
+                                                        "id": new_file_id,
+                                                        "url": None,
+                                                        "name": file_item.filename,
+                                                        "collection_name": file_item.meta.get("collection_name"),
+                                                        "size": file_item.meta.get("size"),
+                                                        "itemId": new_file_id
+                                                    }
+
+                                                    chat = Chats.get_chat_by_id(metadata["chat_id"])
+                                                    chat.chat["code_interpreter_files"] = chat.chat.get("code_interpreter_files", []) + [chat_file_item]
+                                                    Chats.update_chat_by_id(metadata.get("chat_id"), chat.chat)
+                                                except Exception as file_upload_err:
+                                                    print("Error on created file processing", file_upload_err)
                                     else:
                                         output = str(data)
                                 except Exception as exec_err:
@@ -1771,33 +1841,51 @@ async def process_chat_response(
                             }
                         )
 
-                    # After code execution completes, call the LLM again to summarize result
-                    try:
-                        # Build follow-up messages
-                        followup_messages = [
-                            *form_data["messages"],
-                            {
-                                "role": "assistant",
-                                "content": serialize_content_blocks(content_blocks, raw=True),
-                            },
-                            {
-                                "role": "user",
-                                "content": json.dumps({
-                                    "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
-                                }),
-                            },
-                        ]
+                        # After code execution completes, call the LLM again to summarize the result
+                        try:
+                            # Build follow-up messages
+                            followup_messages = [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(content_blocks, raw=True),
+                                },
+                                {
+                                    "role": "user",
+                                    "content": json.dumps({
+                                        "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
+                                    }),
+                                }
+                            ] if retries < max_retries else [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(content_blocks, raw=True),
+                                },
+                                {
+                                    "role": "user",
+                                    "content": json.dumps({
+                                        "instruction": CODE_INTERPRETER_FAIL_PROMPT
+                                    }),
+                                }
+                            ]
 
-                        res = await generate_chat_completion({
-                            "model": model_id,
-                            "stream": True,
-                            "messages": followup_messages,
-                        }, user)
+                            res = await generate_chat_completion({
+                                "model": Models.get_model_by_name_and_company(
+                                    os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id).id,
+                                "stream": True,
+                                "messages": followup_messages,
+                                "metadata": {
+                                    "agent_or_task_prompt": True
+                                }
+                            }, user)
 
-                        if isinstance(res, StreamingResponse):
-                            await stream_body_handler(res)
-                    except Exception as follow_err:
-                        log.debug(f"Follow-up LLM generation failed: {follow_err}")
+                            if isinstance(res, StreamingResponse):
+                                await stream_body_handler(res)
+
+
+                        except Exception as follow_err:
+                            print(f"Follow-up LLM generation failed: {follow_err}")
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 

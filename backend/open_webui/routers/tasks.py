@@ -159,11 +159,12 @@ async def generate_title(
             "task": str(TASKS.TITLE_GENERATION),
             "task_body": form_data,
             "chat_id": form_data.get("chat_id", None),
+            "agent_or_task_prompt": True
         },
     }
 
     try:
-        return await generate_chat_completion(form_data=payload, user=user, agent_or_task_prompt=True)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -206,11 +207,12 @@ async def generate_chat_tags(
             "task": str(TASKS.TAGS_GENERATION),
             "task_body": form_data,
             "chat_id": form_data.get("chat_id", None),
+            "agent_or_task_prompt": True
         },
     }
 
     try:
-        return await generate_chat_completion(form_data=payload, user=user, agent_or_task_prompt=True)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error(f"Error generating chat completion: {e}")
         return JSONResponse(
@@ -251,11 +253,12 @@ async def generate_image_prompt(
             "task": str(TASKS.IMAGE_PROMPT_GENERATION),
             "task_body": form_data,
             "chat_id": form_data.get("chat_id", None),
+            "agent_or_task_prompt": True
         },
     }
 
     try:
-        return await generate_chat_completion(form_data=payload, user=user, agent_or_task_prompt=True)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -300,11 +303,12 @@ async def generate_queries(
             "task": str(TASKS.QUERY_GENERATION),
             "task_body": form_data,
             "chat_id": form_data.get("chat_id", None),
+            "agent_or_task_prompt": True
         },
     }
 
     try:
-        return await generate_chat_completion(form_data=payload, user=user, agent_or_task_prompt=True)
+        return await generate_chat_completion(form_data=payload, user=user)
     except Exception as e:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

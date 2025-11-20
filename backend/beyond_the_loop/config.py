@@ -981,6 +981,7 @@ CODE_INTERPRETER_PROMPT = """
         lxml==6.0.2
         matplotlib==3.10.7
         openpyxl==3.1.5
+        pandas==2.3.3
         pillow==12.0.0
         proto-plus==1.26.1
         protobuf==6.33.1
@@ -1020,13 +1021,14 @@ CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
 """
 
 CODE_INTERPRETER_SUMMARY_PROMPT = """
-    Based on the most recent code execution output, write a concise wrap up to inform the user what happened (text only, no code!): 
+    Based on the most recent code execution output, write a concise wrap up to inform the user what happened: 
         - Clearly state whether the execution succeeded or failed.
         - If any file URLs are available, include a Markdown link to each of the files. IMPORTANT! Use the **exact** link from the response. Every letter is important, don't alter it. Otherwise the user will se a 404 Error what we want to avoid.
-        - If there was an error, briefly summarize it in one sentence. If there was no error, do not include a sentence.
-        - Do not repeat the code or the entire logs; keep it short.
-        - IMPORTANT: Don't write any Python code! It is forbidden and will lead to an error in the frontend.
-        - Don't write any tags like for example <execution results>. Don't add any tags at all.
+        - If there was an error, briefly summarize it in one sentence. If necessary generate adjusted code (Code Interpreter Tool).
+"""
+
+CODE_INTERPRETER_FAIL_PROMPT = """
+    Tell the user kindly that it was not possible for you to execute the task with the code interpreter.
 """
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
