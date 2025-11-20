@@ -713,10 +713,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                     "content": url
                                 })
 
+            code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
+            form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
+
             # Inform the LLM about available uploaded files so it can reference them in generated code
-            if files or form_data["metadata"]["images"]:
+            if code_interpreter_files or files or form_data["metadata"]["images"]:
                 # Build a concise instruction listing accessible filenames (non-image, non-collection)
-                    file_list_str = ", ".join(file["file"]["filename"] for file in files) + ", ".join(image["name"] for image in form_data["metadata"]["images"])
+                    file_list_str = ", ".join(file["file"]["filename"] for file in files) + ", ".join(image["name"] for image in form_data["metadata"]["images"]) + ", ".join(file["name"] for file in code_interpreter_files)
 
                     code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
                     form_data["messages"] = add_or_update_user_message(code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
@@ -1665,12 +1668,13 @@ async def process_chat_response(
                                     files_to_send = []
 
                                     try:
-                                        attached_files = (metadata or {}).get("files", [])
+                                        attached_files = (metadata or {}).get("files", []) + (metadata or {}).get("code_interpreter_files", [])
 
                                         for file_item in attached_files or []:
                                             if not isinstance(file_item, dict):
                                                 continue
                                             file_id = file_item.get("id")
+
                                             if not file_id:
                                                 continue
                                             # Skip collections and web_search results
@@ -1694,10 +1698,10 @@ async def process_chat_response(
                                                         "content": b64
                                                     })
                                                 except Exception as file_err:
-                                                    log.debug(f"Failed to stage file {file_id} for executor: {file_err}")
+                                                    print(f"Failed to stage file {file_id} for executor: {file_err}")
                                                     continue
                                             except Exception as file_meta_err:
-                                                log.debug(f"Error accessing file metadata {file_id}: {file_meta_err}")
+                                                print(f"Error accessing file metadata {file_id}: {file_meta_err}")
                                                 continue
 
                                     except Exception as prep_err:
@@ -1709,6 +1713,8 @@ async def process_chat_response(
                                             payload["files"] = files_to_send
 
                                         images = (metadata or {}).get("images", [])
+
+                                        print("IMAGES TO SEND", images)
 
                                         if (metadata or {}).get("images", []):
                                             payload["files"] = payload.get("files", []) + images
@@ -1743,6 +1749,9 @@ async def process_chat_response(
                                                 file_name = file_item.get("name")
                                                 file_bytes = file_item.get("bytes")
 
+                                                if not file_bytes:
+                                                    continue
+
                                                 try:
                                                     contents, file_path = Storage.upload_file(BytesIO(base64.b64decode(file_bytes)), file_name)
 
@@ -1768,7 +1777,22 @@ async def process_chat_response(
 
                                                     process_file(request, ProcessFileForm(file_id=new_file_id), user=user)
 
-                                                    Chats.update_chat_by_id()
+                                                    file_item = Files.get_file_by_id(id=new_file_id)
+
+                                                    chat_file_item = {
+                                                        "type": "file",
+                                                        "file": file_item.model_dump(),
+                                                        "id": new_file_id,
+                                                        "url": None,
+                                                        "name": file_item.filename,
+                                                        "collection_name": file_item.meta.get("collection_name"),
+                                                        "size": file_item.meta.get("size"),
+                                                        "itemId": new_file_id
+                                                    }
+
+                                                    chat = Chats.get_chat_by_id(metadata["chat_id"])
+                                                    chat.chat["code_interpreter_files"] = chat.chat.get("code_interpreter_files", []) + [chat_file_item]
+                                                    Chats.update_chat_by_id(metadata.get("chat_id"), chat.chat)
                                                 except Exception as file_upload_err:
                                                     print("Error on created file processing", file_upload_err)
                                     else:
