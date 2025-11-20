@@ -1748,8 +1748,6 @@ async def process_chat_response(
 
                                                     new_file_id = str(uuid4())
 
-                                                    print("1")
-
                                                     content_type, _ = mimetypes.guess_type(file_name)
 
                                                     Files.insert_new_file(
@@ -1768,9 +1766,9 @@ async def process_chat_response(
                                                         ),
                                                     )
 
-                                                    print("2")
-
                                                     process_file(request, ProcessFileForm(file_id=new_file_id), user=user)
+
+                                                    Chats.update_chat_by_id()
                                                 except Exception as file_upload_err:
                                                     print("Error on created file processing", file_upload_err)
                                     else:
