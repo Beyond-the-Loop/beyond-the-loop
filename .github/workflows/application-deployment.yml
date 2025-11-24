@@ -145,6 +145,7 @@ jobs:
           script: |
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
+            docker-compose restart litellm
             docker image prune -f
 
   deploy-staging:
@@ -236,4 +237,5 @@ jobs:
           script: |
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
+            docker-compose restart litellm
             docker image prune -f
