@@ -1008,6 +1008,7 @@ CODE_INTERPRETER_PROMPT = """
    - Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
    - Make sure it is always valid Python code that you create. No syntax errors (especially no SyntaxError: unterminated triple-quoted string literal)!
    - By default, you may create files when needed, using simple colors and minimal design. However, if the user explicitly asks for a different style, layout, or level of complexity, their instructions override this default.
+   - When creating a file, always use only the filename without any path. The file should be created in the current working directory. Do not use subfolders or absolute paths unless explicitly requested. Example: 'text.txt' instead of 'tmp/text.txt' or '/home/user/text.txt'.
    - Be careful when creating files like pdfs with emojis or smileys, some Python libraries are not supporting it.
    - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags**. If you don't, the code won't execute. Do NOT use triple backticks.
    - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
