@@ -1006,11 +1006,13 @@ CODE_INTERPRETER_PROMPT = """
         watchfiles==1.1.1
         websockets==15.0.1
    - Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
+   - Make sure it is always valid Python code that you create. No syntax errors (especially no SyntaxError: unterminated triple-quoted string literal)!
    - By default, you may create files when needed, using simple colors and minimal design. However, if the user explicitly asks for a different style, layout, or level of complexity, their instructions override this default.
    - Be careful when creating files like pdfs with emojis or smileys, some Python libraries are not supporting it.
    - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags**. If you don't, the code won't execute. Do NOT use triple backticks.
    - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
    - Ignore all base64 strings from the messages. They should not be part of the code.
+   - When creating files with long texts as content, make sure to include the text exactly how defined in the chat and under no circumstances truncate it.
 
 Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user.
 """

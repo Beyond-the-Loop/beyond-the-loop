@@ -368,14 +368,15 @@ async def chat_image_generation_handler(
 
 
 async def chat_file_intent_decision_handler(
-    request: Request, body: dict, user: UserModel
+        body: dict, user: UserModel
 ) -> tuple[dict, bool]:
     """
     Decide if the user's intent is RAG (search/query) or translation/content extraction.
     Returns (modified_body, is_rag_task)
     """
 
-    files = body.get("metadata", {}).get("files", None)
+    files = body.get("metadata", {}).get("files", [])
+
     if not files:
         return body, True  # No files, proceed normally
 
@@ -593,6 +594,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     log.debug(f"form_data: {form_data}")
 
+
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
 
@@ -612,6 +614,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     events = []
     sources = []
+
+    features = form_data.pop("features", None)
 
     user_message = get_last_user_message(form_data["messages"])
 
@@ -669,70 +673,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if model_files:
         files.extend(model_files)
 
-    features = form_data.pop("features", None)
-
-    if features:
-        if "web_search" in features and features["web_search"]:
-            web_search_files = await chat_web_search_handler(
-                request, form_data, extra_params, user
-            )
-
-            files.extend(web_search_files)
-
-        if "image_generation" in features and features["image_generation"]:
-            form_data = await chat_image_generation_handler(
-                request, form_data, extra_params, user
-            )
-
-            return form_data, metadata, events
-
-        if "code_interpreter" in features and features["code_interpreter"]:
-            form_data["messages"] = add_or_update_system_message(
-                CODE_INTERPRETER_PROMPT, form_data["messages"]
-            )
-
-            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
-            form_data["model"]=model.id
-
-            form_data["metadata"]["images"] = []
-
-            for message in form_data["messages"]:
-                if "content" in message and isinstance(message["content"], list):
-                    for c in message["content"]:
-                        if c.get("type") == "image_url":
-                            url = c.get("image_url", {}).get("url")
-
-                            if url:
-                                ext = get_extension_from_base64(url)
-                                filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                                parts = url.split(',')
-                                if len(parts) > 1:
-                                    url = parts[1]
-                                else:
-                                    url = parts[0]
-
-                                form_data["metadata"]["images"].append({
-                                    "name": filename,
-                                    "content": url
-                                })
-
-            code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
-            form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
-
-            # Inform the LLM about available uploaded files so it can reference them in generated code
-            if code_interpreter_files or files or form_data["metadata"]["images"]:
-                # Build a concise instruction listing accessible filenames (non-image, non-collection)
-                    file_list_str = ", ".join(file["file"]["filename"] for file in files) + ", ".join(image["name"] for image in form_data["metadata"]["images"]) + ", ".join(file["name"] for file in code_interpreter_files)
-
-                    code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
-                    form_data["messages"] = add_or_update_user_message(code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
-
-            return form_data, metadata, events
-
     # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, is_rag_task = await chat_file_intent_decision_handler(request, form_data, user) if not model_knowledge else (form_data, True)
+        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge else (form_data, True)
+
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
@@ -811,12 +755,20 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-        form_data["messages"] = add_or_update_system_message(
-            rag_template(
-                request.app.state.config.RAG_TEMPLATE, context_string, prompt
-            ),
-            form_data["messages"],
-        )
+
+        if not ("code_interpreter" in features and features["code_interpreter"]):
+            form_data["messages"] = add_or_update_system_message(
+                rag_template(
+                    request.app.state.config.RAG_TEMPLATE, context_string, prompt
+                ),
+                form_data["messages"],
+            )
+        else:
+            form_data["messages"] = add_or_update_system_message(
+                context_string,
+                form_data["messages"]
+            )
+
 
     # If there are citations, add them to the data_items
     sources = [source for source in sources if source.get("source", {}).get("name", "")]
@@ -836,6 +788,66 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 },
             }
         )
+
+    if features:
+        if "web_search" in features and features["web_search"]:
+            web_search_files = await chat_web_search_handler(
+                request, form_data, extra_params, user
+            )
+
+            files.extend(web_search_files)
+
+        if "image_generation" in features and features["image_generation"]:
+            form_data = await chat_image_generation_handler(
+                request, form_data, extra_params, user
+            )
+
+        if "code_interpreter" in features and features["code_interpreter"]:
+            form_data["messages"] = add_or_update_system_message(
+                CODE_INTERPRETER_PROMPT, form_data["messages"]
+            )
+
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
+            form_data["model"] = model.id
+
+            form_data["metadata"]["images"] = []
+
+            for message in form_data["messages"]:
+                if "content" in message and isinstance(message["content"], list):
+                    for c in message["content"]:
+                        if c.get("type") == "image_url":
+                            url = c.get("image_url", {}).get("url")
+
+                            if url:
+                                ext = get_extension_from_base64(url)
+                                filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                                parts = url.split(',')
+                                if len(parts) > 1:
+                                    url = parts[1]
+                                else:
+                                    url = parts[0]
+
+                                form_data["metadata"]["images"].append({
+                                    "name": filename,
+                                    "content": url
+                                })
+
+            code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
+            form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
+
+            non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
+
+            # Inform the LLM about available uploaded files so it can reference them in generated code
+            if code_interpreter_files or non_knowledge_files or form_data["metadata"]["images"]:
+                # Build a concise instruction listing accessible filenames (non-image, non-collection)
+                file_list_str = ", ".join(f["file"]["filename"] for f in non_knowledge_files) + ", ".join(
+                    image["name"] for image in form_data["metadata"]["images"]) + ", ".join(
+                    file["name"] for file in code_interpreter_files)
+
+                code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
+                form_data["messages"] = add_or_update_user_message(
+                    code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
     return form_data, metadata, events
 
