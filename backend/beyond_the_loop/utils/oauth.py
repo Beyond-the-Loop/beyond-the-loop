@@ -347,7 +347,7 @@ class OAuthManager:
                                     log.error(f"No admin user found for company {company.id} ({company.name})")
                                     return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_COMPANY_STRUCTURE)
 
-                                subscription_details = await get_subscription(user=admin_user[0])
+                                subscription_details = get_subscription(user=admin_user[0])
                                 seats_limit = subscription_details.get("seats", 0)
                                 seats_taken = subscription_details.get("seats_taken", 0)
                                 available_seats = max(0, seats_limit - seats_taken)

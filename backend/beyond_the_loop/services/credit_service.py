@@ -39,13 +39,13 @@ class CreditService:
         """
 
         # Get current balance
-        current_balance = CreditService.get_credit_balance(user.company_id)
+        current_base_credit_balance = Companies.get_base_credit_balance(user.company_id)
 
         # Get the dynamic credit limit based on subscription
         eighty_percent_credit_limit = Companies.get_eighty_percent_credit_limit(user.company_id)
 
         # Check 80% threshold
-        if current_balance - credit_cost < eighty_percent_credit_limit:
+        if current_base_credit_balance - credit_cost < eighty_percent_credit_limit:
             should_send_budget_email_80 = True  # Default to sending email
 
             company = Companies.get_company_by_id(user.company_id)
@@ -85,8 +85,11 @@ class CreditService:
 
                 for admin in admins:
                     email_service = EmailService()
-                    email_service.send_budget_mail_80(to_email=admin.email,
-                                                    recipient_name=admin.first_name + " " + admin.last_name)
+                    email_service.send_budget_mail_80(
+                        to_email=admin.email,
+                        admin_name=admin.first_name,
+                        company_name=company.name
+                    )
 
                 Companies.update_company_by_id(company.id, {"budget_mail_80_sent": True})
 
@@ -162,7 +165,7 @@ class CreditService:
         company = Companies.get_company_by_id(user.company_id)
 
         # Get the active subscription to check seat limits
-        subscription_details = await get_subscription(user)
+        subscription_details = get_subscription(user)
 
         if not company.subscription_not_required:
             # Get current seat count and limit
@@ -190,7 +193,11 @@ class CreditService:
         if current_balance == 0:
             if not company.budget_mail_100_sent:
                 email_service = EmailService()
-                email_service.send_budget_mail_100(to_email=user.email, recipient_name=user.first_name + " " + user.last_name)
+                email_service.send_budget_mail_100(
+                    to_email=user.email,
+                    admin_name=user.first_name,
+                    company_name=company.name
+                )
 
                 Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})
 
