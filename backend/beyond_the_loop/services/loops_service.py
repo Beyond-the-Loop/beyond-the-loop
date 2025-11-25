@@ -82,7 +82,6 @@ class LoopsService:
         for user in users:
             loops_service.create_or_update_loops_contact(user)
 
-    @staticmethod
     def send_transactional_email(
             self,
             email: str,

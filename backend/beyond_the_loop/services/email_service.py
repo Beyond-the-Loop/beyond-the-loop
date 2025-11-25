@@ -13,7 +13,7 @@ class EmailService:
                 "invitation_link": f"{os.getenv('BACKEND_ADDRESS')}/register?inviteToken={invite_token}"
             })
         except Exception as e:
-            print(f"Exception when sending registration email: {e}")
+            print(f"Exception when sending invitation email: {e}")
 
     def send_reset_password_mail(self, to_email: str, reset_token: str, user_name: str):
         """Send a reset password email to users who requested a password reset."""
@@ -32,7 +32,7 @@ class EmailService:
                 "verification_code": registration_code,
             })
         except Exception as e:
-            print(f"Exception when sending reset password email: {e}")
+            print(f"Exception when sending registration email: {e}")
 
     def send_budget_mail_80(self, to_email: str, admin_name: str, company_name: str):
         """Send a budget alert email to admins when the budget is approaching 80%."""
@@ -42,7 +42,7 @@ class EmailService:
                 "workspace_name": company_name
             })
         except Exception as e:
-            print(f"Exception when sending reset password email: {e}")
+            print(f"Exception when sending budget 80: {e}")
 
     def send_budget_mail_100(self, to_email: str, admin_name: str, company_name: str):
         """Send a budget alert email to admins when the budget is approaching 100%."""
@@ -52,4 +52,4 @@ class EmailService:
                 "workspace_name": company_name
             })
         except Exception as e:
-            print(f"Exception when sending reset password email: {e}")
+            print(f"Exception when sending budget 100 email: {e}")
