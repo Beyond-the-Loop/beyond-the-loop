@@ -11,7 +11,6 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 
-
 ####################
 # User DB Schema
 ####################
