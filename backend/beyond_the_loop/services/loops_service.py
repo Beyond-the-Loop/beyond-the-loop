@@ -36,7 +36,7 @@ class LoopsService:
             try:
                 subscription_details = payments_service.get_subscription(user.company_id)
                 plan = subscription_details.get("plan")
-                subscribed = subscription_details.get("status") == "active" and not subscription_details.get("cancel_at_period_end")
+                subscribed = plan == "unlimited" or subscription_details.get("status") == "active" and not subscription_details.get("cancel_at_period_end")
             except Exception:
                 plan = "None"
                 subscribed = False
