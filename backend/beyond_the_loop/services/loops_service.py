@@ -33,9 +33,13 @@ class LoopsService:
 
         # On user signup no company is assigned
         if user.company_id not in ["NEW", "NO_COMPANY"]:
-            subscription_details = payments_service.get_subscription(user.company_id)
-            plan = subscription_details.get("plan")
-            subscribed = subscription_details.get("status") == "active" and not subscription_details.get("cancel_at_period_end")
+            try:
+                subscription_details = payments_service.get_subscription(user.company_id)
+                plan = subscription_details.get("plan")
+                subscribed = subscription_details.get("status") == "active" and not subscription_details.get("cancel_at_period_end")
+            except Exception:
+                plan = "None"
+                subscribed = False
         else:
             plan = next(iter(payments_service.SUBSCRIPTION_PLANS.keys()))
             subscribed = False
