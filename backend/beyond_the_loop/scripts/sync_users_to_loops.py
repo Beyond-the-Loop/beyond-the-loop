@@ -12,4 +12,6 @@ from beyond_the_loop.models.prompts import user_prompt_bookmark
 users = Users.get_users()
 
 for user in users:
+    print(f"Syncing user {user.email}")
     loops_service.create_or_update_loops_contact(user)
+    print("syncing user success")
