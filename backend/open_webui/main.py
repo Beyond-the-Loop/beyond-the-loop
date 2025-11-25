@@ -575,8 +575,6 @@ app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
 app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
 
-import beyond_the_loop.scripts.sync_users_to_loops
-
 ##################################
 #
 # Chat Endpoints
