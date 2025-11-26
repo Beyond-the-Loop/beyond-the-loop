@@ -15,6 +15,7 @@
 	import { getGroups } from '$lib/apis/groups';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
+	import { user as currentUser } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -450,25 +451,27 @@
 					</div>
 				{/if}
 			</div>
-			<div class="flex items-center">
-				<InviteMenu
-					{user}
-					{getUsersHandler}
-					{getSubscription}
-					inviteCompleted={user?.first_name !== 'INVITED'}
-					on:deleteUser={() => {
-						showDeleteConfirm = true;
-						userToDelete = user;
-					}}
-				>
-					<button
-						type="button"
-						class="dark:text-white flex justify-between items-center rounded-md cursor-pointer md:invisible group-hover:visible"
+			{#if user?.email !== $currentUser?.email}
+				<div class="flex items-center">
+					<InviteMenu
+						{user}
+						{getUsersHandler}
+						{getSubscription}
+						inviteCompleted={user?.first_name !== 'INVITED'}
+						on:deleteUser={() => {
+							showDeleteConfirm = true;
+							userToDelete = user;
+						}}
 					>
-						<EllipsisHorizontal className="size-5" />
-					</button>
-				</InviteMenu>
-			</div>
+						<button
+							type="button"
+							class="dark:text-white flex justify-between items-center rounded-md cursor-pointer md:invisible group-hover:visible"
+						>
+							<EllipsisHorizontal className="size-5" />
+						</button>
+					</InviteMenu>
+				</div>
+			{/if}
 		</div>
 	{/each}
 </div>

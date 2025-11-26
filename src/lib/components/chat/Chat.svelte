@@ -2019,6 +2019,12 @@
 									{createMessagePair}
 									onChange={(input) => {
 										if (input.prompt) {
+
+											// files can exceed 5MB, which can break the local storage.
+											if (input.files && input.files.length > 0) {
+												input.files = [];
+											}
+
 											localStorage.setItem(`chat-input-${$chatId}`, JSON.stringify(input));
 										} else {
 											localStorage.removeItem(`chat-input-${$chatId}`);
