@@ -30,6 +30,7 @@ from open_webui.utils.misc import validate_email_format
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 from beyond_the_loop.services.crm_service import crm_service
+from beyond_the_loop.services.loops_service import loops_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -52,7 +53,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
         if not company.subscription_not_required:
             # Get subscription details
-            subscription_details = await get_subscription(user)
+            subscription_details = get_subscription(user)
 
             # Get current seat count and limit
             seats_limit = subscription_details.get("seats", 0)
@@ -149,7 +150,9 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                 email_service = EmailService()
                 email_service.send_invite_mail(
                     to_email=email,
-                    invite_token=invite_token
+                    invite_token=invite_token,
+                    admin_name=user.first_name,
+                    company_name=company.name
                 )
                 
                 # Update existing user with invite information
@@ -180,7 +183,9 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                 email_service = EmailService()
                 email_service.send_invite_mail(
                     to_email=email,
-                    invite_token=invite_token
+                    invite_token=invite_token,
+                    admin_name=user.first_name,
+                    company_name=company.name
                 )
                 
                 # Create new user
@@ -244,9 +249,9 @@ async def create_user(form_data: UserCreateForm):
 
     # Send welcome email with the generated password
     email_service = EmailService()
-    email_service.send_registration_email(
+    email_service.send_registration_mail(
         to_email=user.email,
-        registration_code=registration_code,
+        registration_code=registration_code
     )
 
     return user
@@ -339,9 +344,10 @@ async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin
 
     # Update CRM if needed
     try:
+        loops_service.create_or_update_loops_contact(user)
         crm_service.update_user_access_level(user_email=user_obj.email, access_level=form_data.role)
     except Exception as e:
-        log.error(f"Failed to update user access level in CRM: {e}")
+        log.error(f"Failed to update user access level in CRM or in Loops: {e}")
 
     # Update the user role
     return Users.update_user_role_by_id(form_data.id, form_data.role)
@@ -512,11 +518,12 @@ async def update_user_by_id(
         )
 
         if updated_user:
+            loops_service.create_or_update_loops_contact(user)
             return updated_user
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(),
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
     raise HTTPException(
@@ -579,11 +586,15 @@ async def reinvite_user(form_data: UserReinviteForm, user=Depends(get_admin_user
             status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user"
         )
 
+    company = Companies.get_company_by_id(user.company_id)
+
     # Send the invitation email
     email_service = EmailService()
     email_sent = email_service.send_invite_mail(
         to_email=form_data.email.lower(),
-        invite_token=invite_token
+        invite_token=invite_token,
+        admin_name=user.first_name,
+        company_name=company.name
     )
 
     if not email_sent:

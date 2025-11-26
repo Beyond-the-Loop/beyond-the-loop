@@ -1,14 +1,10 @@
 import logging
-from typing import Optional
 import uuid
-from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
 from beyond_the_loop.routers import openai
-from open_webui.constants import ERROR_MESSAGES
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
     Companies,
@@ -23,6 +19,8 @@ from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.config import save_config, get_config
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
+from beyond_the_loop.services.loops_service import loops_service
+from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
 
@@ -250,6 +248,8 @@ async def create_company(
             "Perplexity Sonar Reasoning Pro",
         ]
 
+        print("OPENAI MODELS", openai_models)
+
         # Register OpenAI models in the database if they don't exist
         for model in openai_models:
             Models.insert_new_model(
@@ -266,7 +266,7 @@ async def create_company(
                     access_control=None,  # None means public access
                     is_active=model["id"] not in disabled_models
                 ),
-                user_id=user.id,
+                user_id=None,
                 company_id=company_id,
             )
 
@@ -294,14 +294,15 @@ async def create_company(
                     "missing_payment_method": "cancel"  # Cancel when trial ends if no payment method
                 }
             },
-            items=[{"price": SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
+            items=[{"price": payments_service.SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
         )
 
         try:
+            loops_service.create_or_update_loops_contact(user)
             crm_service.create_company(company_name=company.name)
             crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin")
         except Exception as e:
-            log.error(f"Failed to create company or user in CRM: {e}")
+            log.error(f"Failed to create company or user in CRM or in Loops: {e}")
 
         return company
 

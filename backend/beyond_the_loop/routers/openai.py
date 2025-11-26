@@ -204,6 +204,7 @@ async def generate_chat_completion(
 
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
+
     model_info = Models.get_model_by_id(form_data.get("model"))
 
     if model_info is None:
@@ -269,9 +270,14 @@ async def generate_chat_completion(
         "Perplexity Sonar Deep Research": "perplexity/sonar-deep-research",
         "Perplexity Sonar Pro": "perplexity/sonar-pro",
         "Perplexity Sonar Reasoning Pro": "perplexity/sonar-reasoning-pro",
+        "GPT-5.1 instant": "azure/gpt-5.1-chat",
+        "GPT-5.1 thinking": "azure/gpt-5.1",
     }
 
-    payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
+    try:
+        payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
+    except Exception:
+        print("Error trimming messages, continuing with the original messages...")
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
