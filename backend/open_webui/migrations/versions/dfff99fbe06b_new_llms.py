@@ -25,7 +25,7 @@ def upgrade() -> None:
     connection = op.get_bind()
 
     new_models = {
-        "GPT-5.1 (instant)": {
+        "GPT-5.1 instant": {
             "cost": {
                 "cost_per_million_input_tokens": 1.25,
                 "cost_per_million_output_tokens": 10,
@@ -38,7 +38,7 @@ def upgrade() -> None:
             "meta": {},
             "params": {},
         },
-        "GPT-5.1 (thinking)": {
+        "GPT-5.1 thinking": {
             "cost": {
                 "cost_per_million_input_tokens": 1.25,
                 "cost_per_million_output_tokens": 10,
