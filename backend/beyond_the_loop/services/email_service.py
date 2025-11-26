@@ -20,7 +20,7 @@ class EmailService:
         try:
             loops_service.send_transactional_email(to_email, "cmi7b233s3wpmyd0iebq70mdz", data_variables={
                 "user_name": user_name,
-                "reset_link": f"{os.getenv('BACKEND_ADDRESS')}/reset-password?resetToken={reset_token}"
+                "reset_link": f"{os.getenv('BACKEND_ADDRESS')}/create-new-password?resetToken={reset_token}"
             })
         except Exception as e:
             print(f"Exception when sending reset password email: {e}")

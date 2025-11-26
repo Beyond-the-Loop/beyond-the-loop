@@ -17,6 +17,9 @@ class LoopsService:
             self,
             user: UserModel
     ):
+        if not os.getenv("LOOPS_SYNC", "false") == "true":
+            return
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
