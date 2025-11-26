@@ -250,6 +250,8 @@ async def create_company(
             "Perplexity Sonar Reasoning Pro",
         ]
 
+        print("OPENAI MODELS", openai_models)
+
         # Register OpenAI models in the database if they don't exist
         for model in openai_models:
             Models.insert_new_model(
