@@ -1,5 +1,5 @@
 export const modelsInfo = {
-	"GPT-5.1 (instant)": {
+	"GPT-5.1 instant": {
 		context_window: '128K',
 		costFactor: 2,
 		description: 'GPT-5.1 Instant is particularly conversational, delivers fast, clear answers with reduced jargon, and is especially well-suited for everyday conversations.',
@@ -13,7 +13,7 @@ export const modelsInfo = {
 		speed: 2,
 		zdr: false,
 	},
-	"GPT-5.1 (thinking)": {
+	"GPT-5.1 thinking": {
 		context_window: '128K',
 		costFactor: 2,
 		description: 'Powerful for complex questions and code. Thorough analyses, detailed answers. Ideal for demanding tasks, not for quick responses.',
