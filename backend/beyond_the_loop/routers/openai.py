@@ -270,8 +270,8 @@ async def generate_chat_completion(
         "Perplexity Sonar Deep Research": "perplexity/sonar-deep-research",
         "Perplexity Sonar Pro": "perplexity/sonar-pro",
         "Perplexity Sonar Reasoning Pro": "perplexity/sonar-reasoning-pro",
-        "GPT-5.1 (instant)": "azure/gpt-5.1-chat",
-        "GPT-5.1 (thinking)": "azure/gpt-5.1",
+        "GPT-5.1 instant": "azure/gpt-5.1-chat",
+        "GPT-5.1 thinking": "azure/gpt-5.1",
     }
 
     try:
