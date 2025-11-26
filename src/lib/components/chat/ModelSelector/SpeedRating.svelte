@@ -69,7 +69,7 @@
         {/each}
     </div>
     <p class="text-xs text-lightGray-100 dark:text-white">
-        {rating.toFixed(1)}
+        {rating.toFixed(1)}/5
     </p>
 </div>
 
