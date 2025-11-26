@@ -146,10 +146,10 @@ class AuthsTable:
             else:
                 return None
 
-    def insert_auth_for_existing_user(self, password: str, user: UserModel):
+    def insert_auth_for_existing_user(self, user: UserModel, password: str):
         with get_db() as db:
             auth = AuthModel(
-                **{"id": user.user_id, "email": user.email, "password": password, "active": True}
+                **{"id": user.id, "email": user.email, "password": password, "active": True}
             )
             result = Auth(**auth.model_dump())
             db.add(result)

@@ -440,8 +440,7 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 
         user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url)
 
-        Auths.insert_auth_for_existing_user(user, password=hashed_password)
-
+        Auths.insert_auth_for_existing_user(user, hashed_password)
     except Exception as err:
         raise HTTPException(500, detail=err)
 
@@ -804,8 +803,14 @@ async def request_password_reset(form_data: ResetPasswordRequestForm):
     try:
         # Check if user exists
         user = Users.get_user_by_email(form_data.email)
+
         
         if user:
+            # User registration not complete
+            if not user.company_id:
+                # Still return true for security reasons
+                return True
+
             # Generate a secure token
             reset_token = secrets.token_urlsafe(32)
             
