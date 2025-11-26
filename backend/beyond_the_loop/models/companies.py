@@ -293,6 +293,12 @@ class CompanyTable:
                     company.flex_credit_balance = 0
                     db.commit()
 
+    def get_base_credit_balance(self, company_id: str) -> Optional[int]:
+        """Get company's base credit balance"""
+        with get_db() as db:
+            company = db.query(Company).filter(Company.id == company_id).first()
+            return company.credit_balance if company else None
+
     def get_credit_balance(self, company_id: str) -> Optional[int]:
         """Get company's current credit balance"""
         with get_db() as db:

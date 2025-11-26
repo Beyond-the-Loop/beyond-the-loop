@@ -440,10 +440,9 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 
         user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url)
 
-        Auths.insert_auth_for_existing_user(user_id=user.id, email=user.email, password=hashed_password, company_id=user.company_id, first_name=user.first_name, last_name=user.last_name, role=user.role)
-
+        Auths.insert_auth_for_existing_user(user, hashed_password)
     except Exception as err:
-        raise HTTPException(500, detail=ERROR_MESSAGES.DEFAULT(err))
+        raise HTTPException(500, detail=err)
 
     expires_delta = parse_duration(request.app.state.config.JWT_EXPIRES_IN)
     expires_at = None
@@ -804,8 +803,14 @@ async def request_password_reset(form_data: ResetPasswordRequestForm):
     try:
         # Check if user exists
         user = Users.get_user_by_email(form_data.email)
+
         
         if user:
+            # User registration not complete
+            if not user.company_id:
+                # Still return true for security reasons
+                return True
+
             # Generate a secure token
             reset_token = secrets.token_urlsafe(32)
             
@@ -817,10 +822,10 @@ async def request_password_reset(form_data: ResetPasswordRequestForm):
             
             # Send reset email
             email_service = EmailService()
-            email_service.send_password_reset_email(
-                form_data.email, 
+            email_service.send_reset_password_mail(
+                form_data.email,
                 reset_token,
-                f"{user.first_name} {user.last_name}"
+                user.first_name
             )
         
         # Always return true for security (don't reveal if email exists)

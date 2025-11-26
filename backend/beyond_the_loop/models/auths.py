@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, String, Text
 from open_webui.utils.auth import verify_password
 from beyond_the_loop.services.crm_service import crm_service
+from beyond_the_loop.services.loops_service import loops_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -134,19 +135,21 @@ class AuthsTable:
 
             try:
                 if company_id not in ["NEW", "NO_COMPANY"]:
-                    crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
+                    loops_service.create_or_update_loops_contact(user)
+                    company = Companies.get_company_by_id(company_id).name
+                    crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
             except Exception as e:
-                log.error(f"Failed to create user in CRM: {e}")
+                log.error(f"Failed to create user in CRM or in Loops: {e}")
 
             if result and user:
                 return user
             else:
                 return None
 
-    def insert_auth_for_existing_user(self, user_id: str, email: str, password: str, company_id: str, first_name: str, last_name: str, role: str):
+    def insert_auth_for_existing_user(self, user: UserModel, password: str):
         with get_db() as db:
             auth = AuthModel(
-                **{"id": user_id, "email": email, "password": password, "active": True}
+                **{"id": user.id, "email": user.email, "password": password, "active": True}
             )
             result = Auth(**auth.model_dump())
             db.add(result)
@@ -154,10 +157,12 @@ class AuthsTable:
             db.refresh(result)
 
             try:
-                if company_id != "NEW":
-                    crm_service.create_user(company_name=Companies.get_company_by_id(company_id).name, user_email=email, user_firstname=first_name, user_lastname=last_name, access_level=role)
+                if user.company_id != "NEW":
+                    company = Companies.get_company_by_id(user.company_id).name
+                    loops_service.create_or_update_loops_contact(user)
+                    crm_service.create_user(company_name=company, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
             except Exception as e:
-                log.error(f"Failed to create user in CRM: {e}")
+                log.error(f"Failed to create user in CRM or in Loops: {e}")
 
             if result:
                 return True

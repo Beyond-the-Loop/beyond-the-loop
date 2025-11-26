@@ -12,7 +12,7 @@ class CRMService:
         self.base_url = f"{os.getenv('ATTIO_API_BASE_URL')}"
         self.headers = {"Authorization": f"Bearer {os.getenv('ATTIO_API_KEY')}", "Content-Type": "application/json"}
         self.timeout = 5
-        self.execute = os.getenv('ATTIO_SYNC_DATA', 'false').lower() == 'true'
+        self.execute = os.getenv('ATTIO_SYNC_DATA', 'false').lower() == 'false'
 
         self._company_cache = TTLCache(maxsize=512, ttl=600)
         self._user_cache = TTLCache(maxsize=512, ttl=600)
@@ -248,6 +248,7 @@ class CRMService:
 
             if company:
                 company_id = company["id"]["record_id"]
+
                 response = requests.post(
                     f"{self.base_url}/objects/people/records",
                     headers=self.headers,
@@ -331,6 +332,5 @@ class CRMService:
         except Exception as e:
             log.error(f"update_user_credit_usage exception for {user_email}: {e}")
             return
-
 
 crm_service = CRMService()
