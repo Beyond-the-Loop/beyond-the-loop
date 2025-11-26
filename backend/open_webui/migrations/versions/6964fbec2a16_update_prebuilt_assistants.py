@@ -15,7 +15,7 @@ import time
 import csv
 import uuid
 
-from internal.db import Session
+from sqlalchemy.orm import Session
 
 # revision identifiers, used by Alembic.
 revision: str = '6964fbec2a16'
