@@ -1,6 +1,5 @@
 import logging
-import math
-
+import os
 import stripe
 from typing import Optional
 from fastapi import HTTPException
@@ -10,7 +9,6 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.models.model_costs import ModelCosts
-from beyond_the_loop.services.crm_service import crm_service
 
 from beyond_the_loop.routers.payments import get_subscription
 
@@ -88,7 +86,8 @@ class CreditService:
                     email_service.send_budget_mail_80(
                         to_email=admin.email,
                         admin_name=admin.first_name,
-                        company_name=company.name
+                        company_name=company.name,
+                        billing_page_link=os.getenv("BACKEND_ADDRESS") + "?modal=company-settings&tab=billing"
                     )
 
                 Companies.update_company_by_id(company.id, {"budget_mail_80_sent": True})
@@ -202,7 +201,8 @@ class CreditService:
                 email_service.send_budget_mail_100(
                     to_email=user.email,
                     admin_name=user.first_name,
-                    company_name=company.name
+                    company_name=company.name,
+                    billing_page_link=os.getenv("BACKEND_ADDRESS") + "?modal=company-settings&tab=billing"
                 )
 
                 Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})
