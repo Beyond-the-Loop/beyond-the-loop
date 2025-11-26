@@ -266,7 +266,7 @@ async def create_company(
                     access_control=None,  # None means public access
                     is_active=model["id"] not in disabled_models
                 ),
-                user_id=user.id,
+                user_id=None,
                 company_id=company_id,
             )
 
