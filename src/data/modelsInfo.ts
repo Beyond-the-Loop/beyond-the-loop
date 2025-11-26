@@ -1,6 +1,32 @@
-import { temporaryChatEnabled } from "$lib/stores";
-
 export const modelsInfo = {
+	"GPT-5.1 (instant)": {
+		context_window: '128K',
+		costFactor: 2,
+		description: 'GPT-5.1 Instant is particularly conversational, delivers fast, clear answers with reduced jargon, and is especially well-suited for everyday conversations.',
+		hosted_in: 'EU',
+		intelligence_score: 2,
+		knowledge_cutoff: '2024-09-30',
+		multimodal: true,
+		organization: 'OpenAI',
+		reasoning: false,
+		research: false,
+		speed: 2,
+		zdr: false,
+	},
+	"GPT-5.1 (thinking)": {
+		context_window: '128K',
+		costFactor: 2,
+		description: 'Powerful for complex questions and code. Thorough analyses, detailed answers. Ideal for demanding tasks, not for quick responses.',
+		hosted_in: 'EU',
+		intelligence_score: 3.5,
+		knowledge_cutoff: '2024-09-30',
+		multimodal: true,
+		organization: 'OpenAI',
+		reasoning: true,
+		research: false,
+		speed: 2,
+		zdr: false,
+	},
 	"Claude 4.5 Haiku": {
 		context_window: '200K',
 		costFactor: 1,
