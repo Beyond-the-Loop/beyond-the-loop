@@ -42,12 +42,6 @@ logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # Function to run the alembic migrations
 def run_migrations():
-    print("Running migrations")
-    try:
-        import beyond_the_loop.scripts.sync_users_to_loops
-    except Exception as e:
-        print("ERROR", e)
-
     try:
         from alembic import command
         from alembic.config import Config
