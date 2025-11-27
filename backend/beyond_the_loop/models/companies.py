@@ -356,16 +356,16 @@ class CompanyTable:
                 
                 subscription = subscriptions.data[0]
                 plan_id = subscription.metadata.get('plan_id')
-                
+
                 # Import here to avoid circular imports
-                from beyond_the_loop.routers.payments import SUBSCRIPTION_PLANS
+                from beyond_the_loop.routers.payments import payments_service
                 
-                if plan_id not in SUBSCRIPTION_PLANS:
+                if plan_id not in payments_service.SUBSCRIPTION_PLANS:
                     return 1  # Unknown plan
                 
                 # Calculate 20% of the monthly credit allocation
                 # (which means the warning triggers when 80% is used)
-                monthly_credits = SUBSCRIPTION_PLANS[plan_id].get("credits_per_month")
+                monthly_credits = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month")
 
                 return monthly_credits * 0.2
                 
