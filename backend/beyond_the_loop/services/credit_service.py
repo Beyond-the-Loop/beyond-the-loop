@@ -38,6 +38,7 @@ class CreditService:
 
         # Get current balance
         current_base_credit_balance = Companies.get_base_credit_balance(user.company_id)
+        current_credit_balance = self.get_credit_balance(user.company_id)
 
         # Get the dynamic credit limit based on subscription
         eighty_percent_credit_limit = Companies.get_eighty_percent_credit_limit(user.company_id)
@@ -48,7 +49,8 @@ class CreditService:
 
             company = Companies.get_company_by_id(user.company_id)
 
-            if Companies.get_auto_recharge(user.company_id):
+            # Recharge if base_credits + flex_credits - credit_cost < 80% of credit limit
+            if Companies.get_auto_recharge(user.company_id) and current_credit_balance - credit_cost < eighty_percent_credit_limit:
                 try:
                     # Check if the company has a stripe customer ID and payment method before recharging
                     if not company.stripe_customer_id:
