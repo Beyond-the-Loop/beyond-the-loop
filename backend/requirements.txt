@@ -183,6 +183,7 @@ pandas==2.2.3
 passlib==1.7.4
 pathspec==0.12.1
 pcodedmp==1.2.6
+pdf2image==1.17.0
 peewee==3.17.8
 peewee-migrate==1.12.2
 pgvector==0.3.5
@@ -210,8 +211,8 @@ Pygments==2.19.2
 PyJWT==2.10.1
 pymdown-extensions==10.14.2
 pymilvus==2.5.0
-PyMuPDF==1.26.6
 pymongo==4.13.2
+PyMuPDF==1.26.6
 PyMySQL==1.1.1
 pypandoc==1.13
 pyparsing==3.2.3
@@ -219,6 +220,7 @@ pypdf==4.3.1
 PyPika==0.48.9
 pyproject_hooks==1.2.0
 PySocks==1.7.1
+pytesseract==0.3.13
 pytest==8.3.5
 pytest-docker==3.1.2
 python-dateutil==2.9.0.post0

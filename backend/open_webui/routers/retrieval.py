@@ -7,9 +7,6 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from pdf2image import convert_from_path
-import pytesseract
-
 from fastapi import (
     Depends,
     HTTPException,
