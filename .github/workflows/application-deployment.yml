@@ -143,7 +143,7 @@ jobs:
           username: ${{ secrets.PROD_EC2_USERNAME }}
           key: ${{ secrets.PROD_EC2_SSH_KEY }}
           script: |
-            sudo apt install poppler-utils
+            sudo apt-get install -y poppler-utils
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
             docker-compose restart litellm
@@ -236,7 +236,7 @@ jobs:
           username: ${{ secrets.STAGING_EC2_USERNAME }}
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
           script: |
-            sudo apt install poppler-utils
+            sudo apt-get install -y poppler-utils
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
             docker-compose restart litellm
