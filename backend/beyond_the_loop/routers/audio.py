@@ -1,13 +1,10 @@
 import hashlib
 import json
 import logging
-import math
 import os
 import uuid
 from functools import lru_cache
 from pathlib import Path
-from pydub import AudioSegment
-from pydub.silence import split_on_silence
 
 import aiohttp
 import aiofiles
@@ -15,7 +12,6 @@ import requests
 
 from fastapi import (
     Depends,
-    FastAPI,
     File,
     HTTPException,
     Request,
@@ -23,7 +19,6 @@ from fastapi import (
     status,
     APIRouter,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -37,12 +32,11 @@ from beyond_the_loop.config import (
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import (
-    ENV,
     SRC_LOG_LEVELS,
     DEVICE_TYPE,
     ENABLE_FORWARD_USER_INFO_HEADERS,
 )
-from beyond_the_loop.services.credit_service import CreditService
+from beyond_the_loop.services.credit_service import credit_service
 
 router = APIRouter()
 
@@ -236,7 +230,6 @@ def load_speech_pipeline(request):
 
 @router.post("/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
-    credit_service = CreditService()
     await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     body = await request.body()
@@ -555,7 +548,6 @@ async def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    credit_service = CreditService()
     await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     if file.content_type not in ["audio/mpeg", "audio/wav", "audio/ogg", "audio/x-m4a"]:

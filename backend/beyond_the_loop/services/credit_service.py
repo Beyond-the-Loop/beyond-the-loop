@@ -4,6 +4,7 @@ import stripe
 from typing import Optional
 from fastapi import HTTPException
 
+from beyond_the_loop.models.users import UserModel
 from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
@@ -213,3 +214,23 @@ class CreditService:
                 status_code=402,  # 402 Payment Required
                 detail=f"Insufficient credits. No credits left.",
             )
+
+    @staticmethod
+    async def subtract_credit_cost_by_user_and_response_and_model(user: UserModel, response, model_name: str):
+        input_tokens = response.get('usage', {}).get('prompt_tokens', 0)
+        output_tokens = response.get('usage', {}).get('completion_tokens', 0)
+
+        # Safely access nested dictionary values
+        completion_tokens_details = response.get('usage', {}).get('completion_tokens_details', {})
+        reasoning_tokens = 0
+
+        if completion_tokens_details is not None:
+            reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
+
+        with_search_query_cost = "Perplexity" in model_name
+
+        credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
+
+        return credit_cost
+
+credit_service = CreditService()
