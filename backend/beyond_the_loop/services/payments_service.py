@@ -216,7 +216,8 @@ class PaymentsService:
                 "seats": plan.get("seats", 0),
                 "seats_taken": Users.count_users_by_company_id(company_id),
                 "auto_recharge": company.auto_recharge,
-                "image_url": image_url
+                "image_url": image_url,
+                "custom_credit_amount": int(subscription.metadata.get("custom_credit_amount")) if subscription.metadata.get("custom_credit_amount") is not None else None
             }
 
         except Exception as e:
