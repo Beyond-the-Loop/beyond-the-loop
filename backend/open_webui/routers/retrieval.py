@@ -528,6 +528,7 @@ def process_file(
             file_path = file.path
             if file_path:
                 file_path = Storage.get_file(file_path)
+
                 loader = Loader(
                     engine=request.app.state.config.CONTENT_EXTRACTION_ENGINE,
                 )
@@ -535,6 +536,8 @@ def process_file(
                 docs = loader.load(
                     file.filename, file.meta.get("content_type"), file_path
                 )
+
+                print("DOCCCCCS", docs)
 
                 docs = [
                     Document(

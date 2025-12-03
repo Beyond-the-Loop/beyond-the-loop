@@ -13,7 +13,6 @@ from fastapi import Depends, HTTPException, Request, APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
-from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
@@ -39,9 +38,9 @@ from open_webui.utils.payload import (
     apply_model_system_prompt_to_body,
 )
 
-from open_webui.utils.auth import get_verified_user
+from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.utils.access_control import has_access
-from beyond_the_loop.services.credit_service import CreditService
+from beyond_the_loop.services.credit_service import credit_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -192,7 +191,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
-
 @router.post("/chat/completions")
 async def generate_chat_completion(
         form_data: dict, user=Depends(get_verified_user)
@@ -203,7 +201,6 @@ async def generate_chat_completion(
     metadata = payload.pop("metadata", {})
 
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
-
 
     model_info = Models.get_model_by_id(form_data.get("model"))
 
@@ -230,8 +227,6 @@ async def generate_chat_completion(
                     c for c in message["content"]
                     if c.get("type") != "image_url"
                 ]
-
-    credit_service = CreditService()
 
     if has_chat_id or agent_or_task_prompt:
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
@@ -334,21 +329,8 @@ async def generate_chat_completion(
                                 # End of stream
                                 # Add completion to completion table if it's a chat message from the user
                                 if has_chat_id:
-                                    input_tokens = data.get('usage', {}).get('prompt_tokens', 0)
-                                    output_tokens = data.get('usage', {}).get('completion_tokens', 0)
-
-                                    # Safely access nested dictionary values
-                                    completion_tokens_details = data.get('usage', {}).get(
-                                        'completion_tokens_details', {})
-                                    reasoning_tokens = 0
-                                    if completion_tokens_details is not None:
-                                        reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
-
-                                    with_search_query_cost = "Perplexity" in model_name
-
-                                    credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
-
-                                    Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, full_response))
+                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
+                                    Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
 
                         except json.JSONDecodeError:
                             print(f"\n{chunk_str}")
@@ -375,19 +357,7 @@ async def generate_chat_completion(
                 # Add completion to completion table
                 response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
-                input_tokens = response.get('usage', {}).get('prompt_tokens', 0)
-                output_tokens = response.get('usage', {}).get('completion_tokens', 0)
-
-                # Safely access nested dictionary values
-                completion_tokens_details = response.get('usage', {}).get('completion_tokens_details', {})
-                reasoning_tokens = 0
-                if completion_tokens_details is not None:
-                    reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
-
-                with_search_query_cost = "Perplexity" in model_name
-
-                credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
-
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
                 Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, response_content))
 
             return response

@@ -42,12 +42,6 @@ logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # Function to run the alembic migrations
 def run_migrations():
-    print("Running migrations")
-    try:
-        import beyond_the_loop.scripts.sync_users_to_loops
-    except Exception as e:
-        print("ERROR", e)
-
     try:
         from alembic import command
         from alembic.config import Config
@@ -303,25 +297,6 @@ class AppConfig:
 ####################################
 # WEBUI_AUTH (Required for security)
 ####################################
-
-ENABLE_API_KEY = PersistentConfig(
-    "ENABLE_API_KEY",
-    "auth.api_key.enable",
-    os.environ.get("ENABLE_API_KEY", "True").lower() == "true",
-)
-
-ENABLE_API_KEY_ENDPOINT_RESTRICTIONS = PersistentConfig(
-    "ENABLE_API_KEY_ENDPOINT_RESTRICTIONS",
-    "auth.api_key.endpoint_restrictions",
-    os.environ.get("ENABLE_API_KEY_ENDPOINT_RESTRICTIONS", "False").lower() == "true",
-)
-
-API_KEY_ALLOWED_ENDPOINTS = PersistentConfig(
-    "API_KEY_ALLOWED_ENDPOINTS",
-    "auth.api_key.allowed_endpoints",
-    os.environ.get("API_KEY_ALLOWED_ENDPOINTS", ""),
-)
-
 
 JWT_EXPIRES_IN = PersistentConfig(
     "JWT_EXPIRES_IN", "auth.jwt_expiry", os.environ.get("JWT_EXPIRES_IN", "-1")

@@ -33,6 +33,10 @@ class PaymentsService:
         self.stripe_price_id_business_two_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_TWO_YEARLY',
                                                              "price_1SFK4QBBwyxb4MZjdHFP4AJh")
 
+        self.stripe_price_id_enterprise_monthly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_MONTHLY', 'price_1RglhLBBwyxb4MZjTgmXgtSV')
+
+        self.stripe_price_id_enterprise_yearly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_YEARLY', 'price_1RgliHBBwyxb4MZjb1rAH3tS')
+
         # Constants
         self.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS = 2000  # Amount in cents (20 euro)
 
@@ -85,6 +89,18 @@ class PaymentsService:
                 "credits_per_month": 150,
                 "stripe_price_id": self.stripe_price_id_business_two_yearly,
                 "seats": 100
+            },
+            "enterprise_monthly": {
+                "price": 124900, # 1.249,00€ in cents,
+                "credits_per_month": 450,
+                "stripe_price_id": self.stripe_price_id_enterprise_monthly,
+                "seats": 1000,
+            },
+            "enterprise_yearly": {
+                "price": 1348900,  # 13.489,00€ in cents,
+                "credits_per_month": 450,
+                "stripe_price_id": self.stripe_price_id_enterprise_yearly,
+                "seats": 1000,
             }
         }
 
@@ -200,7 +216,8 @@ class PaymentsService:
                 "seats": plan.get("seats", 0),
                 "seats_taken": Users.count_users_by_company_id(company_id),
                 "auto_recharge": company.auto_recharge,
-                "image_url": image_url
+                "image_url": image_url,
+                "custom_credit_amount": int(subscription.metadata.get("custom_credit_amount")) if subscription.metadata.get("custom_credit_amount") is not None else None
             }
 
         except Exception as e:

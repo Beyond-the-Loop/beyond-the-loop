@@ -18,7 +18,7 @@ from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 
 from open_webui.utils.auth import get_verified_user
-from beyond_the_loop.services.credit_service import CreditService
+from beyond_the_loop.services.credit_service import credit_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["IMAGES"])
@@ -113,8 +113,6 @@ async def image_generations(
 
     r = None
     try:
-        credit_service = CreditService()
-
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
         if request.app.state.config.IMAGE_GENERATION_ENGINE == "flux":
@@ -195,8 +193,6 @@ async def image_generations(
                         json.dump({**data, "task_id": task_id, "status": status}, f)
                     
                     # Subtract credits for image generation
-                    credit_service = CreditService()
-
                     await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-max")
 
                     return [{"url": f"/cache/image/generations/{image_filename}"}]
