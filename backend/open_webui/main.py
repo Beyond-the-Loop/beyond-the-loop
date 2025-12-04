@@ -30,7 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import Response, StreamingResponse
+from starlette.responses import Response
 
 from beyond_the_loop.routers import users
 from beyond_the_loop.config import WEBHOOK_URL
@@ -59,6 +59,8 @@ from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import file_archival
 from beyond_the_loop.routers import intercom
+
+from beyond_the_loop.models.files import Files
 
 from beyond_the_loop.routers.files import upload_file
 
@@ -590,6 +592,19 @@ async def get_base_models(request: Request, user=Depends(get_admin_user)):
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
     request['stream'] = False
+
+    # Handle optional file
+    if request.get('metadata', {}).get('file_id'):
+        file = Files.get_file_by_id(request['metadata']['file_id'])
+
+        if file:
+            messages = request.get('messages', [])
+            last_user_message = [m for m in messages if m["role"] == "user"][-1]
+
+            if last_user_message:
+                last_user_message['content'] = last_user_message.get('content', "") + file.data.get('content', "")
+        else:
+            print("File with ID:", request['metadata']['file_id'], "not found in openai API")
 
     async with aiohttp.ClientSession(
         trust_env=True,
