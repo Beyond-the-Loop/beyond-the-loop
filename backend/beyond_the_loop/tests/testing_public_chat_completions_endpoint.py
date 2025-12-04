@@ -25,7 +25,7 @@ schema = {
     }
 }
 
-response = client.chat.completions.create(
+structured_output_response = client.chat.completions.create(
     model="GPT-5 mini",
     messages=[
         ChatCompletionUserMessageParam(
@@ -39,4 +39,19 @@ response = client.chat.completions.create(
     )
 )
 
-print(response)
+print(structured_output_response)
+
+file_rag_response = client.chat.completions.create(
+    model="GPT-5 mini",
+    messages=[
+        ChatCompletionUserMessageParam(
+            role="user",
+            content="Fasse das Dokument für mich zusammen"
+        )
+    ],
+    metadata={
+        "file_id": "b8cec44d-7e6f-48c6-8214-f42ec8024a0c"
+    }
+)
+
+print(file_rag_response)
