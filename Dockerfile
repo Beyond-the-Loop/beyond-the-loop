@@ -68,6 +68,8 @@ RUN apt-get update && apt-get install -y \
     curl jq bash ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get install -y poppler-utils
+
 EXPOSE 8080
 
 HEALTHCHECK CMD curl --silent --fail http://localhost:${PORT:-8080}/health | jq -ne 'input.status == true' || exit 1
