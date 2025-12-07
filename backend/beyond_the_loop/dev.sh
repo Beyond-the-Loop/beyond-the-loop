@@ -15,4 +15,4 @@ docker-compose -f docker-compose-local.yaml up -d litellm
 
 # Start the uvicorn server
 cd "${PROJECT_ROOT}/backend" || exit 1
-"${PROJECT_ROOT}/backend/venv/bin/uvicorn" open_webui.main:app --port "${PORT}" --host 0.0.0.0 --forwarded-allow-ips '*' --reload
+"${PROJECT_ROOT}/backend/venv/bin/uvicorn" open_webui.main:app --port "${PORT}" --host 0.0.0.0 --workers 8 --forwarded-allow-ips '*' --reload
