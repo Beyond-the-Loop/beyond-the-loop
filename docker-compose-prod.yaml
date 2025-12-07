@@ -24,6 +24,28 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+  redis:
+    container_name: redis-valkey
+    image: valkey/valkey:8.1-alpine
+    command: "valkey-server --save 30 1"
+    healthcheck:
+      test: "[ $$(valkey-cli ping) = 'PONG' ]"
+      start_period: 5s
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    volumes:
+      - redis:/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
   beyond-the-loop:
     image: ghcr.io/beyond-the-loop/beyond-the-loop:production
     labels:
@@ -43,6 +65,7 @@ services:
     volumes:
       - ./backend/data:/app/backend/data
     depends_on:
+      - redis
       - litellm
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -51,3 +74,4 @@ services:
 volumes:
   beyond-the-loop: {}
   litellm: {}
+  redis: {}
