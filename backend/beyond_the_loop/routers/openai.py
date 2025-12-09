@@ -9,6 +9,7 @@ import requests
 
 import os
 
+from aiohttp import ClientResponseError
 from fastapi import Depends, HTTPException, Request, APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
@@ -24,6 +25,7 @@ from beyond_the_loop.config import (
     CACHE_DIR,
 )
 from beyond_the_loop.config import DEFAULT_AGENT_MODEL
+from beyond_the_loop.config import COMPLETION_ERROR_MESSAGE_PROMPT
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
@@ -195,10 +197,9 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 @router.post("/chat/completions")
 async def generate_chat_completion(
-        form_data: dict, user=Depends(get_verified_user)
+        form_data: dict,
+        user=Depends(get_verified_user)
 ):
-    print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
-
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
@@ -369,7 +370,34 @@ async def generate_chat_completion(
                 log.error(e)
                 response = await r.text()
 
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except ClientResponseError as e:
+                if agent_or_task_prompt:
+                    raise e
+
+                model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+
+                form_data = {
+                    "model": model.id,
+                    "messages": [
+                        {
+                            "role": "assistant",
+                            "content": COMPLETION_ERROR_MESSAGE_PROMPT
+                        },
+                        {
+                            "role": "user",
+                            "content": str(response)
+                        }],
+                    "stream": False,
+                    "metadata": {
+                        "chat_id": None,
+                        "agent_or_task_prompt": True
+                    },
+                    "temperature": 0.0
+                }
+
+                return await generate_chat_completion(form_data, user)
 
             if has_chat_id:
                 # Add completion to completion table
@@ -407,7 +435,7 @@ async def generate_chat_completion(
         )
     finally:
         if not streaming and session:
-            if r:
+            if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
             await session.close()
 
