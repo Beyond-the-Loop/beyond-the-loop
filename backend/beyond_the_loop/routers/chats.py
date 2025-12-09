@@ -17,8 +17,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_permission
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -76,7 +77,7 @@ async def create_new_chat(form_data: ChatForm, user=Depends(get_verified_user)):
     except Exception as e:
         log.exception(e)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.DEFAULT()
+            status_code=status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.DEFAULT
         )
 
 
