@@ -197,8 +197,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 async def generate_chat_completion(
         form_data: dict, user=Depends(get_verified_user)
 ):
-    print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
-
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 

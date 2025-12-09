@@ -1,16 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
-import time
+
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 
 from sqlalchemy.orm import relationship
-from sqlalchemy import String, Column, Text, Boolean, Float
+from sqlalchemy import String, Column, Text, Boolean, Float, BigInteger
 
 from open_webui.internal.db import get_db, Base
 from enum import Enum
-from beyond_the_loop.models.users import get_active_users_by_company, get_users_by_company
-from beyond_the_loop.services.crm_service import crm_service
 
 # Constants
 NO_COMPANY = "NO_COMPANY"
@@ -38,6 +36,7 @@ class Company(Base):
     budget_mail_80_sent = Column(Boolean, nullable=True)
     budget_mail_100_sent = Column(Boolean, nullable=True)
     subscription_not_required = Column(Boolean, nullable=True)
+    next_credit_charge_check = Column(BigInteger, nullable=True)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
@@ -59,6 +58,7 @@ class CompanyModel(BaseModel):
     budget_mail_80_sent: Optional[bool] = False
     budget_mail_100_sent: Optional[bool] = False
     subscription_not_required: Optional[bool] = False
+    next_credit_charge_check: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -159,6 +159,26 @@ class CompanyTable:
         except Exception as e:
             print(f"Error updating company", e)
             return None
+
+    def get_companies_due_for_credit_recharge_check(self) -> list[CompanyModel]:
+        try:
+            with get_db() as db:
+                # Get current timestamp
+                now_ts = datetime.now().timestamp()
+
+                # Query companies whose next_credit_charge_check is due
+                due_companies = db.query(Company).filter(
+                        Company.next_credit_charge_check <= now_ts
+                ).all()
+
+                # Commit the updates
+                db.commit()
+
+                return due_companies
+
+        except Exception as e:
+            print("Error fetching companies due for credit recharge check:", e)
+            return []
 
 
     def update_auto_recharge(self, company_id: str, auto_recharge: bool) -> Optional[CompanyModel]:
