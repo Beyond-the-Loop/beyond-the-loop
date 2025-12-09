@@ -1193,6 +1193,19 @@ CHUNK_OVERLAP = PersistentConfig(
     int(os.environ.get("CHUNK_OVERLAP", "100")),
 )
 
+COMPLETION_ERROR_MESSAGE_PROMPT = """
+You are an AI assistant generating a helpful fallback message after an upstream model request failed.
+Your goal is to explain the failure in a clear and reassuring way.
+- Describe the error in human-readable terms.
+- Do not invent technical details.
+- Do not blame the user.
+- Keep the tone calm, neutral, and professional.
+- If the cause is unknown, say that the system encountered an unexpected error.
+
+IMPORTANT: If appropriate based on the error, suggest that the user try a different model.
+Only make this suggestion when the error clearly indicates that the current model cannot handle the task.
+"""
+
 DEFAULT_RAG_TEMPLATE = """### Task:
 Respond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.
 
