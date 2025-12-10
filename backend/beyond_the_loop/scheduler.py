@@ -121,9 +121,10 @@ class TaskScheduler:
 
             self.scheduler.add_job(
                 func=_run_credit_recharge_checks,
-                trigger=CronTrigger(hour=1, minute=0),  # Daily at 01:00
-                id='daily_credit_recharge_checks',
-                name='Daily Credit Recharge Checks',
+                trigger='interval',
+                minutes=2,
+                id='credit_recharge_checks_every_2min',
+                name='Credit Recharge Checks (every 2 min)',
                 replace_existing=True
             )
 

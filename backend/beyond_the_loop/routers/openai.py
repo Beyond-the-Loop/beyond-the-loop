@@ -194,10 +194,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
-@router.get("/tesssssst")
-async def test():
-    return await payments_service.run_credit_recharge_checks()
-
 @router.post("/chat/completions")
 async def generate_chat_completion(
         form_data: dict,
