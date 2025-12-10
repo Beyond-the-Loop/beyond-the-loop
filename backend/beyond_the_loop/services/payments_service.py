@@ -371,9 +371,11 @@ class PaymentsService:
             raise HTTPException(status_code=500, detail=str(e))
 
     def run_credit_recharge_checks(self):
+        print("HALLO WAS GEHT ABBBB")
         try:
             due_companies = Companies.get_companies_due_for_credit_recharge_check()
 
+            print("companies", due_companies)
             # Update their next_credit_charge_check to the same day next month
             for company in due_companies:
                 subscription = payments_service.get_subscription(company.id)

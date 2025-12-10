@@ -40,7 +40,7 @@ from open_webui.utils.payload import (
     apply_model_system_prompt_to_body,
 )
 
-from open_webui.utils.auth import get_verified_user, get_current_api_key_user
+from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
@@ -196,7 +196,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 @router.get("/tesssssst")
 async def test():
-    return payments_service.run_credit_recharge_checks()
+    return await payments_service.run_credit_recharge_checks()
 
 @router.post("/chat/completions")
 async def generate_chat_completion(
