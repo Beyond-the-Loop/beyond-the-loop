@@ -90,7 +90,7 @@ class Loader:
                 file_path, extract_images=True
             )
         elif file_ext == "csv":
-            loader = CSVLoader(file_path)
+            loader = CSVLoader(file_path, encoding="latin1")
         elif file_ext == "rst":
             loader = UnstructuredRSTLoader(file_path, mode="elements")
         elif file_ext == "xml":
