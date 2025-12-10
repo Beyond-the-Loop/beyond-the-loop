@@ -178,12 +178,21 @@ class PaymentsService:
                 }
 
             if not active_subscriptions.data:
-                # get last active subscription from stripe
-                last_subscription = stripe.Subscription.list(
-                    customer=company.stripe_customer_id,
-                    status='all',
-                    limit=1
-                ).data[0]
+                try:
+                    # get last active subscription from stripe
+                    last_subscription = stripe.Subscription.list(
+                        customer=company.stripe_customer_id,
+                        status='all',
+                        limit=1
+                    ).data[0]
+                except IndexError:
+                    # No subscription ever existed for customer
+                    return {
+                        'credits_remaining': company.credit_balance,
+                        'flex_credits_remaining': company.flex_credit_balance,
+                        "seats": 0,
+                        "seats_taken": Users.count_users_by_company_id(company_id),
+                    }
 
                 plan_id, plan, image_url = self.get_plan_details_from_subscription(last_subscription)
 

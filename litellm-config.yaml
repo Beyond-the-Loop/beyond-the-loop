@@ -9,7 +9,6 @@ model_list:
       model: 'vertex_ai/claude-sonnet-4-5@20250929'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west1'
-      max_tokens: 64000
   - model_name: "Google 2.5 Flash"
     litellm_params:
       model: 'gemini-2.5-flash'
