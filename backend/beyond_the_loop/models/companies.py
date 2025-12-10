@@ -168,7 +168,7 @@ class CompanyTable:
 
                 # Query companies whose next_credit_charge_check is due
                 due_companies = db.query(Company).filter(
-                        Company.next_credit_charge_check <= now_ts
+                        Company.next_credit_charge_check <= now_ts and Company.stripe_customer_id != None
                 ).all()
 
                 # Commit the updates
