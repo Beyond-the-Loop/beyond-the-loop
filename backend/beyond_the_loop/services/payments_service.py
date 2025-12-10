@@ -393,7 +393,6 @@ class PaymentsService:
                     Companies.update_company_by_id(company.id, {
                         "next_credit_charge_check": None
                     })
-
             return {
                 "success": True,
                 "companies_processed": [c.id for c in due_companies]
