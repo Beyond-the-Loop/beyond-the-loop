@@ -43,6 +43,7 @@ from open_webui.utils.payload import (
 from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
+from services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -192,6 +193,10 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
+
+@router.get("/tesssssst")
+async def test():
+    return payments_service.run_credit_recharge_checks()
 
 @router.post("/chat/completions")
 async def generate_chat_completion(
