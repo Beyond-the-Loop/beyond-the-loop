@@ -43,7 +43,7 @@ from open_webui.utils.payload import (
 from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
-from services.payments_service import payments_service
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
