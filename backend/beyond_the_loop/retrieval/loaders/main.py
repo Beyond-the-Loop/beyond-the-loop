@@ -1,4 +1,3 @@
-import requests
 import logging
 import ftfy
 import sys
@@ -14,11 +13,15 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     UnstructuredPowerPointLoader,
     UnstructuredRSTLoader,
-    UnstructuredXMLLoader,
+    UnstructuredXMLLoader
 )
 
 from langchain_core.documents import Document
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
+
+from pdf2image import convert_from_path
+import pytesseract
+import pymupdf
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -77,6 +80,31 @@ known_source_ext = [
     "lhs",
 ]
 
+
+
+def _is_pdf_image_only(file_path: str) -> bool:
+    """Check if PDF contains extractable text or just images."""
+    doc = pymupdf.open(file_path)
+    for page in doc:
+        if page.get_text("text").strip():  # If any text exists
+            return False
+    return True  # No text on any page → image-based PDF
+
+
+def _extract_text_from_pdf_images(file_path: str) -> list[Document]:
+    """Extract text from scanned PDF using OCR."""
+    pages = convert_from_path(file_path, dpi=300)
+    docs = []
+    for i, page in enumerate(pages):
+        text = pytesseract.image_to_string(page, lang="eng")
+        docs.append(
+            Document(
+                page_content=ftfy.fix_text(text),
+                metadata={"source": file_path, "page": i + 1},
+            )
+        )
+    return docs
+
 class Loader:
     def __init__(self, engine: str = "", **kwargs):
         self.engine = engine
@@ -86,9 +114,10 @@ class Loader:
         file_ext = filename.split(".")[-1].lower()
 
         if file_ext == "pdf":
-            loader = PyPDFLoader(
-                file_path, extract_images=True
-            )
+            if _is_pdf_image_only(file_path):
+                loader = None  # We'll handle OCR separately in `load()`
+            else:
+                loader = PyPDFLoader(file_path)
         elif file_ext == "csv":
             loader = CSVLoader(file_path, encoding="latin1")
         elif file_ext == "rst":
@@ -132,7 +161,20 @@ class Loader:
     def load(self, filename: str, file_content_type: str, file_path: str) -> list[Document]:
         loader = self._get_loader(filename, file_content_type, file_path)
 
-        docs = loader.load()
+        # If loader is None and PDF is image-based → use OCR
+        if loader is None:
+            docs = _extract_text_from_pdf_images(file_path)
+        else:
+            docs = loader.load()
+            docs = [
+                Document(
+                    page_content=ftfy.fix_text(doc.page_content),
+                    metadata=doc.metadata
+                )
+                for doc in docs
+            ]
+
+        print("DAS SIND DIE DOCS", docs)
 
         return [
             Document(

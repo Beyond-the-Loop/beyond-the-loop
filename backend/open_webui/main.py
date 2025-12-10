@@ -18,7 +18,7 @@ from fastapi import (
     HTTPException,
     Request,
     status,
-    applications,
+    applications, UploadFile,
 )
 
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -34,6 +34,8 @@ from starlette.responses import Response
 
 from beyond_the_loop.routers import users
 from beyond_the_loop.config import WEBHOOK_URL
+from beyond_the_loop.models.completions import Completions
+from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.middleware.company_config import CompanyConfigMiddleware
 from open_webui.socket.main import (
     app as socket_app,
@@ -57,6 +59,10 @@ from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import file_archival
 from beyond_the_loop.routers import intercom
+
+from beyond_the_loop.models.files import Files
+
+from beyond_the_loop.routers.files import upload_file
 
 from open_webui.routers.retrieval import (
     get_embedding_function,
@@ -124,9 +130,6 @@ from beyond_the_loop.config import (
     WEBUI_NAME,
     WEBUI_BANNERS,
     JWT_EXPIRES_IN,
-    ENABLE_API_KEY,
-    ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
-    API_KEY_ALLOWED_ENDPOINTS,
     ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
@@ -208,6 +211,8 @@ from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
 from open_webui.routers import retrieval
+from open_webui.utils.auth import get_current_api_key_user
+from beyond_the_loop.services.credit_service import credit_service
 
 if SAFE_MODE:
     print("SAFE MODE ENABLED")
@@ -278,12 +283,6 @@ app.state.config = AppConfig()
 ########################################
 
 app.state.config.WEBUI_URL = WEBUI_URL
-
-app.state.config.ENABLE_API_KEY = ENABLE_API_KEY
-app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS = (
-    ENABLE_API_KEY_ENDPOINT_RESTRICTIONS
-)
-app.state.config.API_KEY_ALLOWED_ENDPOINTS = API_KEY_ALLOWED_ENDPOINTS
 
 app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
@@ -501,7 +500,6 @@ async def commit_session_after_request(request: Request, call_next):
 @app.middleware("http")
 async def check_url(request: Request, call_next):
     start_time = int(time.time())
-    request.state.enable_api_key = app.state.config.ENABLE_API_KEY
     response = await call_next(request)
     process_time = int(time.time()) - start_time
     response.headers["X-Process-Time"] = str(process_time)
@@ -591,7 +589,96 @@ async def get_models(request: Request, user=Depends(get_verified_user)):
 async def get_base_models(request: Request, user=Depends(get_admin_user)):
     return {"data": Models.get_base_models_by_comany_and_user(user.company_id, user.id, user.role)}
 
+@app.post("/api/openai/chat/completions")
+async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
+    request['stream'] = False
 
+    # Handle optional file
+    if request.get('metadata', {}).get('file_id'):
+        file = Files.get_file_by_id(request['metadata']['file_id'])
+
+        if file:
+            messages = request.get('messages', [])
+            last_user_message = [m for m in messages if m["role"] == "user"][-1]
+
+            if last_user_message:
+                last_user_message['content'] = last_user_message.get('content', "") + file.data.get('content', "")
+        else:
+            print("File with ID:", request['metadata']['file_id'], "not found in openai API")
+
+    async with aiohttp.ClientSession(
+        trust_env=True,
+        timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
+    ) as session:
+        async with session.post(
+            f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
+            json=request,
+            headers={
+                "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+                "Content-Type": "application/json"
+            }
+        ) as upstream:
+            # Normal response
+            try:
+                response = await upstream.json()
+            except Exception as e:
+                print("Error in chat completions public endpoint LiteLLM request", e)
+                response = await upstream.text()
+
+            upstream.raise_for_status()
+
+            try:
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, request.get("model"))
+
+                Completions.insert_new_completion(user.id, "OPENAI API", request.get("model"), credit_cost, 0)
+            except Exception as err:
+                print("Error in chat completions public endpoint LiteLLM credit service", err)
+
+            return response
+
+@app.post("/api/openai/files")
+async def upload_file_openai(
+    request: Request,
+    user=Depends(get_current_api_key_user),
+):
+    """
+    OpenAI-compatible wrapper around the existing `upload_file` function.
+    """
+    try:
+        # Extract file from multipart/form-data
+        form = await request.form()
+        file: UploadFile = form.get("file")
+
+        if not file:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No file provided."
+            )
+
+        # Call your existing internal upload_file function
+        file_item = upload_file(request=request, file=file, user=user)
+
+        # Adapt response to OpenAI style
+        return JSONResponse(
+            content={
+                "id": file_item.id,
+                "object": "file",
+                "filename": file_item.filename,
+                "bytes": file_item.meta.get("size"),
+                "status": "processed" if not getattr(file_item, "error", None) else "error",
+                "error": getattr(file_item, "error", None),
+                "created_at": file_item.created_at if hasattr(file_item, "created_at") else None,
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File upload failed."
+        )
 @app.post("/api/chat/completions")
 async def chat_completion(
     request: Request,
@@ -718,7 +805,6 @@ async def get_app_config(request: Request):
             "auth": WEBUI_AUTH,
             "auth_trusted_header": bool(app.state.AUTH_TRUSTED_EMAIL_HEADER),
             "enable_ldap": app.state.config.ENABLE_LDAP,
-            "enable_api_key": app.state.config.ENABLE_API_KEY,
             "enable_websocket": ENABLE_WEBSOCKET_SUPPORT,
             **(
                 {

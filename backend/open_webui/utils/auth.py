@@ -3,7 +3,7 @@ import uuid
 import jwt
 
 from datetime import UTC, datetime, timedelta
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union
 
 from beyond_the_loop.models.users import Users
 
@@ -74,6 +74,28 @@ def get_http_authorization_cred(auth_header: str):
         raise ValueError(ERROR_MESSAGES.INVALID_TOKEN)
 
 
+def get_current_api_key_user(
+    request: Request,
+    auth_token: HTTPAuthorizationCredentials = Depends(bearer_security),
+):
+    token = None
+
+    if auth_token is not None:
+        token = auth_token.credentials
+
+    if token is None:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+
+    # auth by api key
+    if token.startswith("sk-"):
+        return get_current_user_by_api_key(token)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token",
+    )
+
+
 def get_current_user(
     request: Request,
     auth_token: HTTPAuthorizationCredentials = Depends(bearer_security),
@@ -88,28 +110,6 @@ def get_current_user(
 
     if token is None:
         raise HTTPException(status_code=403, detail="Not authenticated")
-
-    # auth by api key
-    if token.startswith("sk-"):
-        if not request.state.enable_api_key:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.API_KEY_NOT_ALLOWED
-            )
-
-        if request.app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS:
-            allowed_paths = [
-                path.strip()
-                for path in str(
-                    request.app.state.config.API_KEY_ALLOWED_ENDPOINTS
-                ).split(",")
-            ]
-
-            if request.url.path not in allowed_paths:
-                raise HTTPException(
-                    status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.API_KEY_NOT_ALLOWED
-                )
-
-        return get_current_user_by_api_key(token)
 
     # auth by jwt token
     try:

@@ -66,6 +66,8 @@ COPY --chown=$UID:$GID ./backend .
 
 RUN apt-get update && apt-get install -y \
     curl jq bash ffmpeg \
+    poppler-utils \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8080
