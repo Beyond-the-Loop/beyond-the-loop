@@ -174,8 +174,6 @@ class Loader:
                 for doc in docs
             ]
 
-        print("DAS SIND DIE DOCS", docs)
-
         return [
             Document(
                 page_content=ftfy.fix_text(doc.page_content), metadata=doc.metadata
