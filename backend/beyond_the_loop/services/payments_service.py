@@ -331,7 +331,7 @@ class PaymentsService:
                         limit=1
                     ).data[0]
                 except IndexError:
-                    # No subscription ever existed for customer
+                    # No subscription ever existed for the customer
                     return {
                         'credits_remaining': company.credit_balance,
                         'flex_credits_remaining': company.flex_credit_balance,
@@ -380,18 +380,14 @@ class PaymentsService:
             raise HTTPException(status_code=500, detail=str(e))
 
     def run_credit_recharge_checks(self):
-        print("HALLO WAS GEHT ABBBB")
         try:
             due_companies = Companies.get_companies_due_for_credit_recharge_check()
 
-            print("companies", due_companies)
             # Update their next_credit_charge_check to the same day next month
             for company in due_companies:
                 subscription = payments_service.get_subscription(company.id)
 
                 if subscription.get("is_trial", False) or subscription.get("status", False) == "active":
-                    print("SET NEXT CREDIT RECHARGE CHECK FOR COMPANY:", company.id)
-
                     Companies.update_company_by_id(company.id, {
                         "credit_balance": subscription.get("custom_credit_amount", False) or self.SUBSCRIPTION_PLANS.get(subscription.get("plan", ""), {}).get("credits_per_month", 0),
                         "budget_mail_80_sent": False,
@@ -400,10 +396,10 @@ class PaymentsService:
 
                     _set_new_credit_recharge_check_date(company)
                 else:
-                    print("SET NEXT CREDIT RECHARGE CHECK TO NULL FOR COMPANY:", company.id)
                     Companies.update_company_by_id(company.id, {
                         "next_credit_charge_check": None
                     })
+
             return {
                 "success": True,
                 "companies_processed": [c.id for c in due_companies]

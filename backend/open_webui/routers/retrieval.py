@@ -537,8 +537,6 @@ def process_file(
                     file.filename, file.meta.get("content_type"), file_path
                 )
 
-                print("DOCCCCCS", docs)
-
                 docs = [
                     Document(
                         page_content=doc.page_content,
