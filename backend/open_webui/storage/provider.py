@@ -160,10 +160,14 @@ class GCSStorageProvider(StorageProvider):
 
     def upload_file(self, file: BinaryIO, filename: str) -> Tuple[bytes, str]:
         """Handles uploading of the file to GCS storage."""
-        contents, file_path = LocalStorageProvider.upload_file(file, filename)
+        contents = file.read()
+        if not contents:
+            raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
+
         try:
+            file.seek(0)
             blob = self.bucket.blob(filename)
-            blob.upload_from_filename(file_path)
+            blob.upload_from_file(file)
             return contents, "gs://" + self.bucket_name + "/" + filename
         except GoogleCloudError as e:
             raise RuntimeError(f"Error uploading file to GCS: {e}")
