@@ -1,7 +1,7 @@
 from opensearchpy import OpenSearch
 from typing import Optional
 
-from retrieval.vector.main import VectorItem, SearchResult, GetResult
+from beyond_the_loop.retrieval.vector.main import VectorItem, SearchResult, GetResult
 from beyond_the_loop.config import (
     OPENSEARCH_URI,
     OPENSEARCH_SSL,

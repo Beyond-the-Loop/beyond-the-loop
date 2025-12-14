@@ -17,11 +17,11 @@ from sqlalchemy.pool import NullPool
 
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB, array
-from retrieval.vector.dbs.pgvector import Vector
+from beyond_the_loop.retrieval.vector.dbs.pgvector import Vector
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.exc import NoSuchTableError
 
-from retrieval.vector.main import VectorItem, SearchResult, GetResult
+from beyond_the_loop.retrieval.vector.main import VectorItem, SearchResult, GetResult
 from beyond_the_loop.config import PGVECTOR_DB_URL, PGVECTOR_INITIALIZE_MAX_VECTOR_LENGTH
 
 VECTOR_LENGTH = PGVECTOR_INITIALIZE_MAX_VECTOR_LENGTH
