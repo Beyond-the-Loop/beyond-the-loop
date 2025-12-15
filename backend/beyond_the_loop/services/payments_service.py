@@ -43,6 +43,8 @@ class PaymentsService:
                                                         "price_1SSM5YBBwyxb4MZj6pj9hNIH")
         self.stripe_price_id_team_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_YEARLY', "price_1RNqAcBBwyxb4MZjNdS4XrNc")
 
+        self.stripe_price_id_team_two_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_TWO_YEARLY', 'price_1SecChBBwyxb4MZjwC1dBei8')
+
         self.stripe_price_id_business_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_MONTHLY',
                                                           "price_1Rgl6vBBwyxb4MZjHFAg6034")
         self.stripe_price_id_business_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_YEARLY',
@@ -63,64 +65,61 @@ class PaymentsService:
                 "price": 2500,  # 25€ in cents
                 "credits_per_month": 5,
                 "stripe_price_id": self.stripe_price_id_starter_monthly,
-                "seats": 5,
-                "months": 1
+                "seats": 5
             },
             "starter_yearly": {
                 "price": 27000,  # 270,00€ in cents
                 "credits_per_month": 5,
                 "stripe_price_id": self.stripe_price_id_starter_yearly,
-                "seats": 5,
-                "months": 12
+                "seats": 5
             },
             "team_monthly": {
                 "price": 14900,  # 149,00€ in cents
                 "credits_per_month": 50,
                 "stripe_price_id": self.stripe_price_id_team_monthly,
-                "seats": 25,
-                "months": 1
+                "seats": 25
             },
             "team_yearly": {
                 "price": 161000,  # 1.610,00€ in cents
                 "credits_per_month": 50,
                 "stripe_price_id": self.stripe_price_id_team_yearly,
-                "seats": 25,
-                "months": 12
+                "seats": 25
+            },
+            "team_two_yearly": {
+                "price": 357600,  # 3576,00€ in cents
+                "credits_per_month": 50,
+                "stripe_price_id": self.stripe_price_id_team_two_yearly,
+                "seats": 25
             },
             "business_monthly": {
                 "price": 44900,  # 449€ in cents
                 "credits_per_month": 150,
                 "stripe_price_id": self.stripe_price_id_business_monthly,
-                "seats": 100,
-                "months": 1
+                "seats": 100
             },
             "business_yearly": {
                 "price": 484900,  # 4.849,00€ in cents
                 "credits_per_month": 150,
                 "stripe_price_id": self.stripe_price_id_business_yearly,
-                "seats": 100,
-                "months": 12
+                "seats": 100
             },
             "business_two_yearly": {
                 "price": 969800,  # 9.698,00€ in cents
                 "credits_per_month": 150,
                 "stripe_price_id": self.stripe_price_id_business_two_yearly,
-                "seats": 100,
-                "months": 24
+                "seats": 100
             },
             "enterprise_monthly": {
                 "price": 124900, # 1.249,00€ in cents,
                 "credits_per_month": 450,
                 "stripe_price_id": self.stripe_price_id_enterprise_monthly,
-                "seats": 1000,
-                "months": 1
+                "seats": 1000
             },
             "enterprise_yearly": {
                 "price": 1348900,  # 13.489,00€ in cents,
                 "credits_per_month": 450,
                 "stripe_price_id": self.stripe_price_id_enterprise_yearly,
-                "seats": 1000,
-                "months": 12
+                "seats": 1000
             }
         }
 

@@ -194,7 +194,7 @@
 					{/if}
 					<div class="flex items-center gap-2.5">
 						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
-								{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', ''))}
+								{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', '').replace('_two', ''))}
 						</div>
 						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
 							<div
@@ -207,7 +207,9 @@
 							<div
 								class="flex justify-center items-center text-xs bg-lightGray-400 dark:text-customGray-590 dark:bg-customGray-800 px-2 py-1 rounded-mdx"
 							>
-								{$i18n.t('Yearly')}
+								{$subscription.plan.includes('two_yearly')
+									? $i18n.t('Two yearly')
+									: $i18n.t('Yearly')}
 							</div>
 						{/if}
 						{#if $subscription.status === 'canceled'}
