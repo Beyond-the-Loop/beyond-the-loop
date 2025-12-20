@@ -3,12 +3,10 @@ from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, Header, APIRouter
 import os
 from typing import Optional
-from time import strftime
 
 from beyond_the_loop.models.companies import Companies
-from beyond_the_loop.services.crm_service import crm_service
+from beyond_the_loop.models.users import Users
 from open_webui.utils.auth import get_verified_user
-from beyond_the_loop.services.loops_service import loops_service
 from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
@@ -16,9 +14,9 @@ router = APIRouter()
 class SubscriptionPlanResponse(BaseModel):
     """Response model for subscription plans"""
     id: str
-    price: int
-    credits_per_month: int
-    seats: int
+    price: Optional[int] = None
+    credits_per_month: Optional[int] = None
+    seats: Optional[int] = None
 
 class SubscriptionResponse(BaseModel):
     """Response model for company subscription details"""
@@ -55,49 +53,50 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
         print(f"Error creating billing portal session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/customer-pricing-table-infos/")
-async def customer_pricing_table_infos(user=Depends(get_verified_user)):
-    try:
-        company = Companies.get_company_by_id(user.company_id)
-
-        if not company.stripe_customer_id:
-            raise HTTPException(status_code=404, detail="No customer found")
-
-        # Create a billing portal session
-        session = stripe.CustomerSession.create(
-            customer=company.stripe_customer_id,
-            components={"pricing_table": {"enabled": True}},
-        )
-
-        return {"client_secret": session.client_secret, "pricing_table_id": payments_service.stripe_pricing_table_id, "publishable_key": payments_service.stripe_publishable_key}
-    except Exception as e:
-        print(f"Error creating billing portal session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 # Get current subscription details
 @router.get("/subscription/")
 def get_subscription(user=Depends(get_verified_user)):
     return payments_service.get_subscription(user.company_id)
 
-# Get all available subscription plans
-@router.get("/subscription-plans/")
-async def get_subscription_plans(user=Depends(get_verified_user)):
+
+@router.get("create-premium-subscription-checkout-session")
+def create_premium_subscription_checkout_session(user=Depends(get_verified_user)):
     company = Companies.get_company_by_id(user.company_id)
 
-    if company.subscription_not_required:
-        return []
+    checkout_session = stripe.checkout.Session.create(
+        automatic_tax={
+            "enabled": True,
+        },
+        customer_update={"address": "auto"},
+        customer=company.stripe_customer_id,
+        line_items=[{
+            "price": payments_service.SUBSCRIPTION_PLANS.get("premium").get("stripe_price_id", ""),
+            "quantity": Users.get_num_active_users_by_company_id(user.company_id),
+        }],
+        mode="subscription",
+        success_url=os.getenv('BACKEND_ADDRESS') + "?modal=company-settings&tab=billing",
+        cancel_url=os.getenv('BACKEND_ADDRESS') + "?modal=company-settings&tab=billing",
+        ui_mode="hosted",
+        billing_address_collection="required",
+    )
 
-    """Get all available subscription plans"""
-    plans = []
-    for plan_id, plan_details in payments_service.SUBSCRIPTION_PLANS.items():
-        plans.append(SubscriptionPlanResponse(
-            id=plan_id,
-            price=plan_details["price"],
-            credits_per_month=plan_details["credits_per_month"],
-            seats=plan_details["seats"]
-        ))
+    return checkout_session.url
 
-    return plans
+@router.post("/cancel-premium-subscription/")
+async def cancel_premium_subscription(user=Depends(get_verified_user)):
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") == "premium":
+        stripe.Subscription.modify(
+            subscription.get("subscription_id"),
+            cancel_at_period_end=True
+        )
+
+        return {"message": "Subscription cancelled successfully"}
+
+    return {"message": "No premium subscription found"}
+
 
 @router.post("/checkout-webhook")
 async def checkout_webhook(request: Request, stripe_signature: str = Header(None)):
@@ -117,15 +116,9 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         event_data = event.get("data", {}).get("object", {})
 
         # Subscription events
-        if event_type == "customer.subscription.created":
-            handle_subscription_created(event_data)
-            return
-        elif event_type == "customer.subscription.updated":
-            handle_subscription_updated(event_data)
-            return
-        elif event_type == "charge.succeeded":
+        if event_type == "charge.succeeded":
+            # Legacy flex credit recharge
             handle_charge_succeeded(event_data)
-            return
         else:
             print(f"Unhandled Stripe event type: {event_type}")
 
@@ -137,8 +130,7 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         print(f"Webhook processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# For flex credits recharge
+# Legacy flex credits recharge
 def handle_charge_succeeded(event_data):
     try:
         flex_credits_recharge = event_data.get("metadata", {}).get("flex_credits_recharge")
@@ -153,42 +145,17 @@ def handle_charge_succeeded(event_data):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def handle_subscription_created(event_data):
-    """
-    Handle subscription created webhook event from Stripe.
-    Updates company credit balance based on the subscription plan.
-    
-    Args:
-        event_data: The subscription data from the Stripe webhook event
-    """
-    try:
-        loops_service.update_company_users_loops_contact(event_data)
-        payments_service.update_company_credits_from_subscription(event_data, "adding")
-    except Exception as e:
-        print(f"Error handling subscription created event: {e}")
-
-
-def handle_subscription_updated(event_data):
-    """
-    Handle subscription updated webhook event from Stripe.
-    Updates company credit balance based on the subscription plan.
-    
-    Args:
-        event_data: The subscription data from the Stripe webhook event
-    """
-    try:
-        loops_service.update_company_users_loops_contact(event_data)
-        payments_service.update_company_credits_from_subscription(event_data, "updating")
-    except Exception as e:
-        print(f"Error handling subscription updated event: {e}")
-
-
 class UpdateAutoRechargeRequest(BaseModel):
     auto_recharge: bool
 
 @router.post("/update-auto-recharge/")
 async def update_auto_recharge(request: UpdateAutoRechargeRequest, user=Depends(get_verified_user)):
     try:
+        subscription = payments_service.get_subscription(user.company_id)
+
+        if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
+            raise HTTPException(status_code=403, detail="Failed to update auto-recharge setting: Not available for Free or Premium companies")
+
         result = Companies.update_auto_recharge(user.company_id, request.auto_recharge)
         if result:
             return {"message": f"Auto-recharge {'enabled' if request.auto_recharge else 'disabled'} successfully"}
@@ -213,6 +180,11 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
         HTTPException: If there's an error with the payment or recharge process
     """
     try:
+        subscription = payments_service.get_subscription(user.company_id)
+
+        if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
+            raise HTTPException(status_code=403, detail="Failed to update auto-recharge setting: Not available for Free or Premium companies")
+
         company = Companies.get_company_by_id(user.company_id)
 
         # Check if the company has_active_subscription

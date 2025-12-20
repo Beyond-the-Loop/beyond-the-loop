@@ -207,6 +207,7 @@ from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
 from open_webui.routers import retrieval
 from open_webui.utils.auth import get_current_api_key_user
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 if SAFE_MODE:
     print("SAFE MODE ENABLED")
@@ -584,6 +585,11 @@ async def get_base_models(request: Request, user=Depends(get_admin_user)):
 
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Subscription required and not available for Free or Premium companies.")
+
     request['stream'] = False
 
     # Handle optional file

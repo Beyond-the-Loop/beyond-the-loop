@@ -11,6 +11,10 @@ from sqlalchemy import Boolean, Column, String, Text
 from open_webui.utils.auth import verify_password
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
+from beyond_the_loop.routers.payments import get_subscription
+import stripe
+
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -133,13 +137,28 @@ class AuthsTable:
             db.commit()
             db.refresh(result)
 
-            try:
-                if company_id not in ["NEW", "NO_COMPANY"]:
-                    loops_service.create_or_update_loops_contact(user)
-                    company = Companies.get_company_by_id(company_id).name
-                    crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
-            except Exception as e:
-                log.error(f"Failed to create user in CRM or in Loops: {e}")
+            if company_id not in ["NEW", "NO_COMPANY"]:
+                subscription = payments_service.get_subscription(user.company_id)
+
+                try:
+                    if subscription.get("plan") == "premium":
+                        stripe.Subscription.modify(
+                            subscription.get("subscription_id"),
+                            items=[{
+                                "id": subscription.get("subscription_item_id"),
+                                "quantity": Users.get_num_active_users_by_company_id(user.company_id)
+                            }],
+                            proration_behavior="none"  # disables proration
+                        )
+                except Exception as e:
+                    log.error(f"Failed to update subscription on signup (insert new auth): {e}")
+
+                try:
+                        loops_service.create_or_update_loops_contact(user)
+                        company = Companies.get_company_by_id(company_id).name
+                        crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
+                except Exception as e:
+                    log.error(f"Failed to create user in CRM or in Loops: {e}")
 
             if result and user:
                 return user
@@ -156,13 +175,29 @@ class AuthsTable:
             db.commit()
             db.refresh(result)
 
-            try:
-                if user.company_id != "NEW":
-                    company = Companies.get_company_by_id(user.company_id).name
+            if user.company_id != "NEW":
+                company = Companies.get_company_by_id(user.company_id).name
+
+                subscription = payments_service.get_subscription(user.company_id)
+
+                try:
+                    if subscription.get("plan") == "premium":
+                        stripe.Subscription.modify(
+                            subscription.get("subscription_id"),
+                            items=[{
+                                "id": subscription.get("subscription_item_id"),
+                                "quantity": Users.get_num_active_users_by_company_id(user.company_id)
+                            }],
+                            proration_behavior="none"  # disables proration
+                        )
+                except Exception as e:
+                    log.error(f"Failed to update subscription on signup (insert new auth for existing user): {e}")
+
+                try:
                     loops_service.create_or_update_loops_contact(user)
                     crm_service.create_user(company_name=company, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
-            except Exception as e:
-                log.error(f"Failed to create user in CRM or in Loops: {e}")
+                except Exception as e:
+                    log.error(f"Failed to create user in CRM or in Loops: {e}")
 
             if result:
                 return True
@@ -216,7 +251,7 @@ class AuthsTable:
         except Exception:
             return False
 
-    def delete_auth_by_id(self, id: str) -> bool:
+    def delete_auth_by_id(self, id: str, company_id: str) -> bool:
         try:
             with get_db() as db:
                 # Delete User
@@ -225,6 +260,21 @@ class AuthsTable:
                 if result:
                     db.query(Auth).filter_by(id=id).delete()
                     db.commit()
+
+                    subscription = payments_service.get_subscription(company_id)
+
+                    try:
+                        if subscription.get("plan") == "premium":
+                            stripe.Subscription.modify(
+                                subscription.get("subscription_id"),
+                                items=[{
+                                    "id": subscription.get("subscription_item_id"),
+                                    "quantity": Users.get_num_active_users_by_company_id(company_id)
+                                }],
+                                proration_behavior="none"  # disables proration
+                            )
+                    except Exception as e:
+                        log.error(f"Failed to update subscription on signup (insert new auth): {e}")
 
                     return True
                 else:

@@ -51,7 +51,9 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
         company = Companies.get_company_by_id(user.company_id)
 
-        if not company.subscription_not_required:
+        subscription_details = get_subscription(user)
+
+        if not company.subscription_not_required and not subscription_details.get("plan") == "free" and not subscription_details.get("plan") == "premium":
             # Get subscription details
             subscription_details = get_subscription(user)
 
@@ -540,7 +542,7 @@ async def update_user_by_id(
 @router.delete("/{user_id}", response_model=bool)
 async def delete_user_by_id(user_id: str, user=Depends(get_admin_user)):
     if user.id != user_id:
-        result = Auths.delete_auth_by_id(user_id)
+        result = Auths.delete_auth_by_id(user_id, user.company_id)
 
         if result:
             return True

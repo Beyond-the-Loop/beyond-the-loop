@@ -12,7 +12,7 @@ from beyond_the_loop.models.companies import (
     CompanyModel,
     UpdateCompanyConfigRequest,
     UpdateCompanyForm,
-    CreateCompanyForm
+    CreateCompanyForm,
 )
 from open_webui.utils.auth import get_current_user, get_admin_user
 from open_webui.env import SRC_LOG_LEVELS
@@ -285,18 +285,6 @@ async def create_company(
         # Update company with Stripe customer ID
         company = Companies.update_company_by_id(
             company_id, {"stripe_customer_id": stripe_customer.id}
-        )
-
-        # Create the subscription with the price
-        stripe.Subscription.create(
-            customer=stripe_customer.id,
-            trial_period_days=7,  # 7-day trial
-            trial_settings={
-                "end_behavior": {
-                    "missing_payment_method": "cancel"  # Cancel when trial ends if no payment method
-                }
-            },
-            items=[{"price": payments_service.SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
         )
 
         try:

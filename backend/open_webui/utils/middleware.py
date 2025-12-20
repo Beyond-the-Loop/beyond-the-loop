@@ -66,6 +66,7 @@ from open_webui.env import (
 from open_webui.constants import TASKS
 from open_webui.routers.retrieval import process_file, ProcessFileForm
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -74,6 +75,11 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 async def chat_web_search_handler(
     request: Request, form_data: dict, extra_params: dict, user
 ):
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+
     event_emitter = extra_params["__event_emitter__"]
 
     web_search_files = []
@@ -205,7 +211,8 @@ async def chat_web_search_handler(
                 }
             )
 
-        await credit_service.subtract_credits_by_user_for_web_search(user)
+        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+            await credit_service.subtract_credits_by_user_for_web_search(user)
     except Exception as e:
         log.exception(e)
         await event_emitter(
@@ -1746,7 +1753,10 @@ async def process_chat_response(
                                     # }
 
                                     if isinstance(data, dict):
-                                        await credit_service.subtract_credits_by_user_for_code_interpreter(user)
+                                        subscription = payments_service.get_subscription(user.company_id)
+
+                                        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                                            await credit_service.subtract_credits_by_user_for_code_interpreter(user)
 
                                         output = data
                                         # Ensure keys exist

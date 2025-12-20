@@ -37,6 +37,7 @@ from open_webui.env import (
     ENABLE_FORWARD_USER_INFO_HEADERS,
 )
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
 
@@ -230,7 +231,10 @@ def load_speech_pipeline(request):
 
 @router.post("/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     body = await request.body()
     name = hashlib.sha256(
@@ -277,9 +281,9 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 ) as r:
                     r.raise_for_status()
 
-                    number_of_characters_in_input = len(payload["input"])
-
-                    await credit_service.subtract_credits_by_user_for_tts(user, request.app.state.config.TTS_MODEL, number_of_characters_in_input)
+                    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                        number_of_characters_in_input = len(payload["input"])
+                        await credit_service.subtract_credits_by_user_for_tts(user, request.app.state.config.TTS_MODEL, number_of_characters_in_input)
 
                     async with aiofiles.open(file_path, "wb") as f:
                         await f.write(await r.read())
@@ -548,7 +552,10 @@ async def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     if file.content_type not in ["audio/mpeg", "audio/wav", "audio/ogg", "audio/x-m4a"]:
         raise HTTPException(
@@ -578,17 +585,18 @@ async def transcription(
 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=ERROR_MESSAGES.DEFAULT(e),
+                    detail=ERROR_MESSAGES.DEFAULT,
                 )
-
-            audio = AudioSegment.from_file(file_path)
-            duration_in_seconds = len(audio) / 1000  # pydub uses milliseconds
-            duration_in_minutes = duration_in_seconds / 60  # Calculate exact minutes as a float
 
             data = transcribe(request, file_path)
             file_path = file_path.split("/")[-1]
 
-            await credit_service.subtract_credits_by_user_for_stt(user, request.app.state.config.STT_MODEL, duration_in_minutes)
+            if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                audio = AudioSegment.from_file(file_path)
+                duration_in_seconds = len(audio) / 1000  # pydub uses milliseconds
+                duration_in_minutes = duration_in_seconds / 60  # Calculate exact minutes as a float
+
+                await credit_service.subtract_credits_by_user_for_stt(user, request.app.state.config.STT_MODEL, duration_in_minutes)
 
             return {**data, "filename": file_path}
         except Exception as e:
@@ -596,7 +604,7 @@ async def transcription(
 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT(e),
+                detail=ERROR_MESSAGES.DEFAULT,
             )
 
     except Exception as e:
@@ -604,7 +612,7 @@ async def transcription(
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
 

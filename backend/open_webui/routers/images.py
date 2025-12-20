@@ -19,6 +19,7 @@ from open_webui.env import SRC_LOG_LEVELS
 
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["IMAGES"])
@@ -111,9 +112,11 @@ async def image_generations(
 ):
     width, height = tuple(map(int, request.app.state.config.IMAGE_SIZE.split("x")))
 
-    r = None
     try:
-        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+        subscription = payments_service.get_subscription(user.company_id)
+
+        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+            await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
         if request.app.state.config.IMAGE_GENERATION_ENGINE == "flux":
             # Black Forest Labs Flux Kontext Pro
@@ -191,9 +194,10 @@ async def image_generations(
                     file_body_path = IMAGE_CACHE_DIR.joinpath(f"{image_filename}.json")
                     with open(file_body_path, "w") as f:
                         json.dump({**data, "task_id": task_id, "status": status}, f)
-                    
-                    # Subtract credits for image generation
-                    await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-max")
+
+                    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                        # Subtract credits for image generation
+                        await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-max")
 
                     return [{"url": f"/cache/image/generations/{image_filename}"}]
 
@@ -207,10 +211,5 @@ async def image_generations(
             raise HTTPException(status_code=408, detail="Flux generation timed out")
         else:
             raise HTTPException(status_code=400, detail="Unknown image generation engine")
-    except Exception as e:
-        error = e
-        if r != None:
-            data = r.json()
-            if "error" in data:
-                error = data["error"]["message"]
-        raise HTTPException(status_code=400, detail=ERROR_MESSAGES.DEFAULT(error))
+    except Exception:
+        raise HTTPException(status_code=400, detail=ERROR_MESSAGES.DEFAULT)

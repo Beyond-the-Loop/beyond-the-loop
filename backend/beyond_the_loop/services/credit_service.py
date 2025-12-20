@@ -13,7 +13,7 @@ from beyond_the_loop.models.model_costs import ModelCosts
 
 from beyond_the_loop.routers.payments import get_subscription
 
-PROFIT_MARGIN_FACTOR = 1.15
+PROFIT_MARGIN_FACTOR = 1.25
 EUR_PER_DOLLAR = 0.9
 
 log = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class CreditService:
         """Initialize the CreditService."""
         pass
 
-    async def subtract_credits_by_user_and_credits(self, user, credit_cost: float):
+    async def _subtract_credits_by_user_and_credits(self, user, credit_cost: float):
         """
         Subtract credits from a company's balance and handle low balance scenarios.
         
@@ -105,29 +105,29 @@ class CreditService:
 
         credit_cost = tts_cost
 
-        return await self.subtract_credits_by_user_and_credits(user, credit_cost)
+        return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
     async def subtract_credits_by_user_for_tts(self, user, model_name: str, characters: int):
         tts_cost = characters * (ModelCosts.get_cost_per_million_characters_stt_by_model_name(model_name) / 1000000) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
 
         credit_cost = tts_cost
 
-        return await self.subtract_credits_by_user_and_credits(user, credit_cost)
+        return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
     async def subtract_credits_by_user_for_image(self, user, model_name: str):
         image_cost = ModelCosts.get_cost_per_image_by_model_name(model_name) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
 
         credit_cost = image_cost
 
-        return await self.subtract_credits_by_user_and_credits(user, credit_cost)
+        return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
     async def subtract_credits_by_user_for_web_search(self, user):
-        return await self.subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
+        return await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
     async def subtract_credits_by_user_for_code_interpreter(self, user):
-        return await self.subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
+        return await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
-    async def subtract_credits_by_user_and_tokens(self, user, model_name: str, input_tokens: int, output_tokens: int, reasoning_tokens: int, with_search_query_cost: bool):
+    async def _subtract_credits_by_user_and_tokens(self, user, model_name: str, input_tokens: int, output_tokens: int, reasoning_tokens: int, with_search_query_cost: bool):
         costs_per_input_token = ModelCosts.get_cost_per_million_input_tokens_by_model_name(model_name) / 1000000
         cost_per_output_token = ModelCosts.get_cost_per_million_output_tokens_by_model_name(model_name) / 1000000
 
@@ -147,7 +147,7 @@ class CreditService:
 
         print(f" Model: {model_name}", f"Reasoning tokens: {reasoning_tokens}", f"Search query cost: {search_query_cost}", f"Credit cost: {credit_cost}", f"Cost per input token: {costs_per_input_token}", f"Cost per output token: {cost_per_output_token}", f"Total costs: {total_costs}", f"Input tokens: {input_tokens}", f"Output tokens: {output_tokens}")
 
-        return await self.subtract_credits_by_user_and_credits(user, credit_cost)
+        return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
     @staticmethod
     async def recharge_flex_credits(user):
@@ -175,7 +175,7 @@ class CreditService:
         # Get the active subscription to check seat limits
         subscription_details = get_subscription(user)
 
-        if not company.subscription_not_required:
+        if not company.subscription_not_required and not subscription_details.get("plan") == "free" and not subscription_details.get("plan") == "premium":
             # Get current seat count and limit
             seats_limit = subscription_details.get("seats", 0)
             seats_taken = subscription_details.get("seats_taken", 0)
@@ -229,7 +229,7 @@ class CreditService:
 
         with_search_query_cost = "Perplexity" in model_name
 
-        credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
+        credit_cost = await credit_service._subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
 
         return credit_cost
 

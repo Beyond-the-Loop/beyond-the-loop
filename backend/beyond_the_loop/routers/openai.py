@@ -43,6 +43,7 @@ from open_webui.utils.payload import (
 from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -229,7 +230,9 @@ async def generate_chat_completion(
                     if c.get("type") != "image_url"
                 ]
 
-    if has_chat_id or agent_or_task_prompt:
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     params = model_info.params.model_dump()
@@ -329,7 +332,7 @@ async def generate_chat_completion(
                             elif data.get('usage'):
                                 # End of stream
                                 # Add completion to completion table if it's a chat message from the user
-                                if has_chat_id:
+                                if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                                     credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
                                     Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
 
@@ -381,7 +384,7 @@ async def generate_chat_completion(
 
                 return await generate_chat_completion(form_data, user)
 
-            if has_chat_id:
+            if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 # Add completion to completion table
                 response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
