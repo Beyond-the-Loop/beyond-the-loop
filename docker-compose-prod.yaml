@@ -58,10 +58,6 @@ services:
     container_name: beyond-the-loop
     env_file:
       - .env
-    environment:
-      - OPENAI_API_BASE_URL=http://litellm:4000/v1
-      - DATABASE_URL=sqlite:////app/backend/data/database.sqlite
-      - BACKEND_ADDRESS=https://v2.beyondtheloop.ai
     volumes:
       - ./backend/data:/app/backend/data
     depends_on:
