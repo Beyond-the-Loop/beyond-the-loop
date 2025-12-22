@@ -11,7 +11,7 @@ PORT="${PORT:-8080}"
 
 # Start the LiteLLM container in the background
 cd "${PROJECT_ROOT}" || exit 1
-docker-compose -f docker-compose-local.yaml up -d litellm redis
+docker-compose -f docker-compose-local.yaml up -d litellm redis postgresql
 
 # Start the uvicorn server
 cd "${PROJECT_ROOT}/backend" || exit 1
