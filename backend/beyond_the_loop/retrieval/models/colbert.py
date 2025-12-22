@@ -1,8 +1,8 @@
 import os
 import torch
 import numpy as np
-from beyond_the_loop.retrieval.models.colbert import ColBERTConfig
-from beyond_the_loop.retrieval.models.colbert import Checkpoint
+from colbert.infra import ColBERTConfig
+from colbert.modeling.checkpoint import Checkpoint
 
 
 class ColBERT:

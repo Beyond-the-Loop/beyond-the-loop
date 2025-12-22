@@ -14,7 +14,7 @@ from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
     DATA_DIR,
-    DATABASE_URL,
+    APP_DATABASE_URL,
     ENV,
     FRONTEND_BUILD_DIR,
     OFFLINE_MODE,

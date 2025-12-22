@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from beyond_the_loop.models.auths import Auth
-from open_webui.env import DATABASE_URL
+from open_webui.env import APP_DATABASE_URL
 from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object, which provides
@@ -25,7 +25,7 @@ target_metadata = Auth.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-DB_URL = DATABASE_URL
+DB_URL = APP_DATABASE_URL
 
 if DB_URL:
     config.set_main_option("sqlalchemy.url", DB_URL.replace("%", "%%"))
