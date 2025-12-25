@@ -20,10 +20,10 @@ from beyond_the_loop.models.users import (
 )
 
 
-from open_webui.socket.main import get_active_status_by_user_id
+from beyond_the_loop.socket.main import get_active_status_by_user_id
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.misc import validate_email_format

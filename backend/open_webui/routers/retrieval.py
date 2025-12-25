@@ -21,7 +21,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSp
 from langchain_core.documents import Document
 
 from beyond_the_loop.models.files import FileModel, Files
-from open_webui.storage.provider import Storage
+from beyond_the_loop.storage.provider import Storage
 
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
@@ -47,7 +47,6 @@ from open_webui.utils.misc import (
 from open_webui.utils.auth import get_admin_user, get_verified_user
 
 from beyond_the_loop.config import (
-    ENV,
     RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE,
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
     UPLOAD_DIR,
@@ -844,13 +843,6 @@ def reset_upload_dir(user=Depends(get_admin_user)) -> bool:
     except Exception as e:
         print(f"Failed to process the directory {folder}. Reason: {e}")
     return True
-
-
-if ENV == "dev":
-
-    @router.get("/ef/{text}")
-    async def get_embeddings(request: Request, text: Optional[str] = "Hello World!"):
-        return {"result": request.app.state.EMBEDDING_FUNCTION(text)}
 
 
 class BatchProcessFilesForm(BaseModel):
