@@ -2,11 +2,10 @@ import logging
 import sys
 
 from typing import Any
-import inspect
 
 from fastapi import Request
 
-from open_webui.socket.main import (
+from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
 )

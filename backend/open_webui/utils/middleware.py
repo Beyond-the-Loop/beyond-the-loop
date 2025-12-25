@@ -22,7 +22,7 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
 from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
 from beyond_the_loop.models.files import FileForm
-from open_webui.socket.main import (
+from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
     get_active_status_by_user_id,
@@ -41,7 +41,7 @@ from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
 from beyond_the_loop.routers.openai import generate_chat_completion
 from beyond_the_loop.models.files import Files
-from open_webui.storage.provider import Storage
+from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
 from open_webui.utils.task import (
     rag_template,

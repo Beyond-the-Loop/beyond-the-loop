@@ -6,7 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 from urllib.parse import quote
 
-from open_webui.storage.provider import Storage
+from beyond_the_loop.storage.provider import Storage
 
 from beyond_the_loop.models.files import (
     FileForm,

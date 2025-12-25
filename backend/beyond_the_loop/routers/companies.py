@@ -21,6 +21,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.socket.main import COMPANY_CONFIG_CACHE
 
 router = APIRouter()
 
@@ -92,7 +93,7 @@ async def update_company_config(
         
         # Get the current config
         current_config = get_config(company_id)
-        
+
         # Update only the specific fields that were provided
         if form_data.hide_model_logo_in_chat is not None:
             if "ui" not in current_config:

@@ -14,7 +14,7 @@ from open_webui.env import (
     WEBSOCKET_REDIS_URL,
 )
 from open_webui.utils.auth import decode_token
-from open_webui.socket.utils import RedisDict, RedisLock
+from beyond_the_loop.socket.utils import RedisDict, RedisLock
 
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
@@ -46,6 +46,7 @@ else:
         always_connect=True,
     )
 
+COMPANY_CONFIG_CACHE = RedisDict("company_config_cache", redis_url=WEBSOCKET_REDIS_URL)
 
 # Timeout duration in seconds
 TIMEOUT_DURATION = 3

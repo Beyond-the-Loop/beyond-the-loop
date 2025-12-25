@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status, Backgrou
 from pydantic import BaseModel
 
 
-from open_webui.socket.main import sio, get_user_ids_from_room
+from beyond_the_loop.socket.main import sio, get_user_ids_from_room
 from beyond_the_loop.models.users import Users, UserNameResponse
 
 from open_webui.models.channels import Channels, ChannelModel, ChannelForm
