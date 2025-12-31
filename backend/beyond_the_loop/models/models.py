@@ -231,7 +231,7 @@ class ModelsTable:
     
     def get_active_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
-            models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active == 1).all()
+            models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active).all()
             return [
                 ModelModel.model_validate(model)
                 for model in models

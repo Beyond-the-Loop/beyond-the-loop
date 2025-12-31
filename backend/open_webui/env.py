@@ -265,11 +265,11 @@ if os.path.exists(f"{DATA_DIR}/ollama.db"):
 else:
     pass
 
-DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATA_DIR}/database.sqlite")
+APP_DATABASE_URL = os.environ.get("APP_DATABASE_URL", f"sqlite:///{DATA_DIR}/database.sqlite")
 
 # Replace the postgres:// with postgresql://
-if "postgres://" in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+if "postgres://" in APP_DATABASE_URL:
+    APP_DATABASE_URL = APP_DATABASE_URL.replace("postgres://", "postgresql://")
 
 DATABASE_SCHEMA = os.environ.get("DATABASE_SCHEMA", None)
 

@@ -8,23 +8,18 @@ from typing import Generic, Optional, TypeVar
 from urllib.parse import urlparse
 
 import chromadb
-import requests
 from pydantic import BaseModel
 from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
     DATA_DIR,
-    DATABASE_URL,
-    ENV,
     FRONTEND_BUILD_DIR,
     OFFLINE_MODE,
     OPEN_WEBUI_DIR,
-    WEBUI_AUTH,
-    WEBUI_FAVICON_URL,
-    WEBUI_NAME,
     log,
 )
 from open_webui.internal.db import Base, get_db
+from beyond_the_loop.socket.main import COMPANY_CONFIG_CACHE
 
 
 class EndpointFilter(logging.Filter):
@@ -150,12 +145,19 @@ def get_config(company_id):
     if company_id is None:
         return DEFAULT_CONFIG
 
+    cached = COMPANY_CONFIG_CACHE.get(company_id)
+
     with get_db() as db:
         config_entry = db.query(Config).filter_by(company_id=company_id).order_by(Config.id.desc()).first()
-        if not config_entry:
+        if not config_entry and not cached:
             # If no config exists for this company, return the default config
             return DEFAULT_CONFIG
-        return config_entry.data
+
+        if cached:
+            return cached
+        else:
+            COMPANY_CONFIG_CACHE[company_id] = config_entry.data
+            return config_entry.data
 
 
 # Initialize with the default config
@@ -180,6 +182,8 @@ def save_config(config, company_id):
     # If company_id is None, we can't save to the database (company_id is required)
     if company_id is None:
         return False
+
+    del COMPANY_CONFIG_CACHE[company_id]
 
     global CONFIG_DATA
     global PERSISTENT_CONFIG_REGISTRY
@@ -244,10 +248,10 @@ class PersistentConfig(Generic[T]):
         # If company_id is None, we can't save to the database
         if company_id is None:
             return
-            
+
         #log.info(f"Saving '{self.env_name}' to the database")
         path_parts = self.config_path.split(".")
-        
+
         # Get the full config
         full_config = get_config(company_id)
         

@@ -14,6 +14,44 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+  redis:
+    container_name: redis-valkey
+    image: valkey/valkey:8.1-alpine
+    command: "valkey-server --save 30 1"
+    healthcheck:
+      test: "[ $$(valkey-cli ping) = 'PONG' ]"
+      start_period: 5s
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    volumes:
+      - redis:/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  postgresql:
+    container_name: postgresql
+    image: pgvector/pgvector:pg18-trixie
+    environment:
+      - POSTGRES_PASSWORD=strong-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - ./database/initdb:/docker-entrypoint-initdb.d
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
   beyond-the-loop:
     image: ghcr.io/beyond-the-loop/beyond-the-loop:production
     pull_policy: always
@@ -22,12 +60,16 @@ services:
       - .env
     environment:
       - OPENAI_API_BASE_URL=http://litellm:4000/v1
-      - DATABASE_URL=sqlite:////app/backend/data/database.sqlite
+      - APP_DATABASE_URL=postgresql://beyondtheloopuser:beyondthelooppassword@postgresql:5432/beyondtheloopdb
+      - REDIS_URL=redis://redis-valkey:6379/0
+      - VECTOR_DB=pgvector
+      - PGVECTOR_DB_URL=postgresql://beyondtheloopuser:beyondthelooppassword@postgresql:5432/vectordb
       - BACKEND_ADDRESS=http://localhost:8080
-
     volumes:
       - ./backend/data:/app/backend/data
     depends_on:
+      - postgresql
+      - redis
       - litellm
     ports:
       - "8080:8080"
@@ -35,6 +77,30 @@ services:
       - host.docker.internal:host-gateway
     restart: unless-stopped
 
+  migration-db:
+    container_name: migration-db
+    image: dimitri/pgloader:latest
+    volumes:
+      - ./backend/data:/tmp
+    command: ["pgloader", "sqlite:////tmp/database.sqlite", "pgsql://beyondtheloopuser:beyondthelooppassword@postgresql:5432/beyondtheloopdb"]
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - postgresql
+
+  migration-vectordb:
+    container_name: migration-vectordb
+    image: dimitri/pgloader:latest
+    volumes:
+      - ./backend/data/vector_db:/tmp
+    command: ["pgloader", "sqlite:////tmp/chroma.sqlite3", "pgsql://beyondtheloopuser:beyondthelooppassword@postgresql:5432/vectordb"]
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - postgresql
+
 volumes:
   beyond-the-loop: {}
   litellm: {}
+  redis: {}
+  postgresql: {}

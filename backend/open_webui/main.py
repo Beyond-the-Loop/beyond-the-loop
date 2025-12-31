@@ -36,8 +36,7 @@ from beyond_the_loop.routers import users
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.completions import Completions
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
-from open_webui.middleware.company_config import CompanyConfigMiddleware
-from open_webui.socket.main import (
+from beyond_the_loop.socket.main import (
     app as socket_app,
     periodic_usage_pool_cleanup,
 )
@@ -125,9 +124,6 @@ from beyond_the_loop.config import (
     ENABLE_RAG_HYBRID_SEARCH,
     ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
     ENABLE_GOOGLE_DRIVE_INTEGRATION,
-    # WebUI
-    WEBUI_AUTH,
-    WEBUI_NAME,
     WEBUI_BANNERS,
     JWT_EXPIRES_IN,
     ENABLE_CHANNELS,
@@ -159,7 +155,6 @@ from beyond_the_loop.config import (
     LDAP_CA_CERT_FILE,
     LDAP_CIPHERS,
     # Misc
-    ENV,
     CACHE_DIR,
     STATIC_DIR,
     FRONTEND_BUILD_DIR,
@@ -268,8 +263,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    docs_url="/docs" if ENV == "dev" else None,
-    openapi_url="/openapi.json" if ENV == "dev" else None,
+    docs_url=None,
+    openapi_url=None,
     redoc_url=None,
     lifespan=lifespan,
 )
@@ -486,7 +481,6 @@ class RedirectMiddleware(BaseHTTPMiddleware):
 # Add the middleware to the app
 app.add_middleware(RedirectMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(CompanyConfigMiddleware)
 
 
 @app.middleware("http")
@@ -792,7 +786,6 @@ async def get_app_config(request: Request):
     return {
         **({"onboarding": True} if onboarding else {}),
         "status": True,
-        "name": WEBUI_NAME,
         "version": VERSION,
         "default_locale": str(DEFAULT_LOCALE),
         "oauth": {
@@ -802,7 +795,6 @@ async def get_app_config(request: Request):
             }
         },
         "features": {
-            "auth": WEBUI_AUTH,
             "auth_trusted_header": bool(app.state.AUTH_TRUSTED_EMAIL_HEADER),
             "enable_ldap": app.state.config.ENABLE_LDAP,
             "enable_websocket": ENABLE_WEBSOCKET_SUPPORT,
@@ -935,8 +927,8 @@ async def oauth_callback(provider: str, request: Request, response: Response):
 @app.get("/manifest.json")
 async def get_manifest_json():
     return {
-        "name": WEBUI_NAME,
-        "short_name": WEBUI_NAME,
+        "name": "Beyond the Loop",
+        "short_name": "Beyond the Loop",
         "description": "Open WebUI is an open, extensible, user-friendly interface for AI that adapts to your workflow.",
         "start_url": "/",
         "display": "standalone",
@@ -963,8 +955,8 @@ async def get_manifest_json():
 async def get_opensearch_xml():
     xml_content = rf"""
     <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
-    <ShortName>{WEBUI_NAME}</ShortName>
-    <Description>Search {WEBUI_NAME}</Description>
+    <ShortName>{"Beyond the Loop"}</ShortName>
+    <Description>Search {"Beyond the Loop"}</Description>
     <InputEncoding>UTF-8</InputEncoding>
     <Image width="16" height="16" type="image/x-icon">{app.state.config.WEBUI_URL}/static/favicon.png</Image>
     <Url type="text/html" method="get" template="{app.state.config.WEBUI_URL}/?q={"{searchTerms}"}"/>
