@@ -183,7 +183,8 @@ def save_config(config, company_id):
     if company_id is None:
         return False
 
-    del COMPANY_CONFIG_CACHE[company_id]
+    if company_id in COMPANY_CONFIG_CACHE:
+        del COMPANY_CONFIG_CACHE[company_id]
 
     global CONFIG_DATA
     global PERSISTENT_CONFIG_REGISTRY

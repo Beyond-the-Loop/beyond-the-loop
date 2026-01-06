@@ -23,10 +23,10 @@ def upgrade() -> None:
 
     conn.execute(
         sa.text("""
-CREATE TABLE IF NOT EXISTS "auth" ("id" VARCHAR(255) NOT NULL, "email" VARCHAR(255) NOT NULL, "password" TEXT NOT NULL NOT NULL, "active" INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS "auth" ("id" VARCHAR(255) NOT NULL, "email" VARCHAR(255) NOT NULL, "password" TEXT NOT NULL, "active" INTEGER NOT NULL);
 
 CREATE TABLE IF NOT EXISTS channel (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY UNIQUE, 
 	user_id TEXT, 
 	name TEXT, 
 	description TEXT, 
@@ -34,26 +34,39 @@ CREATE TABLE IF NOT EXISTS channel (
 	meta JSON, 
 	access_control JSON, 
 	created_at BIGINT, 
-	updated_at BIGINT, type TEXT, 
-	PRIMARY KEY (id), 
-	UNIQUE (id)
+	updated_at BIGINT,
+    type TEXT
 );
 
 CREATE TABLE IF NOT EXISTS channel_member (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY UNIQUE, 
 	channel_id TEXT NOT NULL, 
 	user_id TEXT NOT NULL, 
-	created_at BIGINT, 
-	PRIMARY KEY (id), 
-	UNIQUE (id)
+	created_at BIGINT
 );
 
-CREATE TABLE IF NOT EXISTS "chat" ("id" VARCHAR(255) NOT NULL, "user_id" VARCHAR(255) NOT NULL, "title" TEXT NOT NULL NOT NULL, "share_id" VARCHAR(255), "archived" INTEGER NOT NULL, "created_at" DATETIME NOT NULL NOT NULL, "updated_at" DATETIME NOT NULL NOT NULL, chat JSON, pinned BOOLEAN, meta JSON DEFAULT '{}' NOT NULL, folder_id TEXT);
+CREATE TABLE IF NOT EXISTS "chat" (
+    "id" VARCHAR(255) NOT NULL,
+    "user_id" VARCHAR(255) NOT NULL,
+    "title" TEXT NOT NULL NOT NULL,
+    "share_id" VARCHAR(255),
+    "archived" INTEGER NOT NULL,
+    "created_at" TIMESTAMP NOT NULL,
+    "updated_at" TIMESTAMP NOT NULL,
+    chat JSON,
+    pinned BOOLEAN,
+    meta JSON DEFAULT '{}' NOT NULL,
+    folder_id TEXT);
 
-CREATE TABLE IF NOT EXISTS "chatidtag" ("id" VARCHAR(255) NOT NULL, "tag_name" VARCHAR(255) NOT NULL, "chat_id" VARCHAR(255) NOT NULL, "user_id" VARCHAR(255) NOT NULL, "timestamp" INTEGER NOT NULL NOT NULL);
+CREATE TABLE IF NOT EXISTS "chatidtag" (
+    "id" VARCHAR(255) NOT NULL,
+    "tag_name" VARCHAR(255) NOT NULL,
+    "chat_id" VARCHAR(255) NOT NULL,
+    "user_id" VARCHAR(255) NOT NULL,
+    "timestamp" INTEGER NOT NULL);
 
 CREATE TABLE IF NOT EXISTS "company" (
-	id VARCHAR NOT NULL, 
+	id VARCHAR NOT NULL PRIMARY KEY UNIQUE, 
 	name VARCHAR NOT NULL, 
 	profile_image_url TEXT, 
 	default_model VARCHAR, 
@@ -67,13 +80,13 @@ CREATE TABLE IF NOT EXISTS "company" (
 	team_function VARCHAR, 
 	stripe_customer_id VARCHAR, 
 	budget_mail_80_sent BOOLEAN, 
-	budget_mail_100_sent BOOLEAN, subscription_not_required BOOLEAN, next_credit_charge_check BIGINT, 
-	PRIMARY KEY (id), 
-	UNIQUE (id)
+	budget_mail_100_sent BOOLEAN,
+    subscription_not_required BOOLEAN,
+    next_credit_charge_check BIGINT 
 );
 
 CREATE TABLE IF NOT EXISTS feedback (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	user_id TEXT, 
 	version BIGINT, 
 	type TEXT, 
@@ -81,8 +94,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 	meta JSON, 
 	snapshot JSON, 
 	created_at BIGINT NOT NULL, 
-	updated_at BIGINT NOT NULL, 
-	PRIMARY KEY (id)
+	updated_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "file" (
@@ -94,8 +106,9 @@ CREATE TABLE IF NOT EXISTS "file" (
 	hash TEXT, 
 	data JSON, 
 	updated_at BIGINT, 
-	path TEXT
-, access_control JSON);
+	path TEXT,
+    access_control JSON
+);
 
 CREATE TABLE IF NOT EXISTS "folder" (
 	id TEXT NOT NULL, 
@@ -110,48 +123,60 @@ CREATE TABLE IF NOT EXISTS "folder" (
 	PRIMARY KEY (id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS "memory" ("id" VARCHAR(255) NOT NULL, "user_id" VARCHAR(255) NOT NULL, "content" TEXT NOT NULL, "updated_at" INTEGER NOT NULL, "created_at" INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS "memory" (
+    "id" VARCHAR(255) NOT NULL,
+    "user_id" VARCHAR(255) NOT NULL,
+    "content" TEXT NOT NULL,
+    "updated_at" INTEGER NOT NULL,
+    "created_at" INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS message (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY UNIQUE,
 	user_id TEXT, 
 	channel_id TEXT, 
 	content TEXT, 
 	data JSON, 
 	meta JSON, 
 	created_at BIGINT, 
-	updated_at BIGINT, parent_id TEXT, 
-	PRIMARY KEY (id), 
-	UNIQUE (id)
+	updated_at BIGINT, parent_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS message_reaction (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY UNIQUE,
 	user_id TEXT NOT NULL, 
 	message_id TEXT NOT NULL, 
 	name TEXT NOT NULL, 
-	created_at BIGINT, 
-	PRIMARY KEY (id), 
-	UNIQUE (id)
+	created_at BIGINT
 );
     
 CREATE TABLE IF NOT EXISTS "model_cost" (
-	model_name VARCHAR(255) NOT NULL, cost_per_million_input_tokens FLOAT, cost_per_million_output_tokens FLOAT, cost_per_image FLOAT, cost_per_minute FLOAT, cost_per_million_characters FLOAT, cost_per_million_reasoning_tokens FLOAT, cost_per_thousand_search_queries FLOAT, 
-	PRIMARY KEY (model_name)
+	model_name VARCHAR(255) NOT NULL PRIMARY KEY UNIQUE,
+    cost_per_million_input_tokens FLOAT,
+    cost_per_million_output_tokens FLOAT,
+    cost_per_image FLOAT,
+    cost_per_minute FLOAT,
+    cost_per_million_characters FLOAT,
+    cost_per_million_reasoning_tokens FLOAT,
+    cost_per_thousand_search_queries FLOAT 
 );
     
 CREATE TABLE IF NOT EXISTS "tag" (
-	id VARCHAR(255) NOT NULL, 
+	id VARCHAR(255) NOT NULL,
 	name VARCHAR(255) NOT NULL, 
 	user_id VARCHAR(255) NOT NULL, 
 	meta JSON, 
 	CONSTRAINT pk_id_user_id PRIMARY KEY (id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS "migratehistory" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR(255) NOT NULL, "migrated_at" DATETIME NOT NULL);
+CREATE TABLE IF NOT EXISTS "migratehistory" (
+    "id" INTEGER NOT NULL PRIMARY KEY,
+    "name" VARCHAR(255) NOT NULL,
+    "migrated_at" TIMESTAMP NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS "user" (
-	id VARCHAR(255) NOT NULL, 
+	id VARCHAR(255) NOT NULL PRIMARY KEY, 
 	email VARCHAR(255) NOT NULL, 
 	role VARCHAR(255) NOT NULL, 
 	profile_image_url TEXT NOT NULL, 
@@ -162,12 +187,17 @@ CREATE TABLE IF NOT EXISTS "user" (
 	settings TEXT, 
 	info TEXT, 
 	oauth_sub TEXT, 
-	company_id VARCHAR NOT NULL, invite_token VARCHAR, first_name VARCHAR(255) DEFAULT 'SYSTEM' NOT NULL, last_name VARCHAR(255) DEFAULT 'SYSTEM' NOT NULL, password_reset_token VARCHAR, password_reset_token_expires_at VARCHAR, registration_code VARCHAR, 
-	CONSTRAINT fk_user_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
+	company_id VARCHAR NOT NULL,
+    invite_token VARCHAR,
+    first_name VARCHAR(255) DEFAULT 'SYSTEM' NOT NULL,
+    last_name VARCHAR(255) DEFAULT 'SYSTEM' NOT NULL,
+    password_reset_token VARCHAR,
+    password_reset_token_expires_at VARCHAR,
+    registration_code VARCHAR
 );
 
 CREATE TABLE IF NOT EXISTS "model" (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	user_id TEXT, 
 	base_model_id TEXT, 
 	name TEXT NOT NULL, 
@@ -176,14 +206,14 @@ CREATE TABLE IF NOT EXISTS "model" (
 	created_at INTEGER NOT NULL, 
 	updated_at INTEGER NOT NULL, 
 	access_control JSON, 
-	is_active BOOLEAN DEFAULT 1 NOT NULL, 
+	is_active BOOLEAN DEFAULT true NOT NULL, 
 	company_id VARCHAR DEFAULT 'system' NOT NULL, 
 	CONSTRAINT fk_user_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS "prompt" (
-	id INTEGER NOT NULL, 
-	command VARCHAR(255) NOT NULL, 
+	id INTEGER NOT NULL PRIMARY KEY, 
+	command VARCHAR(255) NOT NULL UNIQUE, 
 	user_id VARCHAR(255) NOT NULL, 
 	title TEXT NOT NULL, 
 	content TEXT NOT NULL, 
@@ -193,7 +223,6 @@ CREATE TABLE IF NOT EXISTS "prompt" (
 	prebuilt BOOLEAN, 
 	description VARCHAR, 
 	company_id VARCHAR DEFAULT 'system' NOT NULL, 
-	PRIMARY KEY (id), 
 	CONSTRAINT fk_user_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
 );
 
@@ -207,9 +236,9 @@ CREATE TABLE IF NOT EXISTS stripe_payment_history (
 	currency VARCHAR DEFAULT 'EUR' NOT NULL, 
 	payment_status VARCHAR NOT NULL, 
 	payment_method VARCHAR, 
-	payment_date DATETIME DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
-	created_at DATETIME DEFAULT (CURRENT_TIMESTAMP), 
-	updated_at DATETIME DEFAULT (CURRENT_TIMESTAMP), 
+	payment_date TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
+	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
+	updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
 	payment_metadata JSON, 
 	PRIMARY KEY (id), 
 	UNIQUE (id), 
@@ -251,14 +280,23 @@ CREATE TABLE IF NOT EXISTS "config" (
 	id INTEGER NOT NULL, 
 	data JSON NOT NULL, 
 	version INTEGER NOT NULL, 
-	created_at DATETIME DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
-	updated_at DATETIME DEFAULT (CURRENT_TIMESTAMP), 
+	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
+	updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
 	company_id VARCHAR DEFAULT 'DEFAULT' NOT NULL, 
 	PRIMARY KEY (id), 
 	CONSTRAINT fk_config_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS "document" ("id" INTEGER NOT NULL PRIMARY KEY, "collection_name" VARCHAR(255) NOT NULL, "name" VARCHAR(255) NOT NULL, "title" TEXT NOT NULL NOT NULL, "filename" TEXT NOT NULL NOT NULL, "content" TEXT, "user_id" VARCHAR(255) NOT NULL, "timestamp" INTEGER NOT NULL NOT NULL);
+CREATE TABLE IF NOT EXISTS "document" (
+    "id" INTEGER NOT NULL PRIMARY KEY,
+    "collection_name" VARCHAR(255) NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "title" TEXT NOT NULL,
+    "filename" TEXT NOT NULL,
+    "content" TEXT,
+    "user_id" VARCHAR(255) NOT NULL,
+    "timestamp" INTEGER NOT NULL NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS domain (
 	id TEXT NOT NULL, 

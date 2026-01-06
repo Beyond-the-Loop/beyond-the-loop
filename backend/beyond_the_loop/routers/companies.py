@@ -12,7 +12,7 @@ from beyond_the_loop.models.companies import (
     CompanyModel,
     UpdateCompanyConfigRequest,
     UpdateCompanyForm,
-    CreateCompanyForm,
+    CreateCompanyForm
 )
 from open_webui.utils.auth import get_current_user, get_admin_user
 from open_webui.env import SRC_LOG_LEVELS
@@ -222,6 +222,7 @@ async def create_company(
 ):
     try:
         company_id = str(uuid.uuid4())
+
         Companies.create_company(
             {
                 "id": company_id,
@@ -233,10 +234,12 @@ async def create_company(
                 "profile_image_url": form_data.company_profile_image_url,
             }
         )
+
         Users.update_company_by_id(user.id, company_id)
 
         # Save default config for the new company
         from beyond_the_loop.config import save_config, DEFAULT_CONFIG
+
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
@@ -248,8 +251,6 @@ async def create_company(
             "Perplexity Sonar Deep Research",
             "Perplexity Sonar Reasoning Pro",
         ]
-
-        print("OPENAI MODELS", openai_models)
 
         # Register OpenAI models in the database if they don't exist
         for model in openai_models:
@@ -308,6 +309,7 @@ async def create_company(
         return company
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating company: {str(e)}"
