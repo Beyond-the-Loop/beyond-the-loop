@@ -52,31 +52,6 @@ services:
       - host.docker.internal:host-gateway
     restart: unless-stopped
 
-  beyond-the-loop:
-    image: ghcr.io/beyond-the-loop/beyond-the-loop:production
-    pull_policy: always
-    container_name: beyond-the-loop
-    env_file:
-      - .env
-    environment:
-      - OPENAI_API_BASE_URL=http://litellm:4000/v1
-      - APP_DATABASE_URL=postgresql://beyondtheloopuser:beyondthelooppassword@postgresql:5432/beyondtheloopdb
-      - REDIS_URL=redis://redis-valkey:6379/0
-      - VECTOR_DB=pgvector
-      - PGVECTOR_DB_URL=postgresql://beyondtheloopuser:beyondthelooppassword@postgresql:5432/vectordb
-      - BACKEND_ADDRESS=http://localhost:8080
-    volumes:
-      - ./backend/data:/app/backend/data
-    depends_on:
-      - postgresql
-      - redis
-      - litellm
-    ports:
-      - "8080:8080"
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    restart: unless-stopped
-
   migration-db:
     container_name: migration-db
     image: dimitri/pgloader:latest

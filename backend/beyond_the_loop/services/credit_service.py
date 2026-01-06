@@ -90,7 +90,7 @@ class CreditService:
                         to_email=admin.email,
                         admin_name=admin.first_name,
                         company_name=company.name,
-                        billing_page_link=os.getenv("BACKEND_ADDRESS") + "?modal=company-settings&tab=billing"
+                        billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing"
                     )
 
                 Companies.update_company_by_id(company.id, {"budget_mail_80_sent": True})
@@ -205,7 +205,7 @@ class CreditService:
                     to_email=user.email,
                     admin_name=user.first_name,
                     company_name=company.name,
-                    billing_page_link=os.getenv("BACKEND_ADDRESS") + "?modal=company-settings&tab=billing"
+                    billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing"
                 )
 
                 Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})

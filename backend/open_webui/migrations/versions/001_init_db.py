@@ -23,10 +23,15 @@ def upgrade() -> None:
 
     conn.execute(
         sa.text("""
-CREATE TABLE IF NOT EXISTS "auth" ("id" VARCHAR(255) NOT NULL, "email" VARCHAR(255) NOT NULL, "password" TEXT NOT NULL, "active" INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS "auth" (
+    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
+    "email" VARCHAR(255) NOT NULL UNIQUE,
+    "password" TEXT NOT NULL,
+    "active" INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS channel (
-	id TEXT NOT NULL PRIMARY KEY UNIQUE, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	user_id TEXT, 
 	name TEXT, 
 	description TEXT, 
@@ -39,14 +44,14 @@ CREATE TABLE IF NOT EXISTS channel (
 );
 
 CREATE TABLE IF NOT EXISTS channel_member (
-	id TEXT NOT NULL PRIMARY KEY UNIQUE, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	channel_id TEXT NOT NULL, 
 	user_id TEXT NOT NULL, 
 	created_at BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS "chat" (
-    "id" VARCHAR(255) NOT NULL,
+    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
     "user_id" VARCHAR(255) NOT NULL,
     "title" TEXT NOT NULL NOT NULL,
     "share_id" VARCHAR(255),
@@ -56,17 +61,19 @@ CREATE TABLE IF NOT EXISTS "chat" (
     chat JSON,
     pinned BOOLEAN,
     meta JSON DEFAULT '{}' NOT NULL,
-    folder_id TEXT);
+    folder_id TEXT
+);
 
 CREATE TABLE IF NOT EXISTS "chatidtag" (
-    "id" VARCHAR(255) NOT NULL,
+    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
     "tag_name" VARCHAR(255) NOT NULL,
     "chat_id" VARCHAR(255) NOT NULL,
     "user_id" VARCHAR(255) NOT NULL,
-    "timestamp" INTEGER NOT NULL);
+    "timestamp" INTEGER NOT NULL)
+;
 
 CREATE TABLE IF NOT EXISTS "company" (
-	id VARCHAR NOT NULL PRIMARY KEY UNIQUE, 
+	id VARCHAR NOT NULL PRIMARY KEY, 
 	name VARCHAR NOT NULL, 
 	profile_image_url TEXT, 
 	default_model VARCHAR, 
@@ -98,7 +105,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 
 CREATE TABLE IF NOT EXISTS "file" (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	user_id TEXT NOT NULL, 
 	filename TEXT NOT NULL, 
 	meta JSON, 
@@ -124,7 +131,7 @@ CREATE TABLE IF NOT EXISTS "folder" (
 );
 
 CREATE TABLE IF NOT EXISTS "memory" (
-    "id" VARCHAR(255) NOT NULL,
+    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
     "user_id" VARCHAR(255) NOT NULL,
     "content" TEXT NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -132,18 +139,19 @@ CREATE TABLE IF NOT EXISTS "memory" (
 );
 
 CREATE TABLE IF NOT EXISTS message (
-	id TEXT NOT NULL PRIMARY KEY UNIQUE,
+	id TEXT NOT NULL PRIMARY KEY,
 	user_id TEXT, 
 	channel_id TEXT, 
 	content TEXT, 
 	data JSON, 
 	meta JSON, 
 	created_at BIGINT, 
-	updated_at BIGINT, parent_id TEXT
+	updated_at BIGINT,
+    parent_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS message_reaction (
-	id TEXT NOT NULL PRIMARY KEY UNIQUE,
+	id TEXT NOT NULL PRIMARY KEY,
 	user_id TEXT NOT NULL, 
 	message_id TEXT NOT NULL, 
 	name TEXT NOT NULL, 
@@ -151,7 +159,7 @@ CREATE TABLE IF NOT EXISTS message_reaction (
 );
     
 CREATE TABLE IF NOT EXISTS "model_cost" (
-	model_name VARCHAR(255) NOT NULL PRIMARY KEY UNIQUE,
+	model_name VARCHAR(255) NOT NULL PRIMARY KEY,
     cost_per_million_input_tokens FLOAT,
     cost_per_million_output_tokens FLOAT,
     cost_per_image FLOAT,
@@ -207,12 +215,11 @@ CREATE TABLE IF NOT EXISTS "model" (
 	updated_at INTEGER NOT NULL, 
 	access_control JSON, 
 	is_active BOOLEAN DEFAULT true NOT NULL, 
-	company_id VARCHAR DEFAULT 'system' NOT NULL, 
-	CONSTRAINT fk_user_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
+	company_id VARCHAR DEFAULT 'system' NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "prompt" (
-	id INTEGER NOT NULL PRIMARY KEY, 
+	id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 	command VARCHAR(255) NOT NULL UNIQUE, 
 	user_id VARCHAR(255) NOT NULL, 
 	title TEXT NOT NULL, 
@@ -222,13 +229,12 @@ CREATE TABLE IF NOT EXISTS "prompt" (
 	meta TEXT, 
 	prebuilt BOOLEAN, 
 	description VARCHAR, 
-	company_id VARCHAR DEFAULT 'system' NOT NULL, 
-	CONSTRAINT fk_user_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
+	company_id VARCHAR NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS stripe_payment_history (
-	id VARCHAR NOT NULL, 
-	stripe_transaction_id VARCHAR NOT NULL, 
+	id VARCHAR NOT NULL PRIMARY KEY, 
+	stripe_transaction_id VARCHAR NOT NULL UNIQUE,
 	company_id VARCHAR NOT NULL, 
 	user_id VARCHAR, 
 	description TEXT DEFAULT 'Standard Subscription Charge' NOT NULL, 
@@ -240,9 +246,6 @@ CREATE TABLE IF NOT EXISTS stripe_payment_history (
 	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
 	updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
 	payment_metadata JSON, 
-	PRIMARY KEY (id), 
-	UNIQUE (id), 
-	UNIQUE (stripe_transaction_id), 
 	FOREIGN KEY(company_id) REFERENCES company (id), 
 	FOREIGN KEY(user_id) REFERENCES "user" (id)
 );
@@ -264,26 +267,23 @@ CREATE TABLE IF NOT EXISTS user_prompt_bookmark (
 );
     
 CREATE TABLE IF NOT EXISTS "completion" (
-	id VARCHAR NOT NULL, 
+	id VARCHAR NOT NULL PRIMARY KEY, 
 	user_id VARCHAR, 
 	chat_id VARCHAR, 
 	model TEXT, 
 	credits_used FLOAT NOT NULL, 
 	created_at BIGINT, 
 	time_saved_in_seconds FLOAT, 
-	PRIMARY KEY (id), 
-	UNIQUE (id), 
 	FOREIGN KEY(user_id) REFERENCES "user" (id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS "config" (
-	id INTEGER NOT NULL, 
+	id INTEGER NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 	data JSON NOT NULL, 
 	version INTEGER NOT NULL, 
 	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
 	updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
-	company_id VARCHAR DEFAULT 'DEFAULT' NOT NULL, 
-	PRIMARY KEY (id), 
+	company_id VARCHAR NOT NULL, 
 	CONSTRAINT fk_config_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
 );
 
@@ -299,20 +299,16 @@ CREATE TABLE IF NOT EXISTS "document" (
 );
 
 CREATE TABLE IF NOT EXISTS domain (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	company_id TEXT NOT NULL, 
-	domain_fqdn TEXT NOT NULL, 
+	domain_fqdn TEXT NOT NULL UNIQUE, 
 	dns_approval_record TEXT NOT NULL, 
 	ownership_approved BOOLEAN NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (id), 
-	UNIQUE (domain_fqdn), 
-	FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE, 
-	UNIQUE (domain_fqdn)
+	FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
 );
     
 CREATE TABLE IF NOT EXISTS "group" (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY,
 	name TEXT, 
 	description TEXT, 
 	data JSON, 
@@ -322,13 +318,11 @@ CREATE TABLE IF NOT EXISTS "group" (
 	created_at BIGINT, 
 	updated_at BIGINT, 
 	company_id VARCHAR NOT NULL, 
-	PRIMARY KEY (id), 
-	CONSTRAINT fk_group_company_id FOREIGN KEY(company_id) REFERENCES company (id), 
-	UNIQUE (id)
+	CONSTRAINT fk_group_company_id FOREIGN KEY(company_id) REFERENCES company (id)
 );
 
 CREATE TABLE IF NOT EXISTS "knowledge" (
-	id TEXT NOT NULL, 
+	id TEXT NOT NULL PRIMARY KEY, 
 	user_id TEXT NOT NULL, 
 	name TEXT NOT NULL, 
 	description TEXT, 
@@ -338,7 +332,6 @@ CREATE TABLE IF NOT EXISTS "knowledge" (
 	updated_at BIGINT, 
 	access_control JSON, 
 	company_id VARCHAR NOT NULL, 
-	PRIMARY KEY (id), 
 	CONSTRAINT fk_knowledge_company_id FOREIGN KEY(company_id) REFERENCES company (id)
 );
     """)

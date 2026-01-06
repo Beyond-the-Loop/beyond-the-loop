@@ -47,7 +47,7 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
         # Create a billing portal session
         session = stripe.billing_portal.Session.create(
             customer=company.stripe_customer_id,
-            return_url=os.getenv('BACKEND_ADDRESS') + "?modal=company-settings&tab=billing",
+            return_url=os.getenv('FRONTEND_BASE_URL') + "?modal=company-settings&tab=billing",
         )
 
         return {"url": session.url}
