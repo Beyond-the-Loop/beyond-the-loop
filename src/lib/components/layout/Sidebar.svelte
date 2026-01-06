@@ -959,14 +959,14 @@
 										class="w-full flex justify-left pl-2.5 py-1 text-sm animate-pulse items-center gap-2"
 									>
 										<Spinner className=" size-4" />
-										<div class=" ">Loading...</div>
+										<div class=" ">{$i18n.t('Loading...')}</div>
 									</div>
 								</Loader>
 							{/if}
 						{:else}
 							<div class="w-full flex justify-center py-1 text-sm animate-pulse items-center gap-2">
 								<Spinner className=" size-4" />
-								<div class=" ">Loading...</div>
+								<div class=" ">{$i18n.t('Loading...')}</div>
 							</div>
 						{/if}
 					</div>

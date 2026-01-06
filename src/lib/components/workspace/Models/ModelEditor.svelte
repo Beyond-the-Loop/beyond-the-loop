@@ -853,7 +853,7 @@
 									</div>
 									<div class="py-3">
 										<div class="mb-2">
-											<TagSelect bind:selected={info.meta.tags} {userTags} placeholder="Add category..." />
+											<TagSelect bind:selected={info.meta.tags} {userTags} placeholder={$i18n.t('Add category...')} />
 										</div>
 										<AccessSelect bind:accessControl accessRoles={['read', 'write']} />
 									</div>

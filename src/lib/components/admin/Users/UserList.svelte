@@ -413,7 +413,7 @@
 							</Tooltip>
 
 							{#if user.role !== 'admin'}
-								<Tooltip content={$i18n.t('Delete User')}>
+								<Tooltip content={$i18n.t('Delete user')}>
 									<button
 										class="self-center w-fit text-sm px-2 py-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 										on:click={async () => {

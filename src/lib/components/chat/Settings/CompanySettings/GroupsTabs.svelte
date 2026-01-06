@@ -160,7 +160,7 @@
 			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
 				{#if groupName}
 					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-						{$i18n.t('Group name')}
+						{$i18n.t('Group Name')}
 					</div>
 				{/if}
 				<input

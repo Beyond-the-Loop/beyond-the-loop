@@ -348,7 +348,7 @@
 								<div class=" self-center mr-2">
 									<GroupIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('User management')}</div>
+								<div class=" self-center">{$i18n.t('User Management')}</div>
 							</div>
 						</button>
 						{:else if tabId === 'model-control'}

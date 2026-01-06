@@ -210,7 +210,7 @@
 			{#each Object.keys(organizations) as organization, idx (organization)}
 				<div class="mb-5">
 					<div
-						class="grid grid-cols-[32%_1fr_1fr_1fr_22%] md:grid-cols-[32%_1fr_1fr_1fr_22%] mb-2.5 gap-x-1"
+						class="grid grid-cols-[32%_1.1fr_0.9fr_0.9fr_22%] md:grid-cols-[32%_1.1fr_0.9fr_0.9fr_22%] mb-2.5"
 					>
 						<div
 							class="text-sm text-lightGray-100 dark:text-customGray-100 flex items-end justify-start"
@@ -242,12 +242,12 @@
 											<div
 												class="text-lightGray-100 dark:text-customGray-100 w-[12rem] text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10"
 											>
-												Please visit our <a
+												{$i18n.t('Please visit our')} <a
 													class="underline"
 													href="https://beyondtheloop.ai/pricing-breakdown"
 													target="_blank"
-													rel="noopener noreferrer">pricing page</a
-												> for a detailed breakdown.
+													rel="noopener noreferrer">{$i18n.t('pricing page')}</a
+												> {$i18n.t('for a detailed breakdown')}.
 											</div>
 										{/if}
 										<InfoIcon className="size-6" />
@@ -267,7 +267,7 @@
 							})
 							.includes(m.name.toLowerCase())) as model (model.name)}
 						<div
-							class="grid grid-cols-[35%_1fr_1fr_1fr_30%] md:grid-cols-[32%_1fr_1fr_1fr_22%] border-t last:border-b border-lightGray-400 dark:border-customGray-700"
+							class="grid grid-cols-[32%_1.1fr_0.9fr_0.9fr_22%] md:grid-cols-[32%_1.1fr_0.9fr_0.9fr_22%] border-t last:border-b border-lightGray-400 dark:border-customGray-700"
 						>
 							<div
 								class="border-l border-r border-lightGray-400 dark:border-customGray-700 py-3 px-2"

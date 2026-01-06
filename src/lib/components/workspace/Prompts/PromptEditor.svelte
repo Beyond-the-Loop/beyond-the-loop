@@ -158,7 +158,7 @@
 			</div>
 				
 			<div class="mb-1.5">
-				<TagSelect bind:selected={meta.tags} {userTags} placeholder="Add category..." />
+				<TagSelect bind:selected={meta.tags} {userTags} placeholder={$i18n.t('Add category...')} />
 			</div>
 
 			<div class="mb-1.5">

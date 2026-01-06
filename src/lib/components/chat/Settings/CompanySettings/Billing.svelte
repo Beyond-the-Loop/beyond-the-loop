@@ -258,7 +258,7 @@
 						</div>
 					{:else}
 						<div class="text-xs dark:text-customGray-590">
-							Trial ends {dayjs($subscription?.trial_end * 1000)?.format('DD.MM.YYYY')}
+							{$i18n.t('Trial ends')} {dayjs($subscription?.trial_end * 1000)?.format('DD.MM.YYYY')}
 						</div>
 					{/if}
 					{/if}
@@ -272,7 +272,7 @@
 				<div class="text-xs dark:text-customGray-590">
 					{#if $subscription?.plan === 'unlimited'}
 						<span
-							class="dark:text-customGray-590 capitalize">{$subscription?.seats} {$i18n.t('included')}</span
+							class="dark:text-customGray-590 capitalize">{$i18n.t($subscription?.seats)} {$i18n.t('included')}</span
 						>
 					{:else}
 						<span class="text-xs text-lightGray-100 dark:text-customGray-100">{$subscription?.seats_taken} {$i18n.t('used')}</span><span

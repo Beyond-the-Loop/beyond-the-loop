@@ -144,7 +144,7 @@
 			<input
 				bind:this={inputRef}
 				bind:value={input}
-				placeholder="Enter email..."
+				placeholder={`${$i18n.t('Enter email')}...`}
 				class="text-xs bg-transparent outline-none px-1 h-6 min-w-[80px] text-lightGray-100 dark:text-customGray-100"
 				on:keydown={handleKeydown}
 				on:blur={() => {

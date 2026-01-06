@@ -363,7 +363,7 @@
 					<div
 						class="font-medium text-lightGray-100 dark:text-customGray-300 text-xs whitespace-nowrap h-[22px] flex items-center mb-2 sm:mb-0"
 					>
-						{$i18n.t('Filter by category:')}
+						{$i18n.t('Filter by category')}:
 					</div>
 					<div class="flex flex-wrap gap-1">
 						{#each tags as tag, i}
