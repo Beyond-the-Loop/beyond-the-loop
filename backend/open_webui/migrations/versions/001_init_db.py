@@ -32,9 +32,6 @@ create table if not exists migratehistory
     migrated_at timestamp with time zone
 );
 
-alter table migratehistory
-    owner to beyondtheloopuser;
-
 create table if not exists chatidtag
 (
     id        text,
@@ -43,9 +40,6 @@ create table if not exists chatidtag
     user_id   text,
     timestamp bigint
 );
-
-alter table chatidtag
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16731_chatidtag_id
     on chatidtag (id);
@@ -57,9 +51,6 @@ create table if not exists auth
     password text,
     active   bigint
 );
-
-alter table auth
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16736_auth_id
     on auth (id);
@@ -78,9 +69,6 @@ create table if not exists chat
     meta       json default '{}'::json,
     folder_id  text
 );
-
-alter table chat
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16741_chat_share_id
     on chat (share_id);
@@ -102,9 +90,6 @@ create table if not exists document
     timestamp       bigint
 );
 
-alter table document
-    owner to beyondtheloopuser;
-
 create unique index if not exists idx_16747_document_collection_name
     on document (collection_name);
 
@@ -120,9 +105,6 @@ create table if not exists memory
     created_at bigint
 );
 
-alter table memory
-    owner to beyondtheloopuser;
-
 create unique index if not exists idx_16752_memory_id
     on memory (id);
 
@@ -133,9 +115,6 @@ create table if not exists alembic_version
             primary key
 );
 
-alter table alembic_version
-    owner to beyondtheloopuser;
-
 create table if not exists tag
 (
     id      text not null,
@@ -145,9 +124,6 @@ create table if not exists tag
     constraint idx_16762_sqlite_autoindex_tag_1
         primary key (id, user_id)
 );
-
-alter table tag
-    owner to beyondtheloopuser;
 
 create table if not exists file
 (
@@ -162,9 +138,6 @@ create table if not exists file
     path           text,
     access_control json
 );
-
-alter table file
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16767_file_id
     on file (id);
@@ -184,9 +157,6 @@ create table if not exists feedback
     updated_at bigint
 );
 
-alter table feedback
-    owner to beyondtheloopuser;
-
 create table if not exists folder
 (
     id          text not null,
@@ -201,9 +171,6 @@ create table if not exists folder
     constraint idx_16777_sqlite_autoindex_folder_1
         primary key (id, user_id)
 );
-
-alter table folder
-    owner to beyondtheloopuser;
 
 create table if not exists channel
 (
@@ -221,9 +188,6 @@ create table if not exists channel
     type           text
 );
 
-alter table channel
-    owner to beyondtheloopuser;
-
 create table if not exists message
 (
     id         text not null
@@ -239,9 +203,6 @@ create table if not exists message
     parent_id  text
 );
 
-alter table message
-    owner to beyondtheloopuser;
-
 create table if not exists message_reaction
 (
     id         text not null
@@ -253,9 +214,6 @@ create table if not exists message_reaction
     created_at bigint
 );
 
-alter table message_reaction
-    owner to beyondtheloopuser;
-
 create table if not exists channel_member
 (
     id         text not null
@@ -265,9 +223,6 @@ create table if not exists channel_member
     user_id    text,
     created_at bigint
 );
-
-alter table channel_member
-    owner to beyondtheloopuser;
 
 create table if not exists "user"
 (
@@ -290,9 +245,6 @@ create table if not exists "user"
     password_reset_token_expires_at text,
     registration_code               text
 );
-
-alter table "user"
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16802_user_id
     on "user" (id);
@@ -317,9 +269,6 @@ create table if not exists model_cost
     cost_per_thousand_search_queries  double precision
 );
 
-alter table model_cost
-    owner to beyondtheloopuser;
-
 create table if not exists stripe_payment_history
 (
     id                    text not null
@@ -338,9 +287,6 @@ create table if not exists stripe_payment_history
     updated_at            timestamp with time zone default CURRENT_TIMESTAMP,
     payment_metadata      json
 );
-
-alter table stripe_payment_history
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16814_sqlite_autoindex_stripe_payment_history_2
     on stripe_payment_history (stripe_transaction_id);
@@ -362,9 +308,6 @@ create table if not exists prompt
     company_id     text default 'system'::text
 );
 
-alter table prompt
-    owner to beyondtheloopuser;
-
 create unique index if not exists idx_16825_prompt_command
     on prompt (command);
 
@@ -383,9 +326,6 @@ create table if not exists model
     company_id     text    default 'system'::text
 );
 
-alter table model
-    owner to beyondtheloopuser;
-
 create unique index if not exists idx_16831_model_id
     on model (id);
 
@@ -400,9 +340,6 @@ create table if not exists config
     updated_at timestamp with time zone default CURRENT_TIMESTAMP,
     company_id text                     default 'DEFAULT'::text
 );
-
-alter table config
-    owner to beyondtheloopuser;
 
 create table if not exists "group"
 (
@@ -420,9 +357,6 @@ create table if not exists "group"
     company_id  text
 );
 
-alter table "group"
-    owner to beyondtheloopuser;
-
 create table if not exists knowledge
 (
     id             text not null
@@ -438,9 +372,6 @@ create table if not exists knowledge
     access_control json,
     company_id     text
 );
-
-alter table knowledge
-    owner to beyondtheloopuser;
 
 create table if not exists company
 (
@@ -465,9 +396,6 @@ create table if not exists company
     next_credit_charge_check  bigint
 );
 
-alter table company
-    owner to beyondtheloopuser;
-
 create table if not exists completion
 (
     id                    text not null
@@ -481,9 +409,6 @@ create table if not exists completion
     time_saved_in_seconds double precision
 );
 
-alter table completion
-    owner to beyondtheloopuser;
-
 create table if not exists bookmarked_assistants
 (
     user_id  text not null,
@@ -491,9 +416,6 @@ create table if not exists bookmarked_assistants
     constraint idx_16866_sqlite_autoindex_bookmarked_assistants_1
         primary key (user_id, model_id)
 );
-
-alter table bookmarked_assistants
-    owner to beyondtheloopuser;
 
 create table if not exists bookmarked_prompts
 (
@@ -503,9 +425,6 @@ create table if not exists bookmarked_prompts
         primary key (user_id, prompt_command)
 );
 
-alter table bookmarked_prompts
-    owner to beyondtheloopuser;
-
 create table if not exists user_model_bookmark
 (
     user_id  text not null,
@@ -514,9 +433,6 @@ create table if not exists user_model_bookmark
         primary key (user_id, model_id)
 );
 
-alter table user_model_bookmark
-    owner to beyondtheloopuser;
-
 create table if not exists user_prompt_bookmark
 (
     user_id        text not null,
@@ -524,9 +440,6 @@ create table if not exists user_prompt_bookmark
     constraint idx_16881_sqlite_autoindex_user_prompt_bookmark_1
         primary key (user_id, prompt_command)
 );
-
-alter table user_prompt_bookmark
-    owner to beyondtheloopuser;
 
 create table if not exists domain
 (
@@ -538,9 +451,6 @@ create table if not exists domain
     dns_approval_record text,
     ownership_approved  boolean
 );
-
-alter table domain
-    owner to beyondtheloopuser;
 
 create unique index if not exists idx_16886_sqlite_autoindex_domain_2
     on domain (domain_fqdn);
