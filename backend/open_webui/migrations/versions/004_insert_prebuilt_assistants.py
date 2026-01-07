@@ -30,17 +30,28 @@ def upgrade() -> None:
     connection = op.get_bind()
     session = Session(bind=connection)
 
-    # Get the path to the CSV file
+    # Remove all system prebuilt assistants
+    connection = op.get_bind()
+
+    delete_query = sa.text("""
+                           DELETE
+                           FROM model
+                           WHERE user_id = 'system'
+                             AND company_id = 'system'
+                             AND id LIKE 'system-%'
+                           """)
+
+    connection.execute(delete_query)
+    connection.commit()
+
     current_dir = pathlib.Path(__file__).parent.parent
     csv_file_path = current_dir / "data" / "prebuilt_assistants.csv"
 
-    # Read the CSV data from file
     with open(csv_file_path, 'r', encoding='utf-8') as f:
         csv_reader = csv.DictReader(f)
 
-        # Insert assistants into the database
         current_time = int(time.time())
-        system_user_id = "system"  # Use a system user ID for prebuilt assistants
+        system_user_id = "system"
         system_company_id = "system"
 
         for row in csv_reader:
@@ -57,13 +68,12 @@ def upgrade() -> None:
                 'Balanced': 0.5,
                 'Determined': 0.2
             }
-
             creativity = creativity_mapping.get(row.get('Creativity', 'Balanced'), 0.5)
 
             # Parse websearch boolean
             websearch = row.get('Websearch', 'FALSE').upper() == 'TRUE'
 
-            # Pase System Prompt
+            # Parse system prompt
             system_prompt = row.get('System Prompt', '')
 
             # Parse prompt suggestions
@@ -96,11 +106,11 @@ def upgrade() -> None:
 
             # Insert the assistant into the model table
             insert_query = sa.text("""
-                                   INSERT INTO model (id, user_id, company_id, base_model_id, name, meta, is_active,
-                                                      created_at, updated_at, params)
-                                   VALUES (:id, :user_id, :company_id, :base_model_id, :name, :meta, :is_active,
-                                           :created_at, :updated_at, :params)
-                                   """)
+                INSERT INTO model (id, user_id, company_id, base_model_id, name, meta, is_active,
+                                   created_at, updated_at, params)
+                VALUES (:id, :user_id, :company_id, :base_model_id, :name, :meta, :is_active,
+                        :created_at, :updated_at, :params)
+            """)
 
             connection.execute(insert_query, {
                 'id': assistant_id,

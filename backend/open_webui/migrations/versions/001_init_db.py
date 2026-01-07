@@ -23,318 +23,528 @@ def upgrade() -> None:
 
     conn.execute(
         sa.text("""
-CREATE TABLE IF NOT EXISTS "auth" (
-    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
-    "email" VARCHAR(255) NOT NULL UNIQUE,
-    "password" TEXT NOT NULL,
-    "active" INTEGER NOT NULL
+create table if not exists migratehistory
+(
+    id          bigint not null
+        constraint idx_16726_migratehistory_pkey
+            primary key,
+    name        text,
+    migrated_at timestamp with time zone
 );
 
-CREATE TABLE IF NOT EXISTS channel (
-	id TEXT NOT NULL PRIMARY KEY, 
-	user_id TEXT, 
-	name TEXT, 
-	description TEXT, 
-	data JSON, 
-	meta JSON, 
-	access_control JSON, 
-	created_at BIGINT, 
-	updated_at BIGINT,
-    type TEXT
+alter table migratehistory
+    owner to beyondtheloopuser;
+
+create table if not exists chatidtag
+(
+    id        text,
+    tag_name  text,
+    chat_id   text,
+    user_id   text,
+    timestamp bigint
 );
 
-CREATE TABLE IF NOT EXISTS channel_member (
-	id TEXT NOT NULL PRIMARY KEY, 
-	channel_id TEXT NOT NULL, 
-	user_id TEXT NOT NULL, 
-	created_at BIGINT
+alter table chatidtag
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16731_chatidtag_id
+    on chatidtag (id);
+
+create table if not exists auth
+(
+    id       text,
+    email    text,
+    password text,
+    active   bigint
 );
 
-CREATE TABLE IF NOT EXISTS "chat" (
-    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
-    "user_id" VARCHAR(255) NOT NULL,
-    "title" TEXT NOT NULL NOT NULL,
-    "share_id" VARCHAR(255),
-    "archived" INTEGER NOT NULL,
-    "created_at" TIMESTAMP NOT NULL,
-    "updated_at" TIMESTAMP NOT NULL,
-    chat JSON,
-    pinned BOOLEAN,
-    meta JSON DEFAULT '{}' NOT NULL,
-    folder_id TEXT
+alter table auth
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16736_auth_id
+    on auth (id);
+
+create table if not exists chat
+(
+    id         text,
+    user_id    text,
+    title      text,
+    share_id   text,
+    archived   bigint,
+    created_at bigint,
+    updated_at bigint,
+    chat       json,
+    pinned     boolean,
+    meta       json default '{}'::json,
+    folder_id  text
 );
 
-CREATE TABLE IF NOT EXISTS "chatidtag" (
-    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
-    "tag_name" VARCHAR(255) NOT NULL,
-    "chat_id" VARCHAR(255) NOT NULL,
-    "user_id" VARCHAR(255) NOT NULL,
-    "timestamp" INTEGER NOT NULL)
-;
+alter table chat
+    owner to beyondtheloopuser;
 
-CREATE TABLE IF NOT EXISTS "company" (
-	id VARCHAR NOT NULL PRIMARY KEY, 
-	name VARCHAR NOT NULL, 
-	profile_image_url TEXT, 
-	default_model VARCHAR, 
-	allowed_models TEXT, 
-	credit_balance FLOAT NOT NULL, 
-	flex_credit_balance FLOAT, 
-	auto_recharge BOOLEAN, 
-	credit_card_number VARCHAR, 
-	size VARCHAR, 
-	industry VARCHAR, 
-	team_function VARCHAR, 
-	stripe_customer_id VARCHAR, 
-	budget_mail_80_sent BOOLEAN, 
-	budget_mail_100_sent BOOLEAN,
-    subscription_not_required BOOLEAN,
-    next_credit_charge_check BIGINT 
+create unique index if not exists idx_16741_chat_share_id
+    on chat (share_id);
+
+create unique index if not exists idx_16741_chat_id
+    on chat (id);
+
+create table if not exists document
+(
+    id              bigint not null
+        constraint idx_16747_document_pkey
+            primary key,
+    collection_name text,
+    name            text,
+    title           text,
+    filename        text,
+    content         text,
+    user_id         text,
+    timestamp       bigint
 );
 
-CREATE TABLE IF NOT EXISTS feedback (
-	id TEXT NOT NULL PRIMARY KEY, 
-	user_id TEXT, 
-	version BIGINT, 
-	type TEXT, 
-	data JSON, 
-	meta JSON, 
-	snapshot JSON, 
-	created_at BIGINT NOT NULL, 
-	updated_at BIGINT NOT NULL
+alter table document
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16747_document_collection_name
+    on document (collection_name);
+
+create unique index if not exists idx_16747_document_name
+    on document (name);
+
+create table if not exists memory
+(
+    id         text,
+    user_id    text,
+    content    text,
+    updated_at bigint,
+    created_at bigint
 );
 
-CREATE TABLE IF NOT EXISTS "file" (
-	id TEXT NOT NULL PRIMARY KEY, 
-	user_id TEXT NOT NULL, 
-	filename TEXT NOT NULL, 
-	meta JSON, 
-	created_at INTEGER NOT NULL, 
-	hash TEXT, 
-	data JSON, 
-	updated_at BIGINT, 
-	path TEXT,
-    access_control JSON
+alter table memory
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16752_memory_id
+    on memory (id);
+
+create table if not exists alembic_version
+(
+    version_num text not null
+        constraint idx_16757_sqlite_autoindex_alembic_version_1
+            primary key
 );
 
-CREATE TABLE IF NOT EXISTS "folder" (
-	id TEXT NOT NULL, 
-	parent_id TEXT, 
-	user_id TEXT NOT NULL, 
-	name TEXT NOT NULL, 
-	items JSON, 
-	meta JSON, 
-	is_expanded BOOLEAN NOT NULL, 
-	created_at BIGINT NOT NULL, 
-	updated_at BIGINT NOT NULL, 
-	PRIMARY KEY (id, user_id)
+alter table alembic_version
+    owner to beyondtheloopuser;
+
+create table if not exists tag
+(
+    id      text not null,
+    name    text,
+    user_id text not null,
+    meta    json,
+    constraint idx_16762_sqlite_autoindex_tag_1
+        primary key (id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS "memory" (
-    "id" VARCHAR(255) NOT NULL PRIMARY KEY,
-    "user_id" VARCHAR(255) NOT NULL,
-    "content" TEXT NOT NULL,
-    "updated_at" INTEGER NOT NULL,
-    "created_at" INTEGER NOT NULL
+alter table tag
+    owner to beyondtheloopuser;
+
+create table if not exists file
+(
+    id             text,
+    user_id        text,
+    filename       text,
+    meta           json,
+    created_at     bigint,
+    hash           text,
+    data           json,
+    updated_at     bigint,
+    path           text,
+    access_control json
 );
 
-CREATE TABLE IF NOT EXISTS message (
-	id TEXT NOT NULL PRIMARY KEY,
-	user_id TEXT, 
-	channel_id TEXT, 
-	content TEXT, 
-	data JSON, 
-	meta JSON, 
-	created_at BIGINT, 
-	updated_at BIGINT,
-    parent_id TEXT
+alter table file
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16767_file_id
+    on file (id);
+
+create table if not exists feedback
+(
+    id         text not null
+        constraint idx_16772_sqlite_autoindex_feedback_1
+            primary key,
+    user_id    text,
+    version    bigint,
+    type       text,
+    data       json,
+    meta       json,
+    snapshot   json,
+    created_at bigint,
+    updated_at bigint
 );
 
-CREATE TABLE IF NOT EXISTS message_reaction (
-	id TEXT NOT NULL PRIMARY KEY,
-	user_id TEXT NOT NULL, 
-	message_id TEXT NOT NULL, 
-	name TEXT NOT NULL, 
-	created_at BIGINT
-);
-    
-CREATE TABLE IF NOT EXISTS "model_cost" (
-	model_name VARCHAR(255) NOT NULL PRIMARY KEY,
-    cost_per_million_input_tokens FLOAT,
-    cost_per_million_output_tokens FLOAT,
-    cost_per_image FLOAT,
-    cost_per_minute FLOAT,
-    cost_per_million_characters FLOAT,
-    cost_per_million_reasoning_tokens FLOAT,
-    cost_per_thousand_search_queries FLOAT 
-);
-    
-CREATE TABLE IF NOT EXISTS "tag" (
-	id VARCHAR(255) NOT NULL,
-	name VARCHAR(255) NOT NULL, 
-	user_id VARCHAR(255) NOT NULL, 
-	meta JSON, 
-	CONSTRAINT pk_id_user_id PRIMARY KEY (id, user_id)
+alter table feedback
+    owner to beyondtheloopuser;
+
+create table if not exists folder
+(
+    id          text not null,
+    parent_id   text,
+    user_id     text not null,
+    name        text,
+    items       json,
+    meta        json,
+    is_expanded boolean,
+    created_at  bigint,
+    updated_at  bigint,
+    constraint idx_16777_sqlite_autoindex_folder_1
+        primary key (id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS "migratehistory" (
-    "id" INTEGER NOT NULL PRIMARY KEY,
-    "name" VARCHAR(255) NOT NULL,
-    "migrated_at" TIMESTAMP NOT NULL
+alter table folder
+    owner to beyondtheloopuser;
+
+create table if not exists channel
+(
+    id             text not null
+        constraint idx_16782_sqlite_autoindex_channel_1
+            primary key,
+    user_id        text,
+    name           text,
+    description    text,
+    data           json,
+    meta           json,
+    access_control json,
+    created_at     bigint,
+    updated_at     bigint,
+    type           text
 );
 
-CREATE TABLE IF NOT EXISTS "user" (
-	id VARCHAR(255) NOT NULL PRIMARY KEY, 
-	email VARCHAR(255) NOT NULL, 
-	role VARCHAR(255) NOT NULL, 
-	profile_image_url TEXT NOT NULL, 
-	api_key VARCHAR(255), 
-	created_at INTEGER NOT NULL, 
-	updated_at INTEGER NOT NULL, 
-	last_active_at INTEGER NOT NULL, 
-	settings TEXT, 
-	info TEXT, 
-	oauth_sub TEXT, 
-	company_id VARCHAR NOT NULL,
-    invite_token VARCHAR,
-    first_name VARCHAR(255) DEFAULT 'SYSTEM' NOT NULL,
-    last_name VARCHAR(255) DEFAULT 'SYSTEM' NOT NULL,
-    password_reset_token VARCHAR,
-    password_reset_token_expires_at VARCHAR,
-    registration_code VARCHAR
+alter table channel
+    owner to beyondtheloopuser;
+
+create table if not exists message
+(
+    id         text not null
+        constraint idx_16787_sqlite_autoindex_message_1
+            primary key,
+    user_id    text,
+    channel_id text,
+    content    text,
+    data       json,
+    meta       json,
+    created_at bigint,
+    updated_at bigint,
+    parent_id  text
 );
 
-CREATE TABLE IF NOT EXISTS "model" (
-	id TEXT NOT NULL PRIMARY KEY, 
-	user_id TEXT, 
-	base_model_id TEXT, 
-	name TEXT NOT NULL, 
-	meta TEXT NOT NULL, 
-	params TEXT NOT NULL, 
-	created_at INTEGER NOT NULL, 
-	updated_at INTEGER NOT NULL, 
-	access_control JSON, 
-	is_active BOOLEAN DEFAULT true NOT NULL, 
-	company_id VARCHAR DEFAULT 'system' NOT NULL
+alter table message
+    owner to beyondtheloopuser;
+
+create table if not exists message_reaction
+(
+    id         text not null
+        constraint idx_16792_sqlite_autoindex_message_reaction_1
+            primary key,
+    user_id    text,
+    message_id text,
+    name       text,
+    created_at bigint
 );
 
-CREATE TABLE IF NOT EXISTS "prompt" (
-	id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-	command VARCHAR(255) NOT NULL UNIQUE, 
-	user_id VARCHAR(255) NOT NULL, 
-	title TEXT NOT NULL, 
-	content TEXT NOT NULL, 
-	timestamp INTEGER NOT NULL, 
-	access_control JSON, 
-	meta TEXT, 
-	prebuilt BOOLEAN, 
-	description VARCHAR, 
-	company_id VARCHAR NOT NULL
+alter table message_reaction
+    owner to beyondtheloopuser;
+
+create table if not exists channel_member
+(
+    id         text not null
+        constraint idx_16797_sqlite_autoindex_channel_member_1
+            primary key,
+    channel_id text,
+    user_id    text,
+    created_at bigint
 );
 
-CREATE TABLE IF NOT EXISTS stripe_payment_history (
-	id VARCHAR NOT NULL PRIMARY KEY, 
-	stripe_transaction_id VARCHAR NOT NULL UNIQUE,
-	company_id VARCHAR NOT NULL, 
-	user_id VARCHAR, 
-	description TEXT DEFAULT 'Standard Subscription Charge' NOT NULL, 
-	charged_amount DECIMAL(10, 2) DEFAULT '15.00' NOT NULL, 
-	currency VARCHAR DEFAULT 'EUR' NOT NULL, 
-	payment_status VARCHAR NOT NULL, 
-	payment_method VARCHAR, 
-	payment_date TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
-	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
-	updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
-	payment_metadata JSON, 
-	FOREIGN KEY(company_id) REFERENCES company (id), 
-	FOREIGN KEY(user_id) REFERENCES "user" (id)
+alter table channel_member
+    owner to beyondtheloopuser;
+
+create table if not exists "user"
+(
+    id                              text,
+    email                           text,
+    role                            text,
+    profile_image_url               text,
+    api_key                         text,
+    created_at                      bigint,
+    updated_at                      bigint,
+    last_active_at                  bigint,
+    settings                        text,
+    info                            text,
+    oauth_sub                       text,
+    company_id                      text,
+    invite_token                    text,
+    first_name                      text default 'SYSTEM'::text,
+    last_name                       text default 'SYSTEM'::text,
+    password_reset_token            text,
+    password_reset_token_expires_at text,
+    registration_code               text
 );
 
-CREATE TABLE IF NOT EXISTS user_model_bookmark (
-	user_id VARCHAR NOT NULL, 
-	model_id VARCHAR NOT NULL, 
-	PRIMARY KEY (user_id, model_id), 
-	FOREIGN KEY(user_id) REFERENCES "user" (id) ON DELETE CASCADE, 
-	FOREIGN KEY(model_id) REFERENCES model (id) ON DELETE CASCADE
+alter table "user"
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16802_user_id
+    on "user" (id);
+
+create unique index if not exists idx_16802_user_api_key
+    on "user" (api_key);
+
+create unique index if not exists idx_16802_user_oauth_sub
+    on "user" (oauth_sub);
+
+create table if not exists model_cost
+(
+    model_name                        text not null
+        constraint idx_16809_sqlite_autoindex_model_cost_1
+            primary key,
+    cost_per_million_input_tokens     double precision,
+    cost_per_million_output_tokens    double precision,
+    cost_per_image                    double precision,
+    cost_per_minute                   double precision,
+    cost_per_million_characters       double precision,
+    cost_per_million_reasoning_tokens double precision,
+    cost_per_thousand_search_queries  double precision
 );
 
-CREATE TABLE IF NOT EXISTS user_prompt_bookmark (
-	user_id VARCHAR NOT NULL, 
-	prompt_command VARCHAR NOT NULL, 
-	PRIMARY KEY (user_id, prompt_command), 
-	FOREIGN KEY(user_id) REFERENCES "user" (id) ON DELETE CASCADE, 
-	FOREIGN KEY(prompt_command) REFERENCES prompt (command) ON DELETE CASCADE
-);
-    
-CREATE TABLE IF NOT EXISTS "completion" (
-	id VARCHAR NOT NULL PRIMARY KEY, 
-	user_id VARCHAR, 
-	chat_id VARCHAR, 
-	model TEXT, 
-	credits_used FLOAT NOT NULL, 
-	created_at BIGINT, 
-	time_saved_in_seconds FLOAT, 
-	FOREIGN KEY(user_id) REFERENCES "user" (id) ON DELETE SET NULL
+alter table model_cost
+    owner to beyondtheloopuser;
+
+create table if not exists stripe_payment_history
+(
+    id                    text not null
+        constraint idx_16814_sqlite_autoindex_stripe_payment_history_1
+            primary key,
+    stripe_transaction_id text,
+    company_id            text,
+    user_id               text,
+    description           text                     default 'Standard Subscription Charge'::text,
+    charged_amount        numeric(10, 2)           default 15.00,
+    currency              text                     default 'EUR'::text,
+    payment_status        text,
+    payment_method        text,
+    payment_date          timestamp with time zone default CURRENT_TIMESTAMP,
+    created_at            timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at            timestamp with time zone default CURRENT_TIMESTAMP,
+    payment_metadata      json
 );
 
-CREATE TABLE IF NOT EXISTS "config" (
-	id INTEGER NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-	data JSON NOT NULL, 
-	version INTEGER NOT NULL, 
-	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL, 
-	updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP), 
-	company_id VARCHAR NOT NULL, 
-	CONSTRAINT fk_config_company_id FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
+alter table stripe_payment_history
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16814_sqlite_autoindex_stripe_payment_history_2
+    on stripe_payment_history (stripe_transaction_id);
+
+create table if not exists prompt
+(
+    id             bigint not null
+        constraint idx_16825_prompt_pkey
+            primary key,
+    command        text,
+    user_id        text,
+    title          text,
+    content        text,
+    timestamp      bigint,
+    access_control json,
+    meta           text,
+    prebuilt       boolean,
+    description    text,
+    company_id     text default 'system'::text
 );
 
-CREATE TABLE IF NOT EXISTS "document" (
-    "id" INTEGER NOT NULL PRIMARY KEY,
-    "collection_name" VARCHAR(255) NOT NULL,
-    "name" VARCHAR(255) NOT NULL,
-    "title" TEXT NOT NULL,
-    "filename" TEXT NOT NULL,
-    "content" TEXT,
-    "user_id" VARCHAR(255) NOT NULL,
-    "timestamp" INTEGER NOT NULL NOT NULL
+alter table prompt
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16825_prompt_command
+    on prompt (command);
+
+create table if not exists model
+(
+    id             text,
+    user_id        text,
+    base_model_id  text,
+    name           text,
+    meta           text,
+    params         text,
+    created_at     bigint,
+    updated_at     bigint,
+    access_control json,
+    is_active      boolean default true,
+    company_id     text    default 'system'::text
 );
 
-CREATE TABLE IF NOT EXISTS domain (
-	id TEXT NOT NULL PRIMARY KEY, 
-	company_id TEXT NOT NULL, 
-	domain_fqdn TEXT NOT NULL UNIQUE, 
-	dns_approval_record TEXT NOT NULL, 
-	ownership_approved BOOLEAN NOT NULL, 
-	FOREIGN KEY(company_id) REFERENCES company (id) ON DELETE CASCADE
-);
-    
-CREATE TABLE IF NOT EXISTS "group" (
-	id TEXT NOT NULL PRIMARY KEY,
-	name TEXT, 
-	description TEXT, 
-	data JSON, 
-	meta JSON, 
-	permissions JSON, 
-	user_ids JSON, 
-	created_at BIGINT, 
-	updated_at BIGINT, 
-	company_id VARCHAR NOT NULL, 
-	CONSTRAINT fk_group_company_id FOREIGN KEY(company_id) REFERENCES company (id)
+alter table model
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16831_model_id
+    on model (id);
+
+create table if not exists config
+(
+    id         bigint not null
+        constraint idx_16838_config_pkey
+            primary key,
+    data       json,
+    version    bigint,
+    created_at timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone default CURRENT_TIMESTAMP,
+    company_id text                     default 'DEFAULT'::text
 );
 
-CREATE TABLE IF NOT EXISTS "knowledge" (
-	id TEXT NOT NULL PRIMARY KEY, 
-	user_id TEXT NOT NULL, 
-	name TEXT NOT NULL, 
-	description TEXT, 
-	data JSON, 
-	meta JSON, 
-	created_at BIGINT NOT NULL, 
-	updated_at BIGINT, 
-	access_control JSON, 
-	company_id VARCHAR NOT NULL, 
-	CONSTRAINT fk_knowledge_company_id FOREIGN KEY(company_id) REFERENCES company (id)
+alter table config
+    owner to beyondtheloopuser;
+
+create table if not exists "group"
+(
+    id          text not null
+        constraint idx_16846_sqlite_autoindex_group_1
+            primary key,
+    name        text,
+    description text,
+    data        json,
+    meta        json,
+    permissions json,
+    user_ids    json,
+    created_at  bigint,
+    updated_at  bigint,
+    company_id  text
 );
-    """)
+
+alter table "group"
+    owner to beyondtheloopuser;
+
+create table if not exists knowledge
+(
+    id             text not null
+        constraint idx_16851_sqlite_autoindex_knowledge_1
+            primary key,
+    user_id        text,
+    name           text,
+    description    text,
+    data           json,
+    meta           json,
+    created_at     bigint,
+    updated_at     bigint,
+    access_control json,
+    company_id     text
+);
+
+alter table knowledge
+    owner to beyondtheloopuser;
+
+create table if not exists company
+(
+    id                        text not null
+        constraint idx_16856_sqlite_autoindex_company_1
+            primary key,
+    name                      text,
+    profile_image_url         text,
+    default_model             text,
+    allowed_models            text,
+    credit_balance            double precision,
+    flex_credit_balance       double precision,
+    auto_recharge             boolean,
+    credit_card_number        text,
+    size                      text,
+    industry                  text,
+    team_function             text,
+    stripe_customer_id        text,
+    budget_mail_80_sent       boolean,
+    budget_mail_100_sent      boolean,
+    subscription_not_required boolean,
+    next_credit_charge_check  bigint
+);
+
+alter table company
+    owner to beyondtheloopuser;
+
+create table if not exists completion
+(
+    id                    text not null
+        constraint idx_16861_sqlite_autoindex_completion_1
+            primary key,
+    user_id               text,
+    chat_id               text,
+    model                 text,
+    credits_used          double precision,
+    created_at            bigint,
+    time_saved_in_seconds double precision
+);
+
+alter table completion
+    owner to beyondtheloopuser;
+
+create table if not exists bookmarked_assistants
+(
+    user_id  text not null,
+    model_id text not null,
+    constraint idx_16866_sqlite_autoindex_bookmarked_assistants_1
+        primary key (user_id, model_id)
+);
+
+alter table bookmarked_assistants
+    owner to beyondtheloopuser;
+
+create table if not exists bookmarked_prompts
+(
+    user_id        text not null,
+    prompt_command text not null,
+    constraint idx_16871_sqlite_autoindex_bookmarked_prompts_1
+        primary key (user_id, prompt_command)
+);
+
+alter table bookmarked_prompts
+    owner to beyondtheloopuser;
+
+create table if not exists user_model_bookmark
+(
+    user_id  text not null,
+    model_id text not null,
+    constraint idx_16876_sqlite_autoindex_user_model_bookmark_1
+        primary key (user_id, model_id)
+);
+
+alter table user_model_bookmark
+    owner to beyondtheloopuser;
+
+create table if not exists user_prompt_bookmark
+(
+    user_id        text not null,
+    prompt_command text not null,
+    constraint idx_16881_sqlite_autoindex_user_prompt_bookmark_1
+        primary key (user_id, prompt_command)
+);
+
+alter table user_prompt_bookmark
+    owner to beyondtheloopuser;
+
+create table if not exists domain
+(
+    id                  text not null
+        constraint idx_16886_sqlite_autoindex_domain_1
+            primary key,
+    company_id          text,
+    domain_fqdn         text,
+    dns_approval_record text,
+    ownership_approved  boolean
+);
+
+alter table domain
+    owner to beyondtheloopuser;
+
+create unique index if not exists idx_16886_sqlite_autoindex_domain_2
+    on domain (domain_fqdn);
+        """)
     )
 
 def downgrade() -> None:

@@ -26,8 +26,8 @@ class Chat(Base):
     title = Column(Text)
     chat = Column(JSON)
 
-    created_at = Column(TIMESTAMP)
-    updated_at = Column(TIMESTAMP)
+    created_at = Column(BigInteger)
+    updated_at = Column(BigInteger)
 
     share_id = Column(Text, unique=True, nullable=True)
     archived = Column(Boolean, default=False)
@@ -45,8 +45,8 @@ class ChatModel(BaseModel):
     title: str
     chat: dict
 
-    created_at: datetime
-    updated_at: datetime
+    created_at: int
+    updated_at: int
 
     share_id: Optional[str] = None
     archived: bool = False
@@ -85,8 +85,8 @@ class ChatResponse(BaseModel):
     user_id: str
     title: str
     chat: dict
-    updated_at: datetime
-    created_at: datetime
+    updated_at: int
+    created_at: int
     share_id: Optional[str] = None  # id of the chat to be shared
     archived: bool
     pinned: Optional[bool] = False
@@ -97,8 +97,8 @@ class ChatResponse(BaseModel):
 class ChatTitleIdResponse(BaseModel):
     id: str
     title: str
-    updated_at: datetime
-    created_at: datetime
+    updated_at: int
+    created_at: int
 
 
 class ChatTable:
@@ -162,7 +162,7 @@ class ChatTable:
 
                 chat_item.chat = chat
                 chat_item.title = chat["title"] if "title" in chat else "New Chat"
-                chat_item.updated_at = datetime.now()
+                chat_item.updated_at = int(time.time())
                 db.commit()
                 db.refresh(chat_item)
 
@@ -359,7 +359,7 @@ class ChatTable:
             with get_db() as db:
                 chat = db.get(Chat, id)
                 chat.archived = not chat.archived
-                chat.updated_at = datetime.now()
+                chat.updated_at = int(time.time())
                 db.commit()
                 db.refresh(chat)
                 return ChatModel.model_validate(chat)

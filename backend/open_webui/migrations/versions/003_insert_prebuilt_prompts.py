@@ -27,32 +27,28 @@ def upgrade() -> None:
     connection = op.get_bind()
     session = Session(bind=connection)
 
-    # Get the path to the CSV file
+    # Delete all prebuilt prompts
+    delete_query = sa.text("DELETE FROM prompt WHERE prebuilt = :prebuilt")
+    session.execute(delete_query, {"prebuilt": True})
+
     current_dir = pathlib.Path(__file__).parent.parent
     csv_file_path = current_dir / "data" / "prebuilt_prompts.csv"
 
-    # Read the CSV data from file
     with open(csv_file_path, 'r', encoding='utf-8') as f:
         csv_reader = csv.DictReader(f)
 
-        # Insert prompts into the database
         current_time = int(time.time())
-        system_user_id = "system"  # Use a system user ID for prebuilt prompts
+        system_user_id = "system"
         system_company_id = "system"
 
         for index, row in enumerate(csv_reader):
-            # Generate a command from the title (lowercase, replace spaces with underscores)
             command = row['title'].lower().replace(' ', '-')
-
-            # Create meta with tags
-            meta = {
-                "tags": [{"name": row['tag']}]
-            }
+            meta = {"tags": [{"name": row['tag']}]}
 
             insert_query = sa.text("""
-                                   INSERT INTO prompt (command, user_id, title, content, timestamp, meta, prebuilt, description, company_id)
-                                   VALUES (:command, :user_id, :title, :content, :timestamp, :meta, :prebuilt, :description, :company_id)
-                                   """)
+                INSERT INTO prompt (command, user_id, title, content, timestamp, meta, prebuilt, description, company_id)
+                VALUES (:command, :user_id, :title, :content, :timestamp, :meta, :prebuilt, :description, :company_id)
+            """)
 
             session.execute(insert_query, {
                 "command": f"/{command}",
@@ -66,7 +62,6 @@ def upgrade() -> None:
                 "description": row['description'],
             })
 
-        # Commit the changes
         session.commit()
 
 
