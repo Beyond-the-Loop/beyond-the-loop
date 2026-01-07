@@ -232,11 +232,13 @@ class AnalyticsService:
             company_user_ids = [u.id for u in company_user_ids]
 
             query = db.query(
-                func.strftime('%Y-%m', func.datetime(Completion.created_at, 'unixepoch')).label("month"),
+                # Format the Unix timestamp as "YYYY-MM"
+                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
                 func.count(Completion.id).label("total_messages")
             ).filter(
-                func.datetime(Completion.created_at, 'unixepoch') >= start_date_dt.strftime('%Y-%m-%d 00:00:00'),
-                func.datetime(Completion.created_at, 'unixepoch') <= end_date_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                # Filter using actual timestamps
+                func.to_timestamp(Completion.created_at) >= start_date_dt,
+                func.to_timestamp(Completion.created_at) <= end_date_dt,
                 Completion.user_id.in_(company_user_ids)
             )
 
@@ -265,11 +267,13 @@ class AnalyticsService:
             company_user_ids = [u.id for u in company_user_ids]
 
             query = db.query(
-                func.strftime('%Y-%m', func.datetime(Completion.created_at, 'unixepoch')).label("month"),
+                # Format the Unix timestamp as "YYYY-MM"
+                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
                 func.count(func.distinct(Completion.chat_id)).label("total_chats")
             ).filter(
-                func.datetime(Completion.created_at, 'unixepoch') >= start_date_dt.strftime('%Y-%m-%d 00:00:00'),
-                func.datetime(Completion.created_at, 'unixepoch') <= end_date_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                # Filter using actual timestamps
+                func.to_timestamp(Completion.created_at) >= start_date_dt,
+                func.to_timestamp(Completion.created_at) <= end_date_dt,
                 Completion.user_id.in_(company_user_ids)
             )
 
@@ -298,13 +302,13 @@ class AnalyticsService:
             company_user_ids = [u.id for u in company_user_ids]
 
             query = db.query(
-                func.strftime('%Y-%m', func.datetime(Completion.created_at, 'unixepoch')).label("month"),
+                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
                 func.sum(Completion.time_saved_in_seconds).label("total_saved_time")
             ).filter(
-                func.datetime(Completion.created_at, 'unixepoch') >= start_date_dt.strftime('%Y-%m-%d 00:00:00'),
-                func.datetime(Completion.created_at, 'unixepoch') <= end_date_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                func.to_timestamp(Completion.created_at) >= start_date_dt,
+                func.to_timestamp(Completion.created_at) <= end_date_dt,
                 Completion.user_id.in_(company_user_ids)
-            )
+            ).group_by("month").order_by("month")
 
             # Execute the query and fetch results
             results = query.group_by("month").order_by("month").all()
@@ -385,15 +389,13 @@ class AnalyticsService:
                 company_user_ids = [u.id for u in company_user_ids]
 
                 query = db.query(
-                    func.strftime(
-                        "%Y-%m", func.datetime(Completion.created_at, "unixepoch")
-                    ).label("month"),
+                    # Format the Unix timestamp as "YYYY-MM"
+                    func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
                     func.sum(Completion.credits_used).label("total_billing"),
                 ).filter(
-                    func.datetime(Completion.created_at, "unixepoch")
-                    >= start_date_dt.strftime("%Y-%m-%d 00:00:00"),
-                    func.datetime(Completion.created_at, "unixepoch")
-                    <= end_date_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    # Filter using actual timestamps
+                    func.to_timestamp(Completion.created_at) >= start_date_dt,
+                    func.to_timestamp(Completion.created_at) <= end_date_dt,
                     Completion.user_id.in_(company_user_ids)
                 )
 
