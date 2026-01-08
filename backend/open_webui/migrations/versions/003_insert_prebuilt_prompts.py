@@ -64,6 +64,8 @@ def upgrade() -> None:
 
         session.commit()
 
+    session.close()
+
 
 def downgrade() -> None:
     # Create a connection

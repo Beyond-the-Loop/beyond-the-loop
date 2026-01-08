@@ -31,8 +31,6 @@ def upgrade() -> None:
     session = Session(bind=connection)
 
     # Remove all system prebuilt assistants
-    connection = op.get_bind()
-
     delete_query = sa.text("""
                            DELETE
                            FROM model
@@ -41,8 +39,7 @@ def upgrade() -> None:
                              AND id LIKE 'system-%'
                            """)
 
-    connection.execute(delete_query)
-    connection.commit()
+    session.execute(delete_query)
 
     current_dir = pathlib.Path(__file__).parent.parent
     csv_file_path = current_dir / "data" / "prebuilt_assistants.csv"
@@ -132,6 +129,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Remove all system prebuilt assistants
     connection = op.get_bind()
+    session = Session(bind=connection)
 
     delete_query = sa.text("""
                            DELETE
@@ -141,5 +139,5 @@ def downgrade() -> None:
                              AND id LIKE 'system-%'
                            """)
 
-    connection.execute(delete_query)
-    connection.commit()
+    session.execute(delete_query)
+    session.commit()
