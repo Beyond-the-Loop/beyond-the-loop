@@ -1,0 +1,9 @@
+LOAD DATABASE
+     FROM sqlite:////home/dev/beyond-the-loop/backend/data/database.sqlite
+     INTO postgresql://beyondtheloop:nivte6-fuwjuf-geGzuv@172.24.0.9:5432/beyondtheloopdb?sslmode=allow
+
+WITH create tables, no foreign keys, truncate
+
+CAST
+    column chat.created_at to bigint,
+    column chat.updated_at to bigint;
