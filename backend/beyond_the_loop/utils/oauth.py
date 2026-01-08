@@ -73,7 +73,7 @@ class OAUTH_ERROR_CODES:
     INVALID_COMPANY_STRUCTURE = "invalid_company_structure"
 
 def redirect_with_error(request, error_code: str):
-    redirect_url = f"{os.getenv("FRONTEND_BASE_URL") + "/" if os.getenv("FRONTEND_BASE_URL") else request.base_url}login#error={error_code}"
+    redirect_url = f"{os.getenv('FRONTEND_BASE_URL') + '/' if os.getenv('FRONTEND_BASE_URL') else request.base_url}login#error={error_code}"
     return RedirectResponse(url=redirect_url)
 class OAuthManager:
     def __init__(self):
@@ -414,7 +414,7 @@ class OAuthManager:
                 secure=WEBUI_AUTH_COOKIE_SECURE,
             )
         # Redirect back to the frontend with the JWT token
-        redirect_url = f"{os.getenv("FRONTEND_BASE_URL") + "/" if os.getenv("FRONTEND_BASE_URL") else request.base_url}login#token={jwt_token}"
+        redirect_url = f"{os.getenv('FRONTEND_BASE_URL') + '/' if os.getenv('FRONTEND_BASE_URL') else request.base_url}login#token={jwt_token}"
 
         return RedirectResponse(url=redirect_url, headers=response.headers)
 
