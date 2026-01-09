@@ -592,17 +592,12 @@ async def reinvite_user(form_data: UserReinviteForm, user=Depends(get_admin_user
 
     # Send the invitation email
     email_service = EmailService()
-    email_sent = email_service.send_invite_mail(
+    email_service.send_invite_mail(
         to_email=form_data.email.lower(),
         invite_token=invite_token,
         admin_name=user.first_name,
         company_name=company.name
     )
-
-    if not email_sent:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send invitation email"
-        )
 
     return {"message": "User reinvited successfully", "user_id": existing_user.id}
 

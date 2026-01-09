@@ -26,7 +26,7 @@ from beyond_the_loop.utils.access_control import has_access, has_permission
 
 from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.models.models import Models, ModelForm
-
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -44,7 +44,10 @@ def _validate_knowledge_write_access(knowledge: KnowledgeModel, user):
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    if (user.role != "admin"
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if (is_free_user
+            or user.role != "admin"
             and knowledge.user_id != user.id
             and not has_access(user.id, "write", knowledge.access_control)
             and not has_permission(user.id, "workspace.edit_knowledge")):
@@ -60,7 +63,10 @@ def _validate_knowledge_read_access(knowledge: KnowledgeModel, user):
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    if (user.role != "admin"
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if (is_free_user
+            or user.role != "admin"
             and knowledge.user_id != user.id
             and not has_access(user.id, "read", knowledge.access_control)
             and not has_permission(user.id, "workspace.view_knowledge")):
@@ -72,7 +78,9 @@ def _validate_knowledge_read_access(knowledge: KnowledgeModel, user):
 
 @router.get("/", response_model=list[KnowledgeUserResponse])
 async def get_knowledge(user=Depends(get_verified_user)):
-    if not has_permission(user.id, "workspace.view_knowledge"):
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if is_free_user or not has_permission(user.id, "workspace.view_knowledge"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,
@@ -133,7 +141,9 @@ async def get_knowledge_list(user=Depends(get_verified_user)):
 async def create_new_knowledge(
     form_data: KnowledgeForm, user=Depends(get_verified_user)
 ):
-    if not has_permission(user.id, "workspace.view_prompts"):
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if is_free_user or not has_permission(user.id, "workspace.view_prompts"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,

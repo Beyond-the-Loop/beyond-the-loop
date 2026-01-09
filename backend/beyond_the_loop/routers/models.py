@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from beyond_the_loop.utils.access_control import has_access, has_permission
+from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
 
@@ -44,7 +45,10 @@ def _validate_model_write_access(model: ModelModel, user):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-    if (user.role != "admin"
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if (is_free_user
+        or user.role != "admin"
         and model.user_id != user.id
         and not has_access(user.id, "write", model.access_control)
         and not has_permission(user.id, "workspace.edit_assistants")):
@@ -60,7 +64,10 @@ def _validate_model_read_access(model: ModelModel, user):
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    if (user.role != "admin"
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if (is_free_user
+            or user.role != "admin"
             and model.user_id != user.id
             and not has_access(user.id, "read", model.access_control)
             and not has_permission(user.id, "workspace.view_assistants")):
@@ -76,6 +83,14 @@ def _validate_model_read_access(model: ModelModel, user):
 
 @router.get("/", response_model=list[ModelUserResponse])
 async def get_models(user=Depends(get_verified_user)):
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if is_free_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
     models = Models.get_models_by_user_and_company(user.id, user.company_id)
     sorted_models = sorted(models, key=lambda m: not m.bookmarked_by_user)
     return sorted_models
@@ -101,7 +116,9 @@ async def create_new_model(
     form_data: ModelForm,
     user=Depends(get_verified_user),
 ):
-    if not has_permission(user.id, "workspace.view_assistants"):
+    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
+
+    if is_free_user or not has_permission(user.id, "workspace.view_assistants"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,
