@@ -173,7 +173,6 @@ from beyond_the_loop.config import (
     reset_config,
 )
 from open_webui.env import (
-    CHANGELOG,
     GLOBAL_LOG_LEVEL,
     SAFE_MODE,
     SRC_LOG_LEVELS,
@@ -886,11 +885,6 @@ async def get_app_latest_release_version(user=Depends(get_verified_user)):
     except Exception as e:
         log.debug(e)
         return {"current": VERSION, "latest": VERSION}
-
-
-@app.get("/api/changelog")
-async def get_app_changelog():
-    return {key: CHANGELOG[key] for idx, key in enumerate(CHANGELOG) if idx < 5}
 
 
 ############################
