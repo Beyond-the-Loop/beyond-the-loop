@@ -82,15 +82,15 @@
 				</div>
 
 				<div class=" py-0.5 flex w-full justify-between">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Web Search Engine')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Web Search engine')}</div>
 					<div class="flex items-center relative">
 						<select
 							class="dark:bg-gray-900 w-fit pr-8 rounded px-2 p-1 text-xs bg-transparent outline-none text-right"
 							bind:value={webConfig.search.engine}
-							placeholder={$i18n.t('Select a engine')}
+							placeholder={$i18n.t('Select an engine')}
 							required
 						>
-							<option disabled selected value="">{$i18n.t('Select a engine')}</option>
+							<option disabled selected value="">{$i18n.t('Select an engine')}</option>
 							{#each webSearchEngines as engine}
 								<option value={engine}>{engine}</option>
 							{/each}
@@ -121,11 +121,11 @@
 						{:else if webConfig.search.engine === 'google_pse'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Google PSE API Key')}
+									{$i18n.t('Google PSE API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Google PSE API Key')}
+									placeholder={$i18n.t('Enter Google PSE API key')}
 									bind:value={webConfig.search.google_pse_api_key}
 								/>
 							</div>
@@ -149,77 +149,77 @@
 						{:else if webConfig.search.engine === 'brave'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Brave Search API Key')}
+									{$i18n.t('Brave Search API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Brave Search API Key')}
+									placeholder={$i18n.t('Enter Brave Search API key')}
 									bind:value={webConfig.search.brave_search_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'kagi'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Kagi Search API Key')}
+									{$i18n.t('Kagi Search API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Kagi Search API Key')}
+									placeholder={$i18n.t('Enter Kagi Search API key')}
 									bind:value={webConfig.search.kagi_search_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'mojeek'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Mojeek Search API Key')}
+									{$i18n.t('Mojeek Search API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Mojeek Search API Key')}
+									placeholder={$i18n.t('Enter Mojeek Search API key')}
 									bind:value={webConfig.search.mojeek_search_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'serpstack'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Serpstack API Key')}
+									{$i18n.t('Serpstack API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Serpstack API Key')}
+									placeholder={$i18n.t('Enter Serpstack API key')}
 									bind:value={webConfig.search.serpstack_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'serper'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Serper API Key')}
+									{$i18n.t('Serper API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Serper API Key')}
+									placeholder={$i18n.t('Enter Serper API key')}
 									bind:value={webConfig.search.serper_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'serply'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Serply API Key')}
+									{$i18n.t('Serply API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Serply API Key')}
+									placeholder={$i18n.t('Enter Serply API key')}
 									bind:value={webConfig.search.serply_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'searchapi'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('SearchApi API Key')}
+									{$i18n.t('SearchApi API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter SearchApi API Key')}
+									placeholder={$i18n.t('Enter SearchApi API key')}
 									bind:value={webConfig.search.searchapi_api_key}
 								/>
 							</div>
@@ -243,40 +243,40 @@
 						{:else if webConfig.search.engine === 'tavily'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Tavily API Key')}
+									{$i18n.t('Tavily API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Tavily API Key')}
+									placeholder={$i18n.t('Enter Tavily API key')}
 									bind:value={webConfig.search.tavily_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'jina'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Jina API Key')}
+									{$i18n.t('Jina API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Jina API Key')}
+									placeholder={$i18n.t('Enter Jina API key')}
 									bind:value={webConfig.search.jina_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'exa'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Exa API Key')}
+									{$i18n.t('Exa API key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Exa API Key')}
+									placeholder={$i18n.t('Enter Exa API key')}
 									bind:value={webConfig.search.exa_api_key}
 								/>
 							</div>
 						{:else if webConfig.search.engine === 'bing'}
 							<div>
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Bing Search V7 Endpoint')}
+									{$i18n.t('Bing Search v7 endpoint')}
 								</div>
 
 								<div class="flex w-full">
@@ -284,7 +284,7 @@
 										<input
 											class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 											type="text"
-											placeholder={$i18n.t('Enter Bing Search V7 Endpoint')}
+											placeholder={$i18n.t('Enter Bing Search v7 endpoint')}
 											bind:value={webConfig.search.bing_search_v7_endpoint}
 											autocomplete="off"
 										/>
@@ -294,11 +294,11 @@
 
 							<div class="mt-2">
 								<div class=" self-center text-xs font-medium mb-1">
-									{$i18n.t('Bing Search V7 Subscription Key')}
+									{$i18n.t('Bing Search V7 subscription key')}
 								</div>
 
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Bing Search V7 Subscription Key')}
+									placeholder={$i18n.t('Enter Bing Search V7 subscription key')}
 									bind:value={webConfig.search.bing_search_v7_subscription_key}
 								/>
 							</div>
@@ -310,12 +310,12 @@
 					<div class="mt-2 flex gap-2 mb-1">
 						<div class="w-full">
 							<div class=" self-center text-xs font-medium mb-1">
-								{$i18n.t('Search Result Count')}
+								{$i18n.t('Search result count')}
 							</div>
 
 							<input
 								class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
-								placeholder={$i18n.t('Search Result Count')}
+								placeholder={$i18n.t('Search result count')}
 								bind:value={webConfig.search.result_count}
 								required
 							/>
@@ -323,12 +323,12 @@
 
 						<div class="w-full">
 							<div class=" self-center text-xs font-medium mb-1">
-								{$i18n.t('Concurrent Requests')}
+								{$i18n.t('Concurrent requests')}
 							</div>
 
 							<input
 								class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
-								placeholder={$i18n.t('Concurrent Requests')}
+								placeholder={$i18n.t('Concurrent requests')}
 								bind:value={webConfig.search.concurrent_requests}
 								required
 							/>
@@ -341,13 +341,13 @@
 
 			<div>
 				<div class=" mb-1 text-sm font-medium">
-					{$i18n.t('Web Loader Settings')}
+					{$i18n.t('Web loader settings')}
 				</div>
 
 				<div>
 					<div class=" py-0.5 flex w-full justify-between">
 						<div class=" self-center text-xs font-medium">
-							{$i18n.t('Bypass SSL verification for Websites')}
+							{$i18n.t('Bypass SSL verification for websites')}
 						</div>
 
 						<button
@@ -368,7 +368,7 @@
 				</div>
 
 				<div class=" mt-2 mb-1 text-sm font-medium">
-					{$i18n.t('Youtube Loader Settings')}
+					{$i18n.t('Youtube loader settings')}
 				</div>
 
 				<div>

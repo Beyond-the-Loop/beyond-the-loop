@@ -215,7 +215,7 @@
 							<div class="flex justify-between items-center">
 								<div class="font-medium">{$i18n.t('Manage OpenAI API Connections')}</div>
 
-								<Tooltip content={$i18n.t(`Add Connection`)}>
+								<Tooltip content={$i18n.t(`Add connection`)}>
 									<button
 										class="px-1"
 										on:click={() => {
@@ -277,7 +277,7 @@
 						<div class="flex justify-between items-center">
 							<div class="font-medium">{$i18n.t('Manage Ollama API Connections')}</div>
 
-							<Tooltip content={$i18n.t(`Add Connection`)}>
+							<Tooltip content={$i18n.t(`Add connection`)}>
 								<button
 									class="px-1"
 									on:click={() => {

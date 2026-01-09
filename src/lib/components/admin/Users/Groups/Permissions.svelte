@@ -51,11 +51,11 @@
 
 <div>
 	<!-- <div>
-		<div class=" mb-2 text-sm font-medium">{$i18n.t('Model Permissions')}</div>
+		<div class=" mb-2 text-sm font-medium">{$i18n.t('Model permissions')}</div>
 
 		<div class="mb-2">
 			<div class="flex justify-between items-center text-xs pr-2">
-				<div class=" text-xs font-medium">{$i18n.t('Model Filtering')}</div>
+				<div class=" text-xs font-medium">{$i18n.t('Model filtering')}</div>
 
 				<Switch bind:state={permissions.model.filter} />
 			</div>
@@ -153,25 +153,25 @@
 	<hr class=" border-gray-50 dark:border-gray-850 my-2" /> -->
 
 	<div>
-		<div class=" mb-2 text-sm font-medium">{$i18n.t('Workspace Permissions')}</div>
+		<div class=" mb-2 text-sm font-medium">{$i18n.t('Workspace permissions')}</div>
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Models Access')}
+				{$i18n.t('Models access')}
 			</div>
 			<Switch bind:state={permissions.workspace.models} />
 		</div>
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Knowledge Access')}
+				{$i18n.t('Knowledge access')}
 			</div>
 			<Switch bind:state={permissions.workspace.knowledge} />
 		</div>
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Prompts Access')}
+				{$i18n.t('Prompts access')}
 			</div>
 			<Switch bind:state={permissions.workspace.prompts} />
 		</div>
@@ -185,7 +185,7 @@
 				placement="top-start"
 			>
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Tools Access')}
+					{$i18n.t('Tools access')}
 				</div>
 				<Switch bind:state={permissions.workspace.tools} />
 			</Tooltip>
@@ -195,11 +195,11 @@
 	<hr class=" border-gray-50 dark:border-gray-850 my-2" />
 
 	<div>
-		<div class=" mb-2 text-sm font-medium">{$i18n.t('Chat Permissions')}</div>
+		<div class=" mb-2 text-sm font-medium">{$i18n.t('Chat permissions')}</div>
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Allow Chat Controls')}
+				{$i18n.t('Allow chat controls')}
 			</div>
 
 			<Switch bind:state={permissions.chat.controls} />
@@ -207,7 +207,7 @@
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Allow File Upload')}
+				{$i18n.t('Allow file upload')}
 			</div>
 
 			<Switch bind:state={permissions.chat.file_upload} />
@@ -215,7 +215,7 @@
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Allow Chat Delete')}
+				{$i18n.t('Allow chat delete')}
 			</div>
 
 			<Switch bind:state={permissions.chat.delete} />
@@ -223,7 +223,7 @@
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Allow Chat Edit')}
+				{$i18n.t('Allow chat edit')}
 			</div>
 
 			<Switch bind:state={permissions.chat.edit} />
@@ -231,7 +231,7 @@
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">
-				{$i18n.t('Allow Temporary Chat')}
+				{$i18n.t('Allow temporary chat')}
 			</div>
 
 			<Switch bind:state={permissions.chat.temporary} />
@@ -241,7 +241,7 @@
 	<hr class=" border-gray-50 dark:border-gray-850 my-2" />
 
 	<div>
-		<div class=" mb-2 text-sm font-medium">{$i18n.t('Features Permissions')}</div>
+		<div class=" mb-2 text-sm font-medium">{$i18n.t('Features permissions')}</div>
 
 		<div class="  flex w-full justify-between my-2 pr-2">
 			<div class=" self-center text-xs font-medium">

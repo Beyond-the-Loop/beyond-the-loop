@@ -484,7 +484,7 @@
 						<input
 							class=" w-[5rem] md:w-full text-xs outline-none bg-transparent leading-none pl-2"
 							bind:value={searchValue}
-							placeholder={$i18n.t('Search Models')}
+							placeholder={$i18n.t('Search models')}
 							autofocus
 							on:blur={() => {
 								if (searchValue.trim() === '') showInput = false;
@@ -565,7 +565,7 @@
 					>{#if $mobile}
 						{$i18n.t('My')}
 					{:else}
-						{$i18n.t('My Assistants')}
+						{$i18n.t('My assistants')}
 					{/if}
 					</button
 				>
@@ -800,7 +800,7 @@
 						>
 							<div class=" text-xs mt-0.5">
 								<Tooltip
-									content={model?.user?.email ?? $i18n.t('Deleted User')}
+									content={model?.user?.email ?? $i18n.t('Deleted user')}
 									className="flex shrink-0 items-center"
 									placement="top-start"
 								>
@@ -808,7 +808,7 @@
 										<img
 											class="w-3 h-3 rounded-full mr-1"
 											src={model?.user?.profile_image_url}
-											alt={model?.user?.first_name ?? model?.user?.email ?? $i18n.t('Deleted User')}
+											alt={model?.user?.first_name ?? model?.user?.email ?? $i18n.t('Deleted user')}
 										/>
 									{/if}
 									<div class="shrink-0 text-lightGray-1200 dark:text-customGray-100">
@@ -929,7 +929,7 @@
 						modelsImportInputElement.click();
 					}}
 				>
-					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import Models')}</div>
+					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import models')}</div>
 
 					<div class=" self-center">
 						<svg
@@ -953,7 +953,7 @@
 						downloadModels($_models);
 					}}
 				>
-					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export Models')}</div>
+					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export models')}</div>
 
 					<div class=" self-center">
 						<svg

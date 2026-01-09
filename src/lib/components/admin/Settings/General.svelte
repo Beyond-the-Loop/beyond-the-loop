@@ -90,31 +90,31 @@
 	<div class=" space-y-3 overflow-y-scroll scrollbar-hidden h-full">
 		{#if adminConfig !== null}
 			<div>
-				<div class=" mb-3 text-sm font-medium">{$i18n.t('General Settings')}</div>
+				<div class=" mb-3 text-sm font-medium">{$i18n.t('General settings')}</div>
 
 				<div class="  flex w-full justify-between pr-2">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Enable New Sign Ups')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Enable new sign ups')}</div>
 
 					<Switch bind:state={adminConfig.ENABLE_SIGNUP} />
 				</div>
 
 				<div class="  my-3 flex w-full justify-between">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Default User Role')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Default user role')}</div>
 					<div class="flex items-center relative">
 						<select
 							class="dark:bg-gray-900 w-fit pr-8 rounded px-2 text-xs bg-transparent outline-none text-right"
 							bind:value={adminConfig.DEFAULT_USER_ROLE}
 							placeholder="Select a role"
 						>
-							<option value="pending">{$i18n.t('pending')}</option>
-							<option value="user">{$i18n.t('user')}</option>
-							<option value="admin">{$i18n.t('admin')}</option>
+							<option value="pending">{$i18n.t('Pending').toLowerCase()}</option>
+							<option value="user">{$i18n.t('User').toLowerCase()}</option>
+							<option value="admin">{$i18n.t('Admin').toLowerCase()}</option>
 						</select>
 					</div>
 				</div>
 
 				<div class=" flex w-full justify-between pr-2 my-3">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Enable API Key')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Enable API key')}</div>
 
 					<Switch bind:state={adminConfig.ENABLE_API_KEY} />
 				</div>
@@ -122,7 +122,7 @@
 				{#if adminConfig?.ENABLE_API_KEY}
 					<div class=" flex w-full justify-between pr-2 my-3">
 						<div class=" self-center text-xs font-medium">
-							{$i18n.t('API Key Endpoint Restrictions')}
+							{$i18n.t('API key endpoint restrictions')}
 						</div>
 
 						<Switch bind:state={adminConfig.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS} />
@@ -131,7 +131,7 @@
 					{#if adminConfig?.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS}
 						<div class=" flex w-full flex-col pr-2">
 							<div class=" text-xs font-medium">
-								{$i18n.t('Allowed Endpoints')}
+								{$i18n.t('Allowed endpoints')}
 							</div>
 
 							<input
@@ -159,7 +159,7 @@
 
 				<div class="my-3 flex w-full items-center justify-between pr-2">
 					<div class=" self-center text-xs font-medium">
-						{$i18n.t('Show Admin Details in Account Pending Overlay')}
+						{$i18n.t('Show admin details in account pending overlay')}
 					</div>
 
 					<Switch bind:state={adminConfig.SHOW_ADMIN_DETAILS} />
@@ -172,7 +172,7 @@
 				</div>
 
 				<div class="my-3 flex w-full items-center justify-between pr-2">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Enable Message Rating')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Enable message rating')}</div>
 
 					<Switch bind:state={adminConfig.ENABLE_MESSAGE_RATING} />
 				</div>
@@ -204,7 +204,7 @@
 
 				<div class=" w-full justify-between">
 					<div class="flex w-full justify-between">
-						<div class=" self-center text-xs font-medium">{$i18n.t('JWT Expiration')}</div>
+						<div class=" self-center text-xs font-medium">{$i18n.t('JWT expiration')}</div>
 					</div>
 
 					<div class="flex mt-2 space-x-2">
@@ -328,17 +328,17 @@
 									<input
 										class="w-full bg-transparent outline-none py-0.5"
 										required
-										placeholder={$i18n.t('Enter Application DN')}
+										placeholder={$i18n.t('Enter application DN')}
 										bind:value={LDAP_SERVER.app_dn}
 									/>
 								</Tooltip>
 							</div>
 							<div class="w-full">
 								<div class=" self-center text-xs font-medium min-w-fit mb-1">
-									{$i18n.t('Application DN Password')}
+									{$i18n.t('Application DN password')}
 								</div>
 								<SensitiveInput
-									placeholder={$i18n.t('Enter Application DN Password')}
+									placeholder={$i18n.t('Enter application DN password')}
 									bind:value={LDAP_SERVER.app_dn_password}
 								/>
 							</div>
@@ -346,7 +346,7 @@
 						<div class="flex w-full gap-2">
 							<div class="w-full">
 								<div class=" self-center text-xs font-medium min-w-fit mb-1">
-									{$i18n.t('Attribute for Mail')}
+									{$i18n.t('Attribute for mail')}
 								</div>
 								<Tooltip
 									content={$i18n.t(
@@ -366,7 +366,7 @@
 						<div class="flex w-full gap-2">
 							<div class="w-full">
 								<div class=" self-center text-xs font-medium min-w-fit mb-1">
-									{$i18n.t('Attribute for Username')}
+									{$i18n.t('Attribute for username')}
 								</div>
 								<Tooltip
 									content={$i18n.t(
@@ -386,7 +386,7 @@
 						<div class="flex w-full gap-2">
 							<div class="w-full">
 								<div class=" self-center text-xs font-medium min-w-fit mb-1">
-									{$i18n.t('Search Base')}
+									{$i18n.t('Search base')}
 								</div>
 								<Tooltip content={$i18n.t('The base to search for users')} placement="top-start">
 									<input
@@ -401,7 +401,7 @@
 						<div class="flex w-full gap-2">
 							<div class="w-full">
 								<div class=" self-center text-xs font-medium min-w-fit mb-1">
-									{$i18n.t('Search Filters')}
+									{$i18n.t('Search filters')}
 								</div>
 								<input
 									class="w-full bg-transparent outline-none py-0.5"
@@ -431,7 +431,7 @@
 								<div class="flex w-full gap-2">
 									<div class="w-full">
 										<div class=" self-center text-xs font-medium min-w-fit mb-1 mt-1">
-											{$i18n.t('Certificate Path')}
+											{$i18n.t('Certificate path')}
 										</div>
 										<input
 											class="w-full bg-transparent outline-none py-0.5"

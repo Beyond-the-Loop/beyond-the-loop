@@ -108,7 +108,7 @@
 
 <div class="mt-0.5 mb-2 gap-1 flex flex-row justify-between">
 	<div class="flex md:self-center text-lg font-medium px-0.5">
-		{$i18n.t('Feedback History')}
+		{$i18n.t('Feedback history')}
 
 		<div class="flex self-center w-[1px] h-6 mx-2.5 bg-gray-50 dark:bg-gray-850" />
 
@@ -157,7 +157,7 @@
 					</th>
 
 					<th scope="col" class="px-3 py-1.5 text-right cursor-pointer select-none w-0">
-						{$i18n.t('Updated At')}
+						{$i18n.t('Updated at')}
 					</th>
 
 					<th scope="col" class="px-3 py-1.5 text-right cursor-pointer select-none w-0"> </th>
@@ -250,7 +250,7 @@
 {#if feedbacks.length > 0}
 	<div class=" flex flex-col justify-end w-full text-right gap-1">
 		<div class="line-clamp-1 text-gray-500 text-xs">
-			{$i18n.t('Help us create the best community leaderboard by sharing your feedback history!')}
+			{$i18n.t('Help us create the best community leaderboard by sharing your Feedback history!')}
 		</div>
 
 		<div class="flex space-x-1 ml-auto">

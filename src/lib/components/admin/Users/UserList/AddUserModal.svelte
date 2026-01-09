@@ -123,7 +123,7 @@
 <Modal size="sm" bind:show>
 	<div>
 		<div class=" flex justify-between dark:text-gray-300 px-5 pt-4 pb-2">
-			<div class=" text-lg font-medium self-center">{$i18n.t('Add User')}</div>
+			<div class=" text-lg font-medium self-center">{$i18n.t('Add user')}</div>
 			<button
 				class="self-center"
 				on:click={() => {
@@ -171,7 +171,7 @@
 							type="button"
 							on:click={() => {
 								tab = 'import';
-							}}>{$i18n.t('CSV Import')}</button
+							}}>{$i18n.t('CSV import')}</button
 						>
 					</div>
 
@@ -184,39 +184,39 @@
 									<select
 										class="w-full capitalize rounded-lg text-sm bg-transparent dark:disabled:text-gray-500 outline-none"
 										bind:value={_user.role}
-										placeholder={$i18n.t('Enter Your Role')}
+										placeholder={$i18n.t('Enter your role')}
 										required
 									>
-										<option value="pending"> {$i18n.t('pending')} </option>
-										<option value="user"> {$i18n.t('user')} </option>
-										<option value="admin"> {$i18n.t('admin')} </option>
+										<option value="pending"> {$i18n.t('Pending').toLowerCase()} </option>
+										<option value="user"> {$i18n.t('User').toLowerCase()} </option>
+										<option value="admin"> {$i18n.t('Admin').toLowerCase()} </option>
 									</select>
 								</div>
 							</div>
 
 							<!-- <div class="flex flex-col w-full mt-1">
-								<div class=" mb-1 text-xs text-gray-500">{$i18n.t('First Name')}</div>
+								<div class=" mb-1 text-xs text-gray-500">{$i18n.t('First name')}</div>
 
 								<div class="flex-1">
 									<input
 										class="w-full text-sm bg-transparent disabled:text-gray-500 dark:disabled:text-gray-500 outline-none"
 										type="text"
 										bind:value={_user.first_name}
-										placeholder={$i18n.t('Enter First Name')}
+										placeholder={$i18n.t('Enter First name')}
 										autocomplete="off"
 										required
 									/>
 								</div>
 							</div>
 							<div class="flex flex-col w-full mt-1">
-								<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Last Name')}</div>
+								<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Last name')}</div>
 
 								<div class="flex-1">
 									<input
 										class="w-full text-sm bg-transparent disabled:text-gray-500 dark:disabled:text-gray-500 outline-none"
 										type="text"
 										bind:value={_user.last_name}
-										placeholder={$i18n.t('Enter Last Name')}
+										placeholder={$i18n.t('Enter last name')}
 										autocomplete="off"
 										required
 									/>

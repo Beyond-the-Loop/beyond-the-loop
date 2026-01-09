@@ -166,7 +166,7 @@
 				on:click={() => (showBaseDropdown = !showBaseDropdown)}
 			>
 				<div class="text-lightGray-100 dark:text-customGray-100 flex items-center">
-					<span>{$i18n.t('Default Model')}</span>
+					<span>{$i18n.t('Default model')}</span>
 				</div>
 				<div class="flex items-center gap-2">
 					{#if defaultModelIds?.length > 0}
@@ -226,7 +226,7 @@
 							<div
 								class="text-2xs md:text-2xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center"
 							>
-								{$i18n.t('Intelligence Score')}
+								{$i18n.t('Intelligence score')}
 							</div>
 							<div
 								class="text-2xs md:text-2xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center"
@@ -257,7 +257,7 @@
 							<div
 								class="text-2xs text-[#8A8B8D] dark:text-customGray-300 flex justify-center items-end"
 							>
-								{$i18n.t('Access Rights')}
+								{$i18n.t('Access rights')}
 							</div>
 						{/if}
 					</div>
@@ -340,7 +340,7 @@
 											<div
 												class="cursor-pointer flex items-center gap-1 text-xs dark:text-customGray-100/50 leading-none whitespace-nowrap"
 											>
-												<PrivateIcon className="size-3" />{$i18n.t('Admin Only')}
+												<PrivateIcon className="size-3" />{$i18n.t('Admin only')}
 											</div>
 										{/if}
 									</div>

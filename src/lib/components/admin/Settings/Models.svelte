@@ -157,7 +157,7 @@
 				</div>
 
 				<div class="flex items-center gap-1.5">
-					<Tooltip content={$i18n.t('Manage Models')}>
+					<Tooltip content={$i18n.t('Manage models')}>
 						<button
 							class=" p-1 rounded-full flex gap-1 items-center"
 							type="button"
@@ -191,7 +191,7 @@
 					<input
 						class=" w-full text-sm py-1 rounded-r-xl outline-none bg-transparent"
 						bind:value={searchValue}
-						placeholder={$i18n.t('Search Models')}
+						placeholder={$i18n.t('Search models')}
 					/>
 				</div>
 			</div>
@@ -345,7 +345,7 @@
 						}}
 					>
 						<div class=" self-center mr-2 font-medium line-clamp-1">
-							{$i18n.t('Import Presets')}
+							{$i18n.t('Import presets')}
 						</div>
 
 						<div class=" self-center">
@@ -371,7 +371,7 @@
 						}}
 					>
 						<div class=" self-center mr-2 font-medium line-clamp-1">
-							{$i18n.t('Export Presets')}
+							{$i18n.t('Export presets')}
 						</div>
 
 						<div class=" self-center">

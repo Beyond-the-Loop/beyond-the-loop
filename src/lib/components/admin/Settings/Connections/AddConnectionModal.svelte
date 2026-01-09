@@ -125,9 +125,9 @@
 		<div class=" flex justify-between dark:text-gray-100 px-5 pt-4 pb-2">
 			<div class=" text-lg font-medium self-center font-primary">
 				{#if edit}
-					{$i18n.t('Edit Connection')}
+					{$i18n.t('Edit connection')}
 				{:else}
-					{$i18n.t('Add Connection')}
+					{$i18n.t('Add connection')}
 				{/if}
 			</div>
 			<button
@@ -168,7 +168,7 @@
 										class="w-full text-sm bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 										type="text"
 										bind:value={url}
-										placeholder={$i18n.t('API Base URL')}
+										placeholder={$i18n.t('API base URL')}
 										autocomplete="off"
 										required
 									/>
@@ -213,7 +213,7 @@
 									<SensitiveInput
 										className="w-full text-sm bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 										bind:value={key}
-										placeholder={$i18n.t('API Key')}
+										placeholder={$i18n.t('API key')}
 										required={!ollama}
 									/>
 								</div>

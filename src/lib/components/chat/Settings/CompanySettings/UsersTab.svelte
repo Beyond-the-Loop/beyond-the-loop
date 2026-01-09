@@ -178,7 +178,7 @@
 	>
 		<div class="flex w-full justify-between items-center">
 			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">
-				{$i18n.t('Member Management')}
+				{$i18n.t('Member management')}
 			</div>
 		</div>
 	</div>
@@ -201,7 +201,7 @@
 				<span
 					class="absolute top-[26px] w-[12rem] text-lightGray-100/50 text-right right-2.5 -translate-y-1/2 text-xs dark:text-customGray-100/50 pointer-events-none select-none"
 				>
-					{$i18n.t('Add Team member mails (separated by comma)')}
+					{$i18n.t('Add team member mails (separated by comma)')}
 				</span>
 			{/if}
 			<div class="flex flex-wrap gap-1 items-start p-3" on:click={() => inputRef.focus()}>
@@ -225,7 +225,7 @@
 					bind:this={inputRef}
 					bind:value={input}
 					placeholder={`${$i18n.t('Enter email')}...`}
-					class="text-xs bg-transparent outline-none px-1 h-6 min-w-[100px]"
+					class="text-xs bg-transparent outline-none px-1 h-6 min-w-[100px] max-w-md"
 					on:keydown={handleKeydown}
 					on:blur={() => {
 						addEmail();
@@ -309,7 +309,7 @@
 			</div>
 		</div>
 		<div class="flex flex-col md:flex-row w-full items-start justify-between">
-			<GroupSelect bind:selected={selectedGroups} {groups} placeholder={$i18n.t('Add group...')} />
+			<GroupSelect bind:selected={selectedGroups} {groups} placeholder={`${$i18n.t('Add group')}...`} />
 			<button
 				class="md:ml-2.5 w-full md:w-auto mt-2 md:mt-0 whitespace-nowrap bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 text-xs dark:bg-customGray-900 border dark:border-customGray-700 dark:hover:bg-customGray-950 dark:text-customGray-200 py-2.5 px-4 h-12 rounded-lg transition"
 				on:click={() => {

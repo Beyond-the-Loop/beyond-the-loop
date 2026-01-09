@@ -43,7 +43,7 @@
 	}}
 >
 	<div class="flex justify-between items-center text-sm">
-		<div class="  font-medium">{$i18n.t('Change Password')}</div>
+		<div class="  font-medium">{$i18n.t('Change password')}</div>
 		<button
 			class=" text-xs font-medium text-gray-500"
 			type="button"
@@ -56,7 +56,7 @@
 	{#if show}
 		<div class=" py-2.5 space-y-1.5">
 			<div class="flex flex-col w-full">
-				<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Current Password')}</div>
+				<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Current password')}</div>
 
 				<div class="flex-1">
 					<input
@@ -71,14 +71,14 @@
 			</div>
 
 			<div class="flex flex-col w-full">
-				<div class=" mb-1 text-xs text-gray-500">{$i18n.t('New Password')}</div>
+				<div class=" mb-1 text-xs text-gray-500">{$i18n.t('New password')}</div>
 
 				<div class="flex-1">
 					<input
 						class="w-full bg-transparent text-sm dark:text-gray-300 outline-none placeholder:opacity-30"
 						type="password"
 						bind:value={newPassword}
-						placeholder={$i18n.t('Enter your new password')}
+						placeholder={$i18n.t('New password')}
 						autocomplete="new-password"
 						required
 					/>
@@ -86,7 +86,7 @@
 			</div>
 
 			<div class="flex flex-col w-full">
-				<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Confirm Password')}</div>
+				<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Confirm password')}</div>
 
 				<div class="flex-1">
 					<input

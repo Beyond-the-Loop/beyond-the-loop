@@ -66,7 +66,7 @@
 		<div>
 			<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
 		</div>
-		<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">{$i18n.t('Create Your Account')}</div>
+		<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">{$i18n.t('Create your account')}</div>
 		<div class="text-center text-xs font-medium text-[#8A8B8D] dark:text-customGray-300">
 			{$i18n.t('Sign up to Beyond the Loop to continue.')}
 		</div>

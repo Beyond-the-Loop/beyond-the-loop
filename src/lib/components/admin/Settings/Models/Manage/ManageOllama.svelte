@@ -861,9 +861,9 @@
 								type="button"
 							>
 								{#if modelUploadMode === 'file'}
-									<span class="ml-2 self-center">{$i18n.t('File Mode')}</span>
+									<span class="ml-2 self-center">{$i18n.t('File mode')}</span>
 								{:else}
-									<span class="ml-2 self-center">{$i18n.t('URL Mode')}</span>
+									<span class="ml-2 self-center">{$i18n.t('URL mode')}</span>
 								{/if}
 							</button>
 						</div>
@@ -909,7 +909,7 @@
 											type="url"
 											required
 											bind:value={modelFileUrl}
-											placeholder={$i18n.t('Type Hugging Face Resolve (Download) URL')}
+											placeholder={$i18n.t('Enter Hugging Face Resolve (download) URL')}
 										/>
 									</div>
 								{/if}
@@ -974,7 +974,7 @@
 							<div>
 								<div>
 									<div class=" my-2.5 text-sm font-medium">
-										{$i18n.t('Modelfile Content')}
+										{$i18n.t('Modelfile content')}
 									</div>
 									<textarea
 										bind:value={modelFileContent}
@@ -995,7 +995,7 @@
 
 						{#if uploadMessage}
 							<div class="mt-2">
-								<div class=" mb-2 text-xs">{$i18n.t('Upload Progress')}</div>
+								<div class=" mb-2 text-xs">{$i18n.t('Upload progress')}</div>
 
 								<div class="w-full rounded-full dark:bg-gray-800">
 									<div
@@ -1011,7 +1011,7 @@
 							</div>
 						{:else if uploadProgress !== null}
 							<div class="mt-2">
-								<div class=" mb-2 text-xs">{$i18n.t('Upload Progress')}</div>
+								<div class=" mb-2 text-xs">{$i18n.t('Upload progress')}</div>
 
 								<div class="w-full rounded-full dark:bg-gray-800">
 									<div

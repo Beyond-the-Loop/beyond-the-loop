@@ -319,7 +319,7 @@ class Pipe:
 								<input
 									class="w-full text-2xl font-medium bg-transparent outline-none font-primary"
 									type="text"
-									placeholder={$i18n.t('Function Name')}
+									placeholder={$i18n.t('Function name')}
 									bind:value={name}
 									required
 								/>

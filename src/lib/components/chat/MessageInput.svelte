@@ -811,7 +811,7 @@
 														navigator.maxTouchPoints > 0 ||
 														navigator.msMaxTouchPoints > 0
 													)}
-												placeholder={placeholder ? placeholder : $i18n.t('Send a Message')}
+												placeholder={placeholder ? placeholder : $i18n.t('Send a message')}
 												largeTextAsFile={$settings?.largeTextAsFile ?? false}
 												autocomplete={false}
 												generateAutoCompletion={async (text) => {
@@ -1003,7 +1003,7 @@
 											id="chat-input"
 											bind:this={chatInputElement}
 											class="scrollbar-hidden bg-transparent dark:text-gray-100 outline-none w-full pt-3 px-1 resize-none"
-											placeholder={placeholder ? placeholder : $i18n.t('Send a Message')}
+											placeholder={placeholder ? placeholder : $i18n.t('Send a message')}
 											bind:value={prompt}
 											on:keypress={(e) => {
 												if (
@@ -1375,7 +1375,7 @@
 															toast.error($i18n.t('Permission denied when accessing microphone'));
 														}
 													}}
-													aria-label="Voice Input"
+													aria-label="Voice input"
 												>
 													<VoiceRecorderIcon />
 												</button>

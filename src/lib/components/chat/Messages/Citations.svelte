@@ -177,7 +177,7 @@
 						<div class="flex items-center gap-1 whitespace-nowrap">
 							<span class="hidden sm:inline">{$i18n.t('and')}</span>
 							{citations.length - 2}
-							<span>{$i18n.t('more')}</span>
+							<span>{$i18n.t('More').toLowerCase()}</span>
 						</div>
 					</div>
 					<div class="flex-shrink-0">

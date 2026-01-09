@@ -56,7 +56,7 @@
 		>
 			<div class=" py-0.5 flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Stream Chat Response')}
+					{$i18n.t('Stream chat response')}
 				</div>
 				<button
 					class="p-1 px-3 text-xs flex rounded transition"
@@ -146,7 +146,7 @@
 					<input
 						class="w-full rounded-lg py-2 px-4 text-sm dark:text-gray-300 dark:bg-gray-850 outline-none"
 						type="number"
-						placeholder={$i18n.t('Enter Seed')}
+						placeholder={$i18n.t('Enter seed')}
 						bind:value={params.seed}
 						autocomplete="off"
 						min="0"
@@ -166,7 +166,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Stop Sequence')}
+					{$i18n.t('Stop sequence')}
 				</div>
 
 				<button
@@ -640,7 +640,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Frequency Penalty')}
+					{$i18n.t('Frequency penalty')}
 				</div>
 
 				<button
@@ -696,7 +696,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Repeat Last N')}
+					{$i18n.t('Repeat last N')}
 				</div>
 
 				<button
@@ -808,7 +808,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Context Length')}
+					{$i18n.t('Context length')}
 				</div>
 
 				<button
@@ -863,7 +863,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Batch Size (num_batch)')}
+					{$i18n.t('Batch size (num_batch)')}
 				</div>
 
 				<button
@@ -918,7 +918,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Tokens To Keep On Context Refresh (num_keep)')}
+					{$i18n.t('Tokens to keep on context refresh (num_keep)')}
 				</div>
 
 				<button
@@ -973,7 +973,7 @@
 		>
 			<div class="flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Max Tokens (num_predict)')}
+					{$i18n.t('Max tokens (num_predict)')}
 				</div>
 
 				<button

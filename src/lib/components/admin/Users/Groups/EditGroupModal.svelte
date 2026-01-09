@@ -94,12 +94,12 @@
 			<div class=" text-lg font-medium self-center font-primary">
 				{#if custom}
 					{#if edit}
-						{$i18n.t('Edit User Group')}
+						{$i18n.t('Edit user group')}
 					{:else}
-						{$i18n.t('Add User Group')}
+						{$i18n.t('Add user group')}
 					{/if}
 				{:else}
-					{$i18n.t('Edit Default Permissions')}
+					{$i18n.t('Edit default permissions')}
 				{/if}
 			</div>
 			<button

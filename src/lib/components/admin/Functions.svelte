@@ -203,7 +203,7 @@
 			<input
 				class=" w-full text-sm pr-4 py-1 rounded-r-xl outline-none bg-transparent"
 				bind:value={query}
-				placeholder={$i18n.t('Search Functions')}
+				placeholder={$i18n.t('Search functions')}
 			/>
 		</div>
 
@@ -396,7 +396,7 @@
 				functionsImportInputElement.click();
 			}}
 		>
-			<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import Functions')}</div>
+			<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import functions')}</div>
 
 			<div class=" self-center">
 				<svg
@@ -430,7 +430,7 @@
 				}
 			}}
 		>
-			<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export Functions')}</div>
+			<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export functions')}</div>
 
 			<div class=" self-center">
 				<svg

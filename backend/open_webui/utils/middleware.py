@@ -879,7 +879,7 @@ async def process_chat_response(
                                 title_string = (
                                     res.get("choices", [])[0]
                                     .get("message", {})
-                                    .get("content", message.get("content", "New Chat"))
+                                    .get("content", message.get("content", "New chat"))
                                 )
                             else:
                                 title_string = ""
@@ -890,13 +890,13 @@ async def process_chat_response(
 
                             try:
                                 title = json.loads(title_string).get(
-                                    "title", "New Chat"
+                                    "title", "New chat"
                                 )
                             except Exception as e:
                                 title = ""
 
                             if not title:
-                                title = messages[0].get("content", "New Chat")
+                                title = messages[0].get("content", "New chat")
 
                             Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
@@ -907,14 +907,14 @@ async def process_chat_response(
                                 }
                             )
                     elif len(messages) == 2:
-                        title = messages[0].get("content", "New Chat")
+                        title = messages[0].get("content", "New chat")
 
                         Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
                         await event_emitter(
                             {
                                 "type": "chat:title",
-                                "data": message.get("content", "New Chat"),
+                                "data": message.get("content", "New chat"),
                             }
                         )
 

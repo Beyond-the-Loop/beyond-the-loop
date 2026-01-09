@@ -97,8 +97,8 @@
 </script>
 
 <ConfirmDialog
-	title={$i18n.t('Reset All Models')}
-	message={$i18n.t('This will delete all models including custom models and cannot be undone.')}
+	title={$i18n.t('Reset all models')}
+	message={$i18n.t('This will Delete all models including custom models and cannot be undone.')}
 	bind:show={showResetModal}
 	onConfirm={async () => {
 		const res = deleteAllModels(localStorage.token);
@@ -146,7 +146,7 @@
 						<div>
 							<div class="flex flex-col w-full">
 								<div class="mb-1 flex justify-between">
-									<div class="text-xs text-gray-500">{$i18n.t('Reorder Models')}</div>
+									<div class="text-xs text-gray-500">{$i18n.t('Reorder models')}</div>
 								</div>
 
 								<ModelList bind:modelIds />
@@ -158,7 +158,7 @@
 						<div>
 							<div class="flex flex-col w-full">
 								<div class="mb-1 flex justify-between">
-									<div class="text-xs text-gray-500">{$i18n.t('Default Models')}</div>
+									<div class="text-xs text-gray-500">{$i18n.t('Default models')}</div>
 								</div>
 
 								<div class="flex items-center -mr-1">
@@ -210,7 +210,7 @@
 						</div>
 
 						<div class="flex justify-between pt-3 text-sm font-medium gap-1.5">
-							<Tooltip content={$i18n.t('This will delete all models including custom models')}>
+							<Tooltip content={$i18n.t('This will Delete all models including custom models')}>
 								<button
 									class="px-3.5 py-1.5 text-sm font-medium dark:bg-black dark:hover:bg-gray-950 dark:text-white bg-white text-black hover:bg-gray-100 transition rounded-full flex flex-row space-x-1 items-center"
 									type="button"
@@ -218,8 +218,8 @@
 										showResetModal = true;
 									}}
 								>
-									<!-- {$i18n.t('Delete All Models')} -->
-									{$i18n.t('Reset All Models')}
+									<!-- {$i18n.t('Delete all models')} -->
+									{$i18n.t('Reset all models')}
 								</button>
 							</Tooltip>
 

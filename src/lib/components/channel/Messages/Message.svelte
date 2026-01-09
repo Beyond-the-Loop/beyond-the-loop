@@ -52,7 +52,7 @@
 
 <ConfirmDialog
 	bind:show={showDeleteConfirmDialog}
-	title={$i18n.t('Delete Message')}
+	title={$i18n.t('Delete message')}
 	message={$i18n.t('Are you sure you want to delete this message?')}
 	onConfirm={async () => {
 		await onDelete();
@@ -94,7 +94,7 @@
 					</ReactionPicker>
 
 					{#if !thread}
-						<Tooltip content={$i18n.t('Reply in Thread')}>
+						<Tooltip content={$i18n.t('Reply in thread')}>
 							<button
 								class="hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-lg p-1"
 								on:click={() => {
@@ -332,7 +332,7 @@
 								<span class="ml-1">
 									<ChevronRight className="size-2.5" strokeWidth="3" />
 								</span>
-								<!-- {$i18n.t('View Replies')} -->
+								<!-- {$i18n.t('View replies')} -->
 							</button>
 						</div>
 					{/if}

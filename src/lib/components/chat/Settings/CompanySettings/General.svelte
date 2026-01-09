@@ -59,7 +59,7 @@
 
 	const userPermissionsText = {
 		websearch: $i18n.t('Web Search'),
-		image_generation: $i18n.t('Image Generation'), // Vorher: 'Image Gen'; ausgetauscht damit userPermissionsText wiederverwendbar
+		image_generation: $i18n.t('Image Generation')
 		// code_interpreter: "Code Interpreter",
 		// audio: "Audio In and Out"
 	}
@@ -272,7 +272,7 @@
 				</div>
 
 				<div class="flex-1 flex flex-col self-center gap-0.5 mb-5">
-					<div class=" mb-0.5 text-sm dark:text-customGray-100">{$i18n.t('Profile Picture')}</div>
+					<div class=" mb-0.5 text-sm dark:text-customGray-100">{$i18n.t('Profile picture')}</div>
 					<div class="text-xs dark:text-customGray-100/50 mb-2">
 						{$i18n.t('We only support PNGs, JPEGs and GIFs under 10MB')}
 					</div>
@@ -286,7 +286,7 @@
 							class="flex items-center font-medium text-xs dark:text-customGray-300 px-2 py-1 rounded-xl border border-customGray-700 dark:bg-customGray-900"
 						>
 							<CameraIcon className="size-4 mr-1" />
-							{$i18n.t('Upload Image')}
+							{$i18n.t('Upload image')}
 						</button>
 						
 						<button

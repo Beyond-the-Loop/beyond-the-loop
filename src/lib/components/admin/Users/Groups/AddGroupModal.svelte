@@ -41,7 +41,7 @@
 	<div>
 		<div class=" flex justify-between dark:text-gray-100 px-5 pt-4 mb-1.5">
 			<div class=" text-lg font-medium self-center font-primary">
-				{$i18n.t('Add User Group')}
+				{$i18n.t('Add user group')}
 			</div>
 			<button
 				class="self-center"
@@ -81,7 +81,7 @@
 										class="w-full text-sm bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 										type="text"
 										bind:value={name}
-										placeholder={$i18n.t('Group Name')}
+										placeholder={$i18n.t('Group name')}
 										autocomplete="off"
 										required
 									/>
@@ -97,7 +97,7 @@
 									className="w-full text-sm bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none resize-none"
 									rows={2}
 									bind:value={description}
-									placeholder={$i18n.t('Group Description')}
+									placeholder={$i18n.t('Group description')}
 								/>
 							</div>
 						</div>

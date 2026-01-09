@@ -70,7 +70,7 @@
 		<div class="  overflow-y-scroll scrollbar-hidden h-full pr-1.5">
 			<div>
 				<div class=" mb-2.5 text-sm font-medium flex items-center">
-					<div class=" mr-1">{$i18n.t('Set Task Model')}</div>
+					<div class=" mr-1">{$i18n.t('Set task model')}</div>
 					<Tooltip
 						content={$i18n.t(
 							'A task model is used when performing tasks such as generating titles for chats and web search queries'
@@ -94,13 +94,13 @@
 				</div>
 				<div class="flex w-full gap-2">
 					<div class="flex-1">
-						<div class=" text-xs mb-1">{$i18n.t('Local Models')}</div>
+						<div class=" text-xs mb-1">{$i18n.t('Local models')}</div>
 						<select
 							class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 							bind:value={taskConfig.TASK_MODEL}
 							placeholder={$i18n.t('Select a model')}
 						>
-							<option value="" selected>{$i18n.t('Current Model')}</option>
+							<option value="" selected>{$i18n.t('Current model')}</option>
 							{#each $models.filter((m) => m.owned_by === 'ollama') as model}
 								<option value={model.id} class="bg-gray-100 dark:bg-gray-700">
 									{model.name}
@@ -110,13 +110,13 @@
 					</div>
 
 					<div class="flex-1">
-						<div class=" text-xs mb-1">{$i18n.t('External Models')}</div>
+						<div class=" text-xs mb-1">{$i18n.t('External models')}</div>
 						<select
 							class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 							bind:value={taskConfig.TASK_MODEL_EXTERNAL}
 							placeholder={$i18n.t('Select a model')}
 						>
-							<option value="" selected>{$i18n.t('Current Model')}</option>
+							<option value="" selected>{$i18n.t('Current model')}</option>
 							{#each $models as model}
 								<option value={model.id} class="bg-gray-100 dark:bg-gray-700">
 									{model.name}
@@ -127,7 +127,7 @@
 				</div>
 
 				<div class="mt-3">
-					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Title Generation Prompt')}</div>
+					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Title generation prompt')}</div>
 
 					<Tooltip
 						content={$i18n.t('Leave empty to use the default prompt, or enter a custom prompt')}
@@ -143,7 +143,7 @@
 				</div>
 
 				<div class="mt-3">
-					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Image Prompt Generation Prompt')}</div>
+					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Image prompt generation prompt')}</div>
 
 					<Tooltip
 						content={$i18n.t('Leave empty to use the default prompt, or enter a custom prompt')}
@@ -162,7 +162,7 @@
 
 				<div class="my-3 flex w-full items-center justify-between">
 					<div class=" self-center text-xs font-medium">
-						{$i18n.t('Autocomplete Generation')}
+						{$i18n.t('Autocomplete generation')}
 					</div>
 
 					<Tooltip content={$i18n.t('Enable autocomplete generation for chat messages')}>
@@ -173,7 +173,7 @@
 				{#if taskConfig.ENABLE_AUTOCOMPLETE_GENERATION}
 					<div class="mt-3">
 						<div class=" mb-2.5 text-xs font-medium">
-							{$i18n.t('Autocomplete Generation Input Max Length')}
+							{$i18n.t('Autocomplete generation input max length')}
 						</div>
 
 						<Tooltip
@@ -193,7 +193,7 @@
 
 				<div class="my-3 flex w-full items-center justify-between">
 					<div class=" self-center text-xs font-medium">
-						{$i18n.t('Tags Generation')}
+						{$i18n.t('Tags generation')}
 					</div>
 
 					<Switch bind:state={taskConfig.ENABLE_TAGS_GENERATION} />
@@ -201,7 +201,7 @@
 
 				{#if taskConfig.ENABLE_TAGS_GENERATION}
 					<div class="mt-3">
-						<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Tags Generation Prompt')}</div>
+						<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Tags generation prompt')}</div>
 
 						<Tooltip
 							content={$i18n.t('Leave empty to use the default prompt, or enter a custom prompt')}
@@ -221,7 +221,7 @@
 
 				<div class="my-3 flex w-full items-center justify-between">
 					<div class=" self-center text-xs font-medium">
-						{$i18n.t('Retrieval Query Generation')}
+						{$i18n.t('Retrieval query generation')}
 					</div>
 
 					<Switch bind:state={taskConfig.ENABLE_RETRIEVAL_QUERY_GENERATION} />
@@ -229,14 +229,14 @@
 
 				<div class="my-3 flex w-full items-center justify-between">
 					<div class=" self-center text-xs font-medium">
-						{$i18n.t('Web Search Query Generation')}
+						{$i18n.t('Web Search query generation')}
 					</div>
 
 					<Switch bind:state={taskConfig.ENABLE_SEARCH_QUERY_GENERATION} />
 				</div>
 
 				<div class="">
-					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Query Generation Prompt')}</div>
+					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Query generation prompt')}</div>
 
 					<Tooltip
 						content={$i18n.t('Leave empty to use the default prompt, or enter a custom prompt')}
@@ -366,7 +366,7 @@
 				<div class=" space-y-3">
 					<div class="flex w-full justify-between mb-2">
 						<div class=" self-center text-sm font-semibold">
-							{$i18n.t('Default Prompt Suggestions')}
+							{$i18n.t('Default prompt suggestions')}
 						</div>
 
 						<button

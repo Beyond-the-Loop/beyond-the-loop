@@ -100,11 +100,11 @@
 >
 	<div class=" space-y-3 overflow-y-scroll max-h-[28rem] lg:max-h-full">
 		<div>
-			<div class=" mb-1 text-sm font-medium">{$i18n.t('STT Settings')}</div>
+			<div class=" mb-1 text-sm font-medium">{$i18n.t('STT settings')}</div>
 
 			{#if $config.audio.stt.engine !== 'web'}
 				<div class=" py-0.5 flex w-full justify-between">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Speech-to-Text Engine')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Speech-to-Text engine')}</div>
 					<div class="flex items-center relative">
 						<select
 							class="dark:bg-gray-900 w-fit pr-8 rounded px-2 p-1 text-xs bg-transparent outline-none text-right"
@@ -120,7 +120,7 @@
 
 			<div class=" py-0.5 flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Instant Auto-Send After Voice Transcription')}
+					{$i18n.t('Instant Auto-Send after voice transcription')}
 				</div>
 
 				<button
@@ -140,7 +140,7 @@
 		</div>
 
 		<div>
-			<div class=" mb-1 text-sm font-medium">{$i18n.t('TTS Settings')}</div>
+			<div class=" mb-1 text-sm font-medium">{$i18n.t('TTS settings')}</div>
 
 			<div class=" py-0.5 flex w-full justify-between">
 				<div class=" self-center text-xs font-medium">{$i18n.t('Auto-playback response')}</div>
@@ -161,7 +161,7 @@
 			</div>
 
 			<div class=" py-0.5 flex w-full justify-between">
-				<div class=" self-center text-xs font-medium">{$i18n.t('Speech Playback Speed')}</div>
+				<div class=" self-center text-xs font-medium">{$i18n.t('Speech playback speed')}</div>
 
 				<div class="flex items-center relative">
 					<select
@@ -180,7 +180,7 @@
 
 		{#if $config.audio.tts.engine === ''}
 			<div>
-				<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set Voice')}</div>
+				<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set voice')}</div>
 				<div class="flex w-full">
 					<div class="flex-1">
 						<select
@@ -210,7 +210,7 @@
 			</div>
 		{:else if $config.audio.tts.engine !== ''}
 			<div>
-				<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set Voice')}</div>
+				<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set voice')}</div>
 				<div class="flex w-full">
 					<div class="flex-1">
 						<input

@@ -160,10 +160,10 @@
 	<div class=" space-y-3 overflow-y-scroll scrollbar-hidden h-full">
 		<div class="flex flex-col gap-3">
 			<div>
-				<div class=" mb-1 text-sm font-medium">{$i18n.t('STT Settings')}</div>
+				<div class=" mb-1 text-sm font-medium">{$i18n.t('STT settings')}</div>
 
 				<div class=" py-0.5 flex w-full justify-between">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Speech-to-Text Engine')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Speech-to-Text engine')}</div>
 					<div class="flex items-center relative">
 						<select
 							class="dark:bg-gray-900 cursor-pointer w-fit pr-8 rounded px-2 p-1 text-xs bg-transparent outline-none text-right"
@@ -182,19 +182,19 @@
 						<div class="mt-1 flex gap-2 mb-1">
 							<input
 								class="flex-1 w-full bg-transparent outline-none"
-								placeholder={$i18n.t('API Base URL')}
+								placeholder={$i18n.t('API base URL')}
 								bind:value={STT_OPENAI_API_BASE_URL}
 								required
 							/>
 
-							<SensitiveInput placeholder={$i18n.t('API Key')} bind:value={STT_OPENAI_API_KEY} />
+							<SensitiveInput placeholder={$i18n.t('API key')} bind:value={STT_OPENAI_API_KEY} />
 						</div>
 					</div>
 
 					<hr class=" dark:border-gray-850 my-2" />
 
 					<div>
-						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('STT Model')}</div>
+						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('STT model')}</div>
 						<div class="flex w-full">
 							<div class="flex-1">
 								<input
@@ -212,7 +212,7 @@
 					</div>
 				{:else if STT_ENGINE === ''}
 					<div>
-						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('STT Model')}</div>
+						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('STT model')}</div>
 
 						<div class="flex w-full">
 							<div class="flex-1 mr-2">
@@ -298,10 +298,10 @@
 			<hr class=" dark:border-gray-800" />
 
 			<div>
-				<div class=" mb-1 text-sm font-medium">{$i18n.t('TTS Settings')}</div>
+				<div class=" mb-1 text-sm font-medium">{$i18n.t('TTS settings')}</div>
 
 				<div class=" py-0.5 flex w-full justify-between">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Text-to-Speech Engine')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Text-to-Speech engine')}</div>
 					<div class="flex items-center relative">
 						<select
 							class=" dark:bg-gray-900 w-fit pr-8 cursor-pointer rounded px-2 p-1 text-xs bg-transparent outline-none text-right"
@@ -335,12 +335,12 @@
 						<div class="mt-1 flex gap-2 mb-1">
 							<input
 								class="flex-1 w-full bg-transparent outline-none"
-								placeholder={$i18n.t('API Base URL')}
+								placeholder={$i18n.t('API base URL')}
 								bind:value={TTS_OPENAI_API_BASE_URL}
 								required
 							/>
 
-							<SensitiveInput placeholder={$i18n.t('API Key')} bind:value={TTS_OPENAI_API_KEY} />
+							<SensitiveInput placeholder={$i18n.t('API key')} bind:value={TTS_OPENAI_API_KEY} />
 						</div>
 					</div>
 				{:else if TTS_ENGINE === 'elevenlabs'}
@@ -348,7 +348,7 @@
 						<div class="mt-1 flex gap-2 mb-1">
 							<input
 								class="flex-1 w-full rounded-lg py-2 pl-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
-								placeholder={$i18n.t('API Key')}
+								placeholder={$i18n.t('API key')}
 								bind:value={TTS_API_KEY}
 								required
 							/>
@@ -359,13 +359,13 @@
 						<div class="mt-1 flex gap-2 mb-1">
 							<input
 								class="flex-1 w-full rounded-lg py-2 pl-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
-								placeholder={$i18n.t('API Key')}
+								placeholder={$i18n.t('API key')}
 								bind:value={TTS_API_KEY}
 								required
 							/>
 							<input
 								class="flex-1 w-full rounded-lg py-2 pl-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
-								placeholder={$i18n.t('Azure Region')}
+								placeholder={$i18n.t('Azure region')}
 								bind:value={TTS_AZURE_SPEECH_REGION}
 								required
 							/>
@@ -377,7 +377,7 @@
 
 				{#if TTS_ENGINE === ''}
 					<div>
-						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Voice')}</div>
+						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS voice')}</div>
 						<div class="flex w-full">
 							<div class="flex-1">
 								<select
@@ -399,7 +399,7 @@
 					</div>
 				{:else if TTS_ENGINE === 'transformers'}
 					<div>
-						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Model')}</div>
+						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS model')}</div>
 						<div class="flex w-full">
 							<div class="flex-1">
 								<input
@@ -441,7 +441,7 @@
 				{:else if TTS_ENGINE === 'openai'}
 					<div class=" flex gap-2">
 						<div class="w-full">
-							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Voice')}</div>
+							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS voice')}</div>
 							<div class="flex w-full">
 								<div class="flex-1">
 									<input
@@ -460,7 +460,7 @@
 							</div>
 						</div>
 						<div class="w-full">
-							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Model')}</div>
+							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS model')}</div>
 							<div class="flex w-full">
 								<div class="flex-1">
 									<input
@@ -482,7 +482,7 @@
 				{:else if TTS_ENGINE === 'elevenlabs'}
 					<div class=" flex gap-2">
 						<div class="w-full">
-							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Voice')}</div>
+							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS voice')}</div>
 							<div class="flex w-full">
 								<div class="flex-1">
 									<input
@@ -501,7 +501,7 @@
 							</div>
 						</div>
 						<div class="w-full">
-							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Model')}</div>
+							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS model')}</div>
 							<div class="flex w-full">
 								<div class="flex-1">
 									<input
@@ -523,7 +523,7 @@
 				{:else if TTS_ENGINE === 'azure'}
 					<div class=" flex gap-2">
 						<div class="w-full">
-							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS Voice')}</div>
+							<div class=" mb-1.5 text-sm font-medium">{$i18n.t('TTS voice')}</div>
 							<div class="flex w-full">
 								<div class="flex-1">
 									<input

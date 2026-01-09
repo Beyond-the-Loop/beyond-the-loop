@@ -7,7 +7,7 @@
 
 	export let selected = [];
     export let groups = [];
-	export let placeholder = $i18n.t('Add group...');
+	export let placeholder = `${$i18n.t('Add group')}...`;
 
 	let input = '';
 	let showDropdown = false;

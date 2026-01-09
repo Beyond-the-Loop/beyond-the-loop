@@ -349,7 +349,7 @@
 						{/if}
 					</div>
 				</div>
-				<!-- <div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set Voice')}</div>
+				<!-- <div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set voice')}</div>
 				<div class="flex w-full">
 					<div class="flex-1">
 						<select
@@ -488,17 +488,17 @@
 				class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
 			>
 				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Custom Instructions')}</div>
+					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Custom instructions')}</div>
 				</div>
 			</div>
 
 			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
 				{#if system}
-					<div class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System Prompt')}</div>
+					<div class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System prompt')}</div>
 				{/if}
 				<textarea
 					bind:value={system}
-					placeholder={$i18n.t('System Prompt')}
+					placeholder={$i18n.t('System prompt')}
 					class="px-2.5 py-2 text-sm {system ? "pt-4" : "pt-2"} text-lightGray-100 placeholder:text-lightGray-100 w-full h-20 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none"
 					rows="4"
 				/>
@@ -551,7 +551,7 @@
 
 			<!-- <div class="mt-2 space-y-3 pr-1.5">
 				<div class="flex justify-between items-center text-sm">
-					<div class="  font-medium">{$i18n.t('Advanced Parameters')}</div>
+					<div class="  font-medium">{$i18n.t('Advanced parameters')}</div>
 					<button
 						class=" text-xs font-medium text-gray-500"
 						type="button"
@@ -567,7 +567,7 @@
 
 					<div class=" py-1 w-full justify-between">
 						<div class="flex w-full justify-between">
-							<div class=" self-center text-xs font-medium">{$i18n.t('Keep Alive')}</div>
+							<div class=" self-center text-xs font-medium">{$i18n.t('Keep alive')}</div>
 
 							<button
 								class="p-1 px-3 text-xs flex rounded transition"
@@ -598,7 +598,7 @@
 
 					<div>
 						<div class=" py-1 flex w-full justify-between">
-							<div class=" self-center text-sm font-medium">{$i18n.t('Request Mode')}</div>
+							<div class=" self-center text-sm font-medium">{$i18n.t('Request mode')}</div>
 
 							<button
 								class="p-1 px-3 text-xs flex rounded transition"

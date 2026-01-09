@@ -53,25 +53,25 @@
 	const searchData: SettingsTab[] = [
 		{
 			id: 'general-settings',
-			title: 'General Settings',
+			title: 'General settings',
 			keywords: [	
 			]
 		},
 		{
 			id: 'domain-settings',
-			title: 'Domain Settings',
+			title: 'Domain settings',
 			keywords: [	
 			]
 		},
 		{
 			id: 'user-management',
-			title: 'User Management',
+			title: 'User management',
 			keywords: [	
 			]
 		},
 		{
 			id: 'model-control',
-			title: 'Model Control',
+			title: 'Model control',
 			keywords: [	
 			]
 		},
@@ -264,7 +264,7 @@
 						<div class="shrink-0">{$i18n.t(searchData?.find(item => item?.id === selectedTab).title)}</div>
 					</button>
 				{:else}
-					<div class="self-center">{$i18n.t('Company Settings')}</div>
+					<div class="self-center">{$i18n.t('Company settings')}</div>
 				{/if}
 				<button
 					class="self-center"
@@ -312,7 +312,7 @@
 								<div class=" self-center mr-2">
 									<ProfileIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('General Settings')}</div>
+								<div class=" self-center">{$i18n.t('General settings')}</div>
 							</div>
 						</button>
 						{:else if tabId === 'domain-settings'}
@@ -330,7 +330,7 @@
 								<div class=" self-center mr-2">
 									<DomainSettingsIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('Domain Settings')}</div>
+								<div class=" self-center">{$i18n.t('Domain settings')}</div>
 							</div>
 						</button>
 						{:else if tabId === 'user-management'}
@@ -348,7 +348,7 @@
 								<div class=" self-center mr-2">
 									<GroupIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('User Management')}</div>
+								<div class=" self-center">{$i18n.t('User management')}</div>
 							</div>
 						</button>
 						{:else if tabId === 'model-control'}
@@ -366,7 +366,7 @@
 								<div class=" self-center mr-2">
 									<ModelControlIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('Model Control')}</div>
+								<div class=" self-center">{$i18n.t('Model control')}</div>
 							</div>
 						</button>
 						{:else if tabId === 'analytics'}

@@ -26,7 +26,7 @@
 	<div class="px-5 pt-4 dark:text-gray-300 text-gray-700">
 		<div class="flex justify-between items-start">
 			<div class="text-xl font-semibold">
-				{$i18n.t('What’s New in')}
+				{$i18n.t('What’s new in')}
 				{$WEBUI_NAME}
 				<Confetti x={[-1, -0.25]} y={[0, 0.5]} />
 			</div>
@@ -50,7 +50,7 @@
 			</button>
 		</div>
 		<div class="flex items-center mt-1">
-			<div class="text-sm dark:text-gray-200">{$i18n.t('Release Notes')}</div>
+			<div class="text-sm dark:text-gray-200">{$i18n.t('Release notes')}</div>
 			<div class="flex self-center w-[1px] h-6 mx-2.5 bg-gray-200 dark:bg-gray-700" />
 			<div class="text-sm dark:text-gray-200">
 				v{WEBUI_VERSION}
@@ -113,7 +113,7 @@
 				}}
 				class="px-3.5 py-1.5 text-sm font-medium bg-black hover:bg-gray-900 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition rounded-full"
 			>
-				<span class="relative">{$i18n.t("Okay, Let's Go!")}</span>
+				<span class="relative">{$i18n.t("Okay, let's go!")}</span>
 			</button>
 		</div>
 	</div>

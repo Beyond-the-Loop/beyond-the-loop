@@ -240,7 +240,7 @@
 						<input
 							class="w-[5rem] md:w-full text-xs outline-none bg-transparent leading-none pl-2 text-lightGray-100 dark:text-customGray-100"
 							bind:value={query}
-							placeholder={$i18n.t('Search Models')}
+							placeholder={$i18n.t('Search models')}
 							autofocus
 							on:blur={() => {
 								if (query.trim() === '') showInput = false;
@@ -381,10 +381,10 @@
 						<div class="flex justify-between mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700">
 							<div class="text-xs text-lightGray-1200 dark:text-customGray-100 flex items-center">
 								{#if item?.user?.profile_image_url}
-									<img class="w-3 h-3 rounded-full mr-1" src={item?.user?.profile_image_url} alt={item?.user?.first_name ?? item?.user?.email ?? $i18n.t('Deleted User')}/>
+									<img class="w-3 h-3 rounded-full mr-1" src={item?.user?.profile_image_url} alt={item?.user?.first_name ?? item?.user?.email ?? $i18n.t('Deleted user')}/>
 								{/if}
 								<Tooltip
-									content={item?.user?.email ?? $i18n.t('Deleted User')}
+									content={item?.user?.email ?? $i18n.t('Deleted user')}
 									className="flex shrink-0"
 									placement="top-start"
 								>
@@ -393,7 +393,7 @@
 								{:else if (item?.user?.email)}
 									{item?.user?.email}
 								{:else}
-									{$i18n.t('Deleted User')}
+									{$i18n.t('Deleted user')}
 								{/if}
 								</Tooltip>
 							</div>
@@ -452,13 +452,13 @@
 						<div class="mt-3 flex justify-between">
 							<div class="text-xs text-gray-500">
 								<Tooltip
-									content={item?.user?.email ?? $i18n.t('Deleted User')}
+									content={item?.user?.email ?? $i18n.t('Deleted user')}
 									className="flex shrink-0"
 									placement="top-start"
 								>
 									{$i18n.t('By {{name}}', {
 										name: capitalizeFirstLetter(
-											item?.user?.name ?? item?.user?.email ?? $i18n.t('Deleted User')
+											item?.user?.name ?? item?.user?.email ?? $i18n.t('Deleted user')
 										)
 									})}
 								</Tooltip>

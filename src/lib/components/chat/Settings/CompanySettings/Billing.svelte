@@ -236,7 +236,7 @@
 							}}
 							class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
 						>
-							{$i18n.t('Manage Subscription')}
+							{$i18n.t('Manage subscription')}
 						</button>
 
 					{/if}	
@@ -272,11 +272,11 @@
 				<div class="text-xs dark:text-customGray-590">
 					{#if $subscription?.plan === 'unlimited'}
 						<span
-							class="dark:text-customGray-590 capitalize">{$i18n.t($subscription?.seats)} {$i18n.t('included')}</span
+							class="dark:text-customGray-590 capitalize">{$i18n.t($subscription?.seats)} {$i18n.t('Included').toLowerCase()}</span
 						>
 					{:else}
 						<span class="text-xs text-lightGray-100 dark:text-customGray-100">{$subscription?.seats_taken} {$i18n.t('used')}</span><span
-							class="dark:text-customGray-590">/ {$subscription?.seats} {$i18n.t('included')}</span
+							class="dark:text-customGray-590">/ {$subscription?.seats} {$i18n.t('Included').toLowerCase()}</span
 						>
 					{/if}
 				</div>
@@ -293,7 +293,7 @@
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Base credits')}</div>
 					<div class="text-xs dark:text-customGray-590">
 						<span class="text-xs text-lightGray-100 dark:text-customGray-100">€{(currentPlan?.credits_per_month - $subscription?.credits_remaining)?.toFixed(2)} {$i18n.t('used')}</span><span
-							class="dark:text-customGray-590">/ €{($subscription.custom_credit_amount || currentPlan?.credits_per_month).toFixed(2)} {$i18n.t('included')}</span
+							class="dark:text-customGray-590">/ €{($subscription.custom_credit_amount || currentPlan?.credits_per_month).toFixed(2)} {$i18n.t('Included').toLowerCase()}</span
 						>
 					</div>
 				</div>
