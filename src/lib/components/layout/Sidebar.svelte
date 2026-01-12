@@ -511,7 +511,7 @@
 	<!-- <button on:click={() => (showCreateFolder = true)}>test</button> -->
 	<AddNewFolderDialog
 		bind:show={showCreateFolder}
-		title="Create New Folder"
+		title="Create new folder"
 		bind:inputValue={newFolderName}
 		input={true}
 		inputPlaceholder={$i18n.t('Title')}
@@ -697,7 +697,7 @@
 					<div class="relative bottom-[0.5px] mr-[6px]">
 						<Plus className="w-[12px] h-[12px]" />
 					</div>
-					{$i18n.t('New Chat')}
+					{$i18n.t('New chat')}
 				</a>
 			</div>
 		{/if}
@@ -721,7 +721,7 @@
 							}, 0);
 						}
 					}}
-					onAddLabel={$i18n.t('Create Channel')}
+					onAddLabel={$i18n.t('Create channel')}
 				>
 					{#each $channels as channel}
 						<ChannelItem
@@ -745,7 +745,7 @@
 				onAdd={() => {
 					createFolder();
 				}}
-				onAddLabel={$i18n.t('New Folder')}
+				onAddLabel={$i18n.t('New folder')}
 				on:import={(e) => {
 					importChatHandler(e.detail);
 				}}
@@ -959,14 +959,14 @@
 										class="w-full flex justify-left pl-2.5 py-1 text-sm animate-pulse items-center gap-2"
 									>
 										<Spinner className=" size-4" />
-										<div class=" ">Loading...</div>
+										<div class=" ">{$i18n.t('Loading...')}</div>
 									</div>
 								</Loader>
 							{/if}
 						{:else}
 							<div class="w-full flex justify-center py-1 text-sm animate-pulse items-center gap-2">
 								<Spinner className=" size-4" />
-								<div class=" ">Loading...</div>
+								<div class=" ">{$i18n.t('Loading...')}</div>
 							</div>
 						{/if}
 					</div>

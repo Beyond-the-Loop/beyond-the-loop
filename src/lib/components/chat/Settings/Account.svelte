@@ -116,9 +116,9 @@
 	const createAPIKeyHandler = async () => {
 		APIKey = await createAPIKey(localStorage.token);
 		if (APIKey) {
-			toast.success($i18n.t('API Key created.'));
+			toast.success($i18n.t('API key created.'));
 		} else {
-			toast.error($i18n.t('Failed to create API Key.'));
+			toast.error($i18n.t('Failed to create API key.'));
 		}
 	};
 
@@ -261,7 +261,7 @@
 				</div>
 
 				<div class="flex-1 flex flex-col self-center gap-0.5 mb-5">
-					<div class=" mb-0.5 text-sm dark:text-customGray-100">{$i18n.t('Profile Picture')}</div>
+					<div class=" mb-0.5 text-sm dark:text-customGray-100">{$i18n.t('Profile picture')}</div>
 					<div class="text-xs dark:text-customGray-100/50 mb-2">
 						{$i18n.t('We only support PNGs, JPEGs and GIFs under 10MB')}
 					</div>
@@ -275,7 +275,7 @@
 							class="flex items-center font-medium text-xs dark:text-customGray-300 px-2 py-1 rounded-xl border border-customGray-700 dark:bg-customGray-900"
 						>
 							<CameraIcon className="size-4 mr-1" />
-							{$i18n.t('Upload Image')}
+							{$i18n.t('Upload image')}
 						</button>
 						<!-- <button
 							class=" text-xs text-center text-gray-800 dark:text-gray-400 rounded-full px-4 py-0.5 bg-gray-100 dark:bg-gray-850"
@@ -292,7 +292,7 @@
 										}
 									);
 								}
-							}}>{$i18n.t('Use Initials')}</button
+							}}>{$i18n.t('Use initials')}</button
 						> -->
 
 						<!-- <button
@@ -321,12 +321,12 @@
 					<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
 						{#if firstName}
 							<div class="text-xs absolute text-lightGray-100/50 left-2.5 top-1 dark:text-customGray-100/50">
-								{$i18n.t('First Name')}
+								{$i18n.t('First name')}
 							</div>
 						{/if}
 						<input
 							class={`px-2.5 text-sm ${firstName ? 'pt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-							placeholder={$i18n.t('First Name')}
+							placeholder={$i18n.t('First name')}
 							bind:value={firstName}
 						/>
 					</div>
@@ -335,12 +335,12 @@
 					<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
 						{#if lastName}
 							<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-								{$i18n.t('Last Name')}
+								{$i18n.t('Last name')}
 							</div>
 						{/if}
 						<input
 							class={`px-2.5 text-sm ${lastName ? 'mt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-							placeholder={$i18n.t('Last Name')}
+							placeholder={$i18n.t('Last name')}
 							bind:value={lastName}
 						/>
 					</div>
@@ -365,7 +365,7 @@
 
 			<!-- <div class="pt-2">
 				<div class="flex flex-col w-full">
-					<div class=" mb-1 text-xs font-medium">{$i18n.t('Notification Webhook')}</div>
+					<div class=" mb-1 text-xs font-medium">{$i18n.t('Notification webhook')}</div>
 
 					<div class="flex-1">
 						<input
@@ -417,7 +417,7 @@
 						class={`px-2.5 text-sm ${newPassword ? 'pt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
 						type="password"
 						bind:value={newPassword}
-						placeholder={$i18n.t('Enter your new password')}
+						placeholder={$i18n.t('New password')}
 						autocomplete="new-password"
 						required
 					/>
@@ -461,7 +461,7 @@
 			<div class="flex flex-col gap-4">
 				<div class="justify-between w-full">
 					<div class="flex justify-between w-full">
-						<div class="self-center text-xs font-medium">{$i18n.t('JWT Token')}</div>
+						<div class="self-center text-xs font-medium">{$i18n.t('JWT token')}</div>
 					</div>
 
 					<div class="flex mt-2">
@@ -515,7 +515,7 @@
 				{#if $config?.features?.enable_api_key ?? true}
 					<div class="justify-between w-full">
 						<div class="flex justify-between w-full">
-							<div class="self-center text-xs font-medium">{$i18n.t('API Key')}</div>
+							<div class="self-center text-xs font-medium">{$i18n.t('API key')}</div>
 						</div>
 						<div class="flex mt-2">
 							{#if APIKey}

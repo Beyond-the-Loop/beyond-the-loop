@@ -37,7 +37,7 @@
 							href="https://github.com/open-webui/open-webui#how-to-install-"
 							target="_blank">{$i18n.t('See readme.md for instructions')}</a
 						>
-						{$i18n.t('or')}
+						{$i18n.t('Or').toLowerCase()}
 						<a class=" font-semibold underline" href="https://discord.gg/5rJgQTnV4s" target="_blank"
 							>{$i18n.t('join our Discord for help.')}</a
 						>
@@ -50,7 +50,7 @@
 								location.href = '/';
 							}}
 						>
-							{$i18n.t('Check Again')}
+							{$i18n.t('Check again')}
 						</button>
 					</div>
 				</div>

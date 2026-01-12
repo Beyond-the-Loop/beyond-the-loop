@@ -54,7 +54,7 @@
 			<div class="flex-1 relative">
 				<input
 					class=" outline-none w-full bg-transparent {pipeline ? 'pr-8' : ''}"
-					placeholder={$i18n.t('API Base URL')}
+					placeholder={$i18n.t('API base URL')}
 					bind:value={url}
 					autocomplete="off"
 				/>
@@ -85,7 +85,7 @@
 
 			<SensitiveInput
 				inputClassName=" outline-none bg-transparent w-full"
-				placeholder={$i18n.t('API Key')}
+				placeholder={$i18n.t('API key')}
 				bind:value={key}
 			/>
 		</div>

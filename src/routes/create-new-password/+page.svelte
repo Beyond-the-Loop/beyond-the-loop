@@ -133,7 +133,7 @@
 
 <svelte:head>
 	<title>
-		{`${$WEBUI_NAME} - ${isPasswordReset ? 'Reset Password' : 'Create New Password'}`}
+		{`${$WEBUI_NAME} - ${isPasswordReset ? 'Reset Password' : 'Create new password'}`}
 	</title>
 </svelte:head>
 
@@ -212,7 +212,7 @@
 						<div
 							class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50"
 						>
-							{isPasswordReset ? $i18n.t('New Password') : $i18n.t('Create Password')}
+							{isPasswordReset ? $i18n.t('New password') : $i18n.t('Create Password')}
 						</div>
 					{/if}
 					{#if showPassword}
@@ -220,7 +220,7 @@
 							class={`px-2.5 text-sm ${password ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
 							type="text"
 							bind:value={password}
-							placeholder={isPasswordReset ? $i18n.t('New Password') : $i18n.t('Create Password')}
+							placeholder={isPasswordReset ? $i18n.t('New password') : $i18n.t('Create Password')}
 							autocomplete="new-password"
 							required
 						/>
@@ -229,7 +229,7 @@
 							class={`px-2.5 text-sm ${password ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
 							type="password"
 							bind:value={password}
-							placeholder={isPasswordReset ? $i18n.t('New Password') : $i18n.t('Create Password')}
+							placeholder={isPasswordReset ? $i18n.t('New password') : $i18n.t('Create Password')}
 							autocomplete="new-password"
 							required
 						/>
@@ -263,7 +263,7 @@
 							class={`px-2.5 text-sm ${confirmPassword ? 'pt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
 							type="text"
 							bind:value={confirmPassword}
-							placeholder={$i18n.t('Confirm Password')}
+							placeholder={$i18n.t('Confirm password')}
 							autocomplete="new-password"
 							required
 						/>
@@ -272,7 +272,7 @@
 							class={`px-2.5 text-sm ${confirmPassword ? 'pt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
 							type="password"
 							bind:value={confirmPassword}
-							placeholder={$i18n.t('Confirm Password')}
+							placeholder={$i18n.t('Confirm password')}
 							autocomplete="new-password"
 							required
 						/>

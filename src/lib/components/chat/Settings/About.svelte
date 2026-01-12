@@ -65,7 +65,7 @@
 							{updateAvailable === null
 								? $i18n.t('Checking for updates...')
 								: updateAvailable
-									? `(v${version.latest} ${$i18n.t('available!')})`
+									? `(v${version.latest} ${$i18n.t('Available').toLowerCase()}!)`
 									: $i18n.t('(latest)')}
 						</a>
 					</div>
@@ -95,7 +95,7 @@
 			<hr class=" dark:border-gray-850" />
 
 			<div>
-				<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Ollama Version')}</div>
+				<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Ollama version')}</div>
 				<div class="flex w-full">
 					<div class="flex-1 text-xs text-gray-700 dark:text-gray-200">
 						{ollamaVersion ?? 'N/A'}
@@ -129,8 +129,8 @@
 
 			<a href="https://github.com/open-webui/open-webui" target="_blank">
 				<img
-					alt="Github Repo"
-					src="https://img.shields.io/github/stars/open-webui/open-webui?style=social&label=Star us on Github"
+					alt="GitHub Repo"
+					src="https://img.shields.io/github/stars/open-webui/open-webui?style=social&label=Star us on GitHub"
 				/>
 			</a>
 		</div>

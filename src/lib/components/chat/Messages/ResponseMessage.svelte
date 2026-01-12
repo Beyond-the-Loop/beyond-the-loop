@@ -712,7 +712,7 @@
 												saveAsCopyHandler();
 											}}
 										>
-											{$i18n.t('Save As Copy')}
+											{$i18n.t('Save as copy')}
 										</button>
 									</div>
 
@@ -904,7 +904,7 @@
 									</button>
 								</Tooltip>
 
-								<Tooltip content={$i18n.t('Read Aloud')} placement="bottom">
+								<Tooltip content={$i18n.t('Read aloud')} placement="bottom">
 									<button
 										id="speak-button-{message.id}"
 										class="{isLastMessage
@@ -957,7 +957,7 @@
 								</Tooltip>
 
 								<!-- {#if $config?.features.enable_image_generation && ($user.role === 'admin' || $user?.permissions?.features?.image_generation) && !readOnly}
-									<Tooltip content={$i18n.t('Generate Image')} placement="bottom">
+									<Tooltip content={$i18n.t('Generate image')} placement="bottom">
 										<button
 											class="{isLastMessage
 												? 'visible'
@@ -1064,7 +1064,7 @@
 
 								{#if !readOnly}
 									<!-- {#if $config?.features.enable_message_rating ?? true}
-										<Tooltip content={$i18n.t('Good Response')} placement="bottom">
+										<Tooltip content={$i18n.t('Good response')} placement="bottom">
 											<button
 												class="{isLastMessage
 													? 'visible'
@@ -1138,7 +1138,7 @@
 									{/if} -->
 
 									<!-- {#if isLastMessage}
-										<Tooltip content={$i18n.t('Continue Response')} placement="bottom">
+										<Tooltip content={$i18n.t('Continue response')} placement="bottom">
 											<button
 												type="button"
 												id="continue-response-button"

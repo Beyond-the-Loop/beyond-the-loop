@@ -125,7 +125,7 @@
 			<span
 				class="absolute top-[26px] w-[12rem] text-lightGray-100/50 text-right right-2.5 -translate-y-1/2 text-xs dark:text-customGray-100/50 pointer-events-none select-none"
 			>
-				{$i18n.t('Add Team member mails (separated by comma)')}
+				{$i18n.t('Add team member mails (separated by comma)')}
 			</span>
 		{/if}
 		<div class="flex flex-wrap gap-1 items-start p-3" on:click={() => inputRef.focus()}>
@@ -144,7 +144,7 @@
 			<input
 				bind:this={inputRef}
 				bind:value={input}
-				placeholder="Enter email..."
+				placeholder={`${$i18n.t('Enter email')}...`}
 				class="text-xs bg-transparent outline-none px-1 h-6 min-w-[80px] text-lightGray-100 dark:text-customGray-100"
 				on:keydown={handleKeydown}
 				on:blur={() => {

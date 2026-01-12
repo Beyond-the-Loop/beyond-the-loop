@@ -42,7 +42,6 @@
 
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
-	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
 	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
 	import CompanySettingsModal from '$lib/components/chat/CompanySettingsModal.svelte';
@@ -281,7 +280,6 @@
 {/if}
 <SettingsModal bind:show={$showSettings} />
 <CompanySettingsModal bind:show={$showCompanySettings}/>
-<!-- <ChangelogModal bind:show={$showChangelog} /> -->
 
 <!-- {#if version && compareVersion(version.latest, version.current) && ($settings?.showUpdateToast ?? true)}
 	<div class=" absolute bottom-8 right-8 z-50" in:fade={{ duration: 100 }}>
@@ -318,7 +316,7 @@
 										"Saving chat logs directly to your browser's storage is no longer supported. Please take a moment to download and delete your chat logs by clicking the button below. Don't worry, you can easily re-import your chat logs to the backend through"
 									)}
 									<span class="font-semibold dark:text-white"
-										>{$i18n.t('Settings')} > {$i18n.t('Chats')} > {$i18n.t('Import Chats')}</span
+										>{$i18n.t('Settings')} > {$i18n.t('Chats')} > {$i18n.t('Import chats')}</span
 									>. {$i18n.t(
 										'This ensures that your valuable conversations are securely saved to your backend database. Thank you!'
 									)}

@@ -44,7 +44,7 @@
 				try {
 					chats = convertOpenAIChats(chats);
 				} catch (error) {
-					console.log('Unable to import chats:', error);
+					console.log('Unable to Import chats:', error);
 				}
 			}
 			importChats(chats);
@@ -138,7 +138,7 @@
 		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700"
 	>
 		<div class="flex w-full justify-between items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Archived Chats')}</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Archived chats')}</div>
 		</div>
 	</div>
 	<div class="flex flex-col w-full dark:text-gray-200">
@@ -195,13 +195,13 @@
 				class=" text-xs h-10 px-4 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
 				on:click={async () => {
 					unarchiveAllHandler();
-				}}>{$i18n.t('Unarchive All Chats')}</button
+				}}>{$i18n.t('Unarchive all chats')}</button
 			>
 			<button
 				class=" text-xs h-10 px-4 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center ml-1"
 				on:click={async () => {
 					deleteAllArchivedHandler();
-				}}>{$i18n.t('Delete All Conversations')}</button
+				}}>{$i18n.t('Delete all conversations')}</button
 			>
 		</div>
 	</div>
@@ -235,7 +235,7 @@
 						/>
 					</svg>
 				</div>
-				<div class=" self-center text-sm font-medium">{$i18n.t('Import Chats')}</div>
+				<div class=" self-center text-sm font-medium">{$i18n.t('Import chats')}</div>
 			</button>
 			<button
 				class=" flex rounded-md py-2 px-3.5 w-full hover:bg-gray-200 dark:hover:bg-gray-800 transition"
@@ -257,7 +257,7 @@
 						/>
 					</svg>
 				</div>
-				<div class=" self-center text-sm font-medium">{$i18n.t('Export Chats')}</div>
+				<div class=" self-center text-sm font-medium">{$i18n.t('Export chats')}</div>
 			</button>
 		</div>
 
@@ -347,7 +347,7 @@
 							/>
 						</svg>
 					</div>
-					<div class=" self-center text-sm font-medium">{$i18n.t('Archive All Chats')}</div>
+					<div class=" self-center text-sm font-medium">{$i18n.t('Archive all chats')}</div>
 				</button>
 			{/if}
 
@@ -431,7 +431,7 @@
 							/>
 						</svg>
 					</div>
-					<div class=" self-center text-sm font-medium">{$i18n.t('Delete All Chats')}</div>
+					<div class=" self-center text-sm font-medium">{$i18n.t('Delete all chats')}</div>
 				</button>
 			{/if}
 		</div>

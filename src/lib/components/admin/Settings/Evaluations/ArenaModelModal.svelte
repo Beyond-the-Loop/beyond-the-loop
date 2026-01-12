@@ -120,9 +120,9 @@
 		<div class=" flex justify-between dark:text-gray-100 px-5 pt-4 pb-2">
 			<div class=" text-lg font-medium self-center font-primary">
 				{#if edit}
-					{$i18n.t('Edit Arena Model')}
+					{$i18n.t('Edit arena model')}
 				{:else}
-					{$i18n.t('Add Arena Model')}
+					{$i18n.t('Add arena model')}
 				{/if}
 			</div>
 			<button
@@ -248,7 +248,7 @@
 										class="w-full text-sm bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 										type="text"
 										bind:value={name}
-										placeholder={$i18n.t('Model Name')}
+										placeholder={$i18n.t('Model name')}
 										autocomplete="off"
 										required
 									/>

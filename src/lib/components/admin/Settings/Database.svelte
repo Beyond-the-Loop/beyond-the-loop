@@ -84,7 +84,7 @@
 					</svg>
 				</div>
 				<div class=" self-center text-sm font-medium">
-					{$i18n.t('Import Config from JSON File')}
+					{$i18n.t('Import config from JSON file')}
 				</div>
 			</button>
 
@@ -115,7 +115,7 @@
 					</svg>
 				</div>
 				<div class=" self-center text-sm font-medium">
-					{$i18n.t('Export Config to JSON File')}
+					{$i18n.t('Export config to JSON file')}
 				</div>
 			</button>
 
@@ -123,7 +123,7 @@
 
 			{#if $config?.features.enable_admin_export ?? true}
 				<div class="  flex w-full justify-between">
-					<!-- <div class=" self-center text-xs font-medium">{$i18n.t('Allow Chat Deletion')}</div> -->
+					<!-- <div class=" self-center text-xs font-medium">{$i18n.t('Allow chat deletion')}</div> -->
 
 					<button
 						class=" flex rounded-md py-1.5 px-3 w-full hover:bg-gray-200 dark:hover:bg-gray-800 transition"
@@ -151,7 +151,7 @@
 								/>
 							</svg>
 						</div>
-						<div class=" self-center text-sm font-medium">{$i18n.t('Download Database')}</div>
+						<div class=" self-center text-sm font-medium">{$i18n.t('Download database')}</div>
 					</button>
 				</div>
 
@@ -177,7 +177,7 @@
 						</svg>
 					</div>
 					<div class=" self-center text-sm font-medium">
-						{$i18n.t('Export All Chats (All Users)')}
+						{$i18n.t('Export all chats (all users)')}
 					</div>
 				</button>
 			{/if}

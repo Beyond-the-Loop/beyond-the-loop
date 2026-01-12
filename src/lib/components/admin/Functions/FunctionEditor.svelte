@@ -319,7 +319,7 @@ class Pipe:
 								<input
 									class="w-full text-2xl font-medium bg-transparent outline-none font-primary"
 									type="text"
-									placeholder={$i18n.t('Function Name')}
+									placeholder={$i18n.t('Function name')}
 									bind:value={name}
 									required
 								/>
@@ -385,7 +385,7 @@ class Pipe:
 				<div class="pb-3 flex justify-between">
 					<div class="flex-1 pr-3">
 						<div class="text-xs text-gray-500 line-clamp-2">
-							<span class=" font-semibold dark:text-gray-200">{$i18n.t('Warning:')}</span>
+							<span class=" font-semibold dark:text-gray-200">{`${$i18n.t('Warning')}:`}</span>
 							{$i18n.t('Functions allow arbitrary code execution')} <br />—
 							<span class=" font-medium dark:text-gray-400"
 								>{$i18n.t(`don't install random functions from sources you don't trust.`)}</span

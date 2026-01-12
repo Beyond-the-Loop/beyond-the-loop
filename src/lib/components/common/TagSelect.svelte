@@ -9,7 +9,7 @@
     const i18n = getContext('i18n');
 
 	export let selected = [];
-	export let placeholder = 'Add category...';
+	export let placeholder = $i18n.t('Add category...');
 	export let userTags = [];
 
 	let input = '';

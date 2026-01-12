@@ -147,7 +147,7 @@
 				</div>
 
 				<div>
-					<Tooltip content={$i18n.t('Create Group')}>
+					<Tooltip content={$i18n.t('Create group')}>
 						<button
 							class=" p-2 rounded-xl hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-850 transition font-medium text-sm flex items-center space-x-1"
 							on:click={() => {
@@ -176,12 +176,12 @@
 				<div class="mt-3">
 					<button
 						class=" px-4 py-1.5 text-sm rounded-full bg-black hover:bg-gray-800 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition font-medium flex items-center space-x-1"
-						aria-label={$i18n.t('Create Group')}
+						aria-label={$i18n.t('Create group')}
 						on:click={() => {
 							showCreateGroupModal = true;
 						}}
 					>
-						{$i18n.t('Create Group')}
+						{$i18n.t('Create group')}
 					</button>
 				</div>
 			</div>

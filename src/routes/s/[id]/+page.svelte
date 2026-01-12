@@ -175,7 +175,7 @@
 						class="px-4 py-2 text-sm font-medium bg-black hover:bg-gray-900 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition rounded-full"
 						on:click={cloneSharedChat}
 					>
-						{$i18n.t('Clone Chat')}
+						{$i18n.t('Clone chat')}
 					</button>
 				</div>
 			</div>

@@ -47,7 +47,7 @@
 <Modal size="sm" bind:show>
 	<div>
 		<div class=" flex justify-between dark:text-gray-300 px-5 py-4">
-			<div class=" text-lg font-medium self-center">{$i18n.t('Edit User')}</div>
+			<div class=" text-lg font-medium self-center">{$i18n.t('Edit user')}</div>
 			<button
 				class="self-center"
 				on:click={() => {
@@ -114,7 +114,7 @@
 						</div>
 
 						<div class="flex flex-col w-full">
-							<div class=" mb-1 text-xs text-gray-500">{$i18n.t('First Name')}</div>
+							<div class=" mb-1 text-xs text-gray-500">{$i18n.t('First name')}</div>
 
 							<div class="flex-1">
 								<input
@@ -127,7 +127,7 @@
 							</div>
 						</div>
 						<div class="flex flex-col w-full">
-							<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Last Name')}</div>
+							<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Last name')}</div>
 
 							<div class="flex-1">
 								<input
@@ -141,7 +141,7 @@
 						</div>
 
 						<div class="flex flex-col w-full">
-							<div class=" mb-1 text-xs text-gray-500">{$i18n.t('New Password')}</div>
+							<div class=" mb-1 text-xs text-gray-500">{$i18n.t('New password')}</div>
 
 							<div class="flex-1">
 								<input

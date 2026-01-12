@@ -83,11 +83,11 @@
 	<div class="overflow-y-scroll scrollbar-hidden h-full">
 		{#if config !== null}
 			<div class="">
-				<div class="text-sm font-medium mb-2">{$i18n.t('General Settings')}</div>
+				<div class="text-sm font-medium mb-2">{$i18n.t('General settings')}</div>
 
 				<div class=" mb-2">
 					<div class="flex justify-between items-center text-xs">
-						<div class=" text-xs font-medium">{$i18n.t('Arena Models')}</div>
+						<div class=" text-xs font-medium">{$i18n.t('Arena models')}</div>
 
 						<Tooltip content={$i18n.t(`Message rating should be enabled to use this feature`)}>
 							<Switch bind:state={config.ENABLE_EVALUATION_ARENA_MODELS} />
@@ -99,10 +99,10 @@
 					<hr class=" border-gray-50 dark:border-gray-700/10 my-2" />
 
 					<div class="flex justify-between items-center mb-2">
-						<div class="text-sm font-medium">{$i18n.t('Manage Arena Models')}</div>
+						<div class="text-sm font-medium">{$i18n.t('Manage arena models')}</div>
 
 						<div>
-							<Tooltip content={$i18n.t('Add Arena Model')}>
+							<Tooltip content={$i18n.t('Add arena model')}>
 								<button
 									class="p-1"
 									type="button"

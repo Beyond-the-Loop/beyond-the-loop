@@ -350,7 +350,7 @@
 												/>
 											</svg>
 										</div>
-										<div class=" self-center">{$i18n.t('Admin Settings')}</div>
+										<div class=" self-center">{$i18n.t('Admin settings')}</div>
 									</button>
 								{/if} -->
 							{/if}

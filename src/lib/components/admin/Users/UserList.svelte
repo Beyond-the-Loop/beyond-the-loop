@@ -156,7 +156,7 @@
 			</div>
 
 			<div>
-				<Tooltip content={$i18n.t('Add User')}>
+				<Tooltip content={$i18n.t('Add user')}>
 					<button
 						class=" p-2 rounded-xl hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-850 transition font-medium text-sm flex items-center space-x-1"
 						on:click={() => {
@@ -255,7 +255,7 @@
 					on:click={() => setSortKey('last_active_at')}
 				>
 					<div class="flex gap-1.5 items-center">
-						{$i18n.t('Last Active')}
+						{$i18n.t('Last active')}
 
 						{#if sortKey === 'last_active_at'}
 							<span class="font-normal"
@@ -387,7 +387,7 @@
 								</Tooltip>
 							{/if}
 
-							<Tooltip content={$i18n.t('Edit User')}>
+							<Tooltip content={$i18n.t('Edit user')}>
 								<button
 									class="self-center w-fit text-sm px-2 py-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 									on:click={async () => {
@@ -413,7 +413,7 @@
 							</Tooltip>
 
 							{#if user.role !== 'admin'}
-								<Tooltip content={$i18n.t('Delete User')}>
+								<Tooltip content={$i18n.t('Delete user')}>
 									<button
 										class="self-center w-fit text-sm px-2 py-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
 										on:click={async () => {

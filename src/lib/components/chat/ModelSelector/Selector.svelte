@@ -559,7 +559,7 @@
 								{:else}
 									N/A
 								{/if}
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Intelligence Score')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Intelligence score')}</p>
 							</div>
 							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.speed && "justify-end"}">
 								{#if modelsInfo?.[hoveredItem?.label]?.speed}
@@ -572,7 +572,7 @@
 							<div class="flex flex-col items-center py-2">
 								{#if modelsInfo?.[hoveredItem?.label]?.hosted_in}
 									<p class="text-xs dark:text-customGray-100">{modelsInfo?.[hoveredItem?.label]?.hosted_in}</p>
-									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted In')}</p>
+									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted in')}</p>
 								{/if}
 							</div>
 							<div class="flex flex-col items-center py-2">
@@ -583,7 +583,7 @@
 										N/A
 									{/if}
 								</p>
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge Cutoff')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge cutoff')}</p>
 							</div>
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
@@ -593,7 +593,7 @@
 										N/A
 									{/if}
 								</p>
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context Window')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context window')}</p>
 							</div>
 						</div>
 					</div>
@@ -730,7 +730,7 @@
 						<div class="flex gap-2.5 items-center">
 							<ChatBubbleOval className="size-4" strokeWidth="2.5" />
 
-							{$i18n.t(`Temporary Chat`)}
+							{$i18n.t(`Temporary chat`)}
 						</div>
 
 						<div>

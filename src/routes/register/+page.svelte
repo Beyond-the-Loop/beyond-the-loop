@@ -235,12 +235,12 @@
 			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
 				{#if firstName}
 					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-						{$i18n.t('First Name')}
+						{$i18n.t('First name')}
 					</div>
 				{/if}
 				<input
 					class={`px-2.5 text-sm ${firstName ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-					placeholder={$i18n.t('First Name')}
+					placeholder={$i18n.t('First name')}
 					bind:value={firstName}
 					required
 				/>
@@ -250,12 +250,12 @@
 			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
 				{#if lastName}
 					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-						{$i18n.t('Last Name')}
+						{$i18n.t('Last name')}
 					</div>
 				{/if}
 				<input
 					class={`px-2.5 text-sm ${lastName ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-					placeholder={$i18n.t('Last Name')}
+					placeholder={$i18n.t('Last name')}
 					bind:value={lastName}
 					required
 				/>
@@ -319,7 +319,7 @@
 						class={`px-2.5 text-sm ${confirmPassword ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
 						type="text"
 						bind:value={confirmPassword}
-						placeholder={$i18n.t('Confirm Password')}
+						placeholder={$i18n.t('Confirm password')}
 						autocomplete="new-password"
 						required
 					/>
@@ -328,7 +328,7 @@
 						class={`px-2.5 text-sm ${confirmPassword ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
 						type="password"
 						bind:value={confirmPassword}
-						placeholder={$i18n.t('Confirm Password')}
+						placeholder={$i18n.t('Confirm password')}
 						autocomplete="new-password"
 						required
 					/>

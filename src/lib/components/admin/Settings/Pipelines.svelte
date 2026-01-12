@@ -205,7 +205,7 @@
 		{#if PIPELINES_LIST !== null}
 			<div class="flex w-full justify-between mb-2">
 				<div class=" self-center text-sm font-semibold">
-					{$i18n.t('Manage Pipelines')}
+					{$i18n.t('Manage pipelines')}
 				</div>
 			</div>
 
@@ -238,7 +238,7 @@
 
 				<div class=" my-2">
 					<div class=" mb-2 text-sm font-medium">
-						{$i18n.t('Upload Pipeline')}
+						{$i18n.t('Upload pipeline')}
 					</div>
 					<div class="flex w-full">
 						<div class="flex-1 mr-2">
@@ -323,13 +323,13 @@
 
 				<div class=" my-2">
 					<div class=" mb-2 text-sm font-medium">
-						{$i18n.t('Install from Github URL')}
+						{$i18n.t('Install from GitHub URL')}
 					</div>
 					<div class="flex w-full">
 						<div class="flex-1 mr-2">
 							<input
 								class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
-								placeholder={$i18n.t('Enter Github Raw URL')}
+								placeholder={$i18n.t('Enter GitHub raw URL')}
 								bind:value={pipelineDownloadUrl}
 							/>
 						</div>
@@ -404,7 +404,7 @@
 					{#if pipelines.length > 0}
 						<div class="flex w-full justify-between mb-2">
 							<div class=" self-center text-sm font-semibold">
-								{$i18n.t('Pipelines Valves')}
+								{$i18n.t('Pipelines valves')}
 							</div>
 						</div>
 						<div class="space-y-1">
@@ -525,7 +525,7 @@
 							</div>
 						</div>
 					{:else if pipelines.length === 0}
-						<div>Pipelines Not Detected</div>
+						<div>Pipelines not detected</div>
 					{/if}
 				{:else}
 					<div class="flex justify-center">
@@ -535,7 +535,7 @@
 					</div>
 				{/if}
 			{:else}
-				<div>{$i18n.t('Pipelines Not Detected')}</div>
+				<div>{$i18n.t('Pipelines not detected')}</div>
 			{/if}
 		{:else}
 			<div class="flex justify-center h-full">

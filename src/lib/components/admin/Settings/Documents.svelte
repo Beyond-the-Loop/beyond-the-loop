@@ -99,7 +99,7 @@
 		}
 
 		if ((embeddingEngine === 'openai' && OpenAIKey === '') || OpenAIUrl === '') {
-			toast.error($i18n.t('OpenAI URL/Key required.'));
+			toast.error($i18n.t('OpenAI URL/key required.'));
 			return;
 		}
 
@@ -287,10 +287,10 @@
 >
 	<div class=" space-y-2.5 overflow-y-scroll scrollbar-hidden h-full pr-1.5">
 		<div class="flex flex-col gap-0.5">
-			<div class=" mb-0.5 text-sm font-medium">{$i18n.t('General Settings')}</div>
+			<div class=" mb-0.5 text-sm font-medium">{$i18n.t('General settings')}</div>
 
 			<div class=" flex w-full justify-between">
-				<div class=" self-center text-xs font-medium">{$i18n.t('Embedding Model Engine')}</div>
+				<div class=" self-center text-xs font-medium">{$i18n.t('Embedding model engine')}</div>
 				<div class="flex items-center relative">
 					<select
 						class="dark:bg-gray-900 w-fit pr-8 rounded px-2 p-1 text-xs bg-transparent outline-none text-right"
@@ -317,24 +317,24 @@
 				<div class="my-0.5 flex gap-2 pr-2">
 					<input
 						class="flex-1 w-full rounded-lg text-sm bg-transparent outline-none"
-						placeholder={$i18n.t('API Base URL')}
+						placeholder={$i18n.t('API base URL')}
 						bind:value={OpenAIUrl}
 						required
 					/>
 
-					<SensitiveInput placeholder={$i18n.t('API Key')} bind:value={OpenAIKey} />
+					<SensitiveInput placeholder={$i18n.t('API key')} bind:value={OpenAIKey} />
 				</div>
 			{:else if embeddingEngine === 'ollama'}
 				<div class="my-0.5 flex gap-2 pr-2">
 					<input
 						class="flex-1 w-full rounded-lg text-sm bg-transparent outline-none"
-						placeholder={$i18n.t('API Base URL')}
+						placeholder={$i18n.t('API base URL')}
 						bind:value={OllamaUrl}
 						required
 					/>
 
 					<SensitiveInput
-						placeholder={$i18n.t('API Key')}
+						placeholder={$i18n.t('API key')}
 						bind:value={OllamaKey}
 						required={false}
 					/>
@@ -343,7 +343,7 @@
 
 			{#if embeddingEngine === 'ollama' || embeddingEngine === 'openai'}
 				<div class="flex mt-0.5 space-x-2">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Embedding Batch Size')}</div>
+					<div class=" self-center text-xs font-medium">{$i18n.t('Embedding batch size')}</div>
 					<div class=" flex-1">
 						<input
 							id="steps-range"
@@ -369,7 +369,7 @@
 			{/if}
 
 			<div class=" flex w-full justify-between">
-				<div class=" self-center text-xs font-medium">{$i18n.t('Hybrid Search')}</div>
+				<div class=" self-center text-xs font-medium">{$i18n.t('Hybrid search')}</div>
 
 				<button
 					class="p-1 px-3 text-xs flex rounded transition"
@@ -391,7 +391,7 @@
 
 		<div class="space-y-2" />
 		<div>
-			<div class=" mb-2 text-sm font-medium">{$i18n.t('Embedding Model')}</div>
+			<div class=" mb-2 text-sm font-medium">{$i18n.t('Embedding model')}</div>
 
 			{#if embeddingEngine === 'ollama'}
 				<div class="flex w-full">
@@ -482,7 +482,7 @@
 
 			{#if querySettings.hybrid === true}
 				<div class=" ">
-					<div class=" mb-2 text-sm font-medium">{$i18n.t('Reranking Model')}</div>
+					<div class=" mb-2 text-sm font-medium">{$i18n.t('Reranking model')}</div>
 
 					<div class="flex w-full">
 						<div class="flex-1 mr-2">
@@ -602,7 +602,7 @@
 		<hr class=" dark:border-gray-850" />
 
 		<div class=" ">
-			<div class=" text-sm font-medium mb-1">{$i18n.t('Query Params')}</div>
+			<div class=" text-sm font-medium mb-1">{$i18n.t('Query params')}</div>
 
 			<div class=" flex gap-1.5">
 				<div class="flex flex-col w-full gap-1">
@@ -623,7 +623,7 @@
 				{#if querySettings.hybrid === true}
 					<div class=" flex flex-col w-full gap-1">
 						<div class="text-xs font-medium w-full">
-							{$i18n.t('Minimum Score')}
+							{$i18n.t('Minimum score')}
 						</div>
 
 						<div class="w-full">
@@ -631,7 +631,7 @@
 								class=" w-full rounded-lg py-1.5 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 								type="number"
 								step="0.01"
-								placeholder={$i18n.t('Enter Score')}
+								placeholder={$i18n.t('Enter score')}
 								bind:value={querySettings.r}
 								autocomplete="off"
 								min="0.0"
@@ -651,7 +651,7 @@
 			{/if}
 
 			<div class="mt-2">
-				<div class=" mb-1 text-xs font-medium">{$i18n.t('RAG Template')}</div>
+				<div class=" mb-1 text-xs font-medium">{$i18n.t('RAG template')}</div>
 				<Tooltip
 					content={$i18n.t('Leave empty to use the default prompt, or enter a custom prompt')}
 					placement="top-start"
@@ -667,10 +667,10 @@
 		<hr class=" dark:border-gray-850" />
 
 		<div class=" ">
-			<div class="mb-1 text-sm font-medium">{$i18n.t('Chunk Params')}</div>
+			<div class="mb-1 text-sm font-medium">{$i18n.t('Chunk params')}</div>
 
 			<div class="flex w-full justify-between mb-1.5">
-				<div class="self-center text-xs font-medium">{$i18n.t('Text Splitter')}</div>
+				<div class="self-center text-xs font-medium">{$i18n.t('Text splitter')}</div>
 				<div class="flex items-center relative">
 					<select
 						class="dark:bg-gray-900 w-fit pr-8 rounded px-2 text-xs bg-transparent outline-none text-right"
@@ -685,13 +685,13 @@
 			<div class=" flex gap-1.5">
 				<div class="  w-full justify-between">
 					<div class="self-center text-xs font-medium min-w-fit mb-1">
-						{$i18n.t('Chunk Size')}
+						{$i18n.t('Chunk size')}
 					</div>
 					<div class="self-center">
 						<input
 							class=" w-full rounded-lg py-1.5 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 							type="number"
-							placeholder={$i18n.t('Enter Chunk Size')}
+							placeholder={$i18n.t('Enter chunk size')}
 							bind:value={chunkSize}
 							autocomplete="off"
 							min="0"
@@ -701,14 +701,14 @@
 
 				<div class="w-full">
 					<div class=" self-center text-xs font-medium min-w-fit mb-1">
-						{$i18n.t('Chunk Overlap')}
+						{$i18n.t('Chunk overlap')}
 					</div>
 
 					<div class="self-center">
 						<input
 							class="w-full rounded-lg py-1.5 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 							type="number"
-							placeholder={$i18n.t('Enter Chunk Overlap')}
+							placeholder={$i18n.t('Enter chunk overlap')}
 							bind:value={chunkOverlap}
 							autocomplete="off"
 							min="0"
@@ -719,7 +719,7 @@
 
 			<div class="my-2">
 				<div class="flex justify-between items-center text-xs">
-					<div class=" text-xs font-medium">{$i18n.t('PDF Extract Images (OCR)')}</div>
+					<div class=" text-xs font-medium">{$i18n.t('PDF extract images (OCR)')}</div>
 
 					<div>
 						<Switch bind:state={pdfExtractImages} />
@@ -736,7 +736,7 @@
 			<div class=" flex gap-1.5">
 				<div class="w-full">
 					<div class=" self-center text-xs font-medium min-w-fit mb-1">
-						{$i18n.t('Max Upload Size')}
+						{$i18n.t('Max upload size')}
 					</div>
 
 					<div class="self-center">
@@ -760,7 +760,7 @@
 
 				<div class="  w-full">
 					<div class="self-center text-xs font-medium min-w-fit mb-1">
-						{$i18n.t('Max Upload Count')}
+						{$i18n.t('Max upload count')}
 					</div>
 					<div class="self-center">
 						<Tooltip
@@ -810,7 +810,7 @@
 						/>
 					</svg>
 				</div>
-				<div class=" self-center text-sm font-medium">{$i18n.t('Reset Upload Directory')}</div>
+				<div class=" self-center text-sm font-medium">{$i18n.t('Reset upload directory')}</div>
 			</button>
 
 			<button
@@ -835,7 +835,7 @@
 					</svg>
 				</div>
 				<div class=" self-center text-sm font-medium">
-					{$i18n.t('Reset Vector Storage/Knowledge')}
+					{$i18n.t('Reset vector storage/Knowledge')}
 				</div>
 			</button>
 		</div>

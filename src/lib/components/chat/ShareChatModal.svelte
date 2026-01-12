@@ -83,7 +83,7 @@
 <Modal bind:show size="md">
 	<div>
 		<div class=" flex justify-between dark:text-gray-300 px-5 pt-4 pb-0.5">
-			<div class=" text-lg font-medium self-center">{$i18n.t('Share Chat')}</div>
+			<div class=" text-lg font-medium self-center">{$i18n.t('Share chat')}</div>
 			<button
 				class="self-center"
 				on:click={() => {
@@ -188,9 +188,9 @@
 								<Link />
 
 								{#if chat.share_id}
-									{$i18n.t('Update and Copy Link')}
+									{$i18n.t('Update and copy link')}
 								{:else}
-									{$i18n.t('Copy Link')}
+									{$i18n.t('Copy link')}
 								{/if}
 							</button>
 						</div>

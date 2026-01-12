@@ -81,14 +81,14 @@
 				<div
 					class="  self-center mx-1 disabled:text-gray-600 disabled:hover:text-gray-600 -translate-y-[0.5px]"
 				>
-					<Tooltip content={$i18n.t('Remove Model')}>
+					<Tooltip content={$i18n.t('Remove model')}>
 						<button
 							{disabled}
 							on:click={() => {
 								selectedModels.splice(selectedModelIdx, 1);
 								selectedModels = selectedModels;
 							}}
-							aria-label="Remove Model"
+							aria-label="Remove model"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"

@@ -153,7 +153,7 @@
 		}
 
 		if (name === '') {
-			toast.error('Model Name is required.');
+			toast.error('Model name is required.');
 			loading = false;
 			return;
 		}
@@ -649,12 +649,12 @@
 											<div
 												class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50"
 											>
-												{$i18n.t('System Prompt')}
+												{$i18n.t('System prompt')}
 											</div>
 										{/if}
 										<Textarea
 											className={`px-2.5 py-2 text-sm ${info.params.system ? 'pt-4' : 'pt-2'} w-full h-20 bg-transparent text-lightGray-100 dark:text-customGray-100 placeholder:text-lightGray-100 dark:placeholder:text-customGray-100 outline-none`}
-											placeholder={$i18n.t('System Prompt')}
+											placeholder={$i18n.t('System prompt')}
 											rows={4}
 											bind:value={info.params.system}
 										/>
@@ -853,7 +853,7 @@
 									</div>
 									<div class="py-3">
 										<div class="mb-2">
-											<TagSelect bind:selected={info.meta.tags} {userTags} placeholder="Add category..." />
+											<TagSelect bind:selected={info.meta.tags} {userTags} placeholder={$i18n.t('Add category...')} />
 										</div>
 										<AccessSelect bind:accessControl accessRoles={['read', 'write']} />
 									</div>
@@ -876,7 +876,7 @@
 												on:click={() => (showDropdown = !showDropdown)}
 											>
 												<span class="text-lightGray-100 dark:text-customGray-100"
-													>{$i18n.t('Model Selection')}</span
+													>{$i18n.t('Model selection')}</span
 												>
 												<div class="flex items-center gap-2">
 													{#if info.base_model_id}
@@ -995,9 +995,9 @@
 								>
 									<div class=" self-center">
 										{#if edit}
-											{$i18n.t('Save & Update')}
+											{$i18n.t('Save & update')}
 										{:else}
-											{$i18n.t('Save & Create')}
+											{$i18n.t('Save & create')}
 										{/if}
 									</div>
 

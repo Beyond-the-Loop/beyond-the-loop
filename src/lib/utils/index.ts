@@ -721,7 +721,7 @@ const convertOpenAIMessages = (convo) => {
 		messages: messages,
 		options: {},
 		timestamp: convo['create_time'],
-		title: convo['title'] ?? 'New Chat'
+		title: convo['title'] ?? 'New chat'
 	};
 	return chat;
 };
