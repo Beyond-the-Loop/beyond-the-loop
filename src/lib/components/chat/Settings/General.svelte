@@ -265,7 +265,7 @@
 							>{$i18n.t('Language')}</span
 						>
 						<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
-							{selectedLanguage?.['title']?.replace(/\s*\(.*?\)/, '')}
+							{$i18n.t(selectedLanguage?.['title_translation_key'])}
 							<ChevronDown className="size-3" />
 						</div>
 					</button>
@@ -285,7 +285,7 @@
 											showLanguageDropdown = false;
 										}}
 									>
-										{language['title']}
+										{$i18n.t(language['title_translation_key'])}
 									</button>
 								{/each}
 							</div>

@@ -1,14 +1,10 @@
 [
 	{
-		"code": "en-US",
-		"title": "English (US)"
-	},
-	{
-		"code": "en-GB",
-		"title": "English (GB)"
+		"code": "en-En",
+		"title_translation_key": "English"
 	},
 	{
 		"code": "de-DE",
-		"title": "German (Deutsch)"
+		"title_translation_key": "German"
 	}
 ]
