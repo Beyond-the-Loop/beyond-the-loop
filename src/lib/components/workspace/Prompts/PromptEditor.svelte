@@ -187,7 +187,7 @@
 					/>
 					{#if !content}
 						<span
-						class="absolute top-[26px] w-[180px] text-lightGray-100/50 text-right right-2.5 -translate-y-1/2 text-xs dark:text-customGray-100/50 pointer-events-none select-none"
+						class="absolute top-[26px] text-lightGray-100/50 text-right right-2.5 -translate-y-4 text-xs dark:text-customGray-100/50 pointer-events-none select-none"
 						>
 							{$i18n.t('Write a summary that summarizes [topic or keyword].')}
 						</span>
