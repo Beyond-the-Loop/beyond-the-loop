@@ -139,7 +139,7 @@
 				companyConfig.set(companyConfigInfo);	
 			}
   			
-			toast.success($i18n.t('Updated successfuly'));
+			toast.success($i18n.t('Updated successfully'));
 		} catch(error) {
 			toast.error(`${error}`);
 		}
