@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 from sqlalchemy.orm import relationship
-from sqlalchemy import String, Column, Float
+from sqlalchemy import String, Column, Float, Integer
 
 from open_webui.internal.db import get_db, Base
 
@@ -22,6 +22,7 @@ class ModelCost(Base):
     cost_per_million_characters = Column(Float, nullable=True)
     cost_per_million_reasoning_tokens = Column(Float, nullable=True)
     cost_per_thousand_search_queries = Column(Float, nullable=True)
+    allowed_messages_per_three_hours = Column(Integer, nullable=True)
 
 
 class ModelCostModel(BaseModel):
@@ -33,6 +34,7 @@ class ModelCostModel(BaseModel):
     cost_per_million_characters: Optional[float]
     cost_per_million_reasoning_tokens: Optional[float]
     cost_per_thousand_search_queries: Optional[float]
+    allowed_messages_per_three_hours: Optional[int]
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -85,5 +87,11 @@ class ModelCostTable:
             model_cost = db.query(ModelCost).filter_by(model_name=model_name).first()
 
             return model_cost.cost_per_million_characters
+
+    def get_allowed_messages_per_three_hours_by_name(self, model_name: str):
+        with get_db() as db:
+            model_cost = db.query(ModelCost).filter_by(model_name=model_name).first()
+            return model_cost.allowed_messages_per_three_hours
+
 
 ModelCosts = ModelCostTable()

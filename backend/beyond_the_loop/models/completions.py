@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
-from sqlalchemy import String, Column, BigInteger, Integer, Text, ForeignKey, Float
+from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float
 
 import uuid
 import time
@@ -36,7 +36,6 @@ class CompletionModel(BaseModel):
 
 class CompletionTable:
     def insert_new_completion(self, user_id: str, chat_id: str, model: str, credits_used: float, time_saved_in_seconds: float) -> Optional[CompletionModel]:
-
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
@@ -48,6 +47,7 @@ class CompletionTable:
                 "time_saved_in_seconds": time_saved_in_seconds
             }
         )
+
         try:
             with get_db() as db:
                 result = Completion(**completion.model_dump())
@@ -62,6 +62,32 @@ class CompletionTable:
         except Exception as e:
             print(f"Error creating completion: {e}")
             return None
+
+    def get_completions_last_three_hours_by_user_and_model(
+            self,
+            user_id: str,
+            model_name: str
+    ) -> int:
+        try:
+            now = int(time.time())
+            three_hours_ago = now - (3 * 60 * 60)
+
+            with get_db() as db:
+                count = (
+                    db.query(Completion)
+                    .filter(
+                        Completion.user_id == user_id,
+                        Completion.model == model_name,
+                        Completion.created_at >= three_hours_ago,
+                    )
+                    .count()
+                )
+
+                return count
+        except Exception as e:
+            print(f"Error fetching completions for usage count: {e}")
+            return 0
+
 
 def calculate_saved_time_in_seconds(last_message, response_message):
     # print(last_message + " ----- " + response_message)
