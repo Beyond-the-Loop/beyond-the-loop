@@ -10,7 +10,7 @@ from beyond_the_loop.models.models import (
     TagResponse
 )
 from open_webui.constants import ERROR_MESSAGES
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from beyond_the_loop.utils.access_control import has_access, has_permission

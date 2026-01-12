@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { getContext, tick, onMount } from 'svelte';
+	import { getContext, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { models, settings, user, mobile } from '$lib/stores';
+	import { models, settings, mobile } from '$lib/stores';
+	import { subscription } from '$lib/stores';
+
 	import { updateUserSettings } from '$lib/apis/users';
 	import { getModels as _getModels } from '$lib/apis';
 	import { goto } from '$app/navigation';
@@ -25,7 +27,6 @@
 		getCurrentSubscription,
 		getSubscriptionPlans
 	} from '$lib/apis/payments';
-	import { subscription } from '$lib/stores';
 	import BackIcon from '../icons/BackIcon.svelte';
 	import DomainSettings from './Settings/CompanySettings/DomainSettings.svelte';
 	import DomainSettingsIcon from '../icons/DomainSettingsIcon.svelte';
@@ -92,7 +93,19 @@
 		];
 
 	let search = '';
-	let visibleTabs = searchData.map((tab) => tab.id);
+
+	let visibleTabs = [];
+
+	$: if ($subscription) {
+		visibleTabs = searchData
+			.map(tab => tab.id)
+			.filter(tab =>
+				$subscription.plan === 'free'
+					? tab !== 'analytics'
+					: true
+			);
+	}
+
 	let searchDebounceTimeout;
 
 	const searchSettings = (query: string): string[] => {
@@ -166,49 +179,53 @@
 	let analyticsLoading = false;
 
 	async function fetchAnalytics() {
-	const token = localStorage.token;
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = now.getMonth() + 1;
-	const { start, end } = getMonthRange(year, month);
-	try {
-		analyticsLoading = true;
-		const [
-			topModels,
-			totalUsers,
-			totalMessages,
-			adoptionRate,
-			powerUsers,
-			savedTime,
-			topUsers,
-			totalBilling,
-			totalChats,
-			totalAssistants
-		] = await Promise.allSettled([
-			getTopModels(token, start, end),
-			getTotalUsers(token),
-			getTotalMessages(token),
-			getAdoptionRate(token),
-			getPowerUsers(token),
-			getSavedTimeInSeconds(token),
-			getTopUsers(token, start, end),
-			getTotalBilling(token),
-			getTotalChats(token),
-			getTotalAssistants(token),
-		]);
-		
-		analytics = {
-			topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
-			totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
-			totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-			adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
-			powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
-			savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
-			topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
-			totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
-			totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
-			totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
+		if ($subscription?.plan === 'free') {
+			return;
 		}
+
+		const token = localStorage.token;
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = now.getMonth() + 1;
+		const { start, end } = getMonthRange(year, month);
+		try {
+			analyticsLoading = true;
+			const [
+				topModels,
+				totalUsers,
+				totalMessages,
+				adoptionRate,
+				powerUsers,
+				savedTime,
+				topUsers,
+				totalBilling,
+				totalChats,
+				totalAssistants
+			] = await Promise.allSettled([
+				getTopModels(token, start, end),
+				getTotalUsers(token),
+				getTotalMessages(token),
+				getAdoptionRate(token),
+				getPowerUsers(token),
+				getSavedTimeInSeconds(token),
+				getTopUsers(token, start, end),
+				getTotalBilling(token),
+				getTotalChats(token),
+				getTotalAssistants(token),
+			]);
+		
+			analytics = {
+				topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
+				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
+				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
+				adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
+				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
+				savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
+				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
+				totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
+				totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
+				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
+			}
 		} catch (error) {
 			console.error('Error fetching analytics:', error);
 		} finally {

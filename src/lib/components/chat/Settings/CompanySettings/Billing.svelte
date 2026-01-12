@@ -342,7 +342,7 @@
 			</div>
 		{/if}
 
-		{#if !$subscription?.is_trial && $subscription.plan !== 'free' && $subscription.plan !== 'premium'}
+		{#if !$subscription?.is_trial && $subscription.plan !== 'free' && $subscription.plan !== 'premium' && $subscription.plan !== 'unlimited'}
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 pb-4">
 				<div class="flex items-center justify-between {$subscription?.status !== 'canceled' && 'border-b dark:border-customGray-700 pb-2.5'}">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Flex credits')}</div>

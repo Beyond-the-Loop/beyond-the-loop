@@ -281,4 +281,98 @@ class PaymentsService:
                 "error": str(e)
             }
 
+    # Legacy
+    def update_company_credits_from_subscription(self, event_data):
+        """
+        Helper function to update company credits based on subscription data.
+
+        Args:
+            event_data: The subscription data from the Stripe webhook event
+
+        Returns:
+            tuple: (company, credits_per_month, plan_id) or (None, None, None) if any step fails
+        """
+        try:
+            billing_reason = event_data.get('billing_reason')
+
+            # If the billing reason is not subscription_create, ignore the event
+            if billing_reason == 'subscription_create' or billing_reason == 'subscription_update':
+                return None, None, None
+
+            # Extract subscription details
+            subscription_id = event_data.get('id')
+
+            stripe_customer_id = event_data.get('customer')
+
+            if not subscription_id or not stripe_customer_id:
+                print("Missing subscription_id or customer_id in event data")
+                return None, None, None
+
+            # Get the company associated with this Stripe customer
+            company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
+
+            if not company:
+                return None, None, None
+
+            # Get the price ID from the subscription
+            items = event_data.get('items', {}).get('data', [])
+
+            if not items:
+                print(f"No items found in subscription {subscription_id}")
+                return None, None, None
+
+            price_id = items[0].get('price', {}).get('id')
+
+            if not price_id:
+                print(f"No price ID found in subscription {subscription_id}")
+                return None, None, None
+
+            # Find the plan associated with this price ID
+            plan_id = next((plan for plan, details in payments_service.SUBSCRIPTION_PLANS.items()
+                            if details.get("stripe_price_id") == price_id), None)
+
+            if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
+                print(f"No plan found for price ID: {price_id}")
+                return None, None, None
+
+            # For subscription events, get metadata directly from event data
+            subscription_metadata = event_data.get('metadata', {})
+
+            # Check if custom_credit_amount is specified in metadata
+            custom_credit_amount = subscription_metadata.get('custom_credit_amount')
+
+            if custom_credit_amount:
+                try:
+                    credits_per_month = int(custom_credit_amount)
+                    print(f"Using custom credit amount from metadata: {credits_per_month}")
+                except (ValueError, TypeError):
+                    print(
+                        f"Invalid custom_credit_amount in metadata: {custom_credit_amount}, falling back to plan default")
+                    credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+            else:
+                # Get the credits per month for this plan
+                credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+
+            # Add the credits to the company's balance
+            if credits_per_month > 0:
+                # Update the company's credit balance
+                Companies.update_company_by_id(company.id, {
+                    "credit_balance": credits_per_month,
+                    "budget_mail_80_sent": False,
+                    "budget_mail_100_sent": False
+                })
+
+                _set_new_credit_recharge_check_date(company)
+
+                credit_source = "custom metadata" if custom_credit_amount else "plan default"
+
+                print(f"Added {credits_per_month} credits to company {company.id} for subscription {subscription_id} (source: {credit_source})")
+
+            return company, credits_per_month, plan_id
+
+        except Exception as e:
+            print(f"Error on adding credits from subscription event: {e}")
+            return None, None, None
+
+
 payments_service = PaymentsService()

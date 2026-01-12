@@ -65,16 +65,14 @@ def get_subscription(user=Depends(get_verified_user)):
 # Get all available subscription plans
 @router.get("/subscription-plans/")
 async def get_subscription_plans(user=Depends(get_verified_user)):
-    company = Companies.get_company_by_id(user.company_id)
-
     """Get all available subscription plans"""
     plans = []
     for plan_id, plan_details in payments_service.SUBSCRIPTION_PLANS.items():
         plans.append(SubscriptionPlanResponse(
             id=plan_id,
-            price=plan_details["price"],
-            credits_per_month=plan_details["credits_per_month"],
-            seats=plan_details["seats"]
+            price=plan_details.get("price", None),
+            credits_per_month=plan_details.get("credits_per_month", None),
+            seats=plan_details.get("seats", None),
         ))
 
     return plans
@@ -136,9 +134,15 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         event_data = event.get("data", {}).get("object", {})
 
         # Subscription events
-        if event_type == "charge.succeeded":
-            # Legacy flex credit recharge
+        if event_type == "customer.subscription.created":
+            handle_subscription_created(event_data)
+            return
+        elif event_type == "customer.subscription.updated":
+            handle_subscription_updated(event_data)
+            return
+        elif event_type == "charge.succeeded":
             handle_charge_succeeded(event_data)
+            return
         else:
             print(f"Unhandled Stripe event type: {event_type}")
 
@@ -149,6 +153,36 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
     except Exception as e:
         print(f"Webhook processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Legacy subscription created
+def handle_subscription_created(event_data):
+    """
+    Handle subscription created webhook event from Stripe.
+    Updates company credit balance based on the subscription plan.
+
+    Args:
+        event_data: The subscription data from the Stripe webhook event
+    """
+    try:
+        payments_service.update_company_credits_from_subscription(event_data)
+    except Exception as e:
+        print(f"Error handling subscription created event: {e}")
+
+
+# Legacy subscription updated
+def handle_subscription_updated(event_data):
+    """
+    Handle subscription updated webhook event from Stripe.
+    Updates company credit balance based on the subscription plan.
+
+    Args:
+        event_data: The subscription data from the Stripe webhook event
+    """
+    try:
+        payments_service.update_company_credits_from_subscription(event_data)
+    except Exception as e:
+        print(f"Error handling subscription updated event: {e}")
+
 
 # Legacy flex credits recharge
 def handle_charge_succeeded(event_data):

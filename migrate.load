@@ -1,5 +1,5 @@
 LOAD DATABASE
-     FROM sqlite:///Users/philszalay/Documents/code/beyond-the-loop/backend/data/database.sqlite
+     FROM sqlite:///Users/philszalay/Documents/code/beyond-the-loop/backend/data/database_staging.sqlite
      INTO postgresql://beyondtheloopuser:beyondthelooppassword@localhost:5432/beyondtheloopdb
 
 WITH create tables, no foreign keys, truncate, batch rows = 1000
