@@ -22,7 +22,8 @@ class ModelCost(Base):
     cost_per_million_characters = Column(Float, nullable=True)
     cost_per_million_reasoning_tokens = Column(Float, nullable=True)
     cost_per_thousand_search_queries = Column(Float, nullable=True)
-    allowed_messages_per_three_hours = Column(Integer, nullable=True)
+    allowed_messages_per_three_hours_free = Column(Integer, nullable=True)
+    allowed_messages_per_three_hours_premium = Column(Integer, nullable=True)
 
 
 class ModelCostModel(BaseModel):
@@ -34,7 +35,8 @@ class ModelCostModel(BaseModel):
     cost_per_million_characters: Optional[float]
     cost_per_million_reasoning_tokens: Optional[float]
     cost_per_thousand_search_queries: Optional[float]
-    allowed_messages_per_three_hours: Optional[int]
+    allowed_messages_per_three_hours_free: Optional[int]
+    allowed_messages_per_three_hours_premium: Optional[int]
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -88,10 +90,33 @@ class ModelCostTable:
 
             return model_cost.cost_per_million_characters
 
-    def get_allowed_messages_per_three_hours_by_name(self, model_name: str):
+    def get_allowed_messages_per_three_hours_free_by_name(self, model_name: str):
         with get_db() as db:
             model_cost = db.query(ModelCost).filter_by(model_name=model_name).first()
-            return model_cost.allowed_messages_per_three_hours
+            return model_cost.allowed_messages_per_three_hours_free
+
+    def get_allowed_messages_per_three_hours_premium_by_name(self, model_name: str):
+        with get_db() as db:
+            model_cost = db.query(ModelCost).filter_by(model_name=model_name).first()
+            return model_cost.allowed_messages_per_three_hours_premium
+
+    def get_allowed_model_names_free(self):
+        with get_db() as db:
+            rows = (
+                db.query(ModelCost)
+                .filter(ModelCost.allowed_messages_per_three_hours_free.isnot(None))
+                .all()
+            )
+            return [row.model_name for row in rows]
+
+    def get_allowed_model_names_premium(self):
+        with get_db() as db:
+            rows = (
+                db.query(ModelCost)
+                .filter(ModelCost.allowed_messages_per_three_hours_premium.isnot(None))
+                .all()
+            )
+            return [row.model_name for row in rows]
 
 
 ModelCosts = ModelCostTable()

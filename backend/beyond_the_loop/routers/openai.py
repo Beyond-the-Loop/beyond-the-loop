@@ -86,7 +86,7 @@ async def cleanup_response(
 #
 ##########################################
 
-async def get_all_models(request: Request):
+async def get_all_models():
     """
     Fetch all available models from the litellm server.
     Returns the models in OpenAI API format.
@@ -126,7 +126,6 @@ router = APIRouter()
 
 @router.post("/audio/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
-    idx = None
     try:
         body = await request.body()
         name = hashlib.sha256(body).hexdigest()
@@ -235,16 +234,13 @@ async def generate_chat_completion(
 
     if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
-    elif subscription.get("plan") == "free" or subscription.get("plan") == "premium":
-        fair_model_usage_service.check_for_fair_model_usage(user, payload["model"])
 
     params = model_info.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    is_free_user = subscription.get("plan") == "free"
-
-    if is_free_user and model_info.base_model_id or not agent_or_task_prompt and not (
+    # Check model access
+    if not agent_or_task_prompt and not(
         model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
             user.id, type="read", access_control=model_info.access_control
         ))
@@ -253,6 +249,10 @@ async def generate_chat_completion(
             status_code=403,
             detail="Model not found, no access for user",
         )
+
+    # Check model fair usage
+    if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
+        fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
@@ -346,6 +346,7 @@ async def generate_chat_completion(
 
                         except json.JSONDecodeError:
                             print(f"\n{chunk_str}")
+
                     yield chunk
 
             return StreamingResponse(

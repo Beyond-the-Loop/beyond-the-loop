@@ -1,7 +1,7 @@
 services:
   litellm:
     container_name: litellm
-    image: ghcr.io/berriai/litellm:v1.79.0-stable
+    image: ghcr.io/berriai/litellm:v1.80.15.rc.1
     env_file:
       - .env
     restart: unless-stopped

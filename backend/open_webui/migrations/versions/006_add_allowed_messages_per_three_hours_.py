@@ -25,7 +25,10 @@ def upgrade() -> None:
     conn.execute(
         sa.text("""
                 ALTER TABLE model_cost
-                    ADD COLUMN allowed_messages_per_three_hours INTEGER;
+                    ADD COLUMN allowed_messages_per_three_hours_free INTEGER;
+                    
+                ALTER TABLE model_cost
+                    ADD COLUMN allowed_messages_per_three_hours_premium INTEGER;
                 """)
     )
 

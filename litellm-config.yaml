@@ -82,6 +82,53 @@ model_list:
     litellm_params:
       model: 'perplexity/sonar-reasoning-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
+  - model_name: "GPT OSS 120b"
+    litellm_params:
+      model: "azure/gpt-oss-120b"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "Grok 4 fast (thinking)"
+    litellm_params:
+      model: "azure/grok-4-fast-reasoning"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "Grok 4 fast (instant)"
+    litellm_params:
+      model: "azure/grok-4-fast-non-reasoning"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "Mistral Large 3"
+    litellm_params:
+      model: "azure/Mistral-Large-3"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "DeepSeek-V3.2"
+    litellm_params:
+      model: "azure/DeepSeek-V3.2"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "DeepSeek R1"
+    litellm_params:
+      model: "azure/DeepSeek-R1"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "GPT-5.1 Codex"
+    litellm_params:
+      model: "azure/gpt-5.1-codex"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "GPT o3 Deep Research"
+    litellm_params:
+      model: "azure/o3-deep-research"
+      api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
+      tools:
+        - type: "web_search_preview"
+  - model_name: "GPT-5.2"
+    litellm_params:
+      model: "azure/gpt-5.2"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
 
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body

@@ -223,6 +223,7 @@ class ModelsTable:
     def get_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id).all()
+
             return [
                 ModelModel.model_validate(model)
                 for model in models
@@ -238,18 +239,20 @@ class ModelsTable:
                 if has_access(user_id, "read", model.access_control) or role == "admin"
             ]
 
-    def get_models_by_user_and_company(
+    def get_assistants_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read"
     ) -> list[ModelUserResponse]:
         with get_db() as db:
             result = db.execute(
                 select(user_model_bookmark.c.model_id).where(user_model_bookmark.c.user_id == user_id)
             )
+
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
             all_models = self.get_assistants()
 
             filtered_models = []
+
             for model in all_models:
                 if (
                     model.user_id == "system"

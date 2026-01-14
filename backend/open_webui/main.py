@@ -35,6 +35,8 @@ from starlette.responses import Response
 from beyond_the_loop.routers import users
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.completions import Completions
+from beyond_the_loop.models.model_costs import ModelCosts
+from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from beyond_the_loop.socket.main import (
     app as socket_app,
@@ -573,15 +575,35 @@ app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"]
 #
 ##################################
 
-
 @app.get("/api/models")
-async def get_models(request: Request, user=Depends(get_verified_user)):
-    return {"data": Models.get_models_by_user_and_company(user.id, user.company_id) + Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)}
+async def get_active_models(user=Depends(get_verified_user)):
+    available_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
 
+    subscription = payments_service.get_subscription(user.company_id)
+
+    print("MODEEELS", available_models)
+
+    print("MODELCOSSST", ModelCosts.get_allowed_model_names_free())
+
+    if subscription.get("plan") == "free":
+        available_models = [model for model in available_models if model.name in ModelCosts.get_allowed_model_names_free()]
+    elif subscription.get("plan") == "premium":
+        available_models = [model for model in available_models if model.name in ModelCosts.get_allowed_model_names_premium()]
+
+    return {"data": available_models}
 
 @app.get("/api/models/base")
-async def get_base_models(request: Request, user=Depends(get_admin_user)):
-    return {"data": Models.get_base_models_by_comany_and_user(user.company_id, user.id, user.role)}
+async def get_base_models(user=Depends(get_admin_user)):
+    base_models = Models.get_base_models_by_comany_and_user(user.company_id, user.id, user.role)
+
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") == "free":
+        base_models = [model for model in base_models if model.id in ModelCosts.get_allowed_model_names_free()]
+    elif subscription.get("plan") == "premium":
+        base_models = [model for model in base_models if model.id in ModelCosts.get_allowed_model_names_premium()]
+
+    return {"data": base_models}
 
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
