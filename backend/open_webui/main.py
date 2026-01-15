@@ -614,7 +614,6 @@ async def get_base_models(user=Depends(get_admin_user)):
     elif subscription.get("plan") == "premium":
         base_models = [model for model in base_models if model.id in ModelCosts.get_allowed_model_names_premium()]
     else:
-        # TEMPORARY - Exclude new models for subscription users
         MODEL_NAMES = [
             "Grok 4 fast (thinking)",
             "Grok 4 fast (instant)",

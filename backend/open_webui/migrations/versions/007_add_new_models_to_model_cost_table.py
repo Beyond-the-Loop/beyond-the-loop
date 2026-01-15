@@ -73,7 +73,7 @@ def upgrade() -> None:
                     
                 UPDATE model_cost SET allowed_messages_per_three_hours_free = 50, allowed_messages_per_three_hours_premium = 100 WHERE model_name IN ('GPT-5 mini', 'GPT o4-mini', 'GPT o3');
                     
-                UPDATE model_cost SET allowed_messages_per_three_hours_free = 0, allowed_messages_per_three_hours_premium = 50 WHERE model_name IN ('GPT-5.1 (thinking)', 'GPT-5.1 (instant)', 'GPT-5');                    
+                UPDATE model_cost SET allowed_messages_per_three_hours_premium = 50 WHERE model_name IN ('GPT-5.1 (thinking)', 'GPT-5.1 (instant)', 'GPT-5');                    
                 """)
     )
 
