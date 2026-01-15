@@ -1,5 +1,3 @@
-from time import strftime
-
 from dateutil.relativedelta import relativedelta
 from fastapi import HTTPException
 
@@ -10,7 +8,6 @@ from datetime import date, datetime
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
-from beyond_the_loop.services.crm_service import crm_service
 
 
 def _set_new_credit_recharge_check_date(company):
@@ -56,7 +53,7 @@ class PaymentsService:
 
         self.stripe_price_id_enterprise_yearly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_YEARLY', 'price_1RgliHBBwyxb4MZjb1rAH3tS')
 
-        self.stripe_price_id_user_seat = os.environ.get('STRIPE_PRICE_ID_USER_SEAT', 'price_1Sf0FXBBwyxb4MZjRr3MSL95')
+        self.stripe_price_id_user_seat = os.environ.get('STRIPE_PRICE_ID_USER_SEAT', 'price_1SnL63BBwyxb4MZj8kEVGzpb')
 
         # Constants
         self.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS = 2000  # Amount in cents (20 euro)
@@ -128,6 +125,8 @@ class PaymentsService:
                 "credits_per_month": 1000 # 10,00€ in cents
             }
         }
+
+        self.PREMIUM_BILLING_PORTAL_ID = os.getenv('STRIPE_PREMIUM_BILLING_PORTAL_ID', "bpc_1SnKqsBBwyxb4MZj4SRs4N0b")
 
     def get_plan_details_from_subscription(self, subscription):
         """

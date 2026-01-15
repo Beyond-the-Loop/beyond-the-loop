@@ -28,7 +28,6 @@ class Company(Base):
     credit_balance = Column(Float, default=0)
     flex_credit_balance = Column(Float, nullable=True)
     auto_recharge = Column(Boolean, default=False)
-    credit_card_number = Column(String, nullable=True)
     size = Column(String, nullable=True)
     industry = Column(String, nullable=True)
     team_function = Column(String, nullable=True)
@@ -50,7 +49,6 @@ class CompanyModel(BaseModel):
     credit_balance: Optional[float] = 0
     flex_credit_balance: Optional[float] = None
     auto_recharge: Optional[bool] = False
-    credit_card_number: Optional[str] = None
     size: Optional[str] = None
     industry: Optional[str] = None
     team_function: Optional[str] = None

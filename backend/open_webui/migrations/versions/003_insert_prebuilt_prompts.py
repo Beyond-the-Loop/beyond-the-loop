@@ -68,13 +68,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Create a connection
-    connection = op.get_bind()
-    session = Session(bind=connection)
-
-    # Delete all prebuilt prompts
-    delete_query = sa.text("DELETE FROM prompt WHERE prebuilt = :prebuilt")
-    session.execute(delete_query, {"prebuilt": True})
-
-    # Commit the changes
-    session.commit()
+    pass

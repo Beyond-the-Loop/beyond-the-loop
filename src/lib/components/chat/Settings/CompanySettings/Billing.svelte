@@ -7,7 +7,7 @@
 		updateAutoRecharge,
 		getCurrentSubscription,
 		redirectToCustomerPortal,
-		createPricingTable
+		createPricingTable, redirectToPremiumSubscriptionCheckout
 	} from '$lib/apis/payments';
 	import dayjs from 'dayjs';
 	import { toast } from 'svelte-sonner';
@@ -31,7 +31,8 @@
 		const url = new URL(window.location.href);
 
 		const rechargeParam = url.searchParams.get('recharge');
-		if(rechargeParam === 'open'){
+
+		if (rechargeParam === 'open'){
 			showBuyFlexCredits = true;
 		}
 	})
@@ -46,13 +47,22 @@
 		}
 	}
 
+	async function goToPremiumSubscriptionCheckout() {
+		const res = await redirectToPremiumSubscriptionCheckout(localStorage.token).catch((error) => {
+			console.log(error)
+		});
+		if (res) {
+			window.location.href = res.url;
+		}
+	}
+
 	async function fetchCurrentSubscription() {
 		const sub = await getCurrentSubscription(localStorage.token)
 		.catch(error => {
 			console.log(error)
 			
 		});
-		subscription.set(sub);	
+		subscription.set(sub);
 	}
 
 	async function pollForCreditChange(previous, interval = 2000, timeout = 20000) {
@@ -95,7 +105,6 @@
 
 	$: seatsWidth = $subscription?.seats ? $subscription?.seats_taken > $subscription?.seats ? '100%' : `${($subscription?.seats_taken/$subscription?.seats*100)}%` : '100%';
 	$: creditsWidth = $subscription?.credits_remaining ? `${(((currentPlan?.credits_per_month - $subscription?.credits_remaining)/currentPlan?.credits_per_month) * 100)}%` : '100%';
-	
 
 	$: {
 		if(showBuyFlexCredits === false && mounted){
@@ -181,11 +190,11 @@
 			</div>
 		</div>
 		<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 mb-2.5">
-			<div class="flex items-center justify-between pb-2.5 {$subscription?.plan !== "unlimited" ?  "border-b" : ""} dark:border-customGray-700">
+			<div class="flex items-center justify-between pb-2.5 {$subscription?.plan !== 'unlimited' && $subscription?.plan !== 'free' ? 'border-b' : ''} dark:border-customGray-700">
 				<div class="flex items-center gap-2.5">
-					{#if $subscription?.plan != "unlimited" && $subscription?.image_url}
+					{#if $subscription?.plan !== "unlimited" && $subscription?.image_url}
 						<img src="{$subscription.image_url}" alt="" class="w-[50px] h-[50px] object-cover rounded-mdx" />
-					{:else if $subscription?.plan === 'unlimited'}
+					{:else if $subscription?.plan === 'unlimited' || $subscription?.plan === 'free'}
 					<div
 						class="flex justify-center items-center w-[50px] h-[50px] bg-[#DA702C] dark:bg-[#A54300] rounded-mdx text-[#FFD6A8] dark:text-[#FFD8A8]"
 					>
@@ -221,7 +230,7 @@
 						{/if}
 					</div>
 				</div>
-				{#if $subscription?.plan !== 'unlimited'}
+				{#if $subscription?.plan !== 'unlimited' && $subscription?.plan !== 'free'}
 					{#if $subscription?.status === "canceled"}
 						<button
 							on:click={createTable}
@@ -238,11 +247,20 @@
 						>
 							{$i18n.t('Manage subscription')}
 						</button>
-
 					{/if}	
 				{/if}
+				{#if $subscription?.plan === 'free'}
+					<button
+							on:click={() => {
+								goToPremiumSubscriptionCheckout()
+							}}
+							class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
+						>
+							{$i18n.t('Upgrade')}
+						</button>
+				{/if}
 			</div>
-			{#if $subscription?.plan !== "unlimited"}
+			{#if $subscription?.plan !== "unlimited" && $subscription?.plan !== 'free'}
 				<div class="flex items-center justify-between pt-2.5 pb-3">
 					<div class="text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t('Billing details')}</div>
 					{#if $subscription.status === 'canceled'}
@@ -275,19 +293,20 @@
 							class="dark:text-customGray-590 capitalize">{$i18n.t($subscription?.seats)} {$i18n.t('Included').toLowerCase()}</span
 						>
 					{:else}
-						<span class="text-xs text-lightGray-100 dark:text-customGray-100">{$subscription?.seats_taken} {$i18n.t('used')}</span><span
-							class="dark:text-customGray-590">/ {$subscription?.seats} {$i18n.t('Included').toLowerCase()}</span
-						>
+						<span class="text-xs text-lightGray-100 dark:text-customGray-100">{$subscription?.seats_taken} {$i18n.t('used')}</span>
+						{#if $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
+							<span class="dark:text-customGray-590">/ {$subscription?.seats} {$i18n.t('Included').toLowerCase()}</span>
+						{/if}
 					{/if}
 				</div>
 			</div>
-			{#if $subscription?.plan !== "unlimited"}
-				<div class="relative w-full h-1 rounded-sm bg-lightGray-700 dark:bg-customGray-800">
-					<div style={`width: ${seatsWidth};`} class="absolute left-0 h-1 rounded-sm bg-[#024D15]/80 dark:bg-[#024D15]"></div>
-				</div>
+			{#if $subscription?.plan !== "unlimited" }
+			<div class="relative w-full h-1 rounded-sm bg-lightGray-700 dark:bg-customGray-800">
+				<div style={`width: ${seatsWidth};`} class="absolute left-0 h-1 rounded-sm bg-[#024D15]/80 dark:bg-[#024D15]"></div>
+			</div>
 			{/if}
 		</div>
-		{#if $subscription?.plan !== 'unlimited'}
+		{#if $subscription?.plan !== 'unlimited' && $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 pb-4 mb-2.5">
 				<div class="flex items-center justify-between pb-2.5 border-b dark:border-customGray-700 mb-5">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Base credits')}</div>
@@ -323,7 +342,7 @@
 			</div>
 		{/if}
 
-		{#if !$subscription?.is_trial}
+		{#if !$subscription?.is_trial && $subscription.plan !== 'free' && $subscription.plan !== 'premium'}
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 px-4 pb-4">
 				<div class="flex items-center justify-between {$subscription?.status !== 'canceled' && 'border-b dark:border-customGray-700 pb-2.5'}">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Flex credits')}</div>
@@ -369,7 +388,7 @@
 				{/if}
 			</div>
 		{/if}
-		{#if subscription.status !== 'canceled' && $subscription?.plan !== 'unlimited'}
+		{#if subscription.status !== 'canceled' && $subscription?.plan !== 'unlimited' && $subscription?.plan !== 'free'}
 			<div
 			class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 			>

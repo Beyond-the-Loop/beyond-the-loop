@@ -127,17 +127,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Remove all system prebuilt assistants
-    connection = op.get_bind()
-    session = Session(bind=connection)
-
-    delete_query = sa.text("""
-                           DELETE
-                           FROM model
-                           WHERE user_id = 'system'
-                             AND company_id = 'system'
-                             AND id LIKE 'system-%'
-                           """)
-
-    session.execute(delete_query)
-    session.commit()
+    pass

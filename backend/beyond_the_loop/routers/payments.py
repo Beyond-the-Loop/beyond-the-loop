@@ -42,9 +42,12 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
         if not company.stripe_customer_id:
             raise HTTPException(status_code=404, detail="No customer found")
 
+        configuration = payments_service.PREMIUM_BILLING_PORTAL_ID if payments_service.get_subscription(company.id).get("plan") == "premium" else None
+
         # Create a billing portal session
         session = stripe.billing_portal.Session.create(
             customer=company.stripe_customer_id,
+            configuration=configuration,
             return_url=os.getenv('FRONTEND_BASE_URL') + "?modal=company-settings&tab=billing",
         )
 
@@ -59,8 +62,25 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
 def get_subscription(user=Depends(get_verified_user)):
     return payments_service.get_subscription(user.company_id)
 
+# Get all available subscription plans
+@router.get("/subscription-plans/")
+async def get_subscription_plans(user=Depends(get_verified_user)):
+    company = Companies.get_company_by_id(user.company_id)
 
-@router.get("create-premium-subscription-checkout-session")
+    """Get all available subscription plans"""
+    plans = []
+    for plan_id, plan_details in payments_service.SUBSCRIPTION_PLANS.items():
+        plans.append(SubscriptionPlanResponse(
+            id=plan_id,
+            price=plan_details["price"],
+            credits_per_month=plan_details["credits_per_month"],
+            seats=plan_details["seats"]
+        ))
+
+    return plans
+
+
+@router.get("/create-premium-subscription-checkout-session/")
 def create_premium_subscription_checkout_session(user=Depends(get_verified_user)):
     company = Companies.get_company_by_id(user.company_id)
 
@@ -75,13 +95,13 @@ def create_premium_subscription_checkout_session(user=Depends(get_verified_user)
             "quantity": Users.get_num_active_users_by_company_id(user.company_id),
         }],
         mode="subscription",
-        success_url=os.getenv('BACKEND_ADDRESS') + "?modal=company-settings&tab=billing",
-        cancel_url=os.getenv('BACKEND_ADDRESS') + "?modal=company-settings&tab=billing",
+        success_url=os.getenv('FRONTEND_BASE_URL') + "?modal=company-settings&tab=billing",
+        cancel_url=os.getenv('FRONTEND_BASE_URL') + "?modal=company-settings&tab=billing",
         ui_mode="hosted",
         billing_address_collection="required",
     )
 
-    return checkout_session.url
+    return {"url": checkout_session.url}
 
 @router.post("/cancel-premium-subscription/")
 async def cancel_premium_subscription(user=Depends(get_verified_user)):
