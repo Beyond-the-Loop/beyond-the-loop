@@ -1,6 +1,7 @@
 export const modelsInfo = {
 	"GPT-5.1 instant": {
 		context_window: '128K',
+		catgeory: 3,
 		costFactor: 2,
 		description: 'GPT-5.1 Instant is particularly conversational, delivers fast, clear answers with reduced jargon, and is especially well-suited for everyday conversations.',
 		hosted_in: 'EU',
@@ -15,6 +16,7 @@ export const modelsInfo = {
 	},
 	"GPT-5.1 thinking": {
 		context_window: '128K',
+		category: 3,
 		costFactor: 2,
 		description: 'Powerful for complex questions and code. Thorough analyses, detailed answers. Ideal for demanding tasks, not for quick responses.',
 		hosted_in: 'EU',
@@ -57,6 +59,7 @@ export const modelsInfo = {
 	},
 	"Google 2.5 Flash": {
 		context_window: '1M',
+		category: 1,
 		costFactor: 0,
 		description: "Balanced model with good reasoning and multimodal capabilities. Optimal price-performance ratio.",
 		hosted_in: 'EU',
@@ -85,6 +88,7 @@ export const modelsInfo = {
 	},
 	"GPT o3": {
 		context_window: '200K',
+		category: 2,
 		costFactor: 1.5,
 		description: "Strongest reasoning model for math, science, and complex problem solving.",
 		hosted_in: 'EU',
@@ -99,6 +103,7 @@ export const modelsInfo = {
 	},
 	"GPT o4-mini": {
 		context_window: '200K',
+		category: 2,
 		costFactor: 1,
 		description: "Fast, affordable reasoning model with strengths in coding and visual tasks.",
 		hosted_in: 'EU',
@@ -113,6 +118,7 @@ export const modelsInfo = {
 	},
 	"GPT-5": {
 		context_window: '400K',
+		category: 3,
 		costFactor: 2,
 		description: "OpenAI's flagship model for coding, reasoning, and agent tasks. Highest reasoning capabilities with moderate speed for complex domains.",
 		hosted_in: 'EU',
@@ -127,6 +133,7 @@ export const modelsInfo = {
 	},
 	"GPT-5 mini": {
 		context_window: '400K',
+		category: 2,
 		costFactor: 0.5,
 		description: "Offers a balanced combination of response quality and speed. Well suited for everyday questions, creative tasks, and explanations of medium complexity. For very complex analyses or highly specialized expert questions, more powerful models are better suited.",
 		hosted_in: 'EU',
@@ -141,6 +148,7 @@ export const modelsInfo = {
 	},
 	"GPT-5 nano": {
 		context_window: '400K',
+		category: 1,
 		costFactor: 0,
 		description: "Fast model for simple tasks like summarization and classification. Solid response quality with average reasoning capabilities. For complex analyses or deep logic, other models are better suited.",
 		hosted_in: 'EU',
@@ -155,6 +163,7 @@ export const modelsInfo = {
 	},
 	"Grok 4": {
 		context_window: '256K',
+		category: 3,
 		costFactor: 3,
 		description: "xAI's most advanced model with exceptional reasoning capabilities and a distinctive communication style.",
 		hosted_in: 'EU',
@@ -223,6 +232,140 @@ export const modelsInfo = {
 		speed: 0,
 		zdr: false,
 	},
+	"Grok 4 fast (thinking)": {
+		context_window: "256K",
+		costFactor: 1,
+		category: 1,
+		description: "Reasoning-optimized variant of Grok 4 focused on fast, structured thinking. Well suited for technical analyses with reduced response time.",
+		hosted_in: "EU",
+		intelligence_score: 3.5,
+		knowledge_cutoff: null,
+		multimodal: false,
+		organization: "xAI",
+		reasoning: true,
+		research: false,
+		speed: 3,
+		zdr: false
+	},
+	"Grok 4 fast (instant)": {
+		context_window: "256K",
+		costFactor: 1,
+		category: 1,
+		description: "Very fast, conversational Grok 4 variant designed for direct answers and simple to medium tasks without deep analysis.",
+		hosted_in: "EU",
+		intelligence_score: 3,
+		knowledge_cutoff: null,
+		multimodal: false,
+		organization: "xAI",
+		reasoning: false,
+		research: false,
+		speed: 4,
+		zdr: false
+	},
+	"GPT OSS 120b": {
+		context_window: "128K",
+		category: 1,
+		description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization.",
+		hosted_in: "Self-hosted",
+		intelligence_score: 2.5,
+		knowledge_cutoff: "2024-06-01",
+		multimodal: false,
+		organization: "Open Source",
+		reasoning: false,
+		research: false,
+		speed: 1.5,
+		zdr: true
+	},
+	"Mistral Large 3": {
+		context_window: "256K",
+		costFactor: 0.5,
+		category: 2,
+		description: "Next generation of Mistral Large with improved reasoning, stronger code understanding, and higher accuracy on technical tasks.",
+		hosted_in: "EU",
+		intelligence_score: 2.5,
+		knowledge_cutoff: "2024-10-01",
+		multimodal: false,
+		organization: "Mistral",
+		reasoning: true,
+		research: false,
+		speed: 2,
+		zdr: true
+	},
+	"DeepSeek-V3.2": {
+		context_window: "128K",
+		costFactor: 1,
+		category: 2,
+		description: "Powerful open-source model focused on coding, mathematics, and structured problem solving. Excellent price-performance ratio.",
+		hosted_in: "Self-hosted",
+		intelligence_score: 3,
+		knowledge_cutoff: "2024-08-01",
+		multimodal: false,
+		organization: "DeepSeek",
+		reasoning: true,
+		research: false,
+		speed: 2,
+		zdr: true
+	},
+	"DeepSeek R1": {
+		context_window: "128K",
+		costFactor: 1,
+		category: 2,
+		description: "Reasoning-specialized DeepSeek model for complex multi-step reasoning in mathematics, logic, and code.",
+		hosted_in: "Self-hosted",
+		intelligence_score: 3.5,
+		knowledge_cutoff: "2024-08-01",
+		multimodal: false,
+		organization: "DeepSeek",
+		reasoning: true,
+		research: false,
+		speed: 1.5,
+		zdr: true
+	},
+	"GPT-5.1 Codex": {
+		context_window: "128K",
+		costFactor: 2,
+		category: 3,
+		description: "Code-specialized variant of GPT-5.1 designed for software development, refactoring, testing, and agent-based programming tasks.",
+		hosted_in: "EU",
+		intelligence_score: 3.5,
+		knowledge_cutoff: "2024-10-01",
+		multimodal: false,
+		organization: "OpenAI",
+		reasoning: true,
+		research: false,
+		speed: 2,
+		zdr: false
+	},
+	"GPT-5.2": {
+		context_window: "512K",
+		costFactor: 3,
+		category: 3,
+		description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks.",
+		hosted_in: "EU",
+		intelligence_score: 4,
+		knowledge_cutoff: "2025-01-01",
+		multimodal: true,
+		organization: "OpenAI",
+		reasoning: true,
+		research: false,
+		speed: 2,
+		zdr: false
+	},
+	"GPT o3 Deep Research": {
+		context_window: "200K",
+		costFactor: 5,
+		category: 4,
+		description: "Research-oriented variant of GPT o3 designed for producing in-depth, citable reports with multi-step analysis and structured source evaluation.",
+		hosted_in: "US",
+		intelligence_score: 3.5,
+		knowledge_cutoff: "2024-05-31",
+		multimodal: false,
+		organization: "OpenAI",
+		reasoning: true,
+		research: true,
+		speed: 1,
+		zdr: false
+	}
 };
 
 export const mapModelsToOrganizations = (modelsInfo) => {

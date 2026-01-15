@@ -82,7 +82,7 @@ def _validate_model_read_access(model: ModelModel, user):
 
 
 @router.get("/", response_model=list[ModelUserResponse])
-async def get_mowdels(user=Depends(get_verified_user)):
+async def get_models(user=Depends(get_verified_user)):
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
     if is_free_user:

@@ -610,9 +610,9 @@ async def get_base_models(user=Depends(get_admin_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        base_models = [model for model in base_models if model.id in ModelCosts.get_allowed_model_names_free()]
+        base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_free()]
     elif subscription.get("plan") == "premium":
-        base_models = [model for model in base_models if model.id in ModelCosts.get_allowed_model_names_premium()]
+        base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_premium()]
     else:
         MODEL_NAMES = [
             "Grok 4 fast (thinking)",
