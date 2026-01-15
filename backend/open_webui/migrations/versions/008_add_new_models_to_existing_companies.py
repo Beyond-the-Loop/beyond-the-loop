@@ -11,6 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 import time
 import uuid
+import json
 
 
 # revision identifiers, used by Alembic.
@@ -52,7 +53,7 @@ def upgrade() -> None:
                     "base_model_id": None,
                     "name": model_name,
                     "meta": None,
-                    "params": {},
+                    "params": json.dumps({}),
                     "created_at": now,
                     "updated_at": now,
                     "access_control": None,
