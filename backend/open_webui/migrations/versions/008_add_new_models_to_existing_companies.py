@@ -52,7 +52,7 @@ def upgrade() -> None:
                     "user_id": None,
                     "base_model_id": None,
                     "name": model_name,
-                    "meta": None,
+                    "meta": json.dumps({}),
                     "params": json.dumps({}),
                     "created_at": now,
                     "updated_at": now,
