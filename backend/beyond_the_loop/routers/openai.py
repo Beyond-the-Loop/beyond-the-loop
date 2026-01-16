@@ -275,6 +275,23 @@ async def generate_chat_completion(
     except Exception:
         print("Error trimming messages, continuing with the original messages...")
 
+    endpoint = "/chat/completions"
+    last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
+
+    model = payload.get("model", "")
+    model_lower = model.lower()
+    if model_lower.startswith("gpt-5"):
+        if "messages" in payload:
+            payload["input"] = payload["messages"]
+            del payload["messages"]
+        if "stream_options" in payload:
+            del payload["stream_options"]
+        payload["reasoning"] = {
+            "effort": "low",  # low, medium, high
+            "summary": "auto"  # auto, detailed, brief
+        }
+        endpoint="/responses"
+
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
 
@@ -283,10 +300,6 @@ async def generate_chat_completion(
     streaming = False
     response = None
 
-    # Parse payload once for both streaming and non-streaming cases
-    payload_dict = json.loads(payload)
-    last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
-
     try:
         session = aiohttp.ClientSession(
             trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
@@ -294,7 +307,7 @@ async def generate_chat_completion(
 
         r = await session.request(
             method="POST",
-            url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
+            url=f"{os.getenv('OPENAI_API_BASE_URL')}{endpoint}",
             data=payload,
             headers={
                 "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
