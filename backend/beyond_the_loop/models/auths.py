@@ -147,8 +147,7 @@ class AuthsTable:
                             items=[{
                                 "id": subscription.get("subscription_item_id"),
                                 "quantity": Users.get_num_active_users_by_company_id(user.company_id)
-                            }],
-                            proration_behavior="none"  # disables proration
+                            }]
                         )
                 except Exception as e:
                     log.error(f"Failed to update subscription on signup (insert new auth): {e}")
@@ -187,8 +186,7 @@ class AuthsTable:
                             items=[{
                                 "id": subscription.get("subscription_item_id"),
                                 "quantity": Users.get_num_active_users_by_company_id(user.company_id)
-                            }],
-                            proration_behavior="none"  # disables proration
+                            }]
                         )
                 except Exception as e:
                     log.error(f"Failed to update subscription on signup (insert new auth for existing user): {e}")
@@ -270,8 +268,7 @@ class AuthsTable:
                                 items=[{
                                     "id": subscription.get("subscription_item_id"),
                                     "quantity": Users.get_num_active_users_by_company_id(company_id)
-                                }],
-                                proration_behavior="none"  # disables proration
+                                }]
                             )
                     except Exception as e:
                         log.error(f"Failed to update subscription on signup (insert new auth): {e}")

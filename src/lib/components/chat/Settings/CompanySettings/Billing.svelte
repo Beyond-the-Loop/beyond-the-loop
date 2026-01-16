@@ -18,6 +18,7 @@
 	import UnlimitedPlanIcon from '$lib/components/icons/UnlimitedPlanIcon.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
 	import CloseIcon from '$lib/components/icons/CloseIcon.svelte';
+	import FreePlanIcon from '$lib/components/icons/FreePlanIcon.svelte';
 
 	const i18n = getContext('i18n');
 	export let autoRecharge = false;
@@ -194,12 +195,14 @@
 				<div class="flex items-center gap-2.5">
 					{#if $subscription?.plan !== "unlimited" && $subscription?.image_url}
 						<img src="{$subscription.image_url}" alt="" class="w-[50px] h-[50px] object-cover rounded-mdx" />
-					{:else if $subscription?.plan === 'unlimited' || $subscription?.plan === 'free'}
-					<div
-						class="flex justify-center items-center w-[50px] h-[50px] bg-[#DA702C] dark:bg-[#A54300] rounded-mdx text-[#FFD6A8] dark:text-[#FFD8A8]"
-					>
-						<UnlimitedPlanIcon className="size-6" />
-				</div>
+					{:else if $subscription?.plan === 'unlimited'}
+						<div
+							class="flex justify-center items-center w-[50px] h-[50px] bg-[#DA702C] dark:bg-[#A54300] rounded-mdx text-[#FFD6A8] dark:text-[#FFD8A8]"
+						>
+							<UnlimitedPlanIcon className="size-6" />
+						</div>
+					{:else if $subscription?.plan === 'free'}
+							<FreePlanIcon className="w-[50px] h-[50px] rounded-mdx" />
 					{/if}
 					<div class="flex items-center gap-2.5">
 						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">

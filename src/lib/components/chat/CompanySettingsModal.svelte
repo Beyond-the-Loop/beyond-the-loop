@@ -18,10 +18,8 @@
 	import { getUsers } from '$lib/apis/users';
 	import AnalyticsIcon from '../icons/AnalyticsIcon.svelte';
 	import Analytics from './Settings/CompanySettings/Analytics.svelte';
-	import { getTopModels, getTotalUsers, getTotalMessages, getAdoptionRate, getPowerUsers, getSavedTimeInSeconds, getTopUsers, getTotalBilling, getTotalChats, getTotalAssistants } from '$lib/apis/analytics';
 	import BillingIcon from '../icons/BillingIcon.svelte';
 	import Billing from './Settings/CompanySettings/Billing.svelte';
-	import { getMonthRange } from '$lib/utils';
 	import { page } from '$app/stores';
 	import {
 		getCurrentSubscription,
@@ -175,63 +173,6 @@
 		users = await getUsers(localStorage.token);
 	};
 
-	let analytics = null;
-	let analyticsLoading = false;
-
-	async function fetchAnalytics() {
-		if ($subscription?.plan === 'free') {
-			return;
-		}
-
-		const token = localStorage.token;
-		const now = new Date();
-		const year = now.getFullYear();
-		const month = now.getMonth() + 1;
-		const { start, end } = getMonthRange(year, month);
-		try {
-			analyticsLoading = true;
-			const [
-				topModels,
-				totalUsers,
-				totalMessages,
-				adoptionRate,
-				powerUsers,
-				savedTime,
-				topUsers,
-				totalBilling,
-				totalChats,
-				totalAssistants
-			] = await Promise.allSettled([
-				getTopModels(token, start, end),
-				getTotalUsers(token),
-				getTotalMessages(token),
-				getAdoptionRate(token),
-				getPowerUsers(token),
-				getSavedTimeInSeconds(token),
-				getTopUsers(token, start, end),
-				getTotalBilling(token),
-				getTotalChats(token),
-				getTotalAssistants(token),
-			]);
-		
-			analytics = {
-				topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
-				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
-				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-				adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
-				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
-				savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
-				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
-				totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
-				totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
-				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
-			}
-		} catch (error) {
-			console.error('Error fetching analytics:', error);
-		} finally {
-			analyticsLoading = false;
-		}
-	}
 	let autoRecharge = false;
 	let subscriptionLoading = false;
 	async function getSubscription() {
@@ -258,7 +199,6 @@
 		getUsersHandler();
 		getSubscription();
 		getPlans();
-		fetchAnalytics();
 		const tabParam = $page.url.searchParams.get('tab');
 		const resetTabs = $page.url.searchParams.get('resetTabs');
 		if(resetTabs) {
@@ -454,7 +394,7 @@
 				{:else if selectedTab === 'model-control'}
 					<ModelControl/>
 				{:else if selectedTab === 'analytics'}
-					<Analytics {analytics} {analyticsLoading}/>
+					<Analytics/>
 				{:else if selectedTab === 'billing'}
 					<Billing bind:autoRecharge bind:subscriptionLoading {plans}/>
 				{/if}

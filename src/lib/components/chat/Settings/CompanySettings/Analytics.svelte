@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { WEBUI_BASE_URL } from '$lib/constants';
@@ -9,13 +9,19 @@
 	import { getMonths } from '$lib/utils';
 	import { onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import dayjs from 'dayjs';
-	import { getTopModels } from '$lib/apis/analytics';
+	import {
+		getAdoptionRate,
+		getPowerUsers,
+		getSavedTimeInSeconds,
+		getTopModels, getTopUsers, getTotalAssistants, getTotalBilling, getTotalChats,
+		getTotalMessages,
+		getTotalUsers
+	} from '$lib/apis/analytics';
 	import { getMonthRange, getPeriodRange } from '$lib/utils';
+	import { onMount } from 'svelte';
 
 	const i18n = getContext('i18n');
-	export let analytics = {};
-	export let analyticsLoading = false;
+	export let analyticsLoading = true;
 	let activeTab = 'messages';
 
 	let showUsersSortDropdown = false;
@@ -55,12 +61,64 @@
 	let chartChatsData = null;
 
 	let users = [];
+
+	const token = localStorage.token;
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = now.getMonth() + 1;
+	const { start, end } = getMonthRange(year, month);
+
+	let analytics = {};
+
+	onMount(async () => {
+		try {
+			const [
+				topModels,
+				totalUsers,
+				totalMessages,
+				adoptionRate,
+				powerUsers,
+				savedTime,
+				topUsers,
+				totalBilling,
+				totalChats,
+				totalAssistants
+			] = await Promise.allSettled([
+				getTopModels(token, start, end),
+				getTotalUsers(token),
+				getTotalMessages(token),
+				getAdoptionRate(token),
+				getPowerUsers(token),
+				getSavedTimeInSeconds(token),
+				getTopUsers(token, start, end),
+				getTotalBilling(token),
+				getTotalChats(token),
+				getTotalAssistants(token),
+			]);
+
+			analytics = {
+				topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
+				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
+				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
+				adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
+				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
+				savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
+				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
+				totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
+				totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
+				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
+			}
+		} catch (error) {
+			console.error('Error fetching analytics:', error);
+		} finally {
+			analyticsLoading = false;
+		}
+	})
+
 	$: {
 		if (analytics?.topUsers?.top_by_credits?.length > 0) {
 			users = analytics?.topUsers?.top_by_credits;
-		} 
-	}
-	$: {
+		}
 		if (analytics?.totalMessages?.monthly_messages) {
 			chartMessagesData = {
 				labels: analytics?.totalMessages?.monthly_messages
@@ -94,8 +152,6 @@
 			};
 		}
 	}
-
-	
 
 	const chartOptions = {
 		responsive: true,
