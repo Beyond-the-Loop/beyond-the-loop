@@ -632,11 +632,6 @@ async def get_base_models(user=Depends(get_admin_user)):
 
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
-    subscription = payments_service.get_subscription(user.company_id)
-
-    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Subscription required and not available for Free or Premium companies.")
-
     request['stream'] = False
 
     # Handle optional file
