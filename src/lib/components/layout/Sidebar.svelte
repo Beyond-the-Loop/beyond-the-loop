@@ -634,7 +634,7 @@
 			</div>
 			{/if}
 
-			{#if $subscription?.plan !== 'free' && ($user?.role === 'admin' || $user?.permissions?.workspace?.view_knowledge)}
+			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_knowledge}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/knowledge')
 							? 'dark:bg-customGray-900 bg-lightGray-700'
