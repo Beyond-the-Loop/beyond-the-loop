@@ -1115,7 +1115,7 @@ async def process_chat_response(
                             if raw:
                                 content = f'{content}\n<{block["tag"]}>{block["content"]}</{block["tag"]}>\n'
                             else:
-                                content = f'{content}\n<details type="reasoning" done="false">\n<summary>Thinking…</summary>\n{reasoning_display_content}\n</details>\n'
+                                content = f'{content}\n<details type="reasoning" done="false">\n{reasoning_display_content}\n</details>\n'
 
                     elif block["type"] == "code_interpreter":
                         attributes = block.get("attributes", {})
@@ -1372,6 +1372,27 @@ async def process_chat_response(
                                     },
                                     data["citations"]
                                 ))
+
+                            if "type" in data:
+                                # type nur bei GPT Responses
+                                if(data["type"] == "response.output_item.added" and data["item"]["type"] == "reasoning"):
+                                    data["delta"] = "<think>"
+                                
+                                if(data["type"] == "response.output_item.done" and data["item"]["type"] == "reasoning"):
+                                    data["delta"] = "</think>"
+
+                                choices = [        
+                                    {            
+                                        "index": 0,            
+                                        "delta": 
+                                        {                
+                                            "content": data.get("delta", ""),               
+                                            "role": "assistant"            
+                                        }        
+                                    }    
+                                ]
+                                data["choices"] = choices
+
                             
                             if "selected_model_id" in data:
                                 model_id = data["selected_model_id"]
