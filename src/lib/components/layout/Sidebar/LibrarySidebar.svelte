@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import { getContext } from 'svelte';
 	import CloseIcon from '$lib/components/icons/CloseIcon.svelte';
 	import { showLibrary, company } from '$lib/stores';
 	import { getModels } from '$lib/apis/models';
@@ -15,7 +15,7 @@
 	import PrivateIcon from '$lib/components/icons/PrivateIcon.svelte';
 	import GroupIcon from '$lib/components/icons/GroupIcon.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
-	import { theme } from '$lib/stores';
+	import { subscription } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 	let models = null;
@@ -34,7 +34,9 @@
 	};
 
 	$: if ($showLibrary) {
-		getWorkspaceModels();
+		if ($subscription.plan !== 'free') {
+			getWorkspaceModels();
+		}
 		initPrompts();
 	}
 
@@ -145,62 +147,68 @@
 	data-state={$showLibrary}
 >
 	<div class="flex items-center justify-between pt-6 pr-6 pb-2">
-		<p class="text-lightGray-100 dark:text-white text-base">{$i18n.t('Assistants')}</p>
-		<button on:click={() => showLibrary.set(!$showLibrary)}><CloseIcon /></button>
+			<p class="text-lightGray-100 dark:text-white text-base">
+				{#if models}
+					{$i18n.t('Assistants')}
+				{/if}
+			</p>
+		<button on:click={() => showLibrary.set(!$showLibrary)} class="justify-self-end"><CloseIcon /></button>
 	</div>
-	{#if !models || !prompts}
+	{#if !prompts}
 		<div class=" h-full w-full flex justify-center items-center">
 			<Spinner />
 		</div>
 	{:else}
-		<div class="sticky top-0 z-10 pb-3 pr-2">
-			<div
-				use:dragScroll
-				class="cursor-grab flex gap-5 {models?.length < 5 ? 'overflow-visible' : 'overflow-x-scroll'} py-3.5 assistants-scrollbar min-h-[94px]"
-			>	
-				{#if models?.length < 1}
-					<div class="pt-4">{$i18n.t('No assistants added yet')}</div>
-				{:else}
-					{#each models as model}
-						<Tooltip className="tooltip" placement="bottom" content={model?.name}>
-							<button
-								on:click={async () => {
-									selectedChatId = null;
-									await goto(`/?models=${encodeURIComponent(model.id)}`);
-									const newChatButton = document.getElementById('new-chat-button');
-									setTimeout(() => {
-										newChatButton?.click();
-									}, 0);
-								}}
-								class="block w-[4rem] h-[4rem] relative"
-							>
-								{#if model?.bookmarked_by_user}
-									<div
-										class="flex justify-center items-center absolute w-7 h-7 -right-3.5 -top-3.5 rounded-lg bg-lightGray-700 dark:bg-customGray-900 border border-lightGray-300 dark:border-customGray-700"
-									>
-										<BookmarkedIcon />
-									</div>
-								{/if}
-								{#if !model?.meta?.profile_image_url}
-									<div class="text-[3.5rem]">🤖</div>
-								{:else if model?.meta?.profile_image_url?.length > 5}
-									<img
-										class="rounded-md"
-										src={model?.meta?.profile_image_url
-											? model?.meta?.profile_image_url
-											: $company?.profile_image_url}
-										draggable="false"
-										alt={model?.name}
-									/>
-								{:else}
-									<div class="text-[3.5rem]">{model?.meta?.profile_image_url}</div>
-								{/if}
-							</button>
-						</Tooltip>
-					{/each}
-				{/if}
+		{#if models}
+			<div class="sticky top-0 z-10 pb-3 pr-2">
+				<div
+					use:dragScroll
+					class="cursor-grab flex gap-5 {models?.length < 5 ? 'overflow-visible' : 'overflow-x-scroll'} py-3.5 assistants-scrollbar min-h-[94px]"
+				>
+					{#if models?.length < 1}
+						<div class="pt-4">{$i18n.t('No assistants added yet')}</div>
+					{:else}
+						{#each models as model}
+							<Tooltip className="tooltip" placement="bottom" content={model?.name}>
+								<button
+									on:click={async () => {
+										selectedChatId = null;
+										await goto(`/?models=${encodeURIComponent(model.id)}`);
+										const newChatButton = document.getElementById('new-chat-button');
+										setTimeout(() => {
+											newChatButton?.click();
+										}, 0);
+									}}
+									class="block w-[4rem] h-[4rem] relative"
+								>
+									{#if model?.bookmarked_by_user}
+										<div
+											class="flex justify-center items-center absolute w-7 h-7 -right-3.5 -top-3.5 rounded-lg bg-lightGray-700 dark:bg-customGray-900 border border-lightGray-300 dark:border-customGray-700"
+										>
+											<BookmarkedIcon />
+										</div>
+									{/if}
+									{#if !model?.meta?.profile_image_url}
+										<div class="text-[3.5rem]">🤖</div>
+									{:else if model?.meta?.profile_image_url?.length > 5}
+										<img
+											class="rounded-md"
+											src={model?.meta?.profile_image_url
+												? model?.meta?.profile_image_url
+												: $company?.profile_image_url}
+											draggable="false"
+											alt={model?.name}
+										/>
+									{:else}
+										<div class="text-[3.5rem]">{model?.meta?.profile_image_url}</div>
+									{/if}
+								</button>
+							</Tooltip>
+						{/each}
+					{/if}
+				</div>
 			</div>
-		</div>
+		{/if}
 		<div class="flex justify-between items-center mb-3">
 			<p class="text-lightGray-100 dark:text-white text-base">{$i18n.t('Prompts')}</p>
 			<div
