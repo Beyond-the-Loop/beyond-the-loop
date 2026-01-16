@@ -86,7 +86,13 @@ def create_premium_subscription_checkout_session(user=Depends(get_verified_user)
         automatic_tax={
             "enabled": True,
         },
-        customer_update={"address": "auto"},
+        tax_id_collection={
+            "enabled": True
+        },
+        customer_update={
+            "address": "auto",
+            "name": "auto",
+        },
         customer=company.stripe_customer_id,
         line_items=[{
             "price": payments_service.SUBSCRIPTION_PLANS.get("premium").get("stripe_price_id", ""),

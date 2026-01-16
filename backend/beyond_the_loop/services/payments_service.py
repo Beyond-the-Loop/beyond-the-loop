@@ -53,7 +53,7 @@ class PaymentsService:
 
         self.stripe_price_id_enterprise_yearly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_YEARLY', 'price_1RgliHBBwyxb4MZjb1rAH3tS')
 
-        self.stripe_price_id_user_seat = os.environ.get('STRIPE_PRICE_ID_USER_SEAT', 'price_1SnL63BBwyxb4MZj8kEVGzpb')
+        self.stripe_price_id_user_seat = os.environ.get('STRIPE_PRICE_ID_USER_SEAT', 'price_1Sq9KwBBwyxb4MZj8okVXYiQ')
 
         # Constants
         self.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS = 2000  # Amount in cents (20 euro)
