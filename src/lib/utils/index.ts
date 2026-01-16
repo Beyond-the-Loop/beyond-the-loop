@@ -1234,6 +1234,8 @@ export function getModelIcon(label: string): string {
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
+	console.log("LAGEB", label);
+
 	if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {
@@ -1244,6 +1246,8 @@ export function getModelIcon(label: string): string {
 		return '/google-gemini-icon.svg';
 	} else if (lower.includes('mistral') || lower.includes('pixtral')) {
 		return '/mistral-color.svg';
+	} else if (lower.includes('deepseek')) {
+		return '/deep-seek-icon.svg';
 	} else if (lower.includes('lama')) {
 		return '/meta-color.svg';
 	} else if (lower.includes('grok')) {

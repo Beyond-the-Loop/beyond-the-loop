@@ -402,7 +402,7 @@
 				}}
 				class="flex items-center justify-center rounded-mdx bg-lightGray-300 dark:bg-customGray-900 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:hover:bg-customGray-950 border dark:border-customGray-700 px-4 py-3 text-xs dark:text-customGray-200"
 			>
-				{$i18n.t('View invoices')}
+				{$i18n.t('View billing details')}
 			</button>
 		{/if}
 	</div>

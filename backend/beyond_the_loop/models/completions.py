@@ -16,7 +16,7 @@ class Completion(Base):
 
     id = Column(String, primary_key=True, unique=True)
     user_id = Column(String, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    chat_id = Column(String)
+    chat_id = Column(String, nullable=True)
     model = Column(Text)
     credits_used = Column(Float)
     created_at = Column(BigInteger)
@@ -24,8 +24,8 @@ class Completion(Base):
 
 class CompletionModel(BaseModel):
     id: str
-    user_id: str
-    chat_id: str
+    user_id: Optional[str]
+    chat_id: Optional[str]
     model: str
     credits_used: float
     created_at: int  # timestamp in epoch

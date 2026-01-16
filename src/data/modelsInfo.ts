@@ -266,11 +266,11 @@ export const modelsInfo = {
 		context_window: "128K",
 		category: 1,
 		description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization.",
-		hosted_in: "Self-hosted",
+		hosted_in: "EU",
 		intelligence_score: 2.5,
 		knowledge_cutoff: "2024-06-01",
 		multimodal: false,
-		organization: "Open Source",
+		organization: "OpenAI",
 		reasoning: false,
 		research: false,
 		speed: 1.5,
@@ -280,16 +280,16 @@ export const modelsInfo = {
 		context_window: "256K",
 		costFactor: 0.5,
 		category: 2,
-		description: "Next generation of Mistral Large with improved reasoning, stronger code understanding, and higher accuracy on technical tasks.",
+		description: "Mistral Large 3, is a state-of-the-art, open-weight, general-purpose multimodal model with a granular Mixture-of-Experts architecture.",
 		hosted_in: "EU",
 		intelligence_score: 2.5,
 		knowledge_cutoff: "2024-10-01",
 		multimodal: false,
 		organization: "Mistral",
-		reasoning: true,
+		reasoning: false,
 		research: false,
 		speed: 2,
-		zdr: true
+		zdr: false
 	},
 	"DeepSeek-V3.2": {
 		context_window: "128K",
@@ -304,7 +304,7 @@ export const modelsInfo = {
 		reasoning: true,
 		research: false,
 		speed: 2,
-		zdr: true
+		zdr: false
 	},
 	"DeepSeek R1": {
 		context_window: "128K",
@@ -319,7 +319,7 @@ export const modelsInfo = {
 		reasoning: true,
 		research: false,
 		speed: 1.5,
-		zdr: true
+		zdr: false
 	},
 	"GPT-5.1 Codex": {
 		context_window: "128K",

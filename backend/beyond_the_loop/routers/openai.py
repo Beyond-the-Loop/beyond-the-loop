@@ -425,7 +425,7 @@ async def generate_chat_completion(
             await session.close()
 
 @router.post("/magicPrompt")
-async def generate_prompt(request: Request, form_data: dict, user=Depends(get_verified_user)):
+async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
     model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
     thore_test = """

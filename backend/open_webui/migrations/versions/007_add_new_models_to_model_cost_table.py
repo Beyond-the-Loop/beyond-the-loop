@@ -69,7 +69,7 @@ def upgrade() -> None:
                         cost_per_thousand_search_queries, allowed_messages_per_three_hours_free, allowed_messages_per_three_hours_premium)
                         VALUES ('GPT o3 Deep Research', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 5);
                 
-                UPDATE model_cost SET allowed_messages_per_three_hours_free = 300, allowed_messages_per_three_hours_premium = 300 WHERE model_name IN ('GPT-5 nano', 'Gemini 2.5 Flash');
+                UPDATE model_cost SET allowed_messages_per_three_hours_free = 300, allowed_messages_per_three_hours_premium = 300 WHERE model_name IN ('GPT-5 nano');
                     
                 UPDATE model_cost SET allowed_messages_per_three_hours_free = 50, allowed_messages_per_three_hours_premium = 100 WHERE model_name IN ('GPT-5 mini', 'GPT o4-mini', 'GPT o3');
                     

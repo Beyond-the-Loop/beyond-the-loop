@@ -20,13 +20,10 @@
 	import AccessModel from '$lib/components/common/AccessModel.svelte';
 	import { getGroups } from '$lib/apis/groups';
 	import { updateModelById } from '$lib/apis/models';
-	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
 	import AdditionaModelInfo from '../../ModelSelector/AdditionaModelInfo.svelte';
 	import { getCompanyConfig } from '$lib/apis/auths';
-	import SpeedRating from '../../ModelSelector/SpeedRating.svelte';
-	import IntelligenceRating from '../../ModelSelector/IntelligenceRating.svelte';
-	import CostRating from '../../ModelSelector/CostRating.svelte';
+	import { subscription } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -233,7 +230,10 @@
 							<div
 								class="text-2xs md:text-2xs text-[#8A8B8D] dark:text-customGray-300 flex items-end justify-center"
 							>
-								<div>{$i18n.t('Pricing')}</div>
+								{#if $subscription.plan === 'free' || $subscription.plan === 'premium'}
+									{$i18n.t('Category')}
+								{:else}
+									<div>{$i18n.t('Pricing')}</div>
 								{#if !$mobile}
 									<div
 										on:mouseenter={() => (showPricingTolltip = true)}
@@ -254,6 +254,7 @@
 										{/if}
 										<InfoIcon className="size-6" />
 									</div>
+								{/if}
 								{/if}
 							</div>
 							<div
@@ -305,10 +306,18 @@
 							<div
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
-								{#if modelsInfo?.[model?.name]?.costFactor}
-									{modelsInfo?.[model?.name]?.costFactor}/5
+								{#if $subscription.plan === 'free' || $subscription.plan === 'premium'}
+									{#if modelsInfo?.[model?.name]?.category}
+										{modelsInfo?.[model?.name]?.category}
+									{:else}
+										N/A
+									{/if}
 								{:else}
-									N/A
+									{#if modelsInfo?.[model?.name]?.category}
+										{modelsInfo?.[model?.name]?.costFactor}/5
+									{:else}
+										N/A
+									{/if}
 								{/if}
 							</div>
 							<div
