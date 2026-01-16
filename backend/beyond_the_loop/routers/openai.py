@@ -287,8 +287,8 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
 
     model = payload.get("model", "")
-    model_lower = model.lower() and not (model_lower.endswith("mini") or model_lower.endswith("nano"))
-    if model_lower.startswith("gpt-5"):
+    model_lower = model.lower()
+    if model_lower.startswith("gpt-5") and not (model_lower.endswith("mini") or model_lower.endswith("nano")):
         if "messages" in payload:
             payload["input"] = payload["messages"]
             del payload["messages"]
