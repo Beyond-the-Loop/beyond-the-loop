@@ -615,11 +615,6 @@
 					class="w-full text-sm"
 					href="/workspace/models"
 					on:click={(e) => {
-						if ($subscription?.plan !== 'free') {
-							e.preventDefault(); // prevent navigation
-							return;
-						}
-
 						selectedChatId = null;
 						chatId.set('');
 
@@ -646,11 +641,6 @@
 						class="w-full text-sm"
 						href="/workspace/knowledge"
 						on:click={(e) => {
-							if ($subscription?.plan !== 'free') {
-								e.preventDefault(); // prevent navigation
-								return;
-							}
-
 							selectedChatId = null;
 							chatId.set('');
 
