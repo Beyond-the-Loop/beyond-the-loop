@@ -621,15 +621,13 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
     # Handle optional file
     if request.get('metadata', {}).get('file_id'):
         file = Files.get_file_by_id(request['metadata']['file_id'])
-
         if file:
             messages = request.get('messages', [])
-            last_user_message = [m for m in messages if m["role"] == "user"][-1]
-
+            last_user_message = [m for m in messages if m["role"] == "user"][-1] if messages else None
             if last_user_message:
                 last_user_message['content'] = last_user_message.get('content', "") + file.data.get('content', "")
         else:
-            print("File with ID:", request['metadata']['file_id'], "not found in openai API")
+            raise HTTPException(status_code=404, detail="File not found")
 
     async with aiohttp.ClientSession(
         trust_env=True,
@@ -643,23 +641,31 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
                 "Content-Type": "application/json"
             }
         ) as upstream:
-            # Normal response
             try:
-                response = await upstream.json()
-            except Exception as e:
-                print("Error in chat completions public endpoint LiteLLM request", e)
-                response = await upstream.text()
+                upstream.raise_for_status()  # Will raise if HTTP status >= 400
+                response = await upstream.json()  # Parse JSON only if status is OK
+            except aiohttp.ClientResponseError as exception:
+                # Handle HTTP errors from OpenAI API
+                detail = await upstream.text()  # Optional: include raw response text
+                raise HTTPException(
+                    status_code=exception.status,
+                    detail=f"Upstream API error: {detail}"
+                )
+            except Exception as ex:
+                # Handle JSON parsing errors or unexpected errors
+                raise HTTPException(status_code=500, detail=str(ex))
 
-            upstream.raise_for_status()
-
+            # Try to deduct credits and record completion
             try:
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, request.get("model"))
-
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
+                    user, response, request.get("model")
+                )
                 Completions.insert_new_completion(user.id, "OPENAI API", request.get("model"), credit_cost, 0)
             except Exception as err:
                 print("Error in chat completions public endpoint LiteLLM credit service", err)
 
             return response
+
 
 @app.post("/api/openai/files")
 async def upload_file_openai(
@@ -695,14 +701,10 @@ async def upload_file_openai(
                 "created_at": file_item.created_at if hasattr(file_item, "created_at") else None,
             }
         )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        log.exception(e)
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File upload failed."
+            detail="File upload failed." + str(exc)
         )
 @app.post("/api/chat/completions")
 async def chat_completion(
