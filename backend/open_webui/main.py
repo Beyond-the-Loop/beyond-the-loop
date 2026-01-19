@@ -577,14 +577,27 @@ app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"]
 
 @app.get("/api/models")
 async def get_active_models(user=Depends(get_verified_user)):
-    available_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
+    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id)
+
+    active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
+
+    model_base_model_names = {}
+
+    for assistant in assistants:
+        assistant_base_model = next((base_model for base_model in active_base_models if base_model.id == assistant.base_model_id), None)
+        model_base_model_names[assistant.id] = assistant_base_model.name if assistant_base_model else None
+
+    for base_model in active_base_models:
+        model_base_model_names[base_model.id] = base_model.name
+
+    all_models = assistants + active_base_models
 
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        available_models = [model for model in available_models if model.name in ModelCosts.get_allowed_model_names_free()]
+        available_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free()]
     elif subscription.get("plan") == "premium":
-        available_models = [model for model in available_models if model.name in ModelCosts.get_allowed_model_names_premium()]
+        available_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
     else:
         # TEMPORARY - Exclude new models for subscription users
         MODEL_NAMES = [
@@ -599,7 +612,7 @@ async def get_active_models(user=Depends(get_verified_user)):
             "GPT o3 Deep Research",
         ]
 
-        available_models = [model for model in available_models if model.name not in MODEL_NAMES]
+        available_models = [model for model in all_models if model_base_model_names[model.id] not in MODEL_NAMES]
 
     return {"data": available_models}
 

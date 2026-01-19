@@ -249,11 +249,11 @@ class ModelsTable:
 
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-            all_models = self.get_assistants()
+            assistants = self.get_assistants()
 
             filtered_models = []
 
-            for model in all_models:
+            for model in assistants:
                 if (
                     model.user_id == "system"
                     or model.user_id == user_id
