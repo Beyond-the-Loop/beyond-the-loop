@@ -235,11 +235,6 @@ html.light .cm-gutter {
 	background-color: #F1F1F1;
 }
 
-html.dark .cm-gutter,
-html.dark .cm-content {
-	background-color: #181818;
-}
-
 html.light .tippy-box {
 	@apply rounded-md bg-lightGray-400 text-xs text-lightGray-100 shadow-md;
 }
