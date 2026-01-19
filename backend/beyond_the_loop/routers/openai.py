@@ -199,6 +199,8 @@ async def generate_chat_completion(
         form_data: dict,
         user=Depends(get_verified_user)
 ):
+    print("THIS IS A LITELLM REQUEST WITH THE MODEL", form_data)
+
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
