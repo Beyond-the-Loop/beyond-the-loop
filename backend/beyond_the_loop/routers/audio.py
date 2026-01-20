@@ -588,15 +588,15 @@ async def transcription(
                     detail=ERROR_MESSAGES.DEFAULT,
                 )
 
-            data = transcribe(request, file_path)
-            file_path = file_path.split("/")[-1]
-
             if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 audio = AudioSegment.from_file(file_path)
                 duration_in_seconds = len(audio) / 1000  # pydub uses milliseconds
                 duration_in_minutes = duration_in_seconds / 60  # Calculate exact minutes as a float
 
                 await credit_service.subtract_credits_by_user_for_stt(user, request.app.state.config.STT_MODEL, duration_in_minutes)
+
+            data = transcribe(request, file_path)
+            file_path = file_path.split("/")[-1]
 
             return {**data, "filename": file_path}
         except Exception as e:

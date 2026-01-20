@@ -146,7 +146,8 @@
 			storeModels.set(await getModels(localStorage.token));
 		}
 	};
-	let showPricingTolltip = false;
+	let showPricingTooltip = false;
+	let showCategoryTooltip = false;
 </script>
 
 <div class="min-h-[40rem] pb-4">
@@ -232,34 +233,81 @@
 							>
 								{#if $subscription.plan === 'free' || $subscription.plan === 'premium'}
 									{$i18n.t('Category')}
+									{#if !$mobile}
+										<div
+											on:mouseenter={() => (showCategoryTooltip = true)}
+											on:mouseleave={() => (showCategoryTooltip = false)}
+											class="relative ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
+										>
+											{#if showCategoryTooltip}
+												<div class="text-lightGray-100 dark:text-customGray-100 text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10">
+													<div class="mb-1.5">{$i18n.t('Prompt limits')}<span class="text-lightGray-900 dark:text-white/50 font-normal">/3h</span></div>
+													<table class="whitespace-nowrap">
+														<thead>
+															<th class="py-1">
+																{$i18n.t('Category')}
+															</th>
+															<th class="px-2 py-1">
+																Free
+															</th>
+															<th class="px-2 py-1">
+																Premium
+															</th>
+														</thead>
+														<tbody>
+															<tr>
+																<td class="py-1">1</td>
+																<td class="px-2 py-1">300</td>
+																<td class="px-2 py-1">300</td>
+															</tr>
+															<tr>
+																<td class="py-1">2</td>
+																<td class="px-2 py-1">50</td>
+																<td class="px-2 py-1">150</td>
+															</tr>
+															<tr>
+																<td class="py-1">3</td>
+																<td class="px-2 py-1">-</td>
+																<td class="px-2 py-1">50</td>
+															</tr>
+															<tr>
+																<td class="py-1">4</td>
+																<td class="px-2 py-1">-</td>
+																<td class="px-2 py-1">5</td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
+											{/if}
+											<InfoIcon className="size-6" />
+										</div>
+									{/if}
 								{:else}
 									<div>{$i18n.t('Pricing')}</div>
-								{#if !$mobile}
-									<div
-										on:mouseenter={() => (showPricingTolltip = true)}
-										on:mouseleave={() => (showPricingTolltip = false)}
-										class="relative ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
-									>
-										{#if showPricingTolltip}
-											<div
-												class="text-lightGray-100 dark:text-customGray-100 w-[12rem] text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10"
-											>
-												{$i18n.t('Please visit our')} <a
-													class="underline"
-													href="https://beyondtheloop.ai/pricing-breakdown"
-													target="_blank"
-													rel="noopener noreferrer">{$i18n.t('pricing page')}</a
-												> {$i18n.t('for a detailed breakdown')}.
-											</div>
-										{/if}
-										<InfoIcon className="size-6" />
-									</div>
-								{/if}
+									{#if !$mobile}
+										<div
+											on:mouseenter={() => (showPricingTooltip = true)}
+											on:mouseleave={() => (showPricingTooltip = false)}
+											class="relative ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
+										>
+											{#if showPricingTooltip}
+												<div
+													class="text-lightGray-100 dark:text-customGray-100 w-[12rem] text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10"
+												>
+													{$i18n.t('Please visit our')} <a
+														class="underline"
+														href="https://beyondtheloop.ai/pricing-breakdown"
+														target="_blank"
+														rel="noopener noreferrer">{$i18n.t('pricing page')}</a
+													> {$i18n.t('for a detailed breakdown')}.
+												</div>
+											{/if}
+											<InfoIcon className="size-6" />
+										</div>
+									{/if}
 								{/if}
 							</div>
-							<div
-								class="text-2xs text-[#8A8B8D] dark:text-customGray-300 flex justify-center items-end"
-							>
+							<div class="text-2xs text-[#8A8B8D] dark:text-customGray-300 flex justify-center items-end">
 								{$i18n.t('Access rights')}
 							</div>
 						{/if}

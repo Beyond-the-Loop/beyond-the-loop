@@ -136,13 +136,9 @@ litellm_settings:
 general_settings:
   alerting: ["slack"]
   alerting_threshold: 300 # sends alerts if requests hang for 5min+ and responses take 5min+
-  spend_report_frequency: "1d" # [Optional] set as 1d, 2d, 30d .... Specify how often you want a Spend Report to be sent
 
   # [OPTIONAL ALERTING ARGS]
   alerting_args:
-      daily_report_frequency: 43200  # 12 hours in seconds
-      report_check_interval: 3600    # 1 hour in seconds
-      budget_alert_ttl: 86400        # 24 hours in seconds
       outage_alert_ttl: 60           # 1 minute in seconds
       region_outage_alert_ttl: 60    # 1 minute in seconds
       minor_outage_alert_threshold: 5
