@@ -595,26 +595,11 @@ async def get_active_models(user=Depends(get_verified_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        available_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free()]
+        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free()]
     elif subscription.get("plan") == "premium":
-        available_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
-    else:
-        # TEMPORARY - Exclude new models for subscription users
-        MODEL_NAMES = [
-            "Grok 4 fast (thinking)",
-            "Grok 4 fast (instant)",
-            "GPT OSS 120b",
-            "Mistral Large 3",
-            "DeepSeek-V3.2",
-            "DeepSeek R1",
-            "GPT-5.1 Codex",
-            "GPT-5.2",
-            "GPT o3 Deep Research",
-        ]
+        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
 
-        available_models = [model for model in all_models if model_base_model_names[model.id] not in MODEL_NAMES]
-
-    return {"data": available_models}
+    return {"data": all_models}
 
 @app.get("/api/models/base")
 async def get_base_models(user=Depends(get_admin_user)):
@@ -626,20 +611,6 @@ async def get_base_models(user=Depends(get_admin_user)):
         base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_free()]
     elif subscription.get("plan") == "premium":
         base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_premium()]
-    else:
-        MODEL_NAMES = [
-            "Grok 4 fast (thinking)",
-            "Grok 4 fast (instant)",
-            "GPT OSS 120b",
-            "Mistral Large 3",
-            "DeepSeek-V3.2",
-            "DeepSeek R1",
-            "GPT-5.1 Codex",
-            "GPT-5.2",
-            "GPT o3 Deep Research",
-        ]
-
-        base_models = [model for model in base_models if model.name not in MODEL_NAMES]
 
     return {"data": base_models}
 
