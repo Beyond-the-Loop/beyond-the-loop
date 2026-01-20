@@ -636,7 +636,8 @@ def process_web_search(
             form_data.query,
             limit = 3,
             scrape_options = {
-            "formats": ["markdown"]
+                "formats": ["markdown"],
+                "onlyMainContent": True,
             }
         )
 

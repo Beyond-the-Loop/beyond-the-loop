@@ -679,6 +679,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if model_files:
         files.extend(model_files)
 
+    # Include web search files before deciding task intent and building RAG context
+    if features and features.get("web_search"):
+        web_search_files = await chat_web_search_handler(
+            request, form_data, extra_params, user
+        )
+
+        files.extend(web_search_files)
+
     # First, decide if this is a RAG task or content extraction task
     try:
         form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge else (form_data, True)
@@ -761,7 +769,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-
         if not ("code_interpreter" in features and features["code_interpreter"]):
             form_data["messages"] = add_or_update_system_message(
                 rag_template(
@@ -774,7 +781,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 context_string,
                 form_data["messages"]
             )
-
 
     # If there are citations, add them to the data_items
     sources = [source for source in sources if source.get("source", {}).get("name", "")]
@@ -795,14 +801,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
+    # Avoid running web search twice; check if already added
+    did_add_web_search = any(isinstance(f, dict) and f.get("type") == "web_search_results" for f in files)
+
     if features:
-        if "web_search" in features and features["web_search"]:
-            web_search_files = await chat_web_search_handler(
-                request, form_data, extra_params, user
-            )
-
-            files.extend(web_search_files)
-
         if "image_generation" in features and features["image_generation"]:
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
