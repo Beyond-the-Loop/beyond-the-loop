@@ -600,7 +600,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     log.debug(f"form_data: {form_data}")
 
-
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
 
@@ -640,44 +639,78 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data["metadata"] = metadata
 
     if model_knowledge or model_files:
-                await event_emitter(
+        file_names = ', '.join([f.get('name', '') for f in model_files]) if model_files else ''
+
+        knowledge_names = ', '.join([knowledge.get('name', '') for knowledge in model_knowledge]) if model_knowledge else ''
+        knowledge_file_names = ', '.join(file.get('meta', {}).get('name') for knowledge in model_knowledge for file in knowledge.get('files', [])) if model_knowledge else ''
+
+        # Create decision prompt
+        decision_messages = [
             {
-                "type": "status",
-                "data": {
-                    "action": "knowledge_search",
-                    "query": user_message,
-                    "done": False,
-                },
+                "role": "system",
+                "content": "You are an AI assistant that determines user intent. The user has attached a knowledge base and/or single files to the prompt. Analyze their message and determine:\n\nFor the user's intent, is it necessary to search the knowledge or the files?\n\nExamples that need the knowledge/files:\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n- Answering specific questions about the document\n- Finding particular information or facts in the knowledge base\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'YES' or 'NO' - nothing else. Return no only, of you know that you don't need extra knowledge to answer the question."
+            },
+            {
+                "role": "user",
+                "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
             }
-        )
+        ]
 
-    if model_knowledge:
-        knowledge_files = []
-        for item in model_knowledge:
-            if item.get("collection_name"):
-                knowledge_files.append(
-                    {
-                        "id": item.get("collection_name"),
-                        "name": item.get("name"),
-                        "legacy": True,
-                    }
-                )
-            elif item.get("collection_names"):
-                knowledge_files.append(
-                    {
-                        "name": item.get("name"),
-                        "type": "collection",
-                        "collection_names": item.get("collection_names"),
-                        "legacy": True,
-                    }
-                )
-            else:
-                knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
+        decision_form_data = {
+            "model": model.id,
+            "messages": decision_messages,
+            "stream": False,
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
+            "temperature": 0.0
+        }
 
-        files.extend(knowledge_files)
+        response = await generate_chat_completion(decision_form_data, user)
+        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
 
-    if model_files:
-        files.extend(model_files)
+        use_model_knowledge_or_files = response_content == 'YES'
+
+        if use_model_knowledge_or_files:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "knowledge_search",
+                        "query": user_message,
+                        "done": False,
+                    },
+                }
+            )
+
+            if model_knowledge:
+                knowledge_files = []
+                for item in model_knowledge:
+                    if item.get("collection_name"):
+                        knowledge_files.append(
+                            {
+                                "id": item.get("collection_name"),
+                                "name": item.get("name"),
+                                "legacy": True,
+                            }
+                        )
+                    elif item.get("collection_names"):
+                        knowledge_files.append(
+                            {
+                                "name": item.get("name"),
+                                "type": "collection",
+                                "collection_names": item.get("collection_names"),
+                                "legacy": True,
+                            }
+                        )
+                    else:
+                        knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
+
+                files.extend(knowledge_files)
+
+            if model_files:
+                files.extend(model_files)
 
     # Include web search files before deciding task intent and building RAG context
     if features and features.get("web_search"):
