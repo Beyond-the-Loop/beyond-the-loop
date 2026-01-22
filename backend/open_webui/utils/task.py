@@ -88,7 +88,7 @@ def replace_prompt_variable(template: str, prompt: str) -> str:
 
 
 def replace_messages_variable(
-    template: str, messages: Optional[list[str]] = None
+    template: str, messages: Optional[list[dict]] = None
 ) -> str:
     def replacement_function(match):
         full_match = match.group(0)
@@ -264,20 +264,16 @@ def autocomplete_generation_template(
 
 
 def query_generation_template(
-    template: str, messages: list[dict], user: Optional[dict] = None
+    template: str, messages: list[dict]
 ) -> str:
     prompt = get_last_user_message(messages)
     template = replace_prompt_variable(template, prompt)
     template = replace_messages_variable(template, messages)
 
     template = prompt_template(
-        template,
-        **(
-            {"user_name": user.get("first_name") + " " + user.get("last_name"), "user_location": user.get("location")}
-            if user
-            else {}
-        ),
+        template
     )
+
     return template
 
 

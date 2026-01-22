@@ -30,8 +30,6 @@
 		TAGS_GENERATION_PROMPT_TEMPLATE: '',
 		ENABLE_TAGS_GENERATION: true,
 		ENABLE_SEARCH_QUERY_GENERATION: true,
-		ENABLE_RETRIEVAL_QUERY_GENERATION: true,
-		QUERY_GENERATION_PROMPT_TEMPLATE: '',
 		TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE: ''
 	};
 
@@ -221,34 +219,10 @@
 
 				<div class="my-3 flex w-full items-center justify-between">
 					<div class=" self-center text-xs font-medium">
-						{$i18n.t('Retrieval query generation')}
-					</div>
-
-					<Switch bind:state={taskConfig.ENABLE_RETRIEVAL_QUERY_GENERATION} />
-				</div>
-
-				<div class="my-3 flex w-full items-center justify-between">
-					<div class=" self-center text-xs font-medium">
 						{$i18n.t('Web Search query generation')}
 					</div>
 
 					<Switch bind:state={taskConfig.ENABLE_SEARCH_QUERY_GENERATION} />
-				</div>
-
-				<div class="">
-					<div class=" mb-2.5 text-xs font-medium">{$i18n.t('Query generation prompt')}</div>
-
-					<Tooltip
-						content={$i18n.t('Leave empty to use the default prompt, or enter a custom prompt')}
-						placement="top-start"
-					>
-						<Textarea
-							bind:value={taskConfig.QUERY_GENERATION_PROMPT_TEMPLATE}
-							placeholder={$i18n.t(
-								'Leave empty to use the default prompt, or enter a custom prompt'
-							)}
-						/>
-					</Tooltip>
 				</div>
 			</div>
 
