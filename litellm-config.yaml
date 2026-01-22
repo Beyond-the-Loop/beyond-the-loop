@@ -135,7 +135,11 @@ litellm_settings:
 
 general_settings:
   alerting: ["slack"]
-  alerting_threshold: 300 # sends alerts if requests hang for 5min+ and responses take 5min+
+  alert_types: [
+    "llm_exceptions",
+    "llm_too_slow",
+    "cooldown_deployment",
+  ]
 
   # [OPTIONAL ALERTING ARGS]
   alerting_args:
