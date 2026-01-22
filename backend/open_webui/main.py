@@ -617,7 +617,7 @@ async def get_base_models(user=Depends(get_admin_user)):
 # Public API
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats()
+    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     request['stream'] = False
 
