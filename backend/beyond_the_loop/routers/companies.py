@@ -216,7 +216,6 @@ async def update_company_details(
 
 @router.post("/create", response_model=CompanyModel)
 async def create_company(
-    request: Request,
     form_data: CreateCompanyForm,
     user=Depends(get_current_user),
 ):

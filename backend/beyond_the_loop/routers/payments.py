@@ -8,6 +8,7 @@ from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.services.crm_service import crm_service
 
 router = APIRouter()
 
@@ -107,20 +108,6 @@ def create_premium_subscription_checkout_session(user=Depends(get_verified_user)
 
     return {"url": checkout_session.url}
 
-@router.post("/cancel-premium-subscription/")
-async def cancel_premium_subscription(user=Depends(get_verified_user)):
-    subscription = payments_service.get_subscription(user.company_id)
-
-    if subscription.get("plan") == "premium":
-        stripe.Subscription.modify(
-            subscription.get("subscription_id"),
-            cancel_at_period_end=True
-        )
-
-        return {"message": "Subscription cancelled successfully"}
-
-    return {"message": "No premium subscription found"}
-
 
 @router.post("/checkout-webhook")
 async def checkout_webhook(request: Request, stripe_signature: str = Header(None)):
@@ -142,13 +129,15 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         # Subscription events
         if event_type == "customer.subscription.created":
             handle_subscription_created(event_data)
-            return
+            return None
         elif event_type == "customer.subscription.updated":
             handle_subscription_updated(event_data)
-            return
+            return None
         elif event_type == "charge.succeeded":
             handle_charge_succeeded(event_data)
-            return
+            return None
+        elif event_type == "customer.subscription.deleted":
+            handle_subscription_deleted(event_data)
         else:
             print(f"Unhandled Stripe event type: {event_type}")
 
@@ -170,7 +159,7 @@ def handle_subscription_created(event_data):
         event_data: The subscription data from the Stripe webhook event
     """
     try:
-        payments_service.update_company_credits_from_subscription(event_data)
+        payments_service.handle_company_subscription_update(event_data)
     except Exception as e:
         print(f"Error handling subscription created event: {e}")
 
@@ -185,9 +174,28 @@ def handle_subscription_updated(event_data):
         event_data: The subscription data from the Stripe webhook event
     """
     try:
-        payments_service.update_company_credits_from_subscription(event_data)
+        payments_service.handle_company_subscription_update(event_data)
     except Exception as e:
         print(f"Error handling subscription updated event: {e}")
+
+
+def handle_subscription_deleted(event_data):
+    try:
+        # Extract subscription details
+        subscription_id = event_data.get('id')
+
+        stripe_customer_id = event_data.get('customer')
+
+        if not subscription_id or not stripe_customer_id:
+            print("Missing subscription_id or customer_id in event data")
+            return
+
+        # Get the company associated with this Stripe customer
+        company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
+
+        crm_service.update_company_plan(company.name, "Free")
+    except Exception as e:
+        print(f"Error handling subscription deleted event: {e}")
 
 
 # Legacy flex credits recharge
