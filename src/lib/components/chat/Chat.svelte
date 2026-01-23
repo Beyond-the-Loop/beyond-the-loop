@@ -272,7 +272,9 @@
 						}
 					}
 				} else if (type === 'chat:completion') {
-					chatCompletionEventHandler(data, message, event.chat_id);
+					// withLogging(chatCompletionEventHandler(data, message, event.chat_id));
+					const loggedHandler = withLogging(chatCompletionEventHandler);
+    				await loggedHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
 					currentChatPage.set(1);
@@ -833,6 +835,7 @@
 		}
 	};
 	const chatCompletedHandler = async (chatId, modelId, responseMessageId, messages) => {
+		exportLLMLogs();
 		const res = await chatCompleted(localStorage.token, {
 			model: modelId,
 			messages: messages.map((m) => ({
@@ -1071,6 +1074,42 @@
 			await saveChatHandler($chatId, history);
 		}
 	};
+	let invocationLog = [];
+
+	function withLogging(originalFunction) {
+		console.log('withlogging aufgerufen!')
+		return async function(...args) {
+			const logEntry = {
+				id: Date.now() + Math.random(),
+				timestamp: new Date().toISOString(),
+				args: JSON.parse(JSON.stringify(args)), // Deep copy
+				stackTrace: new Error().stack
+			};
+			
+			invocationLog.push(logEntry);
+			
+			console.log(`[LLM Invocation #${invocationLog.length}]`, {
+				time: logEntry.timestamp,
+				chatId: args[2],
+				messageId: args[1]?.id
+			});
+
+			return await originalFunction.apply(this, args);
+		};
+	}
+	// Export-Funktion
+	function exportLLMLogs() {
+		console.log('Exporting LLM logs, current length:', invocationLog.length);
+    	console.log('Log entries:', invocationLog);
+		const dataStr = JSON.stringify(invocationLog, null, 2);
+		const dataBlob = new Blob([dataStr], { type: 'application/json' });
+		
+		// Download
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(dataBlob);
+		link.download = `llm-invocations-${Date.now()}.json`;
+		link.click();
+	}
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
