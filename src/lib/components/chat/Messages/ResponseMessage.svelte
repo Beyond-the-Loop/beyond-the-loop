@@ -493,7 +493,7 @@
 	});
 
 	let modelIconUrl = '';
-	$: console.log(model, 'model---->')
+	// $: console.log(model, 'model---->')
 
 	$: {
 		if($companyConfig?.config?.ui?.hide_model_logo_in_chat){

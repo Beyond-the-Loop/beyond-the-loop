@@ -1447,6 +1447,7 @@ async def process_chat_response(
                                     content_blocks[-1]["content"] = (
                                         content_blocks[-1]["content"] + value
                                     )
+                                    
 
                                     if detect_reasoning:
                                         content, content_blocks, _ = (
@@ -1487,6 +1488,7 @@ async def process_chat_response(
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
+                                            "added_content": value,
                                         }
 
                             await event_emitter(

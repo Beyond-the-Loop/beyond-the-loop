@@ -83,6 +83,7 @@
 	import BookIcon from '../icons/BookIcon.svelte';
 	import DOMPurify from 'dompurify';
 
+
 	export let chatIdProp = '';
 
 	let loading = false;
@@ -229,7 +230,7 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
-		console.log(event);
+		// console.log(event);
 
 		if (event.chat_id === $chatId) {
 			await tick();
@@ -273,8 +274,9 @@
 					}
 				} else if (type === 'chat:completion') {
 					// withLogging(chatCompletionEventHandler(data, message, event.chat_id));
-					const loggedHandler = withLogging(chatCompletionEventHandler);
-    				await loggedHandler(data, message, event.chat_id);
+					chatCompletionEventHandler(data, message, event.chat_id);
+					// const loggedHandler = withLogging(chatCompletionEventHandler);
+    				// await loggedHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
 					currentChatPage.set(1);
@@ -835,7 +837,7 @@
 		}
 	};
 	const chatCompletedHandler = async (chatId, modelId, responseMessageId, messages) => {
-		exportLLMLogs();
+		// exportLLMLogs();
 		const res = await chatCompleted(localStorage.token, {
 			model: modelId,
 			messages: messages.map((m) => ({
@@ -1110,10 +1112,69 @@
 		link.download = `llm-invocations-${Date.now()}.json`;
 		link.click();
 	}
+	
+	async function replayLogs() {
+		// const filePath ='/llm_invocations_replay.json';
+		const filePath ='/llm-invocations-1769168369417.json';
+		try{
+			const response = await fetch(filePath);
+			if (!response.ok) {
+				throw new Error(`Fehler beim Laden der Datei: ${response.status}`);
+			}
+			
+			const logs = await response.json();
+			// Annahme: logs ist bereits geladenes JSON-Array
+			logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+			
+			let lastTime = null;
+			
+			for (const log of logs) {
+				const [data, message, chatId] = log.args;
+				const currentTime = new Date(log.timestamp);
+				
+				// Warte entsprechend der Zeitdifferenz
+				if (lastTime) {
+					const waitTime = currentTime - lastTime;
+					if (waitTime > 0) {
+						await new Promise(resolve => setTimeout(resolve, waitTime));
+					}
+				}
+				
+				// Originalen Handler aufrufen
+				await chatCompletionEventHandler(data, message, chatId);
+				
+				lastTime = currentTime;
+			}
+		} catch (error) {
+			console.error('Fehler beim Verarbeiten der Logs:', error);
+		}
+		
+	}
+	let buffer = '';
+	let renderTimeout;
+	let renderedMessage;
+
+	function displayBuffer() {
+		if(renderedMessage != null)
+		{
+			renderedMessage.content += buffer[0];
+			buffer = buffer.substring(1);
+			console.log('Rendering buffer, remaining length:', buffer.length);
+		}
+		if (buffer.length > 0) {
+			let x = buffer.length;
+			let speedInMS = 100 / (x);
+			renderTimeout = setTimeout(displayBuffer, speedInMS); // Adjust speed here
+		}
+	}
+
+	// Starte den Intervall-Timer
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
-
+		const { id, done, choices, content, added_content, sources, selected_model_id, error, usage } = data;
+		renderedMessage = message;
+		
+		console.log(added_content);
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
@@ -1124,7 +1185,8 @@
 
 		if (choices) {
 			if (choices[0]?.message?.content) {
-				// Non-stream response
+				// Non-stream response 
+				
 				message.content += choices[0]?.message?.content;
 			} else {
 				// Stream response
@@ -1165,9 +1227,15 @@
 		}
 
 		if (content) {
-			// REALTIME_CHAT_SAVE is disabled
-			message.content = content;
 
+			// REALTIME_CHAT_SAVE is disabled
+			console.log('Länge: ' + (content.length - message.content.length));
+			// message.content += added_content;
+			buffer += added_content;
+			if(renderTimeout == null)
+			{
+				displayBuffer();
+			}
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
 			}
@@ -1209,6 +1277,7 @@
 
 		if (done) {
 			message.done = true;
+			renderTimeout = null;
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1249,7 +1318,7 @@
 			);
 		}
 
-		console.log(data);
+		
 		if (autoScroll) {
 			scrollToBottom();
 		}
@@ -2167,6 +2236,7 @@
 								}}
 							/>
 							<div class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0">
+								<button on:click={() => replayLogs()}  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 border border-blue-700 rounded">Mock Deepseek Answer</button>
 								{#if $companyConfig?.config?.ui?.custom_user_notice}
 									{@html DOMPurify.sanitize(
 										$i18n.t($companyConfig?.config?.ui?.custom_user_notice),
@@ -2180,6 +2250,7 @@
 					{/if}
 				</div>
 			</Pane>
+			<button on:click={() => replayLogs()}  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 border border-blue-700 rounded">Mock Deepseek Answer</button>
 
 			<ChatControls
 				bind:this={controlPaneComponent}
