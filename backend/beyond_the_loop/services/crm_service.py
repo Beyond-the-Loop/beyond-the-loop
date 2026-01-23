@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 from time import strftime
 from cachetools import TTLCache
 import requests
@@ -12,12 +13,12 @@ class CRMService:
         self.base_url = f"{os.getenv('ATTIO_API_BASE_URL')}"
         self.headers = {"Authorization": f"Bearer {os.getenv('ATTIO_API_KEY')}", "Content-Type": "application/json"}
         self.timeout = 5
-        self.execute = os.getenv('ATTIO_SYNC_DATA', 'false').lower() == 'false'
+        self.execute = os.getenv('ATTIO_SYNC_DATA', 'false').lower() == 'true'
 
         self._company_cache = TTLCache(maxsize=512, ttl=600)
         self._user_cache = TTLCache(maxsize=512, ttl=600)
 
-    def get_company_by_company_name(self, company_name: str):
+    def __get_company_by_company_name(self, company_name: str):
         if not self.execute:
             return None
 
@@ -26,7 +27,7 @@ class CRMService:
                 return self._company_cache[company_name]
 
             response = requests.post(
-                f"{self.base_url}/objects/companies/records/query",
+                f"{self.base_url}/objects/workspaces/records/query",
                 headers=self.headers,
                 json={"filter": {"name": company_name}},
                 timeout=self.timeout,
@@ -55,19 +56,19 @@ class CRMService:
             return
 
         try:
-            if self.get_company_by_company_name(company_name):
+            if self.__get_company_by_company_name(company_name):
                 log.warning(f"create_company skipped, company {company_name} already exists.")
                 return
 
             response = requests.post(
-                f"{self.base_url}/objects/companies/records",
+                f"{self.base_url}/objects/workspaces/records",
                 headers=self.headers,
                 json={"data": {"values": {
+                    "workspace_id": str(uuid.uuid4()),
                     "adoption_rate": [{"value": 0.0}],
-                    "credit_consumption": [{"value": 0.0}],
+                    "monthly_credit_usage": [{"value": 0.0}],
                     "name": [{"value": company_name}],
-                    "plan": "Starter Monthly",
-                    "sign_up_date": [{"value": strftime("%Y-%m-%d")}],
+                    "plan_7": "Free"
                 }}},
                 timeout=self.timeout,
             )
@@ -89,14 +90,14 @@ class CRMService:
             return
 
         try:
-            company = self.get_company_by_company_name(company_name)
+            company = self.__get_company_by_company_name(company_name)
 
             if company:
                 record_id = company["id"]["record_id"]
                 response = requests.patch(
-                    f"{self.base_url}/objects/companies/records/{record_id}",
+                    f"{self.base_url}/objects/workspaces/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"plan": plan}}},
+                    json={"data": {"values": {"plan_7": plan}}},
                     timeout=self.timeout,
                 )
 
@@ -118,12 +119,12 @@ class CRMService:
             return
 
         try:
-            company = self.get_company_by_company_name(company_name)
+            company = self.__get_company_by_company_name(company_name)
 
             if company:
                 record_id = company["id"]["record_id"]
                 response = requests.patch(
-                    f"{self.base_url}/objects/companies/records/{record_id}",
+                    f"{self.base_url}/objects/workspaces/records/{record_id}",
                     headers=self.headers,
                     json={"data": {"values": {"adoption_rate": adoption_rate}}},
                     timeout=self.timeout,
@@ -147,14 +148,14 @@ class CRMService:
             return
 
         try:
-            company = self.get_company_by_company_name(company_name)
+            company = self.__get_company_by_company_name(company_name)
 
             if company:
                 record_id = company["id"]["record_id"]
                 response = requests.patch(
-                    f"{self.base_url}/objects/companies/records/{record_id}",
+                    f"{self.base_url}/objects/workspaces/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"credit_consumption": credit_consumption}}},
+                    json={"data": {"values": {"monthly_credit_usage": credit_consumption}}},
                     timeout=self.timeout,
                 )
                 
@@ -171,38 +172,6 @@ class CRMService:
             log.error(f"update_company_credit_consumption exception for {company_name}: {e}")
             return
 
-    def update_company_last_subscription_renewal_date(self, company_name: str, renewal_date: str):
-        if not self.execute:
-            return
-
-        try:
-            company = self.get_company_by_company_name(company_name)
-
-            if company:
-                record_id = company["id"]["record_id"]
-                response = requests.patch(
-                    f"{self.base_url}/objects/companies/records/{record_id}",
-                    headers=self.headers,
-                    json={"data": {"values": {
-                        "credit_consumption": 0,
-                        "last_subscription_renewal_date": renewal_date,
-                    }}},
-                    timeout=self.timeout,
-                )
-
-                if response.status_code == 200:
-                    company = response.json().get("data", None)
-                    self._company_cache[company_name] = company
-                    return
-
-                log.warning(f"update_company_last_subscription_renewal_date failed for {company_name}, status code: {response.status_code}, and response: {response.text}")
-
-            return
-
-        except Exception as e:
-            log.error(f"update_company_last_subscription_renewal_date exception for {company_name}: {e}")
-            return
-
     def get_user_by_email(self, user_email: str):
         if not self.execute:
             return None
@@ -212,9 +181,9 @@ class CRMService:
                 return self._user_cache[user_email]
                 
             response = requests.post(
-                f"{self.base_url}/objects/people/records/query",
+                f"{self.base_url}/objects/users/records/query",
                 headers=self.headers,
-                json={"filter": {"email_addresses": user_email}},
+                json={"filter": {"primary_email_address": user_email}},
                 timeout=self.timeout,
             )
             
@@ -244,20 +213,20 @@ class CRMService:
             if self.get_user_by_email(user_email):
                 return
                 
-            company = self.get_company_by_company_name(company_name)
+            company = self.__get_company_by_company_name(company_name)
 
             if company:
                 company_id = company["id"]["record_id"]
 
                 response = requests.post(
-                    f"{self.base_url}/objects/people/records",
+                    f"{self.base_url}/objects/users/records",
                     headers=self.headers,
                     json={"data": {"values": {
+                        "user_id": str(uuid.uuid4()),
                         "access_level": access_level.capitalize(),
-                        "company": [{"target_object": "companies", "target_record_id": company_id}],
-                        "credit_usage": [{"value": 0.0}],
-                        "email_addresses": [user_email],
-                        "name": [{"first_name": user_firstname, "last_name": user_lastname, "full_name": f"{user_firstname} {user_lastname}"}],
+                        "workspace": [{"target_object": "workspaces", "target_record_id": company_id}],
+                        "monthly_credit_usage_5": [{"value": 0.0}],
+                        "primary_email_address": user_email
                     }}},
                     timeout=self.timeout,
                 )
@@ -285,7 +254,7 @@ class CRMService:
             if user:
                 record_id = user["id"]["record_id"]
                 response = requests.patch(
-                    f"{self.base_url}/objects/people/records/{record_id}",
+                    f"{self.base_url}/objects/users/records/{record_id}",
                     headers=self.headers,
                     json={"data": {"values": {"access_level": access_level.capitalize()}}},
                     timeout=self.timeout,
@@ -314,9 +283,9 @@ class CRMService:
             if user:
                 record_id = user["id"]["record_id"]
                 response = requests.patch(
-                    f"{self.base_url}/objects/people/records/{record_id}",
+                    f"{self.base_url}/objects/users/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"credit_usage": credit_usage}}},
+                    json={"data": {"values": {"monthly_credit_usage_5": credit_usage}}},
                     timeout=self.timeout,
                 )
 
