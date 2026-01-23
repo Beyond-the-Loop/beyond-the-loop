@@ -1152,12 +1152,24 @@
 	}
 	let buffer = '';
 	let renderTimeout;
-	let renderedMessage;
+	let renderedMessage = '';
 
+	let contentElement = document.getElementById('response-content-container');
 	function displayBuffer() {
+		// Funktioniert so => Also Markdown Parsing ist das Problem
+		// https://github.com/thetarnav/streaming-markdown/blob/80e7c7c9b78d22a9f5642b5bb5bafad319287f65/smd.js#L1149-L1205 von Google Empfohlen
+		// Einfach mal best practices für Streaming Markdown anschauen
 		if(renderedMessage != null)
 		{
-			renderedMessage.content += buffer[0];
+			
+			renderedMessage += buffer[0];
+			if(contentElement != null)
+			{
+				contentElement.innerHTML = renderedMessage;
+			}else{
+				contentElement = document.getElementById('response-content-container');
+			}
+			
 			buffer = buffer.substring(1);
 			console.log('Rendering buffer, remaining length:', buffer.length);
 		}
@@ -1172,7 +1184,7 @@
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, added_content, sources, selected_model_id, error, usage } = data;
-		renderedMessage = message;
+		// renderedMessage = message;
 		
 		console.log(added_content);
 		if (error) {
