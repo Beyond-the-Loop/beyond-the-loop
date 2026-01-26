@@ -21,10 +21,10 @@ model_list:
       vertex_location: 'europe-west4'
   - model_name: "GPT o3"
     litellm_params:
-      model: "azure/o3"
+      model: "azure/responses/o3"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      api_version: "2024-12-01-preview"
+      reasoning_effort: "low"
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
@@ -119,9 +119,10 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
   - model_name: "GPT o3 Deep Research"
     litellm_params:
-      model: "azure/o3-deep-research"
+      model: "azure/responses/o3-deep-research"
       api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
+      reasoning_effort: "medium"
       tools:
         - type: "web_search_preview"
   - model_name: "GPT-5.2"

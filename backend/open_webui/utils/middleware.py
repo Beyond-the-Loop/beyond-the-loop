@@ -1149,6 +1149,12 @@ async def process_chat_response(
 
                 return content.strip()
 
+            def format_reasoning_content(text):
+                """Fügt <br> nach jedem **-Paar im Reasoning-Text ein."""
+                # Einfache Version: Ersetze ** durch **<br>
+                # Dies fügt nach jedem ** ein <br> ein
+                return text.replace("**", " \n>\n>**").replace(" \n>\n>**\n>", "**\n>")
+
             def tag_content_handler(content_type, tags, content, content_blocks):
                 end_flag = False
 
@@ -1456,9 +1462,9 @@ async def process_chat_response(
                                     reasoning_block["content"] += reasoning_content
 
                                     data = {
-                                        "content": serialize_content_blocks(
+                                        "content": format_reasoning_content(serialize_content_blocks(
                                             content_blocks
-                                        )
+                                        ))
                                     }
                                 
                                 value = delta.get("content")
