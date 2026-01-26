@@ -71,7 +71,7 @@
 					</div>
 				{/if}
 
-				<div class="">
+				<div class="flex-grow text-left">
 					{#if attributes?.type === 'reasoning'}
 						{#if attributes?.done === 'true' && attributes?.duration}
 							{$i18n.t('Thought for {{DURATION}}', {
