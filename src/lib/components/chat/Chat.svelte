@@ -1152,31 +1152,32 @@
 	}
 	let buffer = '';
 	let renderTimeout;
-	let renderedMessage = '';
-
-	let contentElement = document.getElementById('response-content-container');
+	let renderedMessage = null;
 	function displayBuffer() {
-		// Funktioniert so => Also Markdown Parsing ist das Problem
-		// https://github.com/thetarnav/streaming-markdown/blob/80e7c7c9b78d22a9f5642b5bb5bafad319287f65/smd.js#L1149-L1205 von Google Empfohlen
-		// Einfach mal best practices für Streaming Markdown anschauen
 		if(renderedMessage != null)
 		{
 			
-			renderedMessage += buffer[0];
-			if(contentElement != null)
-			{
-				contentElement.innerHTML = renderedMessage;
-			}else{
-				contentElement = document.getElementById('response-content-container');
-			}
+			renderedMessage.content += buffer[0];
 			
 			buffer = buffer.substring(1);
-			console.log('Rendering buffer, remaining length:', buffer.length);
 		}
 		if (buffer.length > 0) {
 			let x = buffer.length;
-			let speedInMS = 100 / (x);
+			let speedInMS = Math.round(80 / x);
+			if(speedInMS < 1){
+				speedInMS = 1;
+				if(renderedMessage != null)
+				{
+					renderedMessage.content += buffer[0];
+					buffer = buffer.substring(1);
+					renderedMessage.content += buffer[0];
+					buffer = buffer.substring(1);
+				}
+			}
 			renderTimeout = setTimeout(displayBuffer, speedInMS); // Adjust speed here
+			history.messages[renderedMessage.id] = renderedMessage;
+		}else{
+			renderTimeout = setTimeout(displayBuffer, 100);
 		}
 	}
 
@@ -1184,9 +1185,13 @@
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, added_content, sources, selected_model_id, error, usage } = data;
-		// renderedMessage = message;
+		if(renderedMessage == null)
+		{
+			renderedMessage = message;
+		}
 		
-		console.log(added_content);
+		
+		// console.log(added_content);
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
@@ -1241,13 +1246,14 @@
 		if (content) {
 
 			// REALTIME_CHAT_SAVE is disabled
-			console.log('Länge: ' + (content.length - message.content.length));
+			// console.log('Länge: ' + (content.length - message.content.length));
 			// message.content += added_content;
 			buffer += added_content;
 			if(renderTimeout == null)
 			{
 				displayBuffer();
 			}
+			// message.content = content;
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
 			}
@@ -1290,6 +1296,8 @@
 		if (done) {
 			message.done = true;
 			renderTimeout = null;
+			message.content = content;
+			buffer = '';
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1322,6 +1330,7 @@
 			);
 
 			history.messages[message.id] = message;
+			renderedMessage = null;
 			await chatCompletedHandler(
 				chatId,
 				message.model,

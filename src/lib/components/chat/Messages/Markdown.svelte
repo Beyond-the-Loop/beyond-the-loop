@@ -8,6 +8,7 @@
 
 	import MarkdownTokens from './Markdown/MarkdownTokens.svelte';
 	import { createEventDispatcher } from 'svelte';
+	import { fakeLexer } from './Markdown/FakeLexer.ts';
 
 	const dispatch = createEventDispatcher();
 
@@ -46,15 +47,30 @@
 
 	marked.use(markedKatexExtension(options));
 	marked.use(markedExtension(options));
-
+	const USE_MARKDOWN = true;
 	$: (async () => {
-		if (content) {
-			// Process citations before passing to marked lexer
-			const processedContent = sources ? linkifyCitations(content, sources) : content;
-			tokens = marked.lexer(
-				replaceTokens(processResponseContent(processedContent), sourceIds, model?.name, `${$user?.first_name} ${$user?.last_name}`)
-			);
-		}
+		if (!content) return;
+
+		const processed = replaceTokens(
+			processResponseContent(content),
+			sourceIds,
+			model?.name,
+			`${$user?.first_name} ${$user?.last_name}`
+		);
+
+		const t0 = performance.now();
+
+		tokens = USE_MARKDOWN
+			? marked.lexer(processed)
+			: fakeLexer(processed);
+
+		const t1 = performance.now();
+
+		console.log(
+			`[Markdown] ${USE_MARKDOWN ? 'marked.lexer' : 'fakeLexer'} took`,
+			(t1 - t0).toFixed(2),
+			'ms'
+		);
 	})();
 </script>
 
