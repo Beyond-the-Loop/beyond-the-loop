@@ -24,7 +24,7 @@ model_list:
       model: "azure/responses/o3"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "low"
+      reasoning_effort: "medium"
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
