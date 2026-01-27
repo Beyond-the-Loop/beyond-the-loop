@@ -1464,7 +1464,8 @@ async def process_chat_response(
                                     data = {
                                         "content": format_reasoning_content(serialize_content_blocks(
                                             content_blocks
-                                        ))
+                                        )),
+                                        # "added_content": reasoning_content
                                     }
                                 
                                 value = delta.get("content")
@@ -1546,6 +1547,7 @@ async def process_chat_response(
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
+                                            "added_content": value,
                                         }
 
                             await event_emitter(

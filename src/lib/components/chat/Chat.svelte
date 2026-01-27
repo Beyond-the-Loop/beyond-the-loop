@@ -229,7 +229,7 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
-		console.log(event);
+		// console.log(event);
 
 		if (event.chat_id === $chatId) {
 			await tick();
@@ -1072,8 +1072,78 @@
 		}
 	};
 
+	let bufferIndex = 0;
+	let buffer = '';
+	let renderTimeout;
+	let renderedMessage = null;
+	
+	function displayBuffer() {
+		try
+		{
+			if (renderedMessage == null)
+			{
+				console.log("renderedMessage is null");
+				return;
+			}
+			if (buffer.length == 0)
+			{
+				renderTimeout = setTimeout(displayBuffer, 100);            
+				return;     
+			}
+
+			let charPerFrame = Math.max(Math.round(0.1 * (buffer.length)), 1);
+			charPerFrame = 1;  
+			for (let i = 0; i < 1 && buffer.length > 0; i++) 
+			{            
+				renderedMessage.content += buffer[0];
+				buffer = buffer.substring(1);
+				console.log("Aufgerufen!")
+			}
+			history.messages[renderedMessage.id] = renderedMessage;        
+			renderTimeout = setTimeout(displayBuffer, 8); // 8 ms für ~120fps
+		}finally 
+		{        
+			renderTimeout = null; // Always clean up    
+		}
+		
+		
+	}
+	// function displayBuffer() {
+	// 	if (renderedMessage == null)
+	// 	{
+	// 		return;
+	// 	}
+	// 	if (buffer.length == 0)
+	// 	{
+	// 		renderTimeout = setTimeout(displayBuffer, 100); // Wenn Buffer aufgeholt ist, warte kurz
+	// 		return;
+	// 	}
+		
+	// 	renderedMessage.content += buffer[0];
+	// 	buffer = buffer.substring(1);
+
+	// 	if (buffer.length > 0) {
+	// 		let x = buffer.length;
+	// 		let speedInMS = Math.round(80 / x);
+	// 		if(speedInMS < 1){
+	// 			speedInMS = 1;
+	// 			if(renderedMessage != null)
+	// 			{
+	// 				renderedMessage.content += buffer[0];
+	// 				buffer = buffer.substring(1);
+	// 				renderedMessage.content += buffer[0];
+	// 				buffer = buffer.substring(1);
+	// 			}
+	// 		}
+	// 		renderTimeout = setTimeout(displayBuffer, speedInMS); // Adjust speed here
+	// 		history.messages[renderedMessage.id] = renderedMessage;
+	// 	}else{
+	// 		renderTimeout = setTimeout(displayBuffer, 100);
+	// 	}
+	// }
+
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
+		const { id, done, choices, content, added_content, sources, selected_model_id, error, usage } = data;
 
 		if (error) {
 			await handleOpenAIError(error, message);
@@ -1084,6 +1154,7 @@
 		}
 
 		if (choices) {
+			console.log('choices', choices);
 			if (choices[0]?.message?.content) {
 				// Non-stream response
 				message.content += choices[0]?.message?.content;
@@ -1126,8 +1197,32 @@
 		}
 
 		if (content) {
+			if(!added_content || added_content === "undefined") //
+			{
+				// Non-Buffer Response (z.B. Reasoning)
+				clearTimeout(renderTimeout);
+				buffer = '';
+				bufferIndex = 0;
+				renderedMessage = null;
+				message.content = content;
+			} else {
+				// Buffered Response
+
+				if(renderedMessage == null)
+				{
+					renderedMessage = message;                
+					message.content = content;               
+					buffer = '';
+				}else {
+					buffer += added_content;
+				}
+				if(renderTimeout == null)
+				{
+					renderTimeout = setTimeout(displayBuffer, 0); // Start rendering
+				}
+			}
+			
 			// REALTIME_CHAT_SAVE is disabled
-			message.content = content;
 
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
@@ -1170,6 +1265,10 @@
 
 		if (done) {
 			message.done = true;
+			renderedMessage = null;
+			clearTimeout(renderTimeout);
+			buffer = '';
+			message.content = content;
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1210,11 +1309,13 @@
 			);
 		}
 
-		console.log(data);
+		// console.log(data);
 		if (autoScroll) {
 			scrollToBottom();
 		}
 	};
+
+	
 
 	//////////////////////////
 	// Chat functions
