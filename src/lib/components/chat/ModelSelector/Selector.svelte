@@ -70,20 +70,7 @@
 		}))
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
-		// .sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
-		.sort((a, b) => { // Claude und Google ganz oben!
-			const aName = a?.model?.name?.toLowerCase() || '';
-			const bName = b?.model?.name?.toLowerCase() || '';
-			
-			if (aName.startsWith('claude') && !bName.startsWith('claude')) return -1;
-			if (!aName.startsWith('claude') && bName.startsWith('claude')) return 1;
-			
-			if (aName.startsWith('google') && !bName.startsWith('google')) return -1;
-			if (!aName.startsWith('google') && bName.startsWith('google')) return 1;
-			
-			return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
-		});
-	
+		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
 	
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
