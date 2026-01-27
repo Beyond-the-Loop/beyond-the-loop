@@ -1902,6 +1902,31 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
+	<!-- Warnmeldung -->
+	<div class="w-full md:w-[70%] mx-auto bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-700 dark:text-amber-300 px-3 md:px-4 py-3 text-xs md:text-sm mt-2 relative">
+		<button 
+			class="absolute top-2 right-2 p-1 rounded-md hover:bg-amber-500/20 transition-colors"
+			on:click={() => {
+				document.getElementById('chat-container').removeChild(document.querySelector('.bg-amber-500\\/10'));
+			}}
+		>
+			<svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+			</svg>
+		</button>
+		
+		<div class="flex items-start">
+			<svg class="w-3 h-3 md:w-4 md:h-4 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+				<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+			</svg>
+			<div class="flex-1 pr-5 md:pr-6">
+				<p class="font-semibold mb-1 text-xs md:text-sm">Wichtige Information: Vorübergehende Einschränkungen</p>
+				<p class="leading-relaxed">
+					Wegen technischer Probleme bei unserem Infrastrukturprovider kommt es zu <span class="font-medium">vorübergehenden Störungen auf unserer Plattform</span>. Dadurch sind bestimmte Modelle von OpenAI, DeepSeek und xAI <span class="font-medium">nicht verfügbar</span> oder es kann zu <span class="font-medium">Verzögerungen und Fehlermeldungen</span> kommen.
+				</p>
+			</div>
+		</div>
+	</div>
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
