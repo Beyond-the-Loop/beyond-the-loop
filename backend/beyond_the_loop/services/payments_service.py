@@ -193,6 +193,7 @@ class PaymentsService:
                 return {
                     'credits_remaining': company.credit_balance,
                     'flex_credits_remaining': company.flex_credit_balance,
+                    'credits_per_month': plan.get("credits_per_month", 0),
                     'plan': plan_id,
                     'is_trial': True,
                     "seats": plan.get("seats", 0),
@@ -243,6 +244,7 @@ class PaymentsService:
                 "seats_taken": Users.count_users_by_company_id(company_id),
                 "auto_recharge": company.auto_recharge,
                 "image_url": image_url,
+                "credits_per_month": plan.get("credits_per_month", 0),
                 "custom_credit_amount": int(subscription.metadata.get("custom_credit_amount")) if subscription.metadata.get("custom_credit_amount") is not None else None,
                 "next_credit_recharge": company.next_credit_charge_check
             }

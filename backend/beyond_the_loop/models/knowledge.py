@@ -166,6 +166,14 @@ class KnowledgeTable:
         except Exception:
             return None
 
+    def get_knowledge_by_ids(self, ids: list[str]) -> Optional[list[KnowledgeModel]]:
+        try:
+            with get_db() as db:
+                knowledge = db.query(Knowledge).filter(Knowledge.id.in_(ids)).all()
+                return [KnowledgeModel.model_validate(k) for k in knowledge] if knowledge else None
+        except Exception:
+            return None
+
     def update_knowledge_by_id(
         self, id: str, form_data: KnowledgeForm, overwrite: bool = False
     ) -> Optional[KnowledgeModel]:

@@ -63,21 +63,6 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
 def get_subscription(user=Depends(get_verified_user)):
     return payments_service.get_subscription(user.company_id)
 
-# Get all available subscription plans
-@router.get("/subscription-plans/")
-async def get_subscription_plans(user=Depends(get_verified_user)):
-    """Get all available subscription plans"""
-    plans = []
-    for plan_id, plan_details in payments_service.SUBSCRIPTION_PLANS.items():
-        plans.append(SubscriptionPlanResponse(
-            id=plan_id,
-            price=plan_details.get("price", None),
-            credits_per_month=plan_details.get("credits_per_month", None),
-            seats=plan_details.get("seats", None),
-        ))
-
-    return plans
-
 
 @router.get("/create-premium-subscription-checkout-session/")
 def create_premium_subscription_checkout_session(user=Depends(get_verified_user)):
