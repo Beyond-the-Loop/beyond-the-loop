@@ -871,44 +871,23 @@ ENABLE_TAGS_GENERATION = PersistentConfig(
     os.environ.get("ENABLE_TAGS_GENERATION", "False").lower() == "true",
 )
 
-ENABLE_RETRIEVAL_QUERY_GENERATION = PersistentConfig(
-    "ENABLE_RETRIEVAL_QUERY_GENERATION",
-    "task.query.retrieval.enable",
-    os.environ.get("ENABLE_RETRIEVAL_QUERY_GENERATION", "True").lower() == "true",
-)
-
-QUERY_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
-    "QUERY_GENERATION_PROMPT_TEMPLATE",
-    "task.query.prompt_template",
-    os.environ.get("QUERY_GENERATION_PROMPT_TEMPLATE", ""),
-)
-
 WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )
 
 WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Analyze the chat history to generate web search queries in the given language. By default, **prioritize generating 1–3 broad and relevant search queries** that can retrieve **updated, comprehensive, and trustworthy** information from the web.
+Please generate 1-3 web search queries for me that help me to answer the user's question.
+For each of the web search queries I want you to tell me a result_limit that determines how many web pages are scraped for the query.
 
 ### Guidelines:
-- Respond **EXCLUSIVELY** with a JSON object. No extra commentary or explanation.
-- Response format: { "queries": ["query1", "query2"] }
-- Err on the side of suggesting search queries if there’s any potential value.
-- Use the chat’s language; default to English if unclear.
-- Always prioritize **web scraping or API-based retrieval** services (e.g., Firecrawl).
+- Use the language given in the user's prompt; default to English if unclear.
 - Today's date is: {{CURRENT_DATE}}.
-- IMPORTANT: Generate at lease one query!
+- Do **not** wrap URLs in phrases like “search for” or “analyze”.
+- IMPORTANT: Generate at least one query and result_limit should also always be at least one! In general be very conservative so only create more than one web search query if you really think it is necessary to answer the question.
 
 ### URL Extraction Rules:
 - Scan messages for URLs (http:// or https://)
-- If found, insert the URL (unaltered) as the **first element** of the "queries" array
-- Example: { "queries": ["https://example.com", "related search query"] }
-- Do **not** wrap URLs in phrases like “search for” or “analyze”.
-
-### Output:
-{
-  "queries": ["query1", "query2"]
-}
+- If found, insert the URL (unaltered) as the **first element** your response
 
 ### Chat History:
 <chat_history>
