@@ -54,8 +54,6 @@ class TaskScheduler:
             log.warning("Scheduler is already running")
             return
 
-        _run_credit_recharge_checks()
-
         try:
             # Configure scheduler with thread pool
             executors = {
