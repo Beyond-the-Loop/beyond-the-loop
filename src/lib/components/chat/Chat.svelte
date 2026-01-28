@@ -14,6 +14,8 @@
 	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 
+	import { BufferedResponse } from '$lib/utils/buffer/BufferedResponse';
+
 	import {
 		chatId,
 		chats,
@@ -1072,113 +1074,10 @@
 		}
 	};
 
-	let bufferIndex = 0;
-	let buffer = '';
-	let renderTimeout = null;
-	let renderedMessage = null;
-	
-	function displayBuffer() {
-		try
-		{
-			if (renderedMessage == null)
-			{
-				// console.log("renderedMessage is null");
-				return;
-			}
-			if (buffer.length <= 0)
-			{
-				renderTimeout = setTimeout(displayBuffer, 100);    
-				console.log("buffer is empty, waiting");        
-				return;     
-			}
-			// console.log('buffer not empty, rendering');
-			// let charPerFrame = Math.max(Math.round(0.1 * (buffer.length)), 1);
-			let charPerFrame = Math.max(0.5, 1+ 0.02 * (buffer.length-30));
-			let rate = charPerFrame / 8; //
-
-
-			let n = Math.round((charPerFrame)+0.49); // +0.5 um aufzurunden
-			let t = n / rate;
-			const timePerFrame = Math.max(8, Math.min(16, Math.round(t)));
-
-			console.log("timePerFrame: ", timePerFrame, " charPerFrame: ", charPerFrame, " buffer.length: ", buffer.length);
-			for (let i = 0; i < charPerFrame && buffer.length > 0; i++) 
-			{            
-				renderedMessage.content += buffer[0];
-				buffer = buffer.substring(1);
-			}
-			history.messages[renderedMessage.id] = renderedMessage;     
-			// Emit chat event for TTS
-			const messageContentParts = getMessageContentParts(
-				renderedMessage.content,
-				$config?.audio?.tts?.split_on ?? 'punctuation'
-			);
-			messageContentParts.pop();
-
-			// dispatch only last sentence and make sure it hasn't been dispatched before
-			if (
-				messageContentParts.length > 0 &&
-				messageContentParts[messageContentParts.length - 1] !== renderedMessage.lastSentence
-			) {
-				renderedMessage.lastSentence = messageContentParts[messageContentParts.length - 1];
-				eventTarget.dispatchEvent(
-					new CustomEvent('chat', {
-						detail: {
-							id: renderedMessage.id,
-							content: messageContentParts[messageContentParts.length - 1]
-						}
-					})
-				);
-			}
-
-			// renderTimeout = setTimeout(displayBuffer, 8); // 8 ms für ~120fps
-			renderTimeout = setTimeout(displayBuffer, timePerFrame); // 8 ms für ~120fps
-			// console.log('rendertimeout')
-		}finally 
-		{        
-			// renderTimeout = null; // Always clean up    
-			if (autoScroll) {
-				scrollToBottom();
-			}
-		}
-	}
-	// function displayBuffer() {
-	// 	if (renderedMessage == null)
-	// 	{
-	// 		return;
-	// 	}
-	// 	if (buffer.length == 0)
-	// 	{
-	// 		renderTimeout = setTimeout(displayBuffer, 100); // Wenn Buffer aufgeholt ist, warte kurz
-	// 		return;
-	// 	}
-		
-	// 	renderedMessage.content += buffer[0];
-	// 	buffer = buffer.substring(1);
-
-	// 	if (buffer.length > 0) {
-	// 		let x = buffer.length;
-	// 		let speedInMS = Math.round(80 / x);
-	// 		if(speedInMS < 1){
-	// 			speedInMS = 1;
-	// 			if(renderedMessage != null)
-	// 			{
-	// 				renderedMessage.content += buffer[0];
-	// 				buffer = buffer.substring(1);
-	// 				renderedMessage.content += buffer[0];
-	// 				buffer = buffer.substring(1);
-	// 			}
-	// 		}
-	// 		renderTimeout = setTimeout(displayBuffer, speedInMS); // Adjust speed here
-	// 		history.messages[renderedMessage.id] = renderedMessage;
-	// 	}else{
-	// 		renderTimeout = setTimeout(displayBuffer, 100);
-	// 	}
-	// }
+	let bufferedResponse: BufferedResponse | null = null;
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
-		console.log('chatCompletionEventHandler');
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
@@ -1232,33 +1131,32 @@
 
 		if (content) {
 			console.log('content');
-			// if (content.startsWith(message.content)) {
-				// console.log('content startsWith message.content');
+
 			if(added_content == null || added_content == undefined || type == 'reasoning')
 			{
+				bufferedResponse?.flushImmediate(content);
 				message.content = content;
-				buffer='';
 			}
 
-			if(renderedMessage == null)
-			{
-				renderedMessage = message;                
-				message.content = content;               
-				buffer = '';
-			}else {
-				// console.log('buffering added_content');
-				buffer += added_content;
+			if (bufferedResponse === null) {
+				bufferedResponse = new BufferedResponse(message, history, {
+					onUpdate: (msg) => {
+					},
+					onScroll: () => {
+						if (autoScroll) scrollToBottom();
+					},
+					onCommit: (msg) => {
+					// WICHTIG: Svelte Reactivity triggern
+					history.messages = {
+						...history.messages,
+						[msg.id]: { ...msg }
+					};
+					console.log('onCommit ausgeführt');
+				}
+				});
 			}
-			if(type == 'reasoning')
-			{
-				// console.log('reasoning type, immediate render');
-				renderedMessage.content = content;    
-				buffer = '';
-			}
-			if(renderTimeout == null)
-			{
-				console.log('starting displayBuffer');
-				renderTimeout = setTimeout(displayBuffer, 0); // Start rendering
+			if (added_content) {
+				bufferedResponse.add(added_content);
 			}
 			
 			// REALTIME_CHAT_SAVE is disabled
@@ -1303,11 +1201,10 @@
 		history.messages[message.id] = message;
 
 		if (done) {
+			bufferedResponse?.stop();
+			bufferedResponse = null;
+
 			message.done = true;
-			renderedMessage = null;
-			clearTimeout(renderTimeout);
-			renderTimeout = null;
-			buffer = '';
 			message.content = content;
 
 			if ($settings.responseAutoCopy) {
