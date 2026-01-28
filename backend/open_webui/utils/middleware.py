@@ -1184,6 +1184,12 @@ async def process_chat_response(
 
                 return content.strip()
 
+            def format_reasoning_content(text):
+                """Fügt <br> nach jedem **-Paar im Reasoning-Text ein."""
+                # Einfache Version: Ersetze ** durch **<br>
+                # Dies fügt nach jedem ** ein <br> ein
+                return text.replace("**", " \n>\n>**").replace(" \n>\n>**\n>", "**\n>")
+
             def tag_content_handler(content_type, tags, content, content_blocks):
                 end_flag = False
 
@@ -1464,9 +1470,64 @@ async def process_chat_response(
                                                         "arguments"
                                                     ] += delta_arguments
 
+                                reasoning_content = (
+                                    delta.get("reasoning_content")
+                                    or delta.get("reasoning")
+                                    or delta.get("thinking")
+                                )
+                                if reasoning_content:
+                                    if (
+                                        not content_blocks
+                                        or content_blocks[-1]["type"] != "reasoning"
+                                    ):
+                                        reasoning_block = {
+                                            "type": "reasoning",
+                                            "start_tag": "<think>",
+                                            "end_tag": "</think>",
+                                            "attributes": {
+                                                "type": "reasoning_content"
+                                            },
+                                            "content": "",
+                                            "started_at": time.time(),
+                                        }
+                                        content_blocks.append(reasoning_block)
+                                    else:
+                                        reasoning_block = content_blocks[-1]
+
+                                    reasoning_block["content"] += reasoning_content
+
+                                    data = {
+                                        "content": format_reasoning_content(serialize_content_blocks(
+                                            content_blocks
+                                        ))
+                                    }
+                                
                                 value = delta.get("content")
 
                                 if value:
+                                    if (
+                                        content_blocks
+                                        and content_blocks[-1]["type"]
+                                        == "reasoning"
+                                        and content_blocks[-1]
+                                        .get("attributes", {})
+                                        .get("type")
+                                        == "reasoning_content"
+                                    ):
+                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block["ended_at"] = time.time()
+                                        reasoning_block["duration"] = int(
+                                            reasoning_block["ended_at"]
+                                            - reasoning_block["started_at"]
+                                        )
+
+                                        content_blocks.append(
+                                            {
+                                                "type": "text",
+                                                "content": "",
+                                            }
+                                        )
+                                    
                                     content = f"{content}{value}"
 
                                     if not content_blocks:

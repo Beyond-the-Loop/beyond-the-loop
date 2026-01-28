@@ -614,7 +614,7 @@
 										</div>
 									{/if}
 
-									{#if status?.action === 'web_search' && status?.query_summaries}
+									{#if status?.action === 'web_search' && (status?.query_summaries || status?.urls)}
 										<WebSearchResults {status}>
 											<div class="flex flex-col justify-center -space-y-0.5">
 												<div

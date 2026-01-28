@@ -325,7 +325,7 @@
 				<div class="flex items-center justify-between pt-2.5">
 					{#if !$subscription?.is_trial && $subscription?.cancel_at_period_end !== true && $subscription?.status !== "canceled"}
 						<div class="text-xs dark:text-customGray-590">
-							{$i18n.t('Credits will reset on')} {dayjs($subscription?.next_billing_date * 1000)?.format('DD.MM.YYYY')}
+							{$i18n.t('Credits will reset on')} {dayjs($subscription?.next_credit_recharge * 1000)?.format('DD.MM.YYYY')}
 						</div>
 					{:else}
 						<div></div>

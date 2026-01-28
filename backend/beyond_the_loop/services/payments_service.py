@@ -8,6 +8,8 @@ from datetime import date, datetime
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
+from beyond_the_loop.services.crm_service import crm_service
+import re
 
 
 def _set_new_credit_recharge_check_date(company):
@@ -121,8 +123,7 @@ class PaymentsService:
                 "seats": 1000
             },
             "premium": {
-                "stripe_price_id": self.stripe_price_id_user_seat,
-                "credits_per_month": 1000 # 10,00€ in cents
+                "stripe_price_id": self.stripe_price_id_user_seat
             }
         }
 
@@ -282,7 +283,7 @@ class PaymentsService:
             }
 
     # Legacy
-    def update_company_credits_from_subscription(self, event_data):
+    def handle_company_subscription_update(self, event_data):
         """
         Helper function to update company credits based on subscription data.
 
@@ -293,10 +294,10 @@ class PaymentsService:
             tuple: (company, credits_per_month, plan_id) or (None, None, None) if any step fails
         """
         try:
-            billing_reason = event_data.get('billing_reason')
+            canceled_at = event_data.get("canceled_at")
 
-            # If the billing reason is not subscription_create, ignore the event
-            if billing_reason == 'subscription_create' or billing_reason == 'subscription_update':
+            if canceled_at:
+                print("Subscription canceled, skipping credits update")
                 return None, None, None
 
             # Extract subscription details
@@ -330,6 +331,20 @@ class PaymentsService:
             # Find the plan associated with this price ID
             plan_id = next((plan for plan, details in payments_service.SUBSCRIPTION_PLANS.items()
                             if details.get("stripe_price_id") == price_id), None)
+
+            try:
+                # Replace underscores with spaces
+                plan_name = re.sub(r"_", " ", plan_id)
+                # Capitalize each word
+                plan_name = re.sub(r"(\b\w)", lambda m: m.group(1).upper(), plan_name)
+
+                crm_service.update_company_plan(company.name, plan_name)
+            except Exception as e:
+                print(f"Error updating Attio workspace plan for company {company.id}: {e}")
+
+            if plan_id == "premium":
+                print(f"No credits to add for subscription {subscription_id}: Premium plan")
+                return None, None, None
 
             if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
                 print(f"No plan found for price ID: {price_id}")

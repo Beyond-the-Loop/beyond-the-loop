@@ -21,10 +21,10 @@ model_list:
       vertex_location: 'europe-west4'
   - model_name: "GPT o3"
     litellm_params:
-      model: "azure/o3"
+      model: "azure/responses/o3"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      api_version: "2024-12-01-preview"
+      reasoning_effort: "medium"
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
@@ -33,34 +33,34 @@ model_list:
       api_version: "2024-12-01-preview"
   - model_name: "GPT-5"
     litellm_params:
-      model: "azure/gpt-5"
+      model: "azure/responses/gpt-5"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "minimal"
+      reasoning_effort: "low"
   - model_name: "GPT-5 mini"
     litellm_params:
       model: "azure/gpt-5-mini"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "minimal"
       api_version: "2025-04-01-preview"
   - model_name: "GPT-5.1 instant"
     litellm_params:
-      model: "azure/gpt-5.1-chat"
+      model: "azure/responses/gpt-5.1-chat"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "minimal"
+      reasoning_effort: "low"
   - model_name: "GPT-5.1 thinking"
     litellm_params:
-      model: "azure/gpt-5.1"
+      model: "azure/responses/gpt-5.1"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "medium"
   - model_name: "GPT-5 nano"
     litellm_params:
-      model: "azure/gpt-5-nano"
+      model: "azure/responses/gpt-5-nano"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "minimal"
+      reasoning_effort: "low"
   - model_name: "Grok 4"
     litellm_params:
       model: 'xai/grok-4'
@@ -119,19 +119,23 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
   - model_name: "GPT o3 Deep Research"
     litellm_params:
-      model: "azure/o3-deep-research"
+      model: "azure/responses/o3-deep-research"
       api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
+      reasoning_effort: "medium"
       tools:
         - type: "web_search_preview"
   - model_name: "GPT-5.2"
     litellm_params:
-      model: "azure/gpt-5.2"
+      model: "azure/responses/gpt-5.2"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "low"
 
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
+  reasoning_auto_summary: true
+  default_fallbacks: ["Google 2.5 Flash"]
 
 general_settings:
   alerting: ["slack"]
