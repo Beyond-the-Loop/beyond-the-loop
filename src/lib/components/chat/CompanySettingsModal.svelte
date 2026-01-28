@@ -22,8 +22,7 @@
 	import Billing from './Settings/CompanySettings/Billing.svelte';
 	import { page } from '$app/stores';
 	import {
-		getCurrentSubscription,
-		getSubscriptionPlans
+		getCurrentSubscription
 	} from '$lib/apis/payments';
 	import BackIcon from '../icons/BackIcon.svelte';
 	import DomainSettings from './Settings/CompanySettings/DomainSettings.svelte';
@@ -34,7 +33,6 @@
 
 	export let show = false;
 	let selectedTab = 'general-settings';
-	let plans = [];
 
 	interface SettingsTab {
 		id: string;
@@ -187,18 +185,11 @@
 			subscriptionLoading = false;
 		}
 	}
-	async function getPlans() {
-		const res = await getSubscriptionPlans(localStorage.token).catch((error) => console.log(error));
-		if (res) {
-			plans = res;
-		}
-	}
 
 
 	$: if(show){
 		getUsersHandler();
 		getSubscription();
-		getPlans();
 		const tabParam = $page.url.searchParams.get('tab');
 		const resetTabs = $page.url.searchParams.get('resetTabs');
 		if(resetTabs) {
@@ -207,8 +198,6 @@
 			selectedTab = tabParam || 'general-settings';
 		}	
 	}
-
-
 </script>
 
 <Modal size="md-plus" bind:show blockBackdropClick={true} className="dark:bg-customGray-800 rounded-2xl" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[7.44px]">
@@ -396,7 +385,7 @@
 				{:else if selectedTab === 'analytics'}
 					<Analytics/>
 				{:else if selectedTab === 'billing'}
-					<Billing bind:autoRecharge bind:subscriptionLoading {plans}/>
+					<Billing bind:autoRecharge bind:subscriptionLoading/>
 				{/if}
 			</div>
 		</div>
