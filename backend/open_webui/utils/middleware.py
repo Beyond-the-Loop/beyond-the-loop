@@ -27,6 +27,7 @@ from beyond_the_loop.socket.main import (
     get_event_emitter,
     get_active_status_by_user_id,
 )
+from beyond_the_loop.models.knowledge import Knowledges
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
@@ -624,7 +625,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     user_message = get_last_user_message(form_data["messages"])
 
-    model_knowledge = model.meta.knowledge
+    model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
+
     model_files = model.meta.files
 
     # Remove file duplicates and remove files from form_data, add it to metadata
@@ -641,8 +643,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if model_knowledge or model_files:
         file_names = ', '.join([f.get('name', '') for f in model_files]) if model_files else ''
 
-        knowledge_names = ', '.join([knowledge.get('name', '') for knowledge in model_knowledge]) if model_knowledge else ''
-        knowledge_file_names = ', '.join(file.get('meta', {}).get('name') for knowledge in model_knowledge for file in knowledge.get('files', [])) if model_knowledge else ''
+        knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
+
+        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])])
+
+        knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
         # Create decision prompt
         decision_messages = [
@@ -684,30 +689,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             )
 
-            if model_knowledge:
-                knowledge_files = []
-                for item in model_knowledge:
-                    if item.get("collection_name"):
-                        knowledge_files.append(
-                            {
-                                "id": item.get("collection_name"),
-                                "name": item.get("name"),
-                                "legacy": True,
-                            }
-                        )
-                    elif item.get("collection_names"):
-                        knowledge_files.append(
-                            {
-                                "name": item.get("name"),
-                                "type": "collection",
-                                "collection_names": item.get("collection_names"),
-                                "legacy": True,
-                            }
-                        )
-                    else:
-                        knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
+            print("das ist das model knowledge", model_knowledge)
 
-                files.extend(knowledge_files)
+            if model_knowledge:
+                files.extend([{"type": "collection", "id": f"file-{file.id}"} for file in knowledge_files])
+
+                print("das sind alle files", files)
 
             if model_files:
                 files.extend(model_files)

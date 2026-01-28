@@ -1,23 +1,18 @@
 <script lang="ts">
-	import { marked } from 'marked';
-
 	import { toast } from 'svelte-sonner';
-	import Sortable from 'sortablejs';
 
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
-	import { onMount, getContext, tick } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	const i18n = getContext('i18n');
 
 	import {
 		WEBUI_NAME,
-		config,
 		mobile,
 		models as _models,
-		settings,
 		user,
 		showSidebar,
 		theme,
@@ -25,11 +20,8 @@
 	} from '$lib/stores';
 	import {
 		bookmarkModel,
-		createNewModel,
 		deleteModelById,
-		getUserTagsForModels,
 		getModels as getWorkspaceModels,
-		toggleModelById,
 		updateModelById
 	} from '$lib/apis/models';
 
@@ -40,22 +32,17 @@
 	import ModelMenu from './Models/ModelMenu.svelte';
 	import ModelDeleteConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
-	import GarbageBin from '../icons/GarbageBin.svelte';
 	import Search from '../icons/Search.svelte';
 	import Plus from '../icons/Plus.svelte';
-	import ChevronRight from '../icons/ChevronRight.svelte';
-	import Switch from '../common/Switch.svelte';
 	import Spinner from '../common/Spinner.svelte';
-	import { capitalizeFirstLetter, tagColorsLight, tagColors } from '$lib/utils';
+	import { tagColorsLight, tagColors } from '$lib/utils';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import GroupIcon from '../icons/GroupIcon.svelte';
 	import PublicIcon from '../icons/PublicIcon.svelte';
 	import PrivateIcon from '../icons/PrivateIcon.svelte';
 	import dayjs from 'dayjs';
-	import MenuIcon from '../icons/MenuIcon.svelte';
 	import FilterDropdown from './Models/FilterDropdown.svelte';
 	import BackIcon from '../icons/BackIcon.svelte';
-	import BookIcon from '../icons/BookIcon.svelte';
 	import BookmarkIcon from '../icons/BookmarkIcon.svelte';
 	import BookmarkedIcon from '../icons/BookmarkedIcon.svelte';
 	import CloseIcon from '../icons/CloseIcon.svelte';
@@ -64,10 +51,6 @@
 	import DocumentIcon from '../icons/DocumentIcon.svelte';
 	import FolderIcon from '../icons/FolderIcon.svelte';
 
-	let shiftKey = false;
-
-	let importFiles;
-	let modelsImportInputElement: HTMLInputElement;
 	let loaded = false;
 
 	let models = [];
@@ -76,8 +59,6 @@
 	let selectedModel = null;
 
 	let showModelDeleteConfirm = false;
-
-	let group_ids = [];
 
 	let tags = [];
 	let selectedTags = new Set();
@@ -198,13 +179,6 @@
 		models = await getWorkspaceModels(localStorage.token);
 	};
 
-	const downloadModels = async (models) => {
-		let blob = new Blob([JSON.stringify(models)], {
-			type: 'application/json'
-		});
-		saveAs(blob, `models-export-${Date.now()}.json`);
-	};
-
 	const exportModelHandler = async (model) => {
 		let blob = new Blob([JSON.stringify([model])], {
 			type: 'application/json'
@@ -216,7 +190,7 @@
 		models = await getWorkspaceModels(localStorage.token);
 		let groups = await getGroups(localStorage.token);
 		groupsForModels = groups;
-		group_ids = groups.map((group) => group.id);
+		const group_ids = groups.map((group) => group.id);
 
 		loaded = true;
 
@@ -791,10 +765,6 @@
 								</div>
 							</div>
 						</div>
-						<!-- {#if isBaseModelDisabled(model)}
-								<div class="absolute top-[6rem] text-xs text-lightGray-100 dark:text-customGray-100">{$i18n.t("Base model for this assistant was disabled.")}</div>
-						{/if} -->
-
 						<div
 							class="flex justify-between mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700"
 						>
@@ -823,183 +793,12 @@
 							<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
 								{dayjs(model.updated_at * 1000).format('DD.MM.YYYY')}
 							</div>
-
-							<!-- <div class="flex flex-row gap-0.5 items-center">
-								{#if shiftKey}
-									<Tooltip content={$i18n.t('Delete')}>
-										<button
-											class="self-center w-fit text-sm px-2 py-2 dark:text-gray-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
-											type="button"
-											on:click={() => {
-												deleteModelHandler(model);
-											}}
-										>
-											<GarbageBin />
-										</button>
-									</Tooltip>
-								{:else}
-									{#if $user?.role === 'admin' || model.user_id === $user?.id || model.access_control.write.group_ids.some( (wg) => group_ids.includes(wg) )}
-										<a
-											class="self-center w-fit text-sm px-2 py-2 dark:text-gray-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
-											type="button"
-											href={`/workspace/models/edit?id=${encodeURIComponent(model.id)}`}
-										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke-width="1.5"
-												stroke="currentColor"
-												class="w-4 h-4"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-												/>
-											</svg>
-										</a>
-									{/if}
-
-									<div class="ml-1">
-										<Tooltip content={model.is_active ? $i18n.t('Enabled') : $i18n.t('Disabled')}>
-											<Switch
-												bind:state={model.is_active}
-												on:change={async (e) => {
-													toggleModelById(localStorage.token, model.id);
-													_models.set(await getModels(localStorage.token));
-												}}
-											/>
-										</Tooltip>
-									</div>
-								{/if}
-							</div> -->
 						</div>
 					</div>
 				{/each}
 			</div>
 		</div>
 	</div>
-
-	<!-- {#if $user?.role === 'admin'}
-		<div class=" flex justify-end w-full mb-3">
-			<div class="flex space-x-1">
-				<input
-					id="models-import-input"
-					bind:this={modelsImportInputElement}
-					bind:files={importFiles}
-					type="file"
-					accept=".json"
-					hidden
-					on:change={() => {
-						console.log(importFiles);
-
-						let reader = new FileReader();
-						reader.onload = async (event) => {
-							let savedModels = JSON.parse(event.target.result);
-							console.log(savedModels);
-
-							for (const model of savedModels) {
-								if (model?.info ?? false) {
-									if ($_models.find((m) => m.id === model.id)) {
-										await updateModelById(localStorage.token, model.id, model.info).catch(
-											(error) => {
-												return null;
-											}
-										);
-									} else {
-										await createNewModel(localStorage.token, model.info).catch((error) => {
-											return null;
-										});
-									}
-								}
-							}
-
-							await _models.set(await getModels(localStorage.token));
-							models = await getWorkspaceModels(localStorage.token);
-						};
-
-						reader.readAsText(importFiles[0]);
-					}}
-				/>
-
-				<button
-					class="flex text-xs items-center space-x-1 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 transition"
-					on:click={() => {
-						modelsImportInputElement.click();
-					}}
-				>
-					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import models')}</div>
-
-					<div class=" self-center">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 16 16"
-							fill="currentColor"
-							class="w-3.5 h-3.5"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M4 2a1.5 1.5 0 0 0-1.5 1.5v9A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5V6.621a1.5 1.5 0 0 0-.44-1.06L9.94 2.439A1.5 1.5 0 0 0 8.878 2H4Zm4 9.5a.75.75 0 0 1-.75-.75V8.06l-.72.72a.75.75 0 0 1-1.06-1.06l2-2a.75.75 0 0 1 1.06 0l2 2a.75.75 0 1 1-1.06 1.06l-.72-.72v2.69a.75.75 0 0 1-.75.75Z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</div>
-				</button>
-
-				<button
-					class="flex text-xs items-center space-x-1 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 transition"
-					on:click={async () => {
-						downloadModels($_models);
-					}}
-				>
-					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export models')}</div>
-
-					<div class=" self-center">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 16 16"
-							fill="currentColor"
-							class="w-3.5 h-3.5"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M4 2a1.5 1.5 0 0 0-1.5 1.5v9A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5V6.621a1.5 1.5 0 0 0-.44-1.06L9.94 2.439A1.5 1.5 0 0 0 8.878 2H4Zm4 3.5a.75.75 0 0 1 .75.75v2.69l.72-.72a.75.75 0 1 1 1.06 1.06l-2 2a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06l.72.72V6.25A.75.75 0 0 1 8 5.5Z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</div>
-				</button>
-			</div>
-		</div>
-	{/if} -->
-
-	<!-- {#if $config?.features.enable_community_sharing}
-		<div class=" my-16">
-			<div class=" text-xl font-medium mb-1 line-clamp-1">
-				{$i18n.t('Made by OpenWebUI Community')}
-			</div>
-
-			<a
-				class=" flex cursor-pointer items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-850 w-full mb-2 px-3.5 py-1.5 rounded-xl transition"
-				href="https://openwebui.com/#open-webui-community"
-				target="_blank"
-			>
-				<div class=" self-center">
-					<div class=" font-semibold line-clamp-1">{$i18n.t('Discover a model')}</div>
-					<div class=" text-sm line-clamp-1">
-						{$i18n.t('Discover, download, and explore model presets')}
-					</div>
-				</div>
-
-				<div>
-					<div>
-						<ChevronRight />
-					</div>
-				</div>
-			</a>
-		</div>
-	{/if} -->
 {:else}
 	<div class="w-full h-full flex justify-center items-center">
 		<Spinner />

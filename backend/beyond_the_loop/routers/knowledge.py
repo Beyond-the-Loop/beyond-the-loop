@@ -451,8 +451,8 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     except Exception as e:
         log.debug(e)
         pass
-    result = Knowledges.delete_knowledge_by_id(id=id)
-    return result
+
+    return Knowledges.delete_knowledge_by_id(id=id)
 
 
 ############################
