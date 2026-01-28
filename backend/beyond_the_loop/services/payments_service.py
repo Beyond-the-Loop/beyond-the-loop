@@ -4,7 +4,7 @@ from fastapi import HTTPException
 import stripe
 import os
 import time
-from datetime import date, datetime
+from datetime import datetime
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
@@ -14,14 +14,25 @@ import re
 
 def _set_new_credit_recharge_check_date(company):
     try:
-        # Add one month
-        next_check_date = date.today() + relativedelta(months=1)
-        # Update the field as timestamp
-        next_credit_charge_check = datetime.combine(next_check_date, datetime.min.time()).timestamp()
+        # Convert the existing timestamp to datetime
+        last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
 
-        Companies.update_company_by_id(company.id, {"next_credit_charge_check": next_credit_charge_check})
+        # Add one month
+        next_check_dt = last_check_dt + relativedelta(months=1)
+
+        # Convert back to timestamp
+        next_credit_charge_check = next_check_dt.timestamp()
+
+        Companies.update_company_by_id(
+            company.id,
+            {"next_credit_charge_check": next_credit_charge_check}
+        )
+
     except Exception as e:
-        print(f"Failed to update next credit charge check date for company {company.id}: {e}")
+        print(
+            f"Failed to update next credit charge check date for company "
+            f"{company.id}: {e}"
+        )
 
 
 class PaymentsService:

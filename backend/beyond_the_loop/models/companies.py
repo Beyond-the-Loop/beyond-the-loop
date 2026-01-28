@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 
 from sqlalchemy.orm import relationship
-from sqlalchemy import String, Column, Text, Boolean, Float, BigInteger
+from sqlalchemy import String, Column, Text, Boolean, Float, BigInteger, and_
 
 from open_webui.internal.db import get_db, Base
 from enum import Enum
@@ -161,23 +161,24 @@ class CompanyTable:
     def get_companies_due_for_credit_recharge_check(self) -> list[CompanyModel]:
         try:
             with get_db() as db:
-                # Get current timestamp
                 now_ts = datetime.now().timestamp()
 
-                # Query companies whose next_credit_charge_check is due
-                due_companies = db.query(Company).filter(
-                        Company.next_credit_charge_check <= now_ts and Company.stripe_customer_id != None
-                ).all()
-
-                # Commit the updates
-                db.commit()
+                due_companies = (
+                    db.query(Company)
+                    .filter(
+                        and_(
+                            Company.next_credit_charge_check <= now_ts,
+                            Company.stripe_customer_id.isnot(None)
+                        )
+                    )
+                    .all()
+                )
 
                 return due_companies
 
         except Exception as e:
             print("Error fetching companies due for credit recharge check:", e)
             return []
-
 
     def update_auto_recharge(self, company_id: str, auto_recharge: bool) -> Optional[CompanyModel]:
 
