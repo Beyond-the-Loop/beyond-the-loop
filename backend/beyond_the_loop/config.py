@@ -1020,7 +1020,7 @@ MODEL_ORDER_LIST = PersistentConfig(
 )
 
 DEFAULT_MODELS = PersistentConfig(
-    "DEFAULT_MODELS", "ui.default_models", os.environ.get("DEFAULT_MODELS", None)
+    "DEFAULT_MODELS", "ui.default_models", [os.environ.get("DEFAULT_MODEL", "")]
 )
 
 VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")

@@ -107,7 +107,7 @@
 
 	let chatIdUnsubscriber: Unsubscriber | undefined;
 
-	let selectedModels = [''];
+	let selectedModels = [];
 	let atSelectedModel: Model | undefined;
 	let selectedModelIds = [];
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
@@ -674,11 +674,11 @@
 					selectedModels = $settings?.models;
 				} else if ($companyConfig?.config?.models?.DEFAULT_MODELS) {
 					const ids = $companyConfig?.config?.models?.DEFAULT_MODELS?.split(',');
-					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
+					const gptDefault = $models?.find(item => item.name === 'GPT-5.2');
 					const isActive = $models?.some(model => ids?.includes(model.id));
 					selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
 				} else {
-					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini')
+					const gptDefault = $models?.find(item => item.name === 'GPT-5.2')
 					selectedModels = [gptDefault?.id];
 				}
 			//}
