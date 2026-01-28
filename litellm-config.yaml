@@ -48,7 +48,7 @@ model_list:
       model: "azure/responses/gpt-5.1-chat"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "low"
+      reasoning_effort: "medium"
   - model_name: "GPT-5.1 thinking"
     litellm_params:
       model: "azure/responses/gpt-5.1"
