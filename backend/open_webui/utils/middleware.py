@@ -1465,6 +1465,7 @@ async def process_chat_response(
                                         "content": format_reasoning_content(serialize_content_blocks(
                                             content_blocks
                                         )),
+                                        "type": "reasoning",
                                         # "added_content": reasoning_content
                                     }
                                 
@@ -1547,6 +1548,7 @@ async def process_chat_response(
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
+                                            "type": "text",
                                             "added_content": value,
                                         }
 

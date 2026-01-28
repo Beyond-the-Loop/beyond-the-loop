@@ -1074,7 +1074,7 @@
 
 	let bufferIndex = 0;
 	let buffer = '';
-	let renderTimeout;
+	let renderTimeout = null;
 	let renderedMessage = null;
 	
 	function displayBuffer() {
@@ -1082,31 +1082,65 @@
 		{
 			if (renderedMessage == null)
 			{
-				console.log("renderedMessage is null");
+				// console.log("renderedMessage is null");
 				return;
 			}
-			if (buffer.length == 0)
+			if (buffer.length <= 0)
 			{
-				renderTimeout = setTimeout(displayBuffer, 100);            
+				renderTimeout = setTimeout(displayBuffer, 100);    
+				console.log("buffer is empty, waiting");        
 				return;     
 			}
+			// console.log('buffer not empty, rendering');
+			// let charPerFrame = Math.max(Math.round(0.1 * (buffer.length)), 1);
+			let charPerFrame = Math.max(0.5, 1+ 0.02 * (buffer.length-30));
+			let rate = charPerFrame / 8; //
 
-			let charPerFrame = Math.max(Math.round(0.1 * (buffer.length)), 1);
-			charPerFrame = 1;  
-			for (let i = 0; i < 1 && buffer.length > 0; i++) 
+
+			let n = Math.round((charPerFrame)+0.49); // +0.5 um aufzurunden
+			let t = n / rate;
+			const timePerFrame = Math.max(8, Math.min(16, Math.round(t)));
+
+			console.log("timePerFrame: ", timePerFrame, " charPerFrame: ", charPerFrame, " buffer.length: ", buffer.length);
+			for (let i = 0; i < charPerFrame && buffer.length > 0; i++) 
 			{            
 				renderedMessage.content += buffer[0];
 				buffer = buffer.substring(1);
-				console.log("Aufgerufen!")
 			}
-			history.messages[renderedMessage.id] = renderedMessage;        
-			renderTimeout = setTimeout(displayBuffer, 8); // 8 ms für ~120fps
+			history.messages[renderedMessage.id] = renderedMessage;     
+			// Emit chat event for TTS
+			const messageContentParts = getMessageContentParts(
+				renderedMessage.content,
+				$config?.audio?.tts?.split_on ?? 'punctuation'
+			);
+			messageContentParts.pop();
+
+			// dispatch only last sentence and make sure it hasn't been dispatched before
+			if (
+				messageContentParts.length > 0 &&
+				messageContentParts[messageContentParts.length - 1] !== renderedMessage.lastSentence
+			) {
+				renderedMessage.lastSentence = messageContentParts[messageContentParts.length - 1];
+				eventTarget.dispatchEvent(
+					new CustomEvent('chat', {
+						detail: {
+							id: renderedMessage.id,
+							content: messageContentParts[messageContentParts.length - 1]
+						}
+					})
+				);
+			}
+
+			// renderTimeout = setTimeout(displayBuffer, 8); // 8 ms für ~120fps
+			renderTimeout = setTimeout(displayBuffer, timePerFrame); // 8 ms für ~120fps
+			// console.log('rendertimeout')
 		}finally 
 		{        
-			renderTimeout = null; // Always clean up    
+			// renderTimeout = null; // Always clean up    
+			if (autoScroll) {
+				scrollToBottom();
+			}
 		}
-		
-		
 	}
 	// function displayBuffer() {
 	// 	if (renderedMessage == null)
@@ -1143,8 +1177,8 @@
 	// }
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, added_content, sources, selected_model_id, error, usage } = data;
-
+		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
+		console.log('chatCompletionEventHandler');
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
@@ -1197,29 +1231,34 @@
 		}
 
 		if (content) {
-			if(!added_content || added_content === "undefined") //
+			console.log('content');
+			// if (content.startsWith(message.content)) {
+				// console.log('content startsWith message.content');
+			if(added_content == null || added_content == undefined || type == 'reasoning')
 			{
-				// Non-Buffer Response (z.B. Reasoning)
-				clearTimeout(renderTimeout);
-				buffer = '';
-				bufferIndex = 0;
-				renderedMessage = null;
 				message.content = content;
-			} else {
-				// Buffered Response
+				buffer='';
+			}
 
-				if(renderedMessage == null)
-				{
-					renderedMessage = message;                
-					message.content = content;               
-					buffer = '';
-				}else {
-					buffer += added_content;
-				}
-				if(renderTimeout == null)
-				{
-					renderTimeout = setTimeout(displayBuffer, 0); // Start rendering
-				}
+			if(renderedMessage == null)
+			{
+				renderedMessage = message;                
+				message.content = content;               
+				buffer = '';
+			}else {
+				// console.log('buffering added_content');
+				buffer += added_content;
+			}
+			if(type == 'reasoning')
+			{
+				// console.log('reasoning type, immediate render');
+				renderedMessage.content = content;    
+				buffer = '';
+			}
+			if(renderTimeout == null)
+			{
+				console.log('starting displayBuffer');
+				renderTimeout = setTimeout(displayBuffer, 0); // Start rendering
 			}
 			
 			// REALTIME_CHAT_SAVE is disabled
@@ -1267,6 +1306,7 @@
 			message.done = true;
 			renderedMessage = null;
 			clearTimeout(renderTimeout);
+			renderTimeout = null;
 			buffer = '';
 			message.content = content;
 
