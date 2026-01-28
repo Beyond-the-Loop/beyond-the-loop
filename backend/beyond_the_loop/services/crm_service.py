@@ -226,7 +226,9 @@ class CRMService:
                         "access_level": access_level.capitalize(),
                         "workspace": [{"target_object": "workspaces", "target_record_id": company_id}],
                         "monthly_credit_usage_5": [{"value": 0.0}],
-                        "primary_email_address": user_email
+                        "primary_email_address": user_email,
+                        "first_name": user_firstname,
+                        "last_name": user_lastname
                     }}},
                     timeout=self.timeout,
                 )
