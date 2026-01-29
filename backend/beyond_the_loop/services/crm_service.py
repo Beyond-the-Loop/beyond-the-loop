@@ -1,9 +1,9 @@
 import logging
 import os
 import uuid
-from time import strftime
 from cachetools import TTLCache
 import requests
+import re
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class CRMService:
             log.error(f"get_company_by_company_name exception for {company_name}: {e}")
             return None
 
-    def create_company(self, company_name: str):
+    def create_company(self, company_name: str, super_admin_email: str):
         if not self.execute:
             return
 
@@ -59,6 +59,8 @@ class CRMService:
             if self.__get_company_by_company_name(company_name):
                 log.warning(f"create_company skipped, company {company_name} already exists.")
                 return
+
+            email_domain = re.search(r'@([^@]+)$', super_admin_email).group(1)
 
             response = requests.post(
                 f"{self.base_url}/objects/workspaces/records",
@@ -68,7 +70,8 @@ class CRMService:
                     "adoption_rate": [{"value": 0.0}],
                     "monthly_credit_usage": [{"value": 0.0}],
                     "name": [{"value": company_name}],
-                    "plan_7": "Free"
+                    "plan_7": "Free",
+                    "email_domain": email_domain
                 }}},
                 timeout=self.timeout,
             )
@@ -83,6 +86,39 @@ class CRMService:
 
         except Exception as e:
             log.error(f"create_company exception for {company_name}: {e}")
+            return
+
+    def update_company_super_admin(self, company_name: str, super_admin_email: str):
+        if not self.execute:
+            return
+
+        try:
+            company = self.__get_company_by_company_name(company_name)
+
+            user = self.get_user_by_email(super_admin_email)
+
+            if company and user:
+                record_id = company["id"]["record_id"]
+                user_id = user["id"]["record_id"]
+
+                response = requests.patch(
+                    f"{self.base_url}/objects/workspaces/records/{record_id}",
+                    headers=self.headers,
+                    json={"data": {"values": {"super_admin_3": {"target_object": "users", "target_record_id": user_id}}}},
+                    timeout=self.timeout,
+                )
+
+                if response.status_code == 200:
+                    company = response.json().get("data", None)
+                    self._company_cache[company_name] = company
+                    return
+
+                log.warning(f"update_company_super_admin failed for {company_name}, status code: {response.status_code}, and response: {response.text}")
+
+            return
+
+        except Exception as e:
+            log.error(f"update_company_super_admin exception for {company_name}: {e}")
             return
 
     def update_company_plan(self, company_name: str, plan: str):
@@ -243,7 +279,7 @@ class CRMService:
             return
 
         except Exception as e:
-            log.error(f"create_user exception for {user_email}: {e}")
+            print(f"create_user exception for {user_email}: {e}")
             return
 
     def update_user_access_level(self, user_email: str, access_level: str):

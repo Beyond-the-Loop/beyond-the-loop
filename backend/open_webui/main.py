@@ -589,9 +589,9 @@ async def get_active_models(user=Depends(get_verified_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free()]
+        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
     elif subscription.get("plan") == "premium":
-        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
+        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium() and model.user_id]
 
     return {"data": all_models}
 
