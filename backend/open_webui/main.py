@@ -998,6 +998,19 @@ async def healthcheck_with_db():
     Session.execute(text("SELECT 1;")).all()
     return {"status": True}
 
+class BannerMessage(BaseModel):    
+    id: int    
+    type: str  # "warning", "info", "success"  
+    title: str    
+    content: str
+
+@app.get("/banner/message")
+async def getSystemMessage():
+    return BannerMessage(id=1, type="warning", 
+    title="Wichtige Information: Vorübergehende Einschränkungen", 
+    content="Wegen technischer Probleme bei unserem Infrastrukturprovider  kommt es zu **vorübergehenden Störungen auf unserer Plattform**. Dadurch sind bestimmte Modelle von **OpenAI**, **DeepSeek** und **xAI** nicht verfügbar oder es kann zu **Verzögerungen** und **Fehlermeldungen** kommen. Unser Team arbeitet bereits daran, die Probleme schnell zu beheben, sodass die Dienste bald wieder normal genutzt werden können."
+    )
+
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/cache", StaticFiles(directory=CACHE_DIR), name="cache")

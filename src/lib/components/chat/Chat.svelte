@@ -14,6 +14,8 @@
 	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 
+	import { getBannerMessage } from '$lib/apis/banner';
+
 	import {
 		chatId,
 		chats,
@@ -75,6 +77,7 @@
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
+	import BannerMessage from '$lib/components/chat/BannerMessage.svelte';
 	import ChatControls from './ChatControls.svelte';
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Placeholder from './Placeholder.svelte';
@@ -118,6 +121,7 @@
 	let codeInterpreterEnabled = false;
 	let chat = null;
 	let tags = [];
+	let bannerMessage = null;
 
 	let history = {
 		messages: {},
@@ -431,6 +435,8 @@
 		chatInput?.focus();
 
 		chats.subscribe(() => {});
+
+		bannerMessage = await getBannerMessage();
 	});
 
 	onDestroy(() => {
@@ -1882,6 +1888,7 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
+	
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
@@ -1914,6 +1921,9 @@
 			shareEnabled={!!history.currentId}
 			{initNewChat}
 		/>
+		{#if bannerMessage != null}
+			<BannerMessage {bannerMessage} />
+		{/if}
 
 		<PaneGroup direction="horizontal" class="w-full h-full">
 			<Pane defaultSize={50} class="h-full flex w-full relative">
