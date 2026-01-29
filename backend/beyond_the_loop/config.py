@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import shutil
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Generic, Optional, TypeVar
@@ -150,6 +149,7 @@ def get_config(company_id):
 
     with get_db() as db:
         config_entry = db.query(Config).filter_by(company_id=company_id).order_by(Config.id.desc()).first()
+
         if not config_entry and not cached:
             # If no config exists for this company, return the default config
             return DEFAULT_CONFIG
@@ -1017,10 +1017,6 @@ MODEL_ORDER_LIST = PersistentConfig(
     "MODEL_ORDER_LIST",
     "ui.model_order_list",
     [],
-)
-
-DEFAULT_MODELS = PersistentConfig(
-    "DEFAULT_MODELS", "ui.default_models", [os.environ.get("DEFAULT_MODEL", "")]
 )
 
 VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")

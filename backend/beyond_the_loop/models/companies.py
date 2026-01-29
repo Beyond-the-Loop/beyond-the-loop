@@ -44,7 +44,7 @@ class CompanyModel(BaseModel):
     id: str
     name: str
     profile_image_url: Optional[str] = None
-    default_model: Optional[str] = "GPT-5 mini"
+    default_model: Optional[str] = None
     allowed_models: Optional[str] = None
     credit_balance: Optional[float] = 0
     flex_credit_balance: Optional[float] = None
@@ -120,7 +120,7 @@ class CompanyResponse(BaseModel):
     id: str
     name: str
     profile_image_url: Optional[str] = None
-    default_model: Optional[str] = "GPT-5 mini"
+    default_model: Optional[str] = None
     allowed_models: Optional[str]
     auto_recharge: bool
 

@@ -132,7 +132,6 @@ from beyond_the_loop.config import (
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
     DEFAULT_PROMPT_SUGGESTIONS,
-    DEFAULT_MODELS,
     MODEL_ORDER_LIST,
     # WebUI (OAuth)
     ENABLE_OAUTH_ROLE_MANAGEMENT,
@@ -284,8 +283,6 @@ app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
 
 app.state.config.BANNERS = WEBUI_BANNERS
-
-app.state.config.DEFAULT_MODELS = DEFAULT_MODELS
 
 app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 
@@ -844,7 +841,6 @@ async def get_app_config(request: Request):
         },
         **(
             {
-                "default_models": app.state.config.DEFAULT_MODELS,
                 "default_prompt_suggestions": app.state.config.DEFAULT_PROMPT_SUGGESTIONS,
                 "audio": {
                     "tts": {

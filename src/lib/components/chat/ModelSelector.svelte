@@ -8,12 +8,6 @@
 	export let selectedModels = [];
 
 	export let initNewChatCompleted;
-
-	$: if (initNewChatCompleted && selectedModels.length > 0 && $models.length > 0) {
-		selectedModels = selectedModels.map((model) =>
-			$models.map((m) => m.id).includes(model) ? model : ''
-		);
-	}
 	
 </script>
 
