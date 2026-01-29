@@ -22,8 +22,10 @@ class ModelsConfigForm(BaseModel):
 
 @router.get("/models", response_model=ModelsConfigForm)
 async def get_models_config(request: Request, user=Depends(get_admin_user)):
+    current_config = get_config(user.company_id)
+
     return {
-        "DEFAULT_MODELS": request.app.state.config.DEFAULT_MODELS,
+        "DEFAULT_MODELS": current_config.get("models", {}).get("default_models"),
         "MODEL_ORDER_LIST": request.app.state.config.MODEL_ORDER_LIST,
     }
 
@@ -34,18 +36,13 @@ async def set_models_config(
 ):
     # Get company_id from the authenticated user
     company_id = user.company_id
-    
-    # Update app state config
-    request.app.state.config.DEFAULT_MODELS = form_data.DEFAULT_MODELS
-    request.app.state.config.MODEL_ORDER_LIST = form_data.MODEL_ORDER_LIST
-    
+
     # Get current config and update it
     current_config = get_config(company_id)
     if "models" not in current_config:
         current_config["models"] = {}
-    current_config["models"]["DEFAULT_MODELS"] = form_data.DEFAULT_MODELS
-    current_config["models"]["MODEL_ORDER_LIST"] = form_data.MODEL_ORDER_LIST
-    
+    current_config["models"]["default_models"] = form_data.DEFAULT_MODELS
+
     # Save the updated config
     save_config(current_config, company_id)
     

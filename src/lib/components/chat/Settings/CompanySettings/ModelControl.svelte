@@ -54,8 +54,6 @@
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
 
-		console.log(workspaceModels);
-
 		models = workspaceModels.sort(
 			(a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
 		);
