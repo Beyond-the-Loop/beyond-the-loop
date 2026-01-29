@@ -122,10 +122,10 @@ async def create_new_model(
 
     form_data.id = str(uuid.uuid4())
 
-    knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else []
+    knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in form_data.meta.knowledge]) if form_data.meta.knowledge else []
 
     for k in knowledge:
-        validate_knowledge_read_access(k, user.id)
+        validate_knowledge_read_access(k, user)
 
     model = Models.insert_new_model(form_data, user.id, user.company_id)
 

@@ -13,7 +13,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
-
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import JSONB
 
 from beyond_the_loop.utils.access_control import has_access
 
@@ -163,6 +164,7 @@ class ModelForm(BaseModel):
     params: ModelParams
     access_control: Optional[dict] = None
     is_active: bool = True
+    updated_at: int = int(time.time())
 
 class TagResponse(BaseModel):
     name: str
@@ -315,9 +317,11 @@ class ModelsTable:
 
     def update_model_by_id_and_company(self, id: str, model: ModelForm, company_id: str) -> Optional[ModelModel]:
         try:
+            model.updated_at = int(time.time())
+
             with get_db() as db:
                 # update only the fields that are present in the model
-                result = (
+                (
                     db.query(Model)
                     .filter_by(id=id, company_id=company_id)
                     .update(model.model_dump(exclude={"id"}))
@@ -423,5 +427,10 @@ class ModelsTable:
         except Exception as e:
             print("Error in get_system_and_user_tags:", e)
             return []
+
+    def get_models_by_knowledge_id(self, knowledge_id: str):
+        with get_db() as db:
+            return db.query(Model).filter(cast(Model.meta, JSONB)["knowledge"].contains([{"id": knowledge_id}])).all()
+
 
 Models = ModelsTable()

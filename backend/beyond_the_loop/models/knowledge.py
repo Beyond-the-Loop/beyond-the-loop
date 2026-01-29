@@ -3,6 +3,7 @@ import time
 from typing import Optional
 import uuid
 
+from beyond_the_loop.models.models import ModelModel
 from open_webui.internal.db import Base, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -93,6 +94,7 @@ class KnowledgeResponse(KnowledgeModel):
 
 class KnowledgeUserResponse(KnowledgeUserModel):
     files: Optional[list[FileMetadataResponse | dict]] = None
+    models: Optional[list[ModelModel]] = None
 
 
 class KnowledgeForm(BaseModel):

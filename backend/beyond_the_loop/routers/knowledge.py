@@ -109,16 +109,20 @@ async def get_knowledge(user=Depends(get_verified_user)):
                         file_ids.remove(missing_file)
 
                     data["file_ids"] = file_ids
+
                     Knowledges.update_knowledge_data_by_id(
                         id=knowledge_base.id, data=data
                     )
 
                     files = Files.get_file_metadatas_by_ids(file_ids)
 
+        models = Models.get_models_by_knowledge_id(knowledge_base.id)
+
         knowledge_with_files.append(
             KnowledgeUserResponse(
                 **knowledge_base.model_dump(),
                 files=files,
+                models=models
             )
         )
 
@@ -178,7 +182,7 @@ async def get_knowledge_by_id(id: str, user=Depends(get_verified_user)):
 
     return KnowledgeFilesResponse(
         **knowledge.model_dump(),
-        files=files,
+        files=files
     )
 
 
@@ -439,8 +443,9 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
                     meta=model.meta,
                     params=model.params,
                     access_control=model.access_control,
-                    is_active=model.is_active,
+                    is_active=model.is_active
                 )
+
                 Models.update_model_by_id_and_company(model.id, model_form, user.company_id)
 
     # Clean up vector DB
