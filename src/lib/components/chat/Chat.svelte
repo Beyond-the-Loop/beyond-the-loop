@@ -1075,6 +1075,19 @@
 	};
 
 	let bufferedResponse: BufferedResponse | null = null;
+	let isToggled = false;
+  
+	// Temporäre Funktion zum Testen von zwei Modi auf Staging
+	const handleToggle = () => {
+		isToggled = !isToggled;
+		const mode = isToggled ? 1 : 0;
+		
+		if (bufferedResponse) {
+		bufferedResponse.changeMode(mode);
+		} else {
+		console.warn('bufferedResponse ist null');
+		}
+	};
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
@@ -1087,7 +1100,6 @@
 		}
 
 		if (choices) {
-			console.log('choices', choices);
 			if (choices[0]?.message?.content) {
 				// Non-stream response
 				message.content += choices[0]?.message?.content;
@@ -1130,34 +1142,37 @@
 		}
 
 		if (content) {
-			console.log('content');
-
-			if(added_content == null || added_content == undefined || type == 'reasoning')
+			if(type == 'text')
 			{
-				bufferedResponse?.flushImmediate(content);
+				if (bufferedResponse === null) {
+					bufferedResponse = new BufferedResponse(message, isToggled, history, {
+						onUpdate: (msg) => {
+						},
+						onScroll: () => {
+							if (autoScroll) scrollToBottom();
+						},
+						onCommit: (msg) => {
+						// WICHTIG: Svelte Reactivity triggern
+						history.messages = {
+							...history.messages,
+							[msg.id]: { ...msg }
+						};
+					}
+					});
+				}
+				if(added_content == null || added_content == undefined)
+				{
+					bufferedResponse?.flushImmediate(content);
+					message.content = content;
+				}else 
+				{
+					bufferedResponse.add(added_content);
+				}
+
+			}else {
 				message.content = content;
 			}
-
-			if (bufferedResponse === null) {
-				bufferedResponse = new BufferedResponse(message, history, {
-					onUpdate: (msg) => {
-					},
-					onScroll: () => {
-						if (autoScroll) scrollToBottom();
-					},
-					onCommit: (msg) => {
-					// WICHTIG: Svelte Reactivity triggern
-					history.messages = {
-						...history.messages,
-						[msg.id]: { ...msg }
-					};
-					console.log('onCommit ausgeführt');
-				}
-				});
-			}
-			if (added_content) {
-				bufferedResponse.add(added_content);
-			}
+			
 			
 			// REALTIME_CHAT_SAVE is disabled
 
@@ -1740,6 +1755,11 @@
 				}
 			}
 		}
+		if(bufferedResponse)
+		{
+			bufferedResponse?.stop();
+			bufferedResponse = null;
+		}
 	};
 
 	const submitMessage = async (parentId, prompt) => {
@@ -1940,6 +1960,33 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
+	<!-- Toggle-Button hinzufügen -->
+	<div class="flex items-center justify-center p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+		<button
+		on:click={handleToggle}
+		class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 {isToggled 
+			? 'bg-blue-600 dark:bg-blue-500' 
+			: 'bg-gray-300 dark:bg-gray-600'}"
+		aria-pressed={isToggled}
+		role="switch"
+		>
+		<span class="sr-only">Frequenz umschalten</span>
+		<span
+			class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {isToggled 
+			? 'translate-x-6' 
+			: 'translate-x-1'}"
+		/>
+		</button>
+		
+		<span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+		{isToggled ? 'Extra Smooth' : 'Normal Smooth'}
+		</span>
+		
+		{#if bufferedResponse === null}
+		<span class="ml-2 text-xs text-red-500 dark:text-red-400">
+		</span>
+		{/if}
+	</div>
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div

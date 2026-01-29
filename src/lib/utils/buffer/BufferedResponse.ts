@@ -16,17 +16,26 @@ export class BufferedResponse {
     private renderTimeout: ReturnType<typeof setTimeout> | null = null;
     private charPerUpdate = 0;
     private msUntilUpdate = 0;
+    private renderMode = 0;
 
     constructor(
         private message: Message,
+        private isToggled: boolean,
         private history: History,
         private hooks: Hooks
         // private hooks: Hooks = {}
-    ) {}
+    ) 
+    {
+    if(isToggled)
+        {
+            this.renderMode = 1;
+        }
+    }
 
     add(content: string) {
         this.buffer += content;
         this.charPerUpdate = Math.max(0.5, 0.5 + 0.015 * (this.buffer.length));
+        // console.log(' charPerUpdate: ', this.charPerUpdate, 'bufferLength:', this.buffer.length)
         const rate = this.charPerUpdate / 8;
         const n = Math.round(this.charPerUpdate + 0.49);
         const t = n / rate;
@@ -50,14 +59,27 @@ export class BufferedResponse {
         this.buffer = '';
     }
 
+    changeMode(mode: number)
+    {
+        this.renderMode = mode;
+    }
+
     private render = () => {
-        // console.log('rendering!');
         if (this.buffer.length === 0) {
             this.renderTimeout = setTimeout(this.render, 100);
             return;
         }
 
-        console.log("msUntilUpdate: ", this.msUntilUpdate, " charPerUpdate: ", this.charPerUpdate, " buffer.length: ", this.buffer.length);
+        // console.log("msUntilUpdate: ", this.msUntilUpdate, " charPerUpdate: ", this.charPerUpdate, " buffer.length: ", this.buffer.length);
+        if(this. renderMode == 1)
+        {
+            this.charPerUpdate = Math.max(0.5, 0.5 + 0.015 * (this.buffer.length));
+            // console.log('charPerUpdate: ', this.charPerUpdate, ' bufferLength:', this.buffer.length)
+            const rate = this.charPerUpdate / 8;
+            const n = Math.round(this.charPerUpdate + 0.49);
+            const t = n / rate;
+            this.msUntilUpdate = Math.max(8, Math.min(16, Math.round(t)));
+        }
 
         for (let i = 0; i < this.charPerUpdate && this.buffer.length > 0; i++) {
             this.message.content += this.buffer[0];
@@ -71,7 +93,6 @@ export class BufferedResponse {
 
     private commit() {
         this.history.messages[this.message.id] = this.message;
-        // console.log('tippen')
         this.hooks.onUpdate?.(this.message);
         this.hooks.onScroll?.();
         this.hooks.onCommit(this.message);
