@@ -49,14 +49,13 @@ def _validate_knowledge_write_access(knowledge: KnowledgeModel, user):
     if (is_free_user
             or user.role != "admin"
             and knowledge.user_id != user.id
-            and not has_access(user.id, "write", knowledge.access_control)
-            and not has_permission(user.id, "workspace.edit_knowledge")):
+            and (not has_access(user.id, "write", knowledge.access_control) or not has_permission(user.id, "workspace.edit_knowledge"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-def _validate_knowledge_read_access(knowledge: KnowledgeModel, user):
+def validate_knowledge_read_access(knowledge: KnowledgeModel, user):
     if not knowledge:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -68,8 +67,7 @@ def _validate_knowledge_read_access(knowledge: KnowledgeModel, user):
     if (is_free_user
             or user.role != "admin"
             and knowledge.user_id != user.id
-            and not has_access(user.id, "read", knowledge.access_control)
-            and not has_permission(user.id, "workspace.view_knowledge")):
+            and (not has_access(user.id, "read", knowledge.access_control) or not has_permission(user.id, "workspace.view_knowledge"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -173,7 +171,7 @@ class KnowledgeFilesResponse(KnowledgeResponse):
 async def get_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_read_access(knowledge, user)
+    validate_knowledge_read_access(knowledge, user)
 
     file_ids = knowledge.data.get("file_ids", []) if knowledge.data else []
     files = Files.get_files_by_ids(file_ids)

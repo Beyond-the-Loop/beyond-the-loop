@@ -53,6 +53,8 @@
 
 	let loaded = false;
 
+	let shiftKey = false;
+
 	let models = [];
 
 	let filteredModels = [];

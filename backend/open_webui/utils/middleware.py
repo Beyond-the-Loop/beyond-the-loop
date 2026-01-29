@@ -689,12 +689,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             )
 
-            print("das ist das model knowledge", model_knowledge)
-
             if model_knowledge:
                 files.extend([{"type": "collection", "id": f"file-{file.id}"} for file in knowledge_files])
-
-                print("das sind alle files", files)
 
             if model_files:
                 files.extend(model_files)

@@ -269,7 +269,11 @@ class ModelsTable:
                     model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
                     filtered_models.append(ModelUserResponse(**model_dict))
 
-            filtered_models.sort(key=lambda m: not m.bookmarked_by_user)
+            filtered_models.sort(
+                key=lambda m: (not m.bookmarked_by_user, m.created_at),
+                reverse=True
+            )
+
             return filtered_models
 
     def get_models_by_company_id(self, company_id: str) -> list[ModelModel]:
