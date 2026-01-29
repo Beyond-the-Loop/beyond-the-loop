@@ -614,7 +614,7 @@ async def get_active_models(user=Depends(get_verified_user)):
 
         available_models = [model for model in all_models if model_base_model_names[model.id] not in MODEL_NAMES]
 
-    return {"data": all_models}
+    return {"data": available_models}
 
 @app.get("/api/models/base")
 async def get_base_models(user=Depends(get_admin_user)):
