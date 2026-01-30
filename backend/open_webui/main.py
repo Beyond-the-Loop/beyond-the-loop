@@ -570,11 +570,10 @@ app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"]
 async def get_active_models(user=Depends(get_verified_user)):
     assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id)
 
-    print("DAS SIND ALLE ASSISTANTS", assistants)
-
     active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
 
-    print("DAS SIND ALLE BASE MODELS")
+    print("DAS SIND ALLE BASE MODELS", active_base_models)
+    print("\n\n\n")
 
     model_base_model_names = {}
 
@@ -587,7 +586,11 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     all_models = assistants + active_base_models
 
-    print("DAS SIND ALLE MODELS VOERST", all_models)
+    print("DAS SIND ALLE MODELS VORERST", all_models)
+    print("\n\n\n")
+
+    print("MODEL BASE MODEL NAMES", model_base_model_names)
+    print("\n\n\n")
 
     subscription = payments_service.get_subscription(user.company_id)
 
@@ -596,7 +599,8 @@ async def get_active_models(user=Depends(get_verified_user)):
     elif subscription.get("plan") == "premium":
         all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium() and model.user_id]
 
-    print("DAS SIND ALLE MODELS NACH DEM FILTERING")
+    print("DAS SIND ALLE MODELS NACH DEM FILTERING", all_models)
+    print("\n\n\n")
 
     return {"data": all_models}
 
