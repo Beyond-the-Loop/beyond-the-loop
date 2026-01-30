@@ -572,9 +572,6 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
 
-    print("DAS SIND ALLE BASE MODELS", active_base_models)
-    print("\n\n\n")
-
     model_base_model_names = {}
 
     for assistant in assistants:
@@ -586,21 +583,12 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     all_models = assistants + active_base_models
 
-    print("DAS SIND ALLE MODELS VORERST", all_models)
-    print("\n\n\n")
-
-    print("MODEL BASE MODEL NAMES", model_base_model_names)
-    print("\n\n\n")
-
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
         all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
     elif subscription.get("plan") == "premium":
-        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium() and model.user_id]
-
-    print("DAS SIND ALLE MODELS NACH DEM FILTERING", all_models)
-    print("\n\n\n")
+        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
 
     return {"data": all_models}
 
