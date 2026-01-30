@@ -666,6 +666,8 @@
 				}
 		}
 
+		console.log("selcted models", selectedModels);
+
 		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
 		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
 			if ($models.length > 0) {

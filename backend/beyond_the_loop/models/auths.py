@@ -180,8 +180,6 @@ class AuthsTable:
                 subscription = payments_service.get_subscription(user.company_id)
 
                 try:
-                    print("subscription id", subscription.get("subscription_item_id"))
-                    print("num of users", Users.get_num_active_users_by_company_id(user.company_id))
                     if subscription.get("plan") == "premium":
                         stripe.Subscription.modify(
                             subscription.get("subscription_id"),
