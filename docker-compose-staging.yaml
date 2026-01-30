@@ -54,6 +54,13 @@ services:
       - "traefik.http.routers.btl.entrypoints=websecure"
       - "traefik.http.routers.btl.tls.certresolver=myresolver"
       - "traefik.http.services.btl.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.btl-redirect.redirectregex.regex=^https?://staging\\.v2\\.beyondtheloop\\.ai/(.*)"
+      - "traefik.http.middlewares.btl-redirect.redirectregex.replacement=https://staging.chat.beyondtheloop.ai/$${1}"
+      - "traefik.http.middlewares.btl-redirect.redirectregex.permanent=true"
+      - "traefik.http.routers.btl-staging.rule=Host(`staging.v2.beyondtheloop.ai`)"
+      - "traefik.http.routers.btl-staging.entrypoints=websecure"
+      - "traefik.http.routers.btl-staging.middlewares=btl-redirect"
+      - "traefik.http.routers.btl-staging.tls.certresolver=myresolver"
     pull_policy: always
     container_name: beyond-the-loop
     env_file:
