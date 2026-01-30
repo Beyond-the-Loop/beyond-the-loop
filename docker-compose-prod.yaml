@@ -50,7 +50,7 @@ services:
     image: ghcr.io/beyond-the-loop/beyond-the-loop:production
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.btl.rule=Host(`v2.beyondtheloop.ai`)"
+      - "traefik.http.routers.btl.rule=Host(`chat.beyondtheloop.ai`)"
       - "traefik.http.routers.btl.entrypoints=websecure"
       - "traefik.http.routers.btl.tls.certresolver=myresolver"
       - "traefik.http.services.btl.loadbalancer.server.port=8080"
