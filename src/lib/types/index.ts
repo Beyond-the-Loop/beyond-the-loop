@@ -1,11 +1,9 @@
-export type Banner = {
-	id: string;
-	type: string;
-	title?: string;
-	content: string;
-	url?: string;
-	dismissible?: boolean;
-	timestamp: number;
+export type AlertType = 'info' | 'warning' | 'success';
+
+export type Alert = {
+	title: string,
+	message: string,
+	type: AlertType
 };
 
 export enum TTS_RESPONSE_SPLIT {

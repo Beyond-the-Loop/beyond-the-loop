@@ -1,83 +1,63 @@
 <script lang="ts">
 	import { v4 as uuidv4 } from 'uuid';
 	import { toast } from 'svelte-sonner';
-	import mermaid from 'mermaid';
-	import { PaneGroup, Pane, PaneResizer } from 'paneforge';
+	import { Pane, PaneGroup } from 'paneforge';
 
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
-	const i18n: Writable<i18nType> = getContext('i18n');
-
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
-	import { get, type Unsubscriber, type Writable } from 'svelte/store';
+	import { type Unsubscriber, type Writable } from 'svelte/store';
 	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 
-	import { getBannerMessage } from '$lib/apis/banner';
+	import { getAlert } from '$lib/apis/alerts';
 
 	import {
 		chatId,
 		chats,
+		chatTitle,
+		companyConfig,
 		config,
+		currentChatPage,
+		mobile,
 		type Model,
 		models,
-		tags as allTags,
 		settings,
-		showSidebar,
-		WEBUI_NAME,
-		banners,
-		user,
-		socket,
-		showControls,
-		showCallOverlay,
-		currentChatPage,
-		temporaryChatEnabled,
-		mobile,
-		showOverview,
-		chatTitle,
 		showArtifacts,
+		showCallOverlay,
+		showControls,
+		showLibrary,
+		showOverview,
+		showSidebar,
+		socket,
+		tags as allTags,
+		temporaryChatEnabled,
 		tools,
-		companyConfig,
-
-		showLibrary
-
+		user,
+		WEBUI_NAME
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
 		copyToClipboard,
-		getMessageContentParts,
 		createMessagesList,
+		getMessageContentParts,
 		promptTemplate,
 		removeDetails
 	} from '$lib/utils';
 
-	import {
-		createNewChat,
-		getAllTags,
-		getChatById,
-		getChatList,
-		getTagsById,
-		updateChatById
-	} from '$lib/apis/chats';
-	import { generateOpenAIChatCompletion, generateMagicPrompt } from '$lib/apis/openai';
+	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
+	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
-	import {
-		chatCompleted,
-		chatAction,
-		generateMoACompletion,
-		stopTask
-	} from '$lib/apis';
+	import { chatAction, chatCompleted, generateMoACompletion, stopTask } from '$lib/apis';
 	import { getTools } from '$lib/apis/tools';
-
-	import Banner from '../common/Banner.svelte';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
-	import BannerMessage from '$lib/components/chat/BannerMessage.svelte';
+	import AlertBanner from '$lib/components/chat/AlertBanner.svelte';
 	import ChatControls from './ChatControls.svelte';
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Placeholder from './Placeholder.svelte';
@@ -85,6 +65,9 @@
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
 	import DOMPurify from 'dompurify';
+	import type { Alert } from '$lib/types';
+
+	const i18n: Writable<i18nType> = getContext('i18n');
 
 	export let chatIdProp = '';
 
@@ -121,7 +104,7 @@
 	let codeInterpreterEnabled = false;
 	let chat = null;
 	let tags = [];
-	let bannerMessage = null;
+	let alert: Alert;
 
 	let history = {
 		messages: {},
@@ -162,7 +145,8 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-					} catch (e) {}
+					} catch (e) {
+					}
 				}
 
 				window.setTimeout(() => scrollToBottom(), 0);
@@ -434,9 +418,10 @@
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
 
-		chats.subscribe(() => {});
+		chats.subscribe(() => {
+		});
 
-		bannerMessage = await getBannerMessage();
+		alert = await getAlert();
 	});
 
 	onDestroy(() => {
@@ -659,17 +644,17 @@
 				selectedModels = urlModels;
 			}
 		} else {
-				if ($settings?.models) {
-					selectedModels = $settings?.models;
-				} else if ($companyConfig?.config?.models?.default_models) {
-					const ids = $companyConfig?.config?.models?.default_models?.split(',');
-					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
-					const isActive = $models?.some(model => ids?.includes(model.id));
-					selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
-				} else {
-					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini')
-					selectedModels = [gptDefault?.id];
-				}
+			if ($settings?.models) {
+				selectedModels = $settings?.models;
+			} else if ($companyConfig?.config?.models?.default_models) {
+				const ids = $companyConfig?.config?.models?.default_models?.split(',');
+				const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
+				const isActive = $models?.some(model => ids?.includes(model.id));
+				selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
+			} else {
+				const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
+				selectedModels = [gptDefault?.id];
+			}
 		}
 
 		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
@@ -1486,19 +1471,19 @@
 		const messages = [
 			params?.system || $settings.system || (responseMessage?.userContext ?? null)
 				? {
-						role: 'system',
-						content: `${promptTemplate(
-							params?.system ?? $settings?.system ?? '',
-							`${$user.first_name} ${$user.last_name}`,
-							$settings?.userLocation
-								? await getAndUpdateUserLocation(localStorage.token)
-								: undefined
-						)}${
-							(responseMessage?.userContext ?? null)
-								? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
-								: ''
-						}`
-					}
+					role: 'system',
+					content: `${promptTemplate(
+						params?.system ?? $settings?.system ?? '',
+						`${$user.first_name} ${$user.last_name}`,
+						$settings?.userLocation
+							? await getAndUpdateUserLocation(localStorage.token)
+							: undefined
+					)}${
+						(responseMessage?.userContext ?? null)
+							? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
+							: ''
+					}`
+				}
 				: undefined,
 			...createMessagesList(_history, responseMessageId).map((message) => ({
 				...message,
@@ -1511,24 +1496,24 @@
 				...((message.files?.filter((file) => file.type === 'image').length > 0 ?? false) &&
 				message.role === 'user'
 					? {
-							content: [
-								{
-									type: 'text',
-									text: message?.merged?.content ?? message.content
-								},
-								...message.files
-									.filter((file) => file.type === 'image')
-									.map((file) => ({
-										type: 'image_url',
-										image_url: {
-											url: file.url
-										}
-									}))
-							]
-						}
+						content: [
+							{
+								type: 'text',
+								text: message?.merged?.content ?? message.content
+							},
+							...message.files
+								.filter((file) => file.type === 'image')
+								.map((file) => ({
+									type: 'image_url',
+									image_url: {
+										url: file.url
+									}
+								}))
+						]
+					}
 					: {
-							content: message?.merged?.content ?? message.content
-						})
+						content: message?.merged?.content ?? message.content
+					})
 			}));
 
 		const res = await generateOpenAIChatCompletion(
@@ -1546,8 +1531,8 @@
 					stop:
 						(params?.stop ?? $settings?.params?.stop ?? undefined)
 							? (params?.stop.split(',').map((token) => token.trim()) ?? $settings.params.stop).map(
-									(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
-								)
+								(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
+							)
 							: undefined
 				},
 
@@ -1582,31 +1567,31 @@
 						messages.at(1)?.role === 'user')) &&
 				selectedModels[0] === model.id
 					? {
-							background_tasks: {
-								title_generation: $settings?.title?.auto ?? true,
-								tags_generation: $settings?.autoTags ?? true
-							}
+						background_tasks: {
+							title_generation: $settings?.title?.auto ?? true,
+							tags_generation: $settings?.autoTags ?? true
 						}
+					}
 					: {}),
 
 				...(stream && (model.info?.meta?.capabilities?.usage ?? false)
 					? {
-							stream_options: {
-								include_usage: true
-							}
+						stream_options: {
+							include_usage: true
 						}
+					}
 					: {})
 			},
 			`${WEBUI_BASE_URL}/api`
 		).catch((error) => {
-			if(!error?.includes('402')) {
-				if(error?.includes('ContentPolicyViolationError')) {
-					toast.error("The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry.");
+			if (!error?.includes('402')) {
+				if (error?.includes('ContentPolicyViolationError')) {
+					toast.error('The response was filtered due to the prompt triggering Azure OpenAI\'s content management policy. Please modify your prompt and retry.');
 				} else {
 					toast.error(`${error}`);
-				}	
+				}
 			}
-			
+
 			responseMessage.error = {
 				content: error
 			};
@@ -1888,7 +1873,7 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
-	
+
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
@@ -1921,35 +1906,10 @@
 			shareEnabled={!!history.currentId}
 			{initNewChat}
 		/>
-		{#if bannerMessage != null}
-			<BannerMessage {bannerMessage} />
-		{/if}
-
 		<PaneGroup direction="horizontal" class="w-full h-full">
 			<Pane defaultSize={50} class="h-full flex w-full relative">
-				{#if $banners.length > 0 && !history.currentId && !$chatId && selectedModels.length <= 1}
-					<div class="absolute top-12 left-0 right-0 w-full z-30">
-						<div class=" flex flex-col gap-1 w-full">
-							{#each $banners.filter( (b) => (b.dismissible ? !JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]').includes(b.id) : true) ) as banner}
-								<Banner
-									{banner}
-									on:dismiss={(e) => {
-										const bannerId = e.detail;
-
-										localStorage.setItem(
-											'dismissedBannerIds',
-											JSON.stringify(
-												[
-													bannerId,
-													...JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]')
-												].filter((id) => $banners.find((b) => b.id === id))
-											)
-										);
-									}}
-								/>
-							{/each}
-						</div>
-					</div>
+				{#if alert != null}
+					<AlertBanner {alert} />
 				{/if}
 
 				<div class="flex flex-col flex-auto z-10 w-full @container">
@@ -1987,9 +1947,12 @@
 						<div class=" pb-[1rem] max-w-[980px] mx-auto w-full">
 							<div class="px-3 mb-2.5 flex items-center justify-between">
 								<ModelSelector {initNewChatCompleted} bind:selectedModels showSetDefault={!history.currentId} />
-									<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
-										<BookIcon /> <span>{$i18n.t('Library')}</span>
-									</button>
+								<button
+									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+									on:click={() => showLibrary.set(!$showLibrary)}>
+									<BookIcon />
+									<span>{$i18n.t('Library')}</span>
+								</button>
 							</div>
 							<div class="mb-4">
 								<MessageInput
@@ -2056,12 +2019,12 @@
 
 							<div
 								class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0"
-							>	
+							>
 								{#if $companyConfig?.config?.ui?.custom_user_notice}
 									{@html DOMPurify.sanitize(
 										$i18n.t($companyConfig?.config?.ui?.custom_user_notice),
 										{ ADD_ATTR: ['target'] }
-									)}	
+									)}
 								{:else}
 									{$i18n.t('LLMs can make mistakes. Verify important information.')}
 								{/if}

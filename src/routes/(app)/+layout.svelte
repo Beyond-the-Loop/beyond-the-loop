@@ -4,35 +4,22 @@
 	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
-	import mermaid from 'mermaid';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { fade } from 'svelte/transition';
 
-	import { getKnowledgeBases } from '$lib/apis/knowledge';
-	import { getFunctions } from '$lib/apis/functions';
 	import { getModels, getVersionUpdates } from '$lib/apis';
-	import { getAllTags } from '$lib/apis/chats';
-	import { getPrompts } from '$lib/apis/prompts';
 	import { getTools } from '$lib/apis/tools';
-	import { getBanners } from '$lib/apis/configs';
 	import { getUserSettings } from '$lib/apis/users';
 
 	import { WEBUI_VERSION } from '$lib/constants';
-	import { compareVersion } from '$lib/utils';
 
 	import {
 		config,
 		user,
 		settings,
 		models,
-		prompts,
-		knowledge,
 		tools,
-		functions,
-		tags,
-		banners,
 		showSettings,
 		showCompanySettings,
 		showChangelog,
@@ -43,7 +30,6 @@
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
-	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
 	import CompanySettingsModal from '$lib/components/chat/CompanySettingsModal.svelte';
 	import { isBlocked, subscription } from '$lib/stores';
 	import CustomChatError from '$lib/components/chat/Messages/CustomChatError.svelte';
@@ -118,7 +104,6 @@
 			}
 
 			models.set(await getModels(localStorage.token));
-			banners.set(await getBanners(localStorage.token));
 			tools.set(await getTools(localStorage.token));
 
 			document.addEventListener('keydown', async function (event) {
