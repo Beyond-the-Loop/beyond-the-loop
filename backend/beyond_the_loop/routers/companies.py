@@ -20,8 +20,6 @@ from beyond_the_loop.config import save_config, get_config
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
-from beyond_the_loop.services.payments_service import payments_service
-from beyond_the_loop.socket.main import COMPANY_CONFIG_CACHE
 
 router = APIRouter()
 
@@ -288,8 +286,9 @@ async def create_company(
 
         try:
             loops_service.create_or_update_loops_contact(user)
-            crm_service.create_company(company_name=company.name)
+            crm_service.create_company(company_name=company.name, super_admin_email=user.email)
             crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin")
+            crm_service.update_company_super_admin(company_name=company.name, super_admin_email=user.email)
         except Exception as e:
             log.error(f"Failed to create company or user in CRM or in Loops: {e}")
 

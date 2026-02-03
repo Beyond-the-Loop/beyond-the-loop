@@ -1,27 +1,18 @@
 <script lang="ts">
-	import { DropdownMenu } from 'bits-ui';
-	import { marked } from 'marked';
-	import Fuse from 'fuse.js';
-
 	import { flyAndScale } from '$lib/utils/transitions';
-	import { createEventDispatcher, onMount, getContext, tick } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import Check from '$lib/components/icons/Check.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
 
 	import { deleteModel, getOllamaVersion, pullModel } from '$lib/apis/ollama';
 
-	import { user, MODEL_DOWNLOAD_POOL, models, mobile, temporaryChatEnabled } from '$lib/stores';
+	import { user, MODEL_DOWNLOAD_POOL, models, mobile } from '$lib/stores';
 	import { toast } from 'svelte-sonner';
-	import { capitalizeFirstLetter, sanitizeResponseContent, splitStream } from '$lib/utils';
+	import { splitStream } from '$lib/utils';
 	import { getModels } from '$lib/apis';
 
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	import Switch from '$lib/components/common/Switch.svelte';
-	import ChatBubbleOval from '$lib/components/icons/ChatBubbleOval.svelte';
-	import { goto } from '$app/navigation';
-	import DeleteIcon from '$lib/components/icons/DeleteIcon.svelte';
 	import StarRating from './IntelligenceRating.svelte';
 	import SpeedRating from './SpeedRating.svelte';
 	import { modelsInfo, mapModelsToOrganizations } from '../../../../data/modelsInfo';
@@ -29,10 +20,9 @@
 	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
 	import CostRating from './CostRating.svelte';
 	import { subscription } from '$lib/stores';
-
+	import { DropdownMenu } from 'bits-ui';
 
 	const i18n = getContext('i18n');
-	const dispatch = createEventDispatcher();
 
 	export let id = '';
 	export let value = '';
@@ -40,14 +30,13 @@
 	export let searchEnabled = true;
 	export let searchPlaceholder = $i18n.t('Search a model');
 
-	export let showTemporaryChatControl = false;
-
 	export let className = '180px';
 	export let triggerClassName = 'text-xs';
 
 	let show = false;
 
 	let selectedModel = '';
+
 	$: selectedModel = $models.map((model) => ({
 		value: model.id,
 		label: model.name,
@@ -71,7 +60,6 @@
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
 		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
-	
 	
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
@@ -237,7 +225,9 @@
 			knowledgeCutoff = null;
 		}
 	}
+
 	let baseModel = null;
+
 	$: {
 		if (selectedModel?.model?.base_model_id) {
 			baseModel = $models.map((model) => ({

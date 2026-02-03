@@ -90,7 +90,7 @@ async def chat_web_search_handler(
             "type": "status",
             "data": {
                 "action": "web_search",
-                "description": "Generating search query",
+                "description": "Generating search queries",
                 "done": False,
             },
         }
@@ -101,135 +101,99 @@ async def chat_web_search_handler(
 
     try:
         res = await generate_queries(
-            request,
-            {
-                "model": form_data["model"],
-                "messages": messages,
-                "prompt": user_message,
-                "type": "web_search",
-            },
-            user,
+            "web_search",
+            messages,
+            form_data.get("chat_id", None),
+            user
         )
 
-        response = res["choices"][0]["message"]["content"]
+        content = res["choices"][0]["message"]["content"]
 
         try:
-            bracket_start = response.find("{")
-            bracket_end = response.rfind("}") + 1
-
-            if bracket_start == -1 or bracket_end == -1:
-                raise Exception("No JSON object found in the response")
-
-            response = response[bracket_start:bracket_end]
-            queries = json.loads(response)
-            queries = queries.get("queries", [])
-        except Exception as e:
-            log.exception(e)
-            queries = [response]
-
+            search_queries = json.loads(content).get("queries", [])
+        except json.JSONDecodeError:
+            return []
     except Exception as e:
         log.exception(e)
-        queries = [user_message]
+        search_queries = [{"query": user_message, "result_limit": 3}]
 
-    if len(queries) == 0:
+    for search_query in search_queries:
         await event_emitter(
             {
                 "type": "status",
                 "data": {
                     "action": "web_search",
-                    "description": "No search query generated",
-                    "done": True,
+                    "description": 'Searching "{{searchQuery}}"',
+                    "query": search_query.get("query", ""),
+                    "done": False,
                 },
             }
         )
-        return web_search_files
 
-    search_query = queries[0]
+        try:
+            # Offload process_web_search to a separate thread
+            loop = asyncio.get_running_loop()
 
-    await event_emitter(
-        {
-            "type": "status",
-            "data": {
-                "action": "web_search",
-                "description": 'Searching "{{searchQuery}}"',
-                "query": search_query,
-                "done": False,
-            },
-        }
-    )
-
-    try:
-
-        # Offload process_web_search to a separate thread
-        loop = asyncio.get_running_loop()
-        with ThreadPoolExecutor() as executor:
-            results = await loop.run_in_executor(
-                executor,
-                lambda: process_web_search(
-                    request,
-                    SearchForm(
-                        **{
-                            "query": search_query,
-                        }
+            with ThreadPoolExecutor() as executor:
+                results = await loop.run_in_executor(
+                    executor,
+                    lambda: process_web_search(
+                        request,
+                        search_query.get("query", ""),
+                        search_query.get("result_limit", 3),
+                        user
                     ),
-                    user,
-                ),
-            )
+                )
 
-        if results:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "web_search",
-                        "description": "Searched {{count}} sites",
-                        "query": search_query,
+            if results:
+                search_query["filenames"] = results["filenames"]
+
+                web_search_files.append(
+                    {
+                        "collection_name": results["collection_name"],
+                        "name": search_query.get("query", ""),
+                        "type": "web_search_results",
                         "urls": results["filenames"],
-                        "done": True,
-                    },
-                }
-            )
-
-            web_search_files.append(
-                {
-                    "collection_name": results["collection_name"],
-                    "name": search_query,
-                    "type": "web_search_results",
-                    "urls": results["filenames"],
-                }
-            )
-        else:
+                    }
+                )
+            else:
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "web_search",
+                            "description": "No search results found",
+                            "query": search_query.get("query", ""),
+                            "done": True,
+                            "error": True,
+                        },
+                    }
+                )
+        except Exception as e:
+            log.exception(e)
             await event_emitter(
                 {
                     "type": "status",
                     "data": {
                         "action": "web_search",
-                        "description": "No search results found",
-                        "query": search_query,
+                        "description": 'Error searching "{{searchQuery}}"',
+                        "query": search_query.get("query", ""),
                         "done": True,
                         "error": True,
                     },
                 }
             )
 
-        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-            await credit_service.subtract_credits_by_user_for_web_search(user)
-    except Exception as e:
-        log.exception(e)
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "web_search",
-                    "description": 'Error searching "{{searchQuery}}"',
-                    "query": search_query,
-                    "done": True,
-                    "error": True,
-                },
-            }
-        )
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.subtract_credits_by_user_for_web_search(user)
 
-    return web_search_files
+    system_message_content = "<context>You are a websearch agent and the websearch is done now. Answer the user's question with the web search results. IMPORTANT: Don't ask any questions, just answer the question.</context>"
+
+    form_data["messages"] = add_or_update_system_message(
+        system_message_content, form_data["messages"]
+    )
+
+    return web_search_files, search_queries
 
 
 async def chat_image_generation_handler(
@@ -502,21 +466,31 @@ def extract_file_content_with_loader(file_id: str) -> str:
 
 
 async def chat_completion_files_handler(
-    request: Request, body: dict, user: UserModel
+    request: Request, body: dict, user: UserModel, extra_params: dict, web_search_queries
 ) -> tuple[dict, dict[str, list]]:
     sources = []
 
     if files := body.get("metadata", {}).get("files", None):
+        event_emitter = extra_params["__event_emitter__"]
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "analyzing_results",
+                    "done": False
+                },
+            }
+        )
+
         try:
             queries_response = await generate_queries(
-                request,
-                {
-                    "model": body["model"],
-                    "messages": body["messages"],
-                    "type": "retrieval",
-                },
-                user,
+                "retrieval",
+                body["messages"],
+                body.get("chat_id", None),
+                user
             )
+
             queries_response = queries_response["choices"][0]["message"]["content"]
 
             try:
@@ -559,6 +533,29 @@ async def chat_completion_files_handler(
 
         except Exception as e:
             log.exception(e)
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "analyzing_results",
+                    "done": True
+                },
+            }
+        )
+
+        if web_search_queries:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "web_search",
+                        "description": "Searched {{count}} sites",
+                        "query_summaries": web_search_queries,
+                        "done": True,
+                    },
+                }
+            )
 
         log.debug(f"rag_contexts:sources: {sources}")
 
@@ -695,9 +692,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if model_files:
                 files.extend(model_files)
 
+    web_search_active = features and features.get("web_search")
+    web_search_queries = None
+
     # Include web search files before deciding task intent and building RAG context
-    if features and features.get("web_search"):
-        web_search_files = await chat_web_search_handler(
+    if web_search_active:
+        web_search_files, web_search_queries = await chat_web_search_handler(
             request, form_data, extra_params, user
         )
 
@@ -705,7 +705,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge else (form_data, True)
+        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active else (form_data, True)
 
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
@@ -714,7 +714,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if is_rag_task:
         # Proceed with normal RAG processing
         try:
-            form_data, flags = await chat_completion_files_handler(request, form_data, user)
+            form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params, web_search_queries)
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)

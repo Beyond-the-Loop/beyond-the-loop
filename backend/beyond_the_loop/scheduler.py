@@ -29,8 +29,6 @@ def _run_credit_recharge_checks():
     """Execute the credit recharge checks process"""
     log.info("Starting scheduled credit recharge checks process")
 
-    print("RUN CREDIT RECHARGE CHECKS")
-
     try:
         result = payments_service.run_credit_recharge_checks()
 
@@ -55,7 +53,7 @@ class TaskScheduler:
         if self.is_running:
             log.warning("Scheduler is already running")
             return
-        
+
         try:
             # Configure scheduler with thread pool
             executors = {

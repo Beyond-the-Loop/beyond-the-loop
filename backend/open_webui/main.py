@@ -132,7 +132,6 @@ from beyond_the_loop.config import (
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
     DEFAULT_PROMPT_SUGGESTIONS,
-    DEFAULT_MODELS,
     MODEL_ORDER_LIST,
     # WebUI (OAuth)
     ENABLE_OAUTH_ROLE_MANAGEMENT,
@@ -166,11 +165,9 @@ from beyond_the_loop.config import (
     WEBUI_URL,
     # Tasks
     ENABLE_TAGS_GENERATION,
-    ENABLE_RETRIEVAL_QUERY_GENERATION,
     TITLE_GENERATION_PROMPT_TEMPLATE,
     TAGS_GENERATION_PROMPT_TEMPLATE,
     IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
-    QUERY_GENERATION_PROMPT_TEMPLATE,
     AppConfig,
     reset_config,
 )
@@ -286,8 +283,6 @@ app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
 
 app.state.config.BANNERS = WEBUI_BANNERS
-
-app.state.config.DEFAULT_MODELS = DEFAULT_MODELS
 
 app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 
@@ -442,7 +437,6 @@ app.state.speech_speaker_embeddings_dataset = None
 # TASKS
 #
 ########################################
-app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION = ENABLE_RETRIEVAL_QUERY_GENERATION
 app.state.config.ENABLE_TAGS_GENERATION = ENABLE_TAGS_GENERATION
 
 
@@ -451,9 +445,6 @@ app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE = TAGS_GENERATION_PROMPT_TEMPLA
 app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = (
     IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
 )
-
-app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE = QUERY_GENERATION_PROMPT_TEMPLATE
-
 
 ########################################
 #
@@ -595,7 +586,7 @@ async def get_active_models(user=Depends(get_verified_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free()]
+        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
     elif subscription.get("plan") == "premium":
         all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
 
@@ -850,7 +841,6 @@ async def get_app_config(request: Request):
         },
         **(
             {
-                "default_models": app.state.config.DEFAULT_MODELS,
                 "default_prompt_suggestions": app.state.config.DEFAULT_PROMPT_SUGGESTIONS,
                 "audio": {
                     "tts": {

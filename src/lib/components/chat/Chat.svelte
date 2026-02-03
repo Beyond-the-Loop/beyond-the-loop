@@ -107,7 +107,7 @@
 
 	let chatIdUnsubscriber: Unsubscriber | undefined;
 
-	let selectedModels = [''];
+	let selectedModels = [];
 	let atSelectedModel: Model | undefined;
 	let selectedModelIds = [];
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
@@ -168,17 +168,6 @@
 			}
 		})();
 	}
-
-	$: if (selectedModels && chatIdProp !== '') {
-		saveSessionSelectedModels();
-	}
-
-	const saveSessionSelectedModels = () => {
-		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
-			return;
-		}
-		sessionStorage.selectedModels = JSON.stringify(selectedModels);
-	};
 
 	$: if (selectedModels) {
 		setToolIds();
@@ -630,15 +619,10 @@
 				selectedModels = urlModels;
 			}
 		} else {
-			
-			// if (sessionStorage.selectedModels) {
-			// 	selectedModels = JSON.parse(sessionStorage.selectedModels);
-			// 	sessionStorage.removeItem('selectedModels');
-			// } else {
 				if ($settings?.models) {
 					selectedModels = $settings?.models;
-				} else if ($companyConfig?.config?.models?.DEFAULT_MODELS) {
-					const ids = $companyConfig?.config?.models?.DEFAULT_MODELS?.split(',');
+				} else if ($companyConfig?.config?.models?.default_models) {
+					const ids = $companyConfig?.config?.models?.default_models?.split(',');
 					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
 					const isActive = $models?.some(model => ids?.includes(model.id));
 					selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
@@ -646,8 +630,9 @@
 					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini')
 					selectedModels = [gptDefault?.id];
 				}
-			//}
 		}
+
+		console.log("selcted models", selectedModels);
 
 		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
 		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
@@ -1275,8 +1260,6 @@
 		// focus on chat input
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
-
-		saveSessionSelectedModels();
 
 		await sendPrompt(history, userPrompt, userMessageId, { newChat: true });
 	};
