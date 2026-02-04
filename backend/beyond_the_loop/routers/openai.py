@@ -55,6 +55,17 @@ log.setLevel(SRC_LOG_LEVELS["OPENAI"])
 #
 ##########################################
 
+session: aiohttp.ClientSession | None = None
+
+async def _get_session() -> aiohttp.ClientSession:
+    global session
+    if session is None or session.closed:
+        session = aiohttp.ClientSession(
+            trust_env=True,
+            timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
+            connector=aiohttp.TCPConnector(limit=100)  # limits concurrent connections
+        )
+    return session
 
 async def send_get_request(url, key=None):
     timeout = aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST)
@@ -188,7 +199,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=r.status_code if r else 500,
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     except ValueError:
@@ -296,11 +307,9 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
-        session = aiohttp.ClientSession(
-            trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
-        )
+        s = await _get_session()
 
-        r = await session.request(
+        r = await s.request(
             method="POST",
             url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
             data=payload,
@@ -361,12 +370,13 @@ async def generate_chat_completion(
             try:
                 response = await r.json()
             except Exception as e:
-                log.error(e)
+                print(e)
                 response = await r.text()
 
             try:
                 r.raise_for_status()
             except ClientResponseError as e:
+                print(e)
                 if agent_or_task_prompt:
                     raise e
 
@@ -405,7 +415,7 @@ async def generate_chat_completion(
 
             return response
     except Exception as e:
-        log.exception(e)
+        print(e)
 
         detail = None
         if isinstance(response, dict):
@@ -416,7 +426,7 @@ async def generate_chat_completion(
 
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail=detail if detail else "Open WebUI: Server Connection Error",
+            detail=detail if detail else "Server Connection Error",
         )
     finally:
         if not streaming and session:

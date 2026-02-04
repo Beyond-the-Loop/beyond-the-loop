@@ -380,7 +380,7 @@ def save_docs_to_vector_db(
         docs = text_splitter.split_documents(docs)
 
     if len(docs) == 0:
-        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
+        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT())
 
     texts = [doc.page_content for doc in docs]
     metadatas = [

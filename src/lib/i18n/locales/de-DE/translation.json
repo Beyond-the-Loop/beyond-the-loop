@@ -1113,6 +1113,7 @@
 	"This will Delete all models including custom models": "Dies wird alle Modelle einschließlich benutzerdefinierter Modelle löschen",
 	"This will Delete all models including custom models and cannot be undone.": "Dies wird alle Modelle einschließlich benutzerdefinierter Modelle löschen und kann nicht rückgängig gemacht werden.",
 	"This will reset the knowledge base and sync all files. Do you wish to continue?": "Dadurch wird die Wissensdatenbank zurückgesetzt und alle Dateien synchronisiert. Möchten Sie fortfahren?",
+	"This knowledge base is linked to the following models: {{models}}": "Diese Wissensdatenbank ist mit folgenden Assistenten verknüpft: {{models}}",
 	"Thorough explanation": "Ausführliche Erklärung",
 	"Thought for {{DURATION}}": "Nachgedacht für {{DURATION}}",
 	"Tika": "Tika",

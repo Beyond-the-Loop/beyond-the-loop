@@ -211,7 +211,9 @@ class PaymentsService:
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     'trial_end': trial_end,
                     'days_remaining': days_remaining,
-                    'image_url': image_url
+                    'image_url': image_url,
+                    "subscription_id": trial_subscription.id,
+                    "subscription_item_id": trial_subscription["items"]["data"][0]["id"]
                 }
 
             # If no active subscription, return free plan

@@ -33,8 +33,7 @@ def _validate_prompt_write_access(prompt: PromptModel, user):
 
     if (user.role != "admin"
             and prompt.user_id != user.id
-            and not has_access(user.id, "write", prompt.access_control)
-            and not has_permission(user.id, "workspace.edit_prompts")):
+            and (not has_access(user.id, "write", prompt.access_control) or not has_permission(user.id, "workspace.edit_prompts"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -49,8 +48,7 @@ def _validate_prompt_read_access(prompt: PromptModel, user):
 
     if (user.role != "admin"
             and prompt.user_id != user.id
-            and not has_access(user.id, "read", prompt.access_control)
-            and not has_permission(user.id, "workspace.view_prompts")):
+            and (not has_access(user.id, "read", prompt.access_control) or not has_permission(user.id, "workspace.view_prompts"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,

@@ -1,29 +1,22 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
-	import { getBaseModels } from '$lib/apis/models';
+	import { getBaseModels, updateModelById } from '$lib/apis/models';
 	import { getModels } from '$lib/apis';
-	import {
-		modelsInfo,
-		mapModelsToOrganizations,
-		filterCatalog
-	} from '../../../../../data/modelsInfo';
-	import { getModelIcon } from '$lib/utils';
+	import { filterCatalog, mapModelsToOrganizations, modelsInfo } from '../../../../../data/modelsInfo';
+	import { getModelIcon, onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import { onClickOutside } from '$lib/utils';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { getModelsConfig, setModelsConfig } from '$lib/apis/configs';
-	import { companyConfig, mobile, models as storeModels } from '$lib/stores';
+	import { companyConfig, mobile, models as storeModels, subscription } from '$lib/stores';
 	import { toast } from 'svelte-sonner';
 	import GroupIcon from '$lib/components/icons/GroupIcon.svelte';
 	import PublicIcon from '$lib/components/icons/PublicIcon.svelte';
 	import PrivateIcon from '$lib/components/icons/PrivateIcon.svelte';
 	import AccessModel from '$lib/components/common/AccessModel.svelte';
 	import { getGroups } from '$lib/apis/groups';
-	import { updateModelById } from '$lib/apis/models';
 	import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
 	import AdditionaModelInfo from '../../ModelSelector/AdditionaModelInfo.svelte';
 	import { getCompanyConfig } from '$lib/apis/auths';
-	import { subscription } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -233,51 +226,14 @@
 									{$i18n.t('Category')}
 									{#if !$mobile}
 										<div
-											on:mouseenter={() => (showCategoryTooltip = true)}
-											on:mouseleave={() => (showCategoryTooltip = false)}
-											class="relative ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
-										>
-											{#if showCategoryTooltip}
-												<div class="text-lightGray-100 dark:text-customGray-100 text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10">
-													<div class="mb-1.5">{$i18n.t('Prompt limits')}<span class="text-lightGray-900 dark:text-white/50 font-normal">/3h</span></div>
-													<table class="whitespace-nowrap">
-														<thead>
-															<th class="py-1">
-																{$i18n.t('Category')}
-															</th>
-															<th class="px-2 py-1">
-																Free
-															</th>
-															<th class="px-2 py-1">
-																Premium
-															</th>
-														</thead>
-														<tbody>
-															<tr>
-																<td class="py-1">1</td>
-																<td class="px-2 py-1">300</td>
-																<td class="px-2 py-1">300</td>
-															</tr>
-															<tr>
-																<td class="py-1">2</td>
-																<td class="px-2 py-1">50</td>
-																<td class="px-2 py-1">150</td>
-															</tr>
-															<tr>
-																<td class="py-1">3</td>
-																<td class="px-2 py-1">-</td>
-																<td class="px-2 py-1">50</td>
-															</tr>
-															<tr>
-																<td class="py-1">4</td>
-																<td class="px-2 py-1">-</td>
-																<td class="px-2 py-1">5</td>
-															</tr>
-														</tbody>
-													</table>
-												</div>
-											{/if}
-											<InfoIcon className="size-6" />
+											class="relative ml-1 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
+											<a
+												href="https://beyond-the-loop.notion.site/fair-usage-policy"
+												target="_blank"
+												rel="noopener noreferrer"
+											>
+												<InfoIcon class="size-6 cursor-pointer" />
+											</a>
 										</div>
 									{/if}
 								{:else}
@@ -293,11 +249,11 @@
 													class="text-lightGray-100 dark:text-customGray-100 w-[12rem] text-xs absolute left-0 -top-12 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 px-1 py-2 border-l border-b border-r dark:border-customGray-700 rounded-lg shadow z-10"
 												>
 													{$i18n.t('Please visit our')} <a
-														class="underline"
-														href="https://beyondtheloop.ai/pricing-breakdown"
-														target="_blank"
-														rel="noopener noreferrer">{$i18n.t('pricing page')}</a
-													> {$i18n.t('for a detailed breakdown')}.
+													class="underline"
+													href="https://beyondtheloop.ai/pricing-breakdown"
+													target="_blank"
+													rel="noopener noreferrer">{$i18n.t('pricing page')}</a
+												> {$i18n.t('for a detailed breakdown')}.
 												</div>
 											{/if}
 											<InfoIcon className="size-6" />
@@ -311,10 +267,10 @@
 						{/if}
 					</div>
 					{#each models?.filter((m) => organizations[organization]
-							.map((item) => {
-								return item.toLowerCase();
-							})
-							.includes(m.name.toLowerCase())) as model (model.name)}
+						.map((item) => {
+							return item.toLowerCase();
+						})
+						.includes(m.name.toLowerCase())) as model (model.name)}
 						<div
 							class="grid grid-cols-[32%_1.1fr_0.9fr_0.9fr_22%] md:grid-cols-[32%_1.1fr_0.9fr_0.9fr_22%] border-t last:border-b border-lightGray-400 dark:border-customGray-700"
 						>

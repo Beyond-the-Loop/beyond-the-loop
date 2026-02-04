@@ -9,12 +9,14 @@ from beyond_the_loop.models.models import (
     Models,
     TagResponse
 )
+from beyond_the_loop.models.knowledge import Knowledges
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_access, has_permission
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.routers.knowledge import validate_knowledge_read_access
 
 router = APIRouter()
 
@@ -50,8 +52,7 @@ def _validate_model_write_access(model: ModelModel, user):
     if (is_free_user
         or user.role != "admin"
         and model.user_id != user.id
-        and not has_access(user.id, "write", model.access_control)
-        and not has_permission(user.id, "workspace.edit_assistants")):
+        and (not has_access(user.id, "write", model.access_control) or not has_permission(user.id, "workspace.edit_assistants"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -69,8 +70,7 @@ def _validate_model_read_access(model: ModelModel, user):
     if (is_free_user
             or user.role != "admin"
             and model.user_id != user.id
-            and not has_access(user.id, "read", model.access_control)
-            and not has_permission(user.id, "workspace.view_assistants")):
+            and (not has_access(user.id, "read", model.access_control) or not has_permission(user.id,"workspace.view_assistants"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -91,9 +91,7 @@ async def get_models(user=Depends(get_verified_user)):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-    models = Models.get_assistants_by_user_and_company(user.id, user.company_id)
-    sorted_models = sorted(models, key=lambda m: not m.bookmarked_by_user)
-    return sorted_models
+    return Models.get_assistants_by_user_and_company(user.id, user.company_id)
 
 
 ############################
@@ -119,10 +117,15 @@ async def create_new_model(
     if model:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT,
+            detail=ERROR_MESSAGES.DEFAULT("Model already exists"),
         )
 
     form_data.id = str(uuid.uuid4())
+
+    knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in form_data.meta.knowledge]) if form_data.meta.knowledge else []
+
+    for k in knowledge:
+        validate_knowledge_read_access(k, user)
 
     model = Models.insert_new_model(form_data, user.id, user.company_id)
 
@@ -146,6 +149,8 @@ async def get_model_by_id(id: str, user=Depends(get_verified_user)):
     model = Models.get_model_by_id(id)
 
     _validate_model_read_access(model, user)
+
+    model.meta.knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
     return model
 
@@ -215,6 +220,14 @@ async def update_model_by_id(
         del form_data.base_model_id
         del form_data.id
         del form_data.name
+
+    try:
+        knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in form_data.meta.knowledge]) if form_data.meta.knowledge else []
+
+        for k in knowledge:
+            validate_knowledge_read_access(k, user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error storing assistant with knowledge: {e}")
 
     updated_model = Models.update_model_by_id_and_company(id, form_data, user.company_id)
 
