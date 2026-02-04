@@ -12,7 +12,7 @@ class AlertType(enum.Enum):
     success = "success"
 
 class Alert(Base):
-    __tablename__ = "alert"
+    __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
