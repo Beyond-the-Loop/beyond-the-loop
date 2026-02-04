@@ -136,7 +136,6 @@
 	"Anthropic's hybrid reasoning model with 200K context for complex coding and agent tasks. Advanced thinking abilities with visible reasoning steps.": "Anthropic Hybrid-Reasoning, 200K Kontext. Ideal für komplexe Coding- & Agenten-Tasks. Sichtbare Denkschritte.",
 	"Anthropic's most powerful model, with industry-leading capabilities in programming, computer use, cybersecurity, and working with office files like spreadsheets.": "Anthropics leistungsstärkstes Modell mit branchenführenden Fähigkeiten in den Bereichen Programmierung, Computernutzung, Cybersicherheit und der Arbeit mit Office-Dateien wie Tabellenkalkulationen.",
 	"Provides high-quality answers with reliable source citations via direct internet access. Ideal for knowledge-intensive questions and structured research. For simple questions or time-sensitive requests, lighter-weight models are more efficient.": "Bietet hochwertige Antworten mit zuverlässigen Quellenangaben durch direkte Internetanbindung. Ideal für wissensintensive Fragen und strukturierte Recherchen. Für einfache Fragen oder zeitkritische Anfragen sind schlankere Modelle effizienter.",
-	"Banners": "Banner",
 	"Base credits": "Basis Guthaben",
 	"Base model for this assistant is disabled.": "Das Basismodell für diesen Assistenten ist deaktiviert.",
 	"Batch size (num_batch)": "Stapelgröße (num_batch)",

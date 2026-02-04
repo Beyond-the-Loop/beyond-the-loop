@@ -4,14 +4,10 @@ import mimetypes
 import os
 import sys
 import time
-
 from contextlib import asynccontextmanager
 from urllib.parse import urlencode, parse_qs, urlparse
-from pydantic import BaseModel
-from sqlalchemy import text
 
 import aiohttp
-
 from fastapi import (
     Depends,
     FastAPI,
@@ -20,64 +16,16 @@ from fastapi import (
     status,
     applications, UploadFile,
 )
-
-from fastapi.openapi.docs import get_swagger_ui_html
-
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-
+from pydantic import BaseModel
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
-
-from beyond_the_loop.routers import users
-from beyond_the_loop.config import WEBHOOK_URL
-from beyond_the_loop.models.completions import Completions
-from beyond_the_loop.models.model_costs import ModelCosts
-from open_webui.constants import ERROR_MESSAGES
-from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
-from beyond_the_loop.socket.main import (
-    app as socket_app,
-    periodic_usage_pool_cleanup,
-)
-from open_webui.routers import (
-    images,
-    tasks,
-    channels,
-    memories,
-    evaluations,
-    utils,
-)
-from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
-from beyond_the_loop.routers import models
-from beyond_the_loop.routers import prompts
-from beyond_the_loop.routers import openai, audio
-from beyond_the_loop.routers import payments
-from beyond_the_loop.routers import companies
-from beyond_the_loop.routers import domains
-from beyond_the_loop.routers import chat_archival
-from beyond_the_loop.routers import file_archival
-from beyond_the_loop.routers import intercom
-
-from beyond_the_loop.models.files import Files
-
-from beyond_the_loop.routers.files import upload_file
-
-from open_webui.routers.retrieval import (
-    get_embedding_function,
-    get_ef,
-    get_rf,
-)
-
-from open_webui.internal.db import Session
-
-from beyond_the_loop.models.models import Models
-from beyond_the_loop.models.users import Users
-from beyond_the_loop.routers import auths
-from beyond_the_loop.routers import analytics
-from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 
 from beyond_the_loop.config import (
     # Image
@@ -126,7 +74,6 @@ from beyond_the_loop.config import (
     ENABLE_RAG_HYBRID_SEARCH,
     ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
     ENABLE_GOOGLE_DRIVE_INTEGRATION,
-    WEBUI_BANNERS,
     JWT_EXPIRES_IN,
     ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
@@ -171,6 +118,37 @@ from beyond_the_loop.config import (
     AppConfig,
     reset_config,
 )
+from beyond_the_loop.config import WEBHOOK_URL
+from beyond_the_loop.models.completions import Completions
+from beyond_the_loop.models.files import Files
+from beyond_the_loop.models.model_costs import ModelCosts
+from beyond_the_loop.models.models import Models
+from beyond_the_loop.models.users import Users
+from beyond_the_loop.routers import analytics
+from beyond_the_loop.routers import auths
+from beyond_the_loop.routers import chat_archival
+from beyond_the_loop.routers import companies
+from beyond_the_loop.routers import domains
+from beyond_the_loop.routers import file_archival
+from beyond_the_loop.routers import intercom
+from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
+from beyond_the_loop.routers import models
+from beyond_the_loop.routers import openai, audio
+from beyond_the_loop.routers import payments
+from beyond_the_loop.routers import prompts
+from beyond_the_loop.routers import users
+from beyond_the_loop.routers.files import upload_file
+from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
+from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
+from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.socket.main import (
+    app as socket_app,
+    periodic_usage_pool_cleanup,
+)
+from beyond_the_loop.utils.oauth import oauth_manager
+from beyond_the_loop.models.alert import Alerts
+from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
     SAFE_MODE,
@@ -186,27 +164,33 @@ from open_webui.env import (
     RESET_CONFIG_ON_START,
     OFFLINE_MODE,
 )
-
-from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
-
-from open_webui.utils.chat import (
-    chat_completed as chat_completed_handler
+from open_webui.internal.db import Session
+from open_webui.routers import (
+    images,
+    tasks,
+    channels,
+    memories,
+    evaluations,
+    utils,
 )
-from open_webui.utils.middleware import process_chat_payload, process_chat_response
-
+from open_webui.routers import retrieval
+from open_webui.routers.retrieval import (
+    get_embedding_function,
+    get_ef,
+    get_rf,
+)
+from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
 from open_webui.utils.auth import (
     decode_token,
     get_admin_user,
     get_verified_user,
 )
-from beyond_the_loop.utils.oauth import oauth_manager
-from open_webui.utils.security_headers import SecurityHeadersMiddleware
-
-from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
-from open_webui.routers import retrieval
 from open_webui.utils.auth import get_current_api_key_user
-from beyond_the_loop.services.credit_service import credit_service
-from beyond_the_loop.services.payments_service import payments_service
+from open_webui.utils.chat import (
+    chat_completed as chat_completed_handler
+)
+from open_webui.utils.middleware import process_chat_payload, process_chat_response
+from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 if SAFE_MODE:
     print("SAFE MODE ENABLED")
@@ -253,10 +237,10 @@ async def lifespan(app: FastAPI):
 
     # Start the task scheduler for automated processes
     start_scheduler()
-    
+
     asyncio.create_task(periodic_usage_pool_cleanup())
     yield
-    
+
     # Shutdown the scheduler gracefully
     shutdown_scheduler()
 
@@ -281,8 +265,6 @@ app.state.config.WEBUI_URL = WEBUI_URL
 app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
 app.state.config.DEFAULT_PROMPT_SUGGESTIONS = DEFAULT_PROMPT_SUGGESTIONS
-
-app.state.config.BANNERS = WEBUI_BANNERS
 
 app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 
@@ -359,7 +341,6 @@ app.state.rf = None
 
 app.state.YOUTUBE_LOADER_TRANSLATION = None
 
-
 try:
     app.state.ef = get_ef(
         app.state.config.RAG_EMBEDDING_ENGINE,
@@ -382,7 +363,6 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
     app.state.config.RAG_EMBEDDING_BATCH_SIZE,
 )
 
-
 ########################################
 #
 # IMAGES
@@ -399,7 +379,6 @@ app.state.config.BLACK_FOREST_LABS_API_KEY = BLACK_FOREST_LABS_API_KEY
 
 app.state.config.IMAGE_SIZE = IMAGE_SIZE
 app.state.config.IMAGE_STEPS = IMAGE_STEPS
-
 
 ########################################
 #
@@ -422,15 +401,12 @@ app.state.config.TTS_VOICE = AUDIO_TTS_VOICE
 app.state.config.TTS_API_KEY = AUDIO_TTS_API_KEY
 app.state.config.TTS_SPLIT_ON = AUDIO_TTS_SPLIT_ON
 
-
 app.state.config.TTS_AZURE_SPEECH_REGION = AUDIO_TTS_AZURE_SPEECH_REGION
 app.state.config.TTS_AZURE_SPEECH_OUTPUT_FORMAT = AUDIO_TTS_AZURE_SPEECH_OUTPUT_FORMAT
-
 
 app.state.faster_whisper_model = None
 app.state.speech_synthesiser = None
 app.state.speech_speaker_embeddings_dataset = None
-
 
 ########################################
 #
@@ -439,12 +415,12 @@ app.state.speech_speaker_embeddings_dataset = None
 ########################################
 app.state.config.ENABLE_TAGS_GENERATION = ENABLE_TAGS_GENERATION
 
-
 app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE = TITLE_GENERATION_PROMPT_TEMPLATE
 app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE = TAGS_GENERATION_PROMPT_TEMPLATE
 app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = (
     IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
 )
+
 
 ########################################
 #
@@ -496,8 +472,8 @@ async def check_url(request: Request, call_next):
 @app.middleware("http")
 async def inspect_websocket(request: Request, call_next):
     if (
-        "/ws/socket.io" in request.url.path
-        and request.query_params.get("transport") == "websocket"
+            "/ws/socket.io" in request.url.path
+            and request.query_params.get("transport") == "websocket"
     ):
         upgrade = (request.headers.get("Upgrade") or "").lower()
         connection = (request.headers.get("Connection") or "").lower().split(",")
@@ -519,7 +495,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 app.mount("/ws", socket_app)
 
 app.include_router(openai.router, prefix="/openai", tags=["openai"])
@@ -533,7 +508,6 @@ app.include_router(configs.router, prefix="/api/v1/configs", tags=["configs"])
 
 app.include_router(auths.router, prefix="/api/v1/auths", tags=["auths"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
-
 
 app.include_router(channels.router, prefix="/api/v1/channels", tags=["channels"])
 app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
@@ -560,6 +534,7 @@ app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
 app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
 
+
 ##################################
 #
 # Chat Endpoints
@@ -575,7 +550,8 @@ async def get_active_models(user=Depends(get_verified_user)):
     model_base_model_names = {}
 
     for assistant in assistants:
-        assistant_base_model = next((base_model for base_model in active_base_models if base_model.id == assistant.base_model_id), None)
+        assistant_base_model = next(
+            (base_model for base_model in active_base_models if base_model.id == assistant.base_model_id), None)
         model_base_model_names[assistant.id] = assistant_base_model.name if assistant_base_model else None
 
     for base_model in active_base_models:
@@ -586,11 +562,13 @@ async def get_active_models(user=Depends(get_verified_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
+        all_models = [model for model in all_models if model_base_model_names[
+            model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
     elif subscription.get("plan") == "premium":
         all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
 
     return {"data": all_models}
+
 
 @app.get("/api/models/base")
 async def get_base_models(user=Depends(get_admin_user)):
@@ -604,6 +582,7 @@ async def get_base_models(user=Depends(get_admin_user)):
         base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_premium()]
 
     return {"data": base_models}
+
 
 # Public API
 @app.post("/api/openai/chat/completions")
@@ -624,16 +603,16 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
             raise HTTPException(status_code=404, detail="File not found")
 
     async with aiohttp.ClientSession(
-        trust_env=True,
-        timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
+            trust_env=True,
+            timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
     ) as session:
         async with session.post(
-            f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
-            json=request,
-            headers={
-                "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-                "Content-Type": "application/json"
-            }
+                f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
+                json=request,
+                headers={
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+                    "Content-Type": "application/json"
+                }
         ) as upstream:
             try:
                 upstream.raise_for_status()  # Will raise if HTTP status >= 400
@@ -664,8 +643,8 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
 # Public API
 @app.post("/api/openai/files")
 async def upload_file_openai(
-    request: Request,
-    user=Depends(get_current_api_key_user),
+        request: Request,
+        user=Depends(get_current_api_key_user),
 ):
     """
     OpenAI-compatible wrapper around the existing `upload_file` function.
@@ -701,11 +680,13 @@ async def upload_file_openai(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File upload failed." + str(exc)
         )
+
+
 @app.post("/api/chat/completions")
 async def chat_completion(
-    request: Request,
-    form_data: dict,
-    user=Depends(get_verified_user),
+        request: Request,
+        form_data: dict,
+        user=Depends(get_verified_user),
 ):
     tasks = form_data.pop("background_tasks", None)
 
@@ -758,7 +739,7 @@ generate_chat_completion = chat_completion
 
 @app.post("/api/chat/completed")
 async def chat_completed(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
+        request: Request, form_data: dict, user=Depends(get_verified_user)
 ):
     try:
         return await chat_completed_handler(request, form_data, user)
@@ -903,7 +884,7 @@ async def get_app_latest_release_version(user=Depends(get_verified_user)):
         timeout = aiohttp.ClientTimeout(total=1)
         async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
             async with session.get(
-                "https://api.github.com/repos/open-webui/open-webui/releases/latest"
+                    "https://api.github.com/repos/open-webui/open-webui/releases/latest"
             ) as response:
                 response.raise_for_status()
                 data = await response.json()
@@ -997,6 +978,11 @@ async def healthcheck():
 async def healthcheck_with_db():
     Session.execute(text("SELECT 1;")).all()
     return {"status": True}
+
+
+@app.get("/alert")
+async def get_alert():
+    return Alerts.get_alert()
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
