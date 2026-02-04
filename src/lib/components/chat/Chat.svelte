@@ -1091,6 +1091,8 @@
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
+
+		let added = added_content
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
@@ -1159,14 +1161,27 @@
 						};
 					}
 					});
+					// </think> tags sind im content, aber nicht im added_content => künstlich hinzufügen
+					// const reasoning_tags = ["think", "thinking", "reason", "reasoning", "thought", "Thought"];
+
+					// for (const tag of reasoning_tags) {
+					// 	if (message.content.includes(`<${tag}>`)) {
+					// 		bufferedResponse.add(`</${tag}>`);
+					// 		console.log('Tag gefunden: ', tag);
+					// 		console.log('bufferedResponse', bufferedResponse);
+					// 		continue;
+					// 	}
+					// }
+					// if (content.endsWith(added_content)) {    
+					added = null;
 				}
-				if(added_content == null || added_content == undefined)
+				if(added == null || added == undefined)
 				{
 					bufferedResponse?.flushImmediate(content);
 					message.content = content;
 				}else 
 				{
-					bufferedResponse.add(added_content);
+					bufferedResponse.add(added);
 				}
 
 			}else {
@@ -1747,8 +1762,24 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
+				responseMessage.content = responseMessage.content.replaceAll(    
+					'<details type="reasoning" done="false">',     
+					'<details type="reasoning" done="true">'
+				);
+				if(responseMessage.content.includes('<details>'))
+				{
+					if (!responseMessage.content.includes('</details>'))
+					{
+						responseMessage.content.append('Lolololo</details></think>') // Ich denke es kommt noch ein chunk rein, der message.content wieder auf den alten stand setzt!
+					}
+				}
+				responseMessage.content = responseMessage.content.replaceAll(    
+					'<details type="reasoning" done="false">',     
+					'<details type="reasoning" done="true">'
+				);
+				console.log('Fertig!', responseMessage);
 
-				history.messages[history.currentId] = responseMessage;
+				history.messages[responseMessage.id] = responseMessage;
 
 				if (autoScroll) {
 					scrollToBottom();

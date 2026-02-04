@@ -1472,6 +1472,7 @@ async def process_chat_response(
                                 value = delta.get("content")
 
                                 if value:
+                                    content = f"{content}{value}"
                                     if (
                                         content_blocks
                                         and content_blocks[-1]["type"]
@@ -1495,7 +1496,7 @@ async def process_chat_response(
                                             }
                                         )
                                     
-                                    content = f"{content}{value}"
+                                    
 
                                     if not content_blocks:
                                         content_blocks.append(
