@@ -22,8 +22,7 @@ def upgrade() -> None:
 
     conn.execute(
         sa.text("""
-        CREATE TYPE alert_type AS ENUM
-        (
+        CREATE TYPE IF NOT EXISTS alert_type AS ENUM (
             'info',
             'warning',
             'success'
@@ -33,7 +32,7 @@ def upgrade() -> None:
 
     conn.execute(
         sa.text("""
-                CREATE TABLE alerts
+                CREATE TABLE alert
                 (
                     id      BIGSERIAL PRIMARY KEY,
                     title   VARCHAR(255) NOT NULL,
