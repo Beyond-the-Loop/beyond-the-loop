@@ -78,8 +78,8 @@
 	const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
 	let info = {
 		id: '',
-		base_model_id: $companyConfig?.config?.models?.DEFAULT_MODELS
-			? $companyConfig?.config?.models?.DEFAULT_MODELS
+		base_model_id: $companyConfig?.config?.models?.default_models
+			? $companyConfig?.config?.models?.default_models
 			: gptDefault?.id,
 		name: '',
 		meta: {
@@ -276,6 +276,8 @@
 	let showDropdown = false;
 	let dropdownRef;
 	let temperatureDropdownRef;
+
+	console.log("DAS IST DIE INFIIIIII", info);
 
 	$: selectedModel = $models.find((m) => m.id === info.base_model_id);
 	let disableCreativity = false;
