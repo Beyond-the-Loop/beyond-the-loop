@@ -1150,7 +1150,7 @@ async def process_chat_response(
                 return content.strip()
 
             def format_reasoning_content(text):
-                """Fügt \n nach jedem **-Paar im Reasoning-Text ein, um OpenAI Reasoning schöner zu formatieren."""
+                """Adds \n after each ** Pair in Reasoning Summaries, to adjust for Litellms OpenAI Formatting. Can hopefully be removed in future LiteLLM Updates"""
                 return text.replace("**", " \n>\n>**").replace(" \n>\n>**\n>", "**\n>")
 
             def tag_content_handler(content_type, tags, content, content_blocks):
