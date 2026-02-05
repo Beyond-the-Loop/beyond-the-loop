@@ -14,21 +14,21 @@ export enum TTS_RESPONSE_SPLIT {
 	NONE = 'none'
 }
 
-export type Message = {  
-    parentId: string | null;  
-    id: string; 
-    childrenIds: string[];  
-    role: 'user' | 'assistant' | 'system';  
-    content: string;  
-    model: string;  
-    modelName: string;  
-    modelIdx: number;  
-    userContext: any | null;  
-    timestamp: number;
+export type ChatMessage = {
+	parentId: string | null;
+	id: string;
+	childrenIds: string[];
+	role: 'user' | 'assistant' | 'system';
+	content: string;
+	model: string;
+	modelName: string;
+	modelIdx: number;
+	userContext: any | null;
+	timestamp: number;
 };
 
-export type History = {
-    currentId: string | null;
-    messages: Record<string, Message>;
+export type ChatHistory = {
+	currentId: string | null;
+	messages: Record<string, ChatMessage>;
 };
 
