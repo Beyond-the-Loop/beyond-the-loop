@@ -567,6 +567,10 @@ async def get_active_models(user=Depends(get_verified_user)):
     elif subscription.get("plan") == "premium":
         all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
 
+    # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
+    if user.company_id != "c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4":
+        all_models = [model for model in all_models if model_base_model_names[model.id] not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research", "Perplexity Sonar Reasoning Pro")]
+
     return {"data": all_models}
 
 
@@ -580,6 +584,10 @@ async def get_base_models(user=Depends(get_admin_user)):
         base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_free()]
     elif subscription.get("plan") == "premium":
         base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_premium()]
+
+    # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
+    if user.company_id != "c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4":
+        base_models = [model for model in base_models if model.name not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research", "Perplexity Sonar Reasoning Pro")]
 
     return {"data": base_models}
 
