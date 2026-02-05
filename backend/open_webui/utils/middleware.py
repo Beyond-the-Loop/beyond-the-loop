@@ -995,7 +995,7 @@ async def process_chat_response(
                 content = response["choices"][0]["message"]["content"]
 
                 if content:
-                    
+
                     await event_emitter(
                         {
                             "type": "chat:completion",

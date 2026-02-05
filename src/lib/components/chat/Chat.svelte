@@ -1149,13 +1149,12 @@
 							if (autoScroll) scrollToBottom();
 						}
 					});
-					added = null;
+					added = null; // Flush once to instantly add think tags
 				}
 				if(added == null || added == undefined)
 				{
 					bufferedResponse?.flushImmediate(content);
 					message.content = content;
-					console.log('Error in streaming_response: undefined added_content')
 				}else 
 				{
 					bufferedResponse.add(added);
@@ -1204,13 +1203,8 @@
 		if (usage) {
 			message.usage = usage;
 		}
-		if(history.messages[message.id].content.includes(`<details type="reasoning" done="true">`))
-		{
-			console.log(data);
-		}
+
 		history.messages[message.id] = message;
-		console.log('chatCompletionEventHandler aufgerufen');
-		console.log(`message: ${type};${added_content}`);
 
 		if (done) {
 			bufferedResponse?.stop();
@@ -1258,7 +1252,6 @@
 			);
 		}
 
-		// console.log(data);
 		if (autoScroll) {
 			scrollToBottom();
 		}
@@ -1748,7 +1741,6 @@
 					'<details type="reasoning" done="false">',     
 					'<details type="reasoning" done="true">'
 				);
-				console.log('Fertig!', responseMessage);
 
 				history.messages[responseMessage.id] = responseMessage;
 
@@ -1962,7 +1954,6 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
-	
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
