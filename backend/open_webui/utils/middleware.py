@@ -1168,9 +1168,7 @@ async def process_chat_response(
                 return content.strip()
 
             def format_reasoning_content(text):
-                """Fügt <br> nach jedem **-Paar im Reasoning-Text ein."""
-                # Einfache Version: Ersetze ** durch **<br>
-                # Dies fügt nach jedem ** ein <br> ein
+                """Fügt \n nach jedem **-Paar im Reasoning-Text ein, um OpenAI Reasoning schöner zu formatieren."""
                 return text.replace("**", " \n>\n>**").replace(" \n>\n>**\n>", "**\n>")
 
             def tag_content_handler(content_type, tags, content, content_blocks):
@@ -1458,6 +1456,7 @@ async def process_chat_response(
                                     or delta.get("reasoning")
                                     or delta.get("thinking")
                                 )
+
                                 if reasoning_content:
                                     if (
                                         not content_blocks
@@ -1465,8 +1464,6 @@ async def process_chat_response(
                                     ):
                                         reasoning_block = {
                                             "type": "reasoning",
-                                            "start_tag": "<think>",
-                                            "end_tag": "</think>",
                                             "attributes": {
                                                 "type": "reasoning_content"
                                             },
@@ -1482,9 +1479,10 @@ async def process_chat_response(
                                     data = {
                                         "content": format_reasoning_content(serialize_content_blocks(
                                             content_blocks
-                                        ))
+                                        )),
+                                        "type": "reasoning",
                                     }
-                                
+
                                 value = delta.get("content")
 
                                 if value:
@@ -1512,6 +1510,28 @@ async def process_chat_response(
                                         )
                                     
                                     content = f"{content}{value}"
+                                    if (
+                                        content_blocks
+                                        and content_blocks[-1]["type"]
+                                        == "reasoning"
+                                        and content_blocks[-1]
+                                        .get("attributes", {})
+                                        .get("type")
+                                        == "reasoning_content"
+                                    ):
+                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block["ended_at"] = time.time()
+                                        reasoning_block["duration"] = int(
+                                            reasoning_block["ended_at"]
+                                            - reasoning_block["started_at"]
+                                        )
+
+                                        content_blocks.append(
+                                            {
+                                                "type": "text",
+                                                "content": "",
+                                            }
+                                        )
 
                                     if not content_blocks:
                                         content_blocks.append(
@@ -1559,11 +1579,20 @@ async def process_chat_response(
                                                 ),
                                             },
                                         )
+                                    elif (content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
+                                        data = {
+                                            "content": serialize_content_blocks(
+                                                content_blocks
+                                            ),
+                                            "type": "reasoning",
+                                        }
                                     else:
                                         data = {
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
+                                            "type": "text",
+                                            "added_content": value,
                                         }
 
                             await event_emitter(

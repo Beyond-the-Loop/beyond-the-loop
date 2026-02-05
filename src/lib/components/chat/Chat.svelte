@@ -13,6 +13,8 @@
 
 	import { getAlert } from '$lib/apis/alerts';
 
+	import { BufferedResponse } from '$lib/utils/buffer/BufferedResponse';
+
 	import {
 		chatId,
 		chats,
@@ -1011,11 +1013,19 @@
 		}
 	};
 
+	let bufferedResponse: BufferedResponse | null = null;
+	
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
+		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
 
+		let added = added_content
 		if (error) {
 			await handleOpenAIError(error, message);
+		}
+
+		if(taskId == null)
+		{
+			return;
 		}
 
 		if (sources) {
@@ -1065,8 +1075,36 @@
 		}
 
 		if (content) {
+			if(type == 'text')
+			{
+				if (bufferedResponse === null) {
+					bufferedResponse = new BufferedResponse(message, history, {
+						onCommit: (msg) => {
+							// Trigger Svelte Reactivity Update
+							history.messages = {
+								...history.messages,
+								[msg.id]: { ...msg }
+							};
+							if (autoScroll) scrollToBottom();
+						}
+					});
+					added = null; // Flush once to instantly add think tags
+				}
+				if(added == null || added == undefined)
+				{
+					bufferedResponse?.flushImmediate(content);
+					message.content = content;
+				}else 
+				{
+					bufferedResponse.add(added);
+				}
+
+			}else {
+				message.content = content;
+			}
+			
+			
 			// REALTIME_CHAT_SAVE is disabled
-			message.content = content;
 
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
@@ -1108,7 +1146,11 @@
 		history.messages[message.id] = message;
 
 		if (done) {
+			bufferedResponse?.stop();
+			bufferedResponse = null;
+
 			message.done = true;
+			message.content = content;
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1622,6 +1664,10 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
+				responseMessage.content = responseMessage.content.replaceAll(    
+					'<details type="reasoning" done="false">',     
+					'<details type="reasoning" done="true">'
+				);
 
 				history.messages[history.currentId] = responseMessage;
 
@@ -1629,6 +1675,11 @@
 					scrollToBottom();
 				}
 			}
+		}
+		if(bufferedResponse)
+		{
+			bufferedResponse?.stop();
+			bufferedResponse = null;
 		}
 	};
 
