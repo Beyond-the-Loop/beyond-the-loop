@@ -995,6 +995,7 @@ async def process_chat_response(
                 content = response["choices"][0]["message"]["content"]
 
                 if content:
+                    
                     await event_emitter(
                         {
                             "type": "chat:completion",
@@ -1149,9 +1150,7 @@ async def process_chat_response(
                 return content.strip()
 
             def format_reasoning_content(text):
-                """Fügt <br> nach jedem **-Paar im Reasoning-Text ein."""
-                # Einfache Version: Ersetze ** durch **<br>
-                # Dies fügt nach jedem ** ein <br> ein
+                """Fügt \n nach jedem **-Paar im Reasoning-Text ein, um OpenAI Reasoning schöner zu formatieren."""
                 return text.replace("**", " \n>\n>**").replace(" \n>\n>**\n>", "**\n>")
 
             def tag_content_handler(content_type, tags, content, content_blocks):
@@ -1439,8 +1438,7 @@ async def process_chat_response(
                                     or delta.get("reasoning")
                                     or delta.get("thinking")
                                 )
-                                value = delta.get("content")
-                                # Entweder Reasoning ODER Nicht-Reasoning
+
                                 if reasoning_content:
                                     if (
                                         not content_blocks
@@ -1466,7 +1464,10 @@ async def process_chat_response(
                                         )),
                                         "type": "reasoning",
                                     }
-                                elif value:
+
+                                value = delta.get("content")
+
+                                if value:
                                     content = f"{content}{value}"
                                     if (
                                         content_blocks
@@ -1539,7 +1540,7 @@ async def process_chat_response(
                                                 ),
                                             },
                                         )
-                                    elif(content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
+                                    elif (content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
                                         data = {
                                             "content": serialize_content_blocks(
                                                 content_blocks
