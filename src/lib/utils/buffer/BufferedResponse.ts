@@ -5,7 +5,7 @@ type BufferedResponseHook = {
 };
 
 export class BufferedResponse {
-    private buffer = '';
+    private buffer: string = '';
     private renderTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor(
@@ -53,7 +53,6 @@ export class BufferedResponse {
         }
 
         this.commit();
-        console.log(this.history)
 
         this.renderTimeout = setTimeout(this.render, msUntilUpdate);
     };
