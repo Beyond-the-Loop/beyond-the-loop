@@ -272,7 +272,7 @@ class ModelsTable:
                     filtered_models.append(ModelUserResponse(**model_dict))
 
             filtered_models.sort(
-                key=lambda m: (not m.bookmarked_by_user, m.created_at),
+                key=lambda m: (m.bookmarked_by_user, m.created_at),
                 reverse=True
             )
 

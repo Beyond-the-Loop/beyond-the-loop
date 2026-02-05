@@ -642,7 +642,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
 
-        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])])
+        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
 
         knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
