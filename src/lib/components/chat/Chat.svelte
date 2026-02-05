@@ -48,7 +48,14 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
+	import {
+		createNewChat,
+		getAllTags,
+		getChatById,
+		getChatList,
+		getTagsById,
+		updateChatById
+	} from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
@@ -146,8 +153,7 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-					} catch (e) {
-					}
+					} catch (e) {}
 				}
 
 				window.setTimeout(() => scrollToBottom(), 0);
@@ -417,8 +423,7 @@
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
 
-		chats.subscribe(() => {
-		});
+		chats.subscribe(() => {});
 
 		alert = await getAlert();
 	});
@@ -616,16 +621,16 @@
 				selectedModels = $settings?.models;
 			} else if ($companyConfig?.config?.models?.default_models) {
 				const ids = $companyConfig?.config?.models?.default_models?.split(',');
-				const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
-				const isActive = $models?.some(model => ids?.includes(model.id));
-				selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
+				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
+				const isActive = $models?.some((model) => ids?.includes(model.id));
+				selectedModels = isActive ? ids : gptDefault ? [gptDefault?.id] : [];
 			} else {
-				const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
+				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
 				selectedModels = [gptDefault?.id];
 			}
 		}
 
-		console.log("selcted models", selectedModels);
+		console.log('selcted models', selectedModels);
 
 		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
 		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
@@ -1014,17 +1019,26 @@
 	};
 
 	let bufferedResponse: BufferedResponse | null = null;
-	
-	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
 
-		let added = added_content
+	const chatCompletionEventHandler = async (data, message, chatId) => {
+		const {
+			id,
+			done,
+			choices,
+			content,
+			added_content,
+			type,
+			sources,
+			selected_model_id,
+			error,
+			usage
+		} = data;
+
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
 
-		if(taskId == null)
-		{
+		if (taskId == null) {
 			return;
 		}
 
@@ -1075,9 +1089,11 @@
 		}
 
 		if (content) {
-			if(type == 'text')
-			{
-				if (bufferedResponse === null) {
+			if (type == 'text') {
+				if (bufferedResponse != null && added_content != null && added_content != undefined) {
+					bufferedResponse.add(added_content);
+				} else if (bufferedResponse === null) {
+					message.content = content;
 					bufferedResponse = new BufferedResponse(message, history, {
 						onCommit: (msg) => {
 							// Trigger Svelte Reactivity Update
@@ -1088,22 +1104,11 @@
 							if (autoScroll) scrollToBottom();
 						}
 					});
-					added = null; // Flush once to instantly add think tags
 				}
-				if(added == null || added == undefined)
-				{
-					bufferedResponse?.flushImmediate(content);
-					message.content = content;
-				}else 
-				{
-					bufferedResponse.add(added);
-				}
-
-			}else {
+			} else {
 				message.content = content;
 			}
-			
-			
+
 			// REALTIME_CHAT_SAVE is disabled
 
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
@@ -1472,19 +1477,19 @@
 		const messages = [
 			params?.system || $settings.system || (responseMessage?.userContext ?? null)
 				? {
-					role: 'system',
-					content: `${promptTemplate(
-						params?.system ?? $settings?.system ?? '',
-						`${$user.first_name} ${$user.last_name}`,
-						$settings?.userLocation
-							? await getAndUpdateUserLocation(localStorage.token)
-							: undefined
-					)}${
-						(responseMessage?.userContext ?? null)
-							? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
-							: ''
-					}`
-				}
+						role: 'system',
+						content: `${promptTemplate(
+							params?.system ?? $settings?.system ?? '',
+							`${$user.first_name} ${$user.last_name}`,
+							$settings?.userLocation
+								? await getAndUpdateUserLocation(localStorage.token)
+								: undefined
+						)}${
+							(responseMessage?.userContext ?? null)
+								? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
+								: ''
+						}`
+					}
 				: undefined,
 			...createMessagesList(_history, responseMessageId).map((message) => ({
 				...message,
@@ -1497,24 +1502,24 @@
 				...((message.files?.filter((file) => file.type === 'image').length > 0 ?? false) &&
 				message.role === 'user'
 					? {
-						content: [
-							{
-								type: 'text',
-								text: message?.merged?.content ?? message.content
-							},
-							...message.files
-								.filter((file) => file.type === 'image')
-								.map((file) => ({
-									type: 'image_url',
-									image_url: {
-										url: file.url
-									}
-								}))
-						]
-					}
+							content: [
+								{
+									type: 'text',
+									text: message?.merged?.content ?? message.content
+								},
+								...message.files
+									.filter((file) => file.type === 'image')
+									.map((file) => ({
+										type: 'image_url',
+										image_url: {
+											url: file.url
+										}
+									}))
+							]
+						}
 					: {
-						content: message?.merged?.content ?? message.content
-					})
+							content: message?.merged?.content ?? message.content
+						})
 			}));
 
 		const res = await generateOpenAIChatCompletion(
@@ -1532,8 +1537,8 @@
 					stop:
 						(params?.stop ?? $settings?.params?.stop ?? undefined)
 							? (params?.stop.split(',').map((token) => token.trim()) ?? $settings.params.stop).map(
-								(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
-							)
+									(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
+								)
 							: undefined
 				},
 
@@ -1568,43 +1573,47 @@
 						messages.at(1)?.role === 'user')) &&
 				selectedModels[0] === model.id
 					? {
-						background_tasks: {
-							title_generation: $settings?.title?.auto ?? true,
-							tags_generation: $settings?.autoTags ?? true
+							background_tasks: {
+								title_generation: $settings?.title?.auto ?? true,
+								tags_generation: $settings?.autoTags ?? true
+							}
 						}
-					}
 					: {}),
 
 				...(stream && (model.info?.meta?.capabilities?.usage ?? false)
 					? {
-						stream_options: {
-							include_usage: true
+							stream_options: {
+								include_usage: true
+							}
 						}
-					}
 					: {})
 			},
 			`${WEBUI_BASE_URL}/api`
-		).catch((error) => {
-			if (!error?.includes('402')) {
-				if (error?.includes('ContentPolicyViolationError')) {
-					toast.error('The response was filtered due to the prompt triggering Azure OpenAI\'s content management policy. Please modify your prompt and retry.');
-				} else {
-					toast.error(`${error}`);
+		)
+			.catch((error) => {
+				if (!error?.includes('402')) {
+					if (error?.includes('ContentPolicyViolationError')) {
+						toast.error(
+							"The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry."
+						);
+					} else {
+						toast.error(`${error}`);
+					}
 				}
-			}
 
-			responseMessage.error = {
-				content: error
-			};
-			responseMessage.done = true;
+				responseMessage.error = {
+					content: error
+				};
+				responseMessage.done = true;
 
-			history.messages[responseMessageId] = responseMessage;
-			history.currentId = responseMessageId;
-			return null;
-		}).finally(() => {
-			webSearchEnabled = false;
-			imageGenerationEnabled = false;
-		});
+				history.messages[responseMessageId] = responseMessage;
+				history.currentId = responseMessageId;
+				return null;
+			})
+			.finally(() => {
+				webSearchEnabled = false;
+				imageGenerationEnabled = false;
+			});
 
 		if (res) {
 			taskId = res.task_id;
@@ -1664,8 +1673,8 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
-				responseMessage.content = responseMessage.content.replaceAll(    
-					'<details type="reasoning" done="false">',     
+				responseMessage.content = responseMessage.content.replaceAll(
+					'<details type="reasoning" done="false">',
 					'<details type="reasoning" done="true">'
 				);
 
@@ -1676,8 +1685,7 @@
 				}
 			}
 		}
-		if(bufferedResponse)
-		{
+		if (bufferedResponse) {
 			bufferedResponse?.stop();
 			bufferedResponse = null;
 		}
@@ -1877,7 +1885,6 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
-
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
@@ -1950,10 +1957,15 @@
 
 						<div class=" pb-[1rem] max-w-[980px] mx-auto w-full">
 							<div class="px-3 mb-2.5 flex items-center justify-between">
-								<ModelSelector {initNewChatCompleted} bind:selectedModels showSetDefault={!history.currentId} />
+								<ModelSelector
+									{initNewChatCompleted}
+									bind:selectedModels
+									showSetDefault={!history.currentId}
+								/>
 								<button
 									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
-									on:click={() => showLibrary.set(!$showLibrary)}>
+									on:click={() => showLibrary.set(!$showLibrary)}
+								>
 									<BookIcon />
 									<span>{$i18n.t('Library')}</span>
 								</button>
@@ -1976,7 +1988,6 @@
 									{createMessagePair}
 									onChange={(input) => {
 										if (input.prompt) {
-
 											// files can exceed 5MB, which can break the local storage.
 											if (input.files && input.files.length > 0) {
 												input.files = [];
@@ -2082,7 +2093,9 @@
 									}
 								}}
 							/>
-							<div class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0">
+							<div
+								class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0"
+							>
 								{#if $companyConfig?.config?.ui?.custom_user_notice}
 									{@html DOMPurify.sanitize(
 										$i18n.t($companyConfig?.config?.ui?.custom_user_notice),

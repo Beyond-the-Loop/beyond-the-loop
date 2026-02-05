@@ -1,18 +1,18 @@
-import type { Message, History } from "$lib/types/index.ts";
+import type { ChatMessage, ChatHistory } from "$lib/types/index.ts";
 
-type Hooks = {
-    onCommit: (message: Message) => void;
+type BufferedResponseHook = {
+    onCommit: (message: ChatMessage) => void;
 };
 
 export class BufferedResponse {
-    private buffer = '';
+    private buffer: string = '';
     private renderTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor(
-        private message: Message,
-        private history: History,
-        private hooks: Hooks
-    ){}
+        private message: ChatMessage,
+        private history: ChatHistory,
+        private hook: BufferedResponseHook
+    ) { }
 
     add(content: string) {
         this.buffer += content;
@@ -53,13 +53,12 @@ export class BufferedResponse {
         }
 
         this.commit();
-        console.log(this.history)
 
         this.renderTimeout = setTimeout(this.render, msUntilUpdate);
     };
 
     private commit() {
         this.history.messages[this.message.id] = this.message;
-        this.hooks.onCommit(this.message);
+        this.hook.onCommit(this.message);
     }
 }
