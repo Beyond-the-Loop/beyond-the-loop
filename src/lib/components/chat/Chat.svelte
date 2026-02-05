@@ -1141,7 +1141,7 @@
 				if (bufferedResponse === null) {
 					bufferedResponse = new BufferedResponse(message, history, {
 						onCommit: (msg) => {
-							// WICHTIG: Svelte Reactivity triggern
+							// Trigger Svelte Reactivity Update
 							history.messages = {
 								...history.messages,
 								[msg.id]: { ...msg }
@@ -1256,8 +1256,6 @@
 			scrollToBottom();
 		}
 	};
-
-	
 
 	//////////////////////////
 	// Chat functions
@@ -1742,7 +1740,7 @@
 					'<details type="reasoning" done="true">'
 				);
 
-				history.messages[responseMessage.id] = responseMessage;
+				history.messages[history.currentId] = responseMessage;
 
 				if (autoScroll) {
 					scrollToBottom();

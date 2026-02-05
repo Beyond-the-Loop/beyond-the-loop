@@ -1,8 +1,4 @@
-// import type { Message } from '$lib/types/chat';
-
-type History = {
-    messages: Record<string | number, Message>;
-};
+import type { Message, History } from "$lib/types/index.ts";
 
 type Hooks = {
     onCommit: (message: Message) => void;
@@ -16,7 +12,6 @@ export class BufferedResponse {
         private message: Message,
         private history: History,
         private hooks: Hooks
-        // private hooks: Hooks = {}
     ){}
 
     add(content: string) {
@@ -58,6 +53,7 @@ export class BufferedResponse {
         }
 
         this.commit();
+        console.log(this.history)
 
         this.renderTimeout = setTimeout(this.render, msUntilUpdate);
     };
