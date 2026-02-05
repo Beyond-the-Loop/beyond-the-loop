@@ -34,7 +34,10 @@ function detailsTokenizer(src: string) {
 	const detailsMatch = detailsRegex.exec(src);
 	if (detailsMatch) {
 		const endIndex = findMatchingClosingTag(src, '<details', '</details>');
-		if (endIndex === -1) return;
+		if (endIndex === -1){
+			console.log('Closing-Tag nicht gefunden!');
+			return;
+		} 
 
 		const fullMatch = src.slice(0, endIndex);
 		const detailsTag = detailsMatch[0];
@@ -48,6 +51,7 @@ function detailsTokenizer(src: string) {
 			summary = summaryMatch[1].trim();
 			content = content.slice(summaryMatch[0].length).trim();
 		}
+		console.log(attributes);
 
 		return {
 			type: 'details',

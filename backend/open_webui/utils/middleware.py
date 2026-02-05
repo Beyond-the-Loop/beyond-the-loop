@@ -995,7 +995,6 @@ async def process_chat_response(
                 content = response["choices"][0]["message"]["content"]
 
                 if content:
-
                     await event_emitter(
                         {
                             "type": "chat:completion",
@@ -1440,6 +1439,8 @@ async def process_chat_response(
                                     or delta.get("reasoning")
                                     or delta.get("thinking")
                                 )
+                                value = delta.get("content")
+                                # Entweder Reasoning ODER Nicht-Reasoning
                                 if reasoning_content:
                                     if (
                                         not content_blocks
@@ -1447,8 +1448,6 @@ async def process_chat_response(
                                     ):
                                         reasoning_block = {
                                             "type": "reasoning",
-                                            "start_tag": "<think>",
-                                            "end_tag": "</think>",
                                             "attributes": {
                                                 "type": "reasoning_content"
                                             },
@@ -1466,12 +1465,8 @@ async def process_chat_response(
                                             content_blocks
                                         )),
                                         "type": "reasoning",
-                                        # "added_content": reasoning_content
                                     }
-                                
-                                value = delta.get("content")
-
-                                if value:
+                                elif value:
                                     content = f"{content}{value}"
                                     if (
                                         content_blocks
@@ -1544,6 +1539,13 @@ async def process_chat_response(
                                                 ),
                                             },
                                         )
+                                    elif(content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
+                                        data = {
+                                            "content": serialize_content_blocks(
+                                                content_blocks
+                                            ),
+                                            "type": "reasoning",
+                                        }
                                     else:
                                         data = {
                                             "content": serialize_content_blocks(

@@ -222,6 +222,7 @@ async def generate_chat_completion(
         model_name = model_info.name
 
     payload["model"] = model_name
+    print(model_name)
 
     if model_name == "Mistral Large 2":
         payload["stream"] = False
@@ -296,6 +297,7 @@ async def generate_chat_completion(
     # Parse payload once for both streaming and non-streaming cases
     payload_dict = json.loads(payload)
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
+    print(payload)
 
     try:
         session = aiohttp.ClientSession(

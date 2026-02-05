@@ -231,7 +231,7 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
-		// console.log(event);
+		console.log(event);
 
 		if (event.chat_id === $chatId) {
 			await tick();
@@ -1075,26 +1075,18 @@
 	};
 
 	let bufferedResponse: BufferedResponse | null = null;
-	let isToggled = false;
-  
-	// Temporäre Funktion zum Testen von zwei Modi auf Staging
-	const handleToggle = () => {
-		isToggled = !isToggled;
-		const mode = isToggled ? 1 : 0;
-		
-		if (bufferedResponse) {
-		bufferedResponse.changeMode(mode);
-		} else {
-		console.warn('bufferedResponse ist null');
-		}
-	};
-
+	
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const { id, done, choices, content, added_content, type, sources, selected_model_id, error, usage } = data;
 
 		let added = added_content
 		if (error) {
 			await handleOpenAIError(error, message);
+		}
+
+		if(taskId == null)
+		{
+			return;
 		}
 
 		if (sources) {
@@ -1147,38 +1139,23 @@
 			if(type == 'text')
 			{
 				if (bufferedResponse === null) {
-					bufferedResponse = new BufferedResponse(message, isToggled, history, {
-						onUpdate: (msg) => {
-						},
-						onScroll: () => {
-							if (autoScroll) scrollToBottom();
-						},
+					bufferedResponse = new BufferedResponse(message, history, {
 						onCommit: (msg) => {
-						// WICHTIG: Svelte Reactivity triggern
-						history.messages = {
-							...history.messages,
-							[msg.id]: { ...msg }
-						};
-					}
+							// WICHTIG: Svelte Reactivity triggern
+							history.messages = {
+								...history.messages,
+								[msg.id]: { ...msg }
+							};
+							if (autoScroll) scrollToBottom();
+						}
 					});
-					// </think> tags sind im content, aber nicht im added_content => künstlich hinzufügen
-					// const reasoning_tags = ["think", "thinking", "reason", "reasoning", "thought", "Thought"];
-
-					// for (const tag of reasoning_tags) {
-					// 	if (message.content.includes(`<${tag}>`)) {
-					// 		bufferedResponse.add(`</${tag}>`);
-					// 		console.log('Tag gefunden: ', tag);
-					// 		console.log('bufferedResponse', bufferedResponse);
-					// 		continue;
-					// 	}
-					// }
-					// if (content.endsWith(added_content)) {    
 					added = null;
 				}
 				if(added == null || added == undefined)
 				{
 					bufferedResponse?.flushImmediate(content);
 					message.content = content;
+					console.log('Error in streaming_response: undefined added_content')
 				}else 
 				{
 					bufferedResponse.add(added);
@@ -1227,8 +1204,13 @@
 		if (usage) {
 			message.usage = usage;
 		}
-
+		if(history.messages[message.id].content.includes(`<details type="reasoning" done="true">`))
+		{
+			console.log(data);
+		}
 		history.messages[message.id] = message;
+		console.log('chatCompletionEventHandler aufgerufen');
+		console.log(`message: ${type};${added_content}`);
 
 		if (done) {
 			bufferedResponse?.stop();
@@ -1766,17 +1748,6 @@
 					'<details type="reasoning" done="false">',     
 					'<details type="reasoning" done="true">'
 				);
-				if(responseMessage.content.includes('<details>'))
-				{
-					if (!responseMessage.content.includes('</details>'))
-					{
-						responseMessage.content.append('Lolololo</details></think>') // Ich denke es kommt noch ein chunk rein, der message.content wieder auf den alten stand setzt!
-					}
-				}
-				responseMessage.content = responseMessage.content.replaceAll(    
-					'<details type="reasoning" done="false">',     
-					'<details type="reasoning" done="true">'
-				);
 				console.log('Fertig!', responseMessage);
 
 				history.messages[responseMessage.id] = responseMessage;
@@ -1991,33 +1962,7 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
-	<!-- Toggle-Button hinzufügen -->
-	<div class="flex items-center justify-center p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
-		<button
-		on:click={handleToggle}
-		class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 {isToggled 
-			? 'bg-blue-600 dark:bg-blue-500' 
-			: 'bg-gray-300 dark:bg-gray-600'}"
-		aria-pressed={isToggled}
-		role="switch"
-		>
-		<span class="sr-only">Frequenz umschalten</span>
-		<span
-			class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {isToggled 
-			? 'translate-x-6' 
-			: 'translate-x-1'}"
-		/>
-		</button>
-		
-		<span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-		{isToggled ? 'Extra Smooth' : 'Normal Smooth'}
-		</span>
-		
-		{#if bufferedResponse === null}
-		<span class="ml-2 text-xs text-red-500 dark:text-red-400">
-		</span>
-		{/if}
-	</div>
+	
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
