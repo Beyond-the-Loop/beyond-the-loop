@@ -614,7 +614,7 @@
 										</div>
 									{/if}
 
-									{#if status?.action === 'web_search' && (status?.query_summaries || status?.urls)}
+									{#if status?.action === 'web_search' && status?.urls}
 										<WebSearchResults {status}>
 											<div class="flex flex-col justify-center -space-y-0.5">
 												<div
@@ -622,12 +622,20 @@
 														? 'shimmer'
 														: ''} text-base line-clamp-1 text-wrap"
 												>
+													<!-- $i18n.t("Generating search query") -->
+													<!-- $i18n.t("No search query generated") -->
+
+													<!-- $i18n.t('Searched {{count}} sites') -->
 													{#if status?.description.includes('{{count}}')}
 														{$i18n.t(status?.description, {
-															count: status.query_summaries ? status.query_summaries.reduce((acc, q) => acc + ((q.filenames || []).length), 0) : status?.urls.length
+															count: status?.urls.length
 														})}
+													{:else if status?.description === 'No search query generated'}
+														{$i18n.t('No search query generated')}
+													{:else if status?.description === 'Generating search query'}
+														{$i18n.t('Generating search query')}
 													{:else}
-														{$i18n.t(status?.description)}
+														{status?.description}
 													{/if}
 												</div>
 											</div>
@@ -644,16 +652,6 @@
 												})}
 											</div>
 										</div>
-									{:else if status?.action === 'analyzing_results'}
-										<div class="flex flex-col justify-center -space-y-0.5">
-											<div
-												class="{status?.done === false
-													? 'shimmer'
-													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
-											>
-												{$i18n.t("Analyzing results")}
-											</div>
-										</div>
 									{:else}
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div
@@ -661,12 +659,17 @@
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
+												<!-- $i18n.t(`Searching "{{searchQuery}}"`) -->
 												{#if status?.description.includes('{{searchQuery}}')}
 													{$i18n.t(status?.description, {
 														searchQuery: status?.query
 													})}
+												{:else if status?.description === 'No search query generated'}
+													{$i18n.t('No search query generated')}
+												{:else if status?.description === 'Generating search query'}
+													{$i18n.t('Generating search query')}
 												{:else}
-													{$i18n.t(status?.description || "")}
+													{status?.description}
 												{/if}
 											</div>
 										</div>
