@@ -30,95 +30,79 @@
 	import { createEventDispatcher } from 'svelte';
 	import { createUser } from '$lib/apis/users';
 	import { theme, systemTheme } from '$lib/stores';
+	import { validateEmail, getEmailErrorMessage } from '$lib/utils/email-validation';
+
 	const dispatch = createEventDispatcher();
 
 	const i18n = getContext('i18n');
 
 	export let email = '';
 	let loading = false;
+	let emailError = '';
 
 	async function registerEmail() {
+		const error = validateEmail(email);
+		if (error) {
+			emailError = $i18n.t(getEmailErrorMessage(error));
+			return;
+		}
 		loading = true;
-		const user = await createUser(email).catch(error => {
-			showToast('error', error);
-		}).finally(() => loading = false);
+		const user = await createUser(email)
+			.catch((error) => {
+				showToast('error', error);
+			})
+			.finally(() => (loading = false));
 		dispatch('next', { email: user.email });
 	}
+
 	let logoSrc = '/logo_light.png';
 
 	onMount(() => {
-		const theme = $theme === "system" ? $systemTheme : $theme;
-		const isDark = theme === 'dark';
+		const currentTheme = $theme === 'system' ? $systemTheme : $theme;
+		const isDark = currentTheme === 'dark';
 		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
 	});
 </script>
 
-
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
 <form
-	class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-7 md:px-24"
+	class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[34rem] px-6 py-8 md:py-10 md:px-16"
 	on:submit={(e) => {
 		e.preventDefault();
 		registerEmail();
 	}}
 >
-	<div class="self-center flex flex-col items-center mb-5">
+	<!-- Header -->
+	<div class="self-center flex flex-col items-center mb-8">
 		<div>
-			<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
-		</div>
-		<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">{$i18n.t('Create your account')}</div>
-		<div class="text-center text-xs font-medium text-[#8A8B8D] dark:text-customGray-300">
-			{$i18n.t('Sign up to Beyond the Loop to continue.')}
-		</div>
-	</div>
-	<div class="flex-1 mb-2.5">
-		<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
-			{#if email}
-				<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-					{$i18n.t('Email address')}
-				</div>
-			{/if}
-			<input
-				class={`px-2.5 text-sm ${email ? 'pt-2' : 'pt-0'} text-lightGray-100 placeholder:text-lightGray-100 w-full h-12 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-				placeholder={$i18n.t('Email address')}
-				bind:value={email}
-				type="email"
-				autocomplete="email"
-				name="email"
-				required
+			<img
+				width="48"
+				height="48"
+				crossorigin="anonymous"
+				src={logoSrc}
+				class="w-12 mb-6"
+				alt="logo"
 			/>
 		</div>
+		<div class="text-2xl font-semibold text-lightGray-100 dark:text-customGray-100 mb-2">
+			{$i18n.t('Create your account')}
+		</div>
+		<div class="text-center text-sm text-[#8A8B8D] dark:text-customGray-300">
+			{$i18n.t('Enter your work email to get started.')}
+		</div>
 	</div>
-	<button
-		class=" text-xs w-full font-medium h-10 px-3 py-2 transition rounded-lg {loading
-			? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 border-lightGray-400 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border dark:border-customGray-700'
-			: 'bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 border-lightGray-400 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700'} flex justify-center items-center"
-		type="submit"
-		disabled={loading}
-	>
-		{$i18n.t('Save')}
-		{#if loading}
-			<div class="ml-1.5 self-center">
-				<LoaderIcon />
-			</div>
-		{/if}
-	</button>
-	<div class="mt-5 text-xs text-lightGray-100 dark:text-customGray-300">
-		{$i18n.t('Already have an account?')}
-		<a href="/login" class="text-customBlue-500 font-medium">{$i18n.t('Log in')}</a>
-	</div>
-	<hr class=" border-lightGray-300 dark:border-customGray-700 mb-2 mt-6" />
-	<div class="text-xs text-lightGray-100 dark:text-customGray-300 text-center font-medium mb-2.5">{$i18n.t("Or")}</div>
-	<div class="flex flex-col space-y-2">
+
+	<!-- OAuth Buttons -->
+	<div class="flex flex-col space-y-3 mb-6">
 		{#if $config?.oauth?.providers?.google}
 			<button
 				type="button"
-				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
+				class="h-12 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-sm py-3 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
 				on:click={() => {
 					window.location.href = `${WEBUI_BASE_URL}/oauth/google/login`;
 				}}
 			>
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="size-4 mr-3">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="size-5 mr-3">
 					<path
 						fill="#EA4335"
 						d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
@@ -139,12 +123,12 @@
 		{#if $config?.oauth?.providers?.microsoft}
 			<button
 				type="button"
-				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
+				class="h-12 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-sm py-3 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
 				on:click={() => {
 					window.location.href = `${WEBUI_BASE_URL}/oauth/microsoft/login`;
 				}}
 			>
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" class="size-4 mr-3">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" class="size-5 mr-3">
 					<rect x="1" y="1" width="9" height="9" fill="#f25022" /><rect
 						x="1"
 						y="11"
@@ -163,12 +147,75 @@
 			</button>
 		{/if}
 	</div>
-	<div class="self-center text-xs text-lightGray-100 dark:text-customGray-300 mt-5 text-center">
-		{$i18n.t('By using this service, you agree to our')}
+
+	<!-- Divider -->
+	<div class="flex items-center my-6">
+		<div class="flex-1 border-t border-lightGray-300 dark:border-customGray-700"></div>
+		<span class="px-4 text-sm text-[#8A8B8D] dark:text-customGray-400">{$i18n.t('or')}</span>
+		<div class="flex-1 border-t border-lightGray-300 dark:border-customGray-700"></div>
+	</div>
+
+	<!-- Email Input -->
+	<div class="mb-4">
+		<label
+			for="email"
+			class="block text-sm font-medium text-lightGray-100 dark:text-customGray-200 mb-2"
+		>
+			{$i18n.t('Work Email')}
+		</label>
+		<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-lg">
+			<input
+				id="email"
+				class="px-4 text-base w-full h-14 bg-transparent text-lightGray-100 dark:text-white placeholder:text-lightGray-100/60 dark:placeholder:text-customGray-100/60 outline-none rounded-lg border border-transparent focus:border-customBlue-500 transition-colors"
+				placeholder="name@company.com"
+				bind:value={email}
+				type="email"
+				autocomplete="email"
+				name="email"
+				required
+				on:input={() => (emailError = '')}
+			/>
+		</div>
+		{#if emailError}
+			<p class="text-red-500 text-sm mt-2">{emailError}</p>
+		{/if}
+	</div>
+
+	<!-- Submit Button -->
+	<button
+		class="text-sm w-full font-semibold h-14 px-4 py-3 transition rounded-lg {loading
+			? 'cursor-not-allowed bg-customBlue-500/70 text-white'
+			: 'bg-customBlue-500 hover:bg-customBlue-600 text-white'} flex justify-center items-center"
+		type="submit"
+		disabled={loading}
+	>
+		{$i18n.t('Continue')}
+		{#if loading}
+			<div class="ml-2 self-center">
+				<LoaderIcon />
+			</div>
+		{/if}
+	</button>
+
+	<!-- Legal Text -->
+	<div class="mt-6 text-sm text-[#8A8B8D] dark:text-customGray-400 text-center leading-relaxed">
+		{$i18n.t('By signing up, I confirm the')}
 		<a
 			href="https://beyondtheloop.ai/tscs"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>{#if $i18n.language === "de-DE"}{" "}zu.{:else}.{/if}
+			class="text-customBlue-500 hover:underline">{$i18n.t('Terms and Conditions')}</a
+		>
+		{$i18n.t('and that I am acting as an entrepreneur, not a consumer within the meaning of § 13 BGB.')}
+	</div>
+
+	<!-- Login Link -->
+	<div class="mt-6 text-center">
+		<span class="text-sm text-[#8A8B8D] dark:text-customGray-400">
+			{$i18n.t('Already have an account?')}
+		</span>
+		<a href="/login" class="text-sm text-customBlue-500 font-medium hover:underline ml-1"
+			>{$i18n.t('Log in')}</a
+		>
 	</div>
 </form>
