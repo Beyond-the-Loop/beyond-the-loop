@@ -1491,8 +1491,6 @@ async def process_chat_response(
                                                 "content": "",
                                             }
                                         )
-                                    
-                                    
 
                                     if not content_blocks:
                                         content_blocks.append(
