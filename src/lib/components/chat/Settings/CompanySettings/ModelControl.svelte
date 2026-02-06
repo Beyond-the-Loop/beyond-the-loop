@@ -60,8 +60,8 @@
 		const modelOrderList = config.MODEL_ORDER_LIST || [];
 		const allModelIds = $storeModels.map((model) => model.id);
 
-		if (config?.DEFAULT_MODELS) {
-			defaultModelIds = (config?.DEFAULT_MODELS ?? '')
+		if (config?.default_models) {
+			defaultModelIds = (config?.default_models ?? '')
 				.split(',')
 				.filter(Boolean)
 				.map((id) => $storeModels.find((m) => m.id === id)?.name ?? '');
