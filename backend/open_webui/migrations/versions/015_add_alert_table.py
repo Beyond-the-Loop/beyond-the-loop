@@ -22,11 +22,19 @@ def upgrade() -> None:
 
     conn.execute(
         sa.text("""
-        CREATE TYPE IF NOT EXISTS alert_type AS ENUM (
-            'info',
-            'warning',
-            'success'
-        );
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_type WHERE typname = 'alert_type'
+            ) THEN
+                CREATE TYPE alert_type AS ENUM (
+                    'info',
+                    'warning',
+                    'success'
+                );
+            END IF;
+        END
+        $$;
         """)
     )
 
