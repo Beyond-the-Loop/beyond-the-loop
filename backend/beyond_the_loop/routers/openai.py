@@ -16,7 +16,6 @@ from starlette.background import BackgroundTask
 
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
-from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
 from litellm.utils import trim_messages
 
 
@@ -351,8 +350,7 @@ async def generate_chat_completion(
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                                     credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
 
-                                Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
-
+                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model_info.name if model_info.base_model_id else None)
                         except json.JSONDecodeError:
                             print(f"\n{chunk_str}")
 
@@ -411,7 +409,7 @@ async def generate_chat_completion(
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
 
-            Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, response_content))
+            Completions.insert_new_completion(user.id, model_name, credit_cost, model_info.name if model_info.base_model_id else None)
 
             return response
     except Exception as e:

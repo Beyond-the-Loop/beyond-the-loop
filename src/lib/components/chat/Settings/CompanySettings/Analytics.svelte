@@ -10,10 +10,9 @@
 	import { onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import {
-		getAdoptionRate,
+		getAcceptanceRate,
 		getPowerUsers,
-		getSavedTimeInSeconds,
-		getTopModels, getTopUsers, getTotalAssistants, getTotalBilling, getTotalChats,
+		getTopModels, getTopUsers, getTotalAssistants,
 		getTotalMessages,
 		getTotalUsers
 	} from '$lib/apis/analytics';
@@ -58,7 +57,6 @@
 
 	let selectedPeriod = periodOptions[0];
 	let chartMessagesData = null;
-	let chartChatsData = null;
 
 	let users = [];
 
@@ -76,23 +74,17 @@
 				topModels,
 				totalUsers,
 				totalMessages,
-				adoptionRate,
+				acceptanceRate,
 				powerUsers,
-				savedTime,
 				topUsers,
-				totalBilling,
-				totalChats,
 				totalAssistants
 			] = await Promise.allSettled([
 				getTopModels(token, start, end),
 				getTotalUsers(token),
 				getTotalMessages(token),
-				getAdoptionRate(token),
+				getAcceptanceRate(token),
 				getPowerUsers(token),
-				getSavedTimeInSeconds(token),
 				getTopUsers(token, start, end),
-				getTotalBilling(token),
-				getTotalChats(token),
 				getTotalAssistants(token),
 			]);
 
@@ -100,12 +92,9 @@
 				topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
 				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
 				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-				adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
+				acceptanceRate: acceptanceRate?.status === 'fulfilled' ? acceptanceRate?.value : {},
 				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
-				savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
 				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
-				totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
-				totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
 				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
 			}
 		} catch (error) {
@@ -129,22 +118,6 @@
 						label: 'Total Messages',
 						// data: ['N/A', 'N/A', 15, 20, 24, 25, 40, 48, 50, 62, 60, 70, 80],
 						data: Object.values(analytics?.totalMessages?.monthly_messages),
-						backgroundColor: ['#305BE4'],
-						borderColor: ['#305BE4']
-					}
-				]
-			};
-		}
-		if (analytics?.totalChats?.monthly_chats) {
-			chartChatsData = {
-				labels: analytics?.totalChats?.monthly_chats
-					? getMonths(analytics?.totalChats?.monthly_chats)
-					: [],
-				datasets: [
-					{
-						label: 'Total Chats',
-						// data: ['N/A', 'N/A', 15, 20, 24, 25, 40, 48, 50, 62, 60, 70, 80],
-						data: Object.values(analytics?.totalChats?.monthly_chats),
 						backgroundColor: ['#305BE4'],
 						borderColor: ['#305BE4']
 					}
@@ -197,7 +170,7 @@
 			</div>
 			<div class="rounded-2xl bg-lightGray-300 dark:bg-customGray-900 pt-4 pb-2 flex flex-col items-center">
 				<div class="text-2xl text-lightGray-100 dark:text-customGray-100 mb-2.5">
-					{analytics?.adoptionRate?.adoption_rate}%
+					{analytics?.acceptanceRate?.acceptance_rate}%
 				</div>
 				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Adoption rate')}</div>
 				<Tooltip content={$i18n.t('The proportion of users who logged in during the last month.')}>
@@ -416,26 +389,12 @@
 					class="{activeTab === 'messages'
 						? 'text-lightGray-100 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 rounded-md border dark:border-customGray-700'
 						: 'text-lightGray-100/70'} px-6 py-2 flex-shrink-0 text-xs font-medium leading-none dark:text-customGray-100"
-					>{$i18n.t('Messages')}</button
-				>
-				<button
-					on:click={() => (activeTab = 'chats')}
-					class="{activeTab === 'chats'
-						? 'text-lightGray-100 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 rounded-md border dark:border-customGray-700'
-						: 'text-lightGray-100/70'} px-6 py-2 flex-shrink-0 text-xs font-medium leading-none  dark:text-customGray-100"
-					>{$i18n.t('Chats')}</button
-				>
+					>{$i18n.t('Messages')}</button>
 			</div>
 			<div>
-				{#if activeTab === 'messages'}
-					<div class="dark:bg-customGray-900 rounded-2xl p-4">
-						<Chart type="line" data={chartMessagesData} options={chartOptions} />
-					</div>
-				{:else if activeTab === 'chats'}
-					<div class="dark:bg-customGray-900 rounded-2xl p-4">
-						<Chart type="line" data={chartChatsData} options={chartOptions} />
-					</div>
-				{/if}
+				<div class="dark:bg-customGray-900 rounded-2xl p-4">
+					<Chart type="line" data={chartMessagesData} options={chartOptions} />
+				</div>
 			</div>
 		</div>
 	{:else}

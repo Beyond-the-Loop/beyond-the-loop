@@ -16,35 +16,32 @@ class Completion(Base):
 
     id = Column(String, primary_key=True, unique=True)
     user_id = Column(String, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    chat_id = Column(String, nullable=True)
     model = Column(Text)
     credits_used = Column(Float)
     created_at = Column(BigInteger)
-    time_saved_in_seconds = Column(Float)
+    assistant = Column(Text)
 
 class CompletionModel(BaseModel):
     id: str
-    user_id: Optional[str]
-    chat_id: Optional[str]
+    user_id: str
     model: str
     credits_used: float
     created_at: int  # timestamp in epoch
-    time_saved_in_seconds: float
+    assistant: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, chat_id: str, model: str, credits_used: float, time_saved_in_seconds: float) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str) -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
-                "chat_id": chat_id,
                 "created_at": int(time.time()),
                 "model": model,
                 "credits_used": credits_used,
-                "time_saved_in_seconds": time_saved_in_seconds
+                "assistant": assistant
             }
         )
 
@@ -88,27 +85,5 @@ class CompletionTable:
             print(f"Error fetching completions for usage count: {e}")
             return 0
 
-
-def calculate_saved_time_in_seconds(last_message, response_message):
-    # print(last_message + " ----- " + response_message)
-
-    writing_speed_per_word = 600 / 500  # 500 words in 600 seconds = 1.2 sec per word
-    reading_speed_per_word = 400 / 500  # 500 words in 400 seconds = 0.8 sec per word
-
-    try:
-        # Now prompt is a string (the last message), not a list of messages
-        num_words_prompt = len(last_message.split())
-        num_words_output = len(response_message.split())
-
-        prompt_time = num_words_prompt * writing_speed_per_word
-        writing_time = num_words_output * writing_speed_per_word
-        reading_time = num_words_output * reading_speed_per_word
-
-        total_time = writing_time - (prompt_time + reading_time)
-        total_time = 0 if total_time < 0 else total_time
-
-        return total_time
-    except:
-        return 0
 
 Completions = CompletionTable()

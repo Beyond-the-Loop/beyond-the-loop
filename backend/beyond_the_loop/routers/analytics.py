@@ -27,7 +27,7 @@ async def get_top_models(
     user=Depends(get_verified_user)
 ):
     """
-    Returns the top 5 models based on usage for the user's company within the specified date range.
+    Returns the top 5 models based on usage and messages sent for the user's company within the specified date range.
     """
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
@@ -52,7 +52,7 @@ async def get_top_users(
     user=Depends(get_verified_user)
 ):
     """
-    Returns the top users based on different metrics (credits used, messages, assistants created)
+    Returns the top users based on different metrics (credits used, messages)
     for the user's company and within a specified date range.
     """
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
@@ -75,15 +75,15 @@ async def get_top_users(
         raise HTTPException(status_code=500, detail=f"Error fetching top users: {e}")
 
 
-@router.get("/stats/total-billing")
-async def get_total_billing(
-    start_date: str = Query(None, description="Start date in YYYY-MM-DD format (optional)"),
-    end_date: str = Query(None, description="End date in YYYY-MM-DD format (optional)"),
+@router.get("/top-assistants")
+async def get_top_assistants(
+    start_date: str = Query(None, description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(None, description="End date in YYYY-MM-DD format"),
     user=Depends(get_verified_user)
 ):
     """
-    Returns total billing data for the last 12 months or within a specified time frame,
-    filtered by the user's company.
+    Returns the top assistants based on different metrics (credits used, messages)
+    for the user's company and within a specified date range.
     """
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
@@ -94,11 +94,16 @@ async def get_total_billing(
         )
 
     try:
-        return AnalyticsService.calculate_credit_consumption_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        return AnalyticsService.get_top_assistants_by_company(user.company_id, start_date, end_date)
+    except ValueError as ve:
+        # Add more detailed error information
+        log.error(f"ValueError in get_top_assistants: {ve}")
+        raise HTTPException(status_code=400, detail=f"Invalid date format. Use YYYY-MM-DD. Error: {ve}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching billing stats: {e}")
+        # Log the specific error
+        log.error(f"Error in get_top_assistants: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching top users: {e}")
+
 
 @router.get("/stats/total-messages")
 async def get_total_messages(
@@ -126,58 +131,6 @@ async def get_total_messages(
         raise HTTPException(status_code=500, detail=f"Error fetching message stats: {e}")
 
 
-@router.get("/stats/total-chats")
-async def get_total_chats(
-    start_date: str = Query(None, description="Start date in YYYY-MM-DD format (optional)"),
-    end_date: str = Query(None, description="End date in YYYY-MM-DD format (optional)"),
-    user=Depends(get_verified_user)
-):
-    """
-    Returns total number of unique chats for the last 12 months or within a specified time frame,
-    filtered by the user's company.
-    """
-    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
-
-    if is_free_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    try:
-        return AnalyticsService.get_total_chats_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching chat stats: {e}")
-
-
-@router.get("/stats/saved-time-in-seconds")
-async def get_saved_time_in_seconds(
-    start_date: str = Query(None, description="Start date in YYYY-MM-DD format (optional)"),
-    end_date: str = Query(None, description="End date in YYYY-MM-DD format (optional)"),
-    user=Depends(get_verified_user)
-):
-    """
-    Returns total saved time in seconds for the last 12 months or within a specified time frame,
-    filtered by the user's completions.
-    """
-    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
-
-    if is_free_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    try:
-        return AnalyticsService.get_saved_time_in_seconds_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching saved time stats: {e}")
-
-
 @router.get("/stats/total-users")
 async def get_total_users(user=Depends(get_verified_user)):
     """
@@ -197,8 +150,8 @@ async def get_total_users(user=Depends(get_verified_user)):
         raise HTTPException(status_code=500, detail=f"Error fetching total users: {e}")
 
 
-@router.get("/stats/adoption-rate")
-async def get_adoption_rate(user=Depends(get_verified_user)):
+@router.get("/stats/acceptance-rate")
+async def get_acceptance_rate(user=Depends(get_verified_user)):
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
     if is_free_user:

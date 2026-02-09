@@ -76,26 +76,41 @@ class AnalyticsService:
             raise HTTPException(status_code=400, detail="Start date must be before end date.")
 
         with get_db() as db:
-            company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
-            company_user_ids = [u.id for u in company_user_ids]
+            company_users = db.query(User.id).filter_by(company_id=company_id).all()
+            company_user_ids = [u.id for u in company_users]
 
-            top_models = db.query(
-                Completion.model,
-                func.sum(Completion.credits_used).label("credits_used")
-            ).filter(
-                Completion.created_at >= start_timestamp,
-                Completion.created_at <= end_timestamp,
-                Completion.user_id.in_(company_user_ids)
-            ).group_by(
-                Completion.model
-            ).order_by(
-                func.sum(Completion.credits_used).desc()
-            ).limit(3).all()
+            top_models = (
+                db.query(
+                    Completion.model,
+                    func.sum(Completion.credits_used).label("credits_used"),
+                    func.count(Completion.id).label("message_count"),
+                )
+                .filter(
+                    Completion.assistant == None,
+                    Completion.created_at >= start_timestamp,
+                    Completion.created_at <= end_timestamp,
+                    Completion.user_id.in_(company_user_ids),
+                )
+                .group_by(
+                    Completion.model
+                )
+                .order_by(
+                    func.sum(Completion.credits_used).desc()
+                )
+                .all()
+            )
 
         if not top_models:
             return {"message": "No data found for the given parameters."}
 
-        return [{"model": model, "credits_used": credit_sum} for model, credit_sum in top_models]
+        return [
+            {
+                "model": model,
+                "credits_used": credits_used,
+                "message_count": message_count,
+            }
+            for model, credits_used, message_count in top_models
+        ]
 
     @staticmethod
     def get_top_users_by_company(company_id: str, start_date: str, end_date: str):
@@ -118,109 +133,118 @@ class AnalyticsService:
             raise HTTPException(status_code=400, detail="Start date must be before end date.")
 
         with get_db() as db:
-            # Query top users by credits used
-            top_users_by_credits = db.query(
-                Completion.user_id,
-                func.sum(Completion.credits_used).label("total_credits"),
-                User.first_name,
-                User.last_name,
-                User.email,
-                User.profile_image_url
-            ).join(
-                User, User.id == Completion.user_id
-            ).filter(
-                Completion.created_at >= start_timestamp,
-                Completion.created_at <= end_timestamp,
-                User.company_id == company_id
-            ).group_by(
-                Completion.user_id, User.first_name, User.last_name, User.email, User.profile_image_url
-            ).order_by(
-                func.sum(Completion.credits_used).desc()
-            ).limit(5).all()
+            top_users = (
+                db.query(
+                    Completion.user_id,
+                    func.sum(Completion.credits_used).label("total_credits_used"),
+                    func.count(Completion.id).label("message_count"),
+                    User.first_name,
+                    User.last_name,
+                    User.email,
+                    User.profile_image_url,
+                )
+                .join(User, User.id == Completion.user_id)
+                .filter(
+                    Completion.created_at >= start_timestamp,
+                    Completion.created_at <= end_timestamp,
+                    User.company_id == company_id,
+                )
+                .group_by(
+                    Completion.user_id,
+                    User.first_name,
+                    User.last_name,
+                    User.email,
+                    User.profile_image_url,
+                )
+                .order_by(func.sum(Completion.credits_used).desc())
+                .all()
+            )
 
-            # Query top users by message count
-            top_users_by_messages = db.query(
-                Completion.user_id,
-                func.count(Completion.id).label("message_count"),
-                User.first_name,
-                User.last_name,
-                User.email,
-                User.profile_image_url
-            ).join(
-                User, User.id == Completion.user_id
-            ).filter(
-                Completion.created_at >= start_timestamp,
-                Completion.created_at <= end_timestamp,
-                User.company_id == company_id
-            ).group_by(
-                Completion.user_id, User.first_name, User.last_name, User.email, User.profile_image_url
-            ).order_by(
-                func.count(Completion.id).desc()
-            ).limit(5).all()
-
-            # Query top users by assistants created
-            top_users_by_assistants = db.query(
-                Model.user_id,
-                func.count(Model.id).label("assistant_count"),
-                User.first_name,
-                User.last_name,
-                User.email,
-                User.profile_image_url
-            ).join(
-                User, User.id == Model.user_id
-            ).filter(
-                Model.created_at >= start_timestamp,
-                Model.created_at <= end_timestamp,
-                Model.company_id == company_id
-            ).group_by(
-                Model.user_id, User.first_name, User.last_name, User.email, User.profile_image_url
-            ).order_by(
-                func.count(Model.id).desc()
-            ).limit(5).all()
-
-        # Format results for credits
-        top_by_credits = [
+        top_users_formatted = [
             {
                 "user_id": user_id,
                 "first_name": first_name,
                 "last_name": last_name,
                 "email": email,
                 "profile_image_url": profile_image_url,
-                "total_credits_used": total_credits
+                "total_credits_used": total_credits_used,
+                "message_count": message_count,
             }
-            for user_id, total_credits, first_name, last_name, email, profile_image_url in top_users_by_credits
-        ]
-
-        # Format results for messages
-        top_by_messages = [
-            {
-                "user_id": user_id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "email": email,
-                "profile_image_url": profile_image_url,
-                "message_count": message_count
-            }
-            for user_id, message_count, first_name, last_name, email, profile_image_url in top_users_by_messages
-        ]
-
-        # Format results for assistants
-        top_by_assistants = [
-            {
-                "user_id": user_id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "email": email,
-                "profile_image_url": profile_image_url,
-                "assistant_count": assistant_count
-            }
-            for user_id, assistant_count, first_name, last_name, email, profile_image_url in top_users_by_assistants
+            for (
+                user_id,
+                total_credits_used,
+                message_count,
+                first_name,
+                last_name,
+                email,
+                profile_image_url,
+            ) in top_users
         ]
 
         return {
-            "top_by_credits": top_by_credits,
-            "top_by_messages": top_by_messages,
-            "top_by_assistants": top_by_assistants
+            "top_users": top_users_formatted
+        }
+
+    @staticmethod
+    def get_top_assistants_by_company(company_id: str, start_date: str, end_date: str):
+        print(start_date, end_date)
+
+        if start_date:
+            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            start_timestamp = int(start_date_dt.timestamp())
+        else:
+            raise HTTPException(status_code=400, detail="Start date is required.")
+
+        if end_date:
+            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
+            end_timestamp = int(end_date_dt.timestamp())
+        else:
+            end_date_dt = datetime.now()
+            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
+            end_timestamp = int(end_date_dt.timestamp())
+
+        if start_timestamp > end_timestamp:
+            raise HTTPException(status_code=400, detail="Start date must be before end date.")
+
+        with get_db() as db:
+            company_users = db.query(User.id).filter_by(company_id=company_id).all()
+            company_user_ids = [u.id for u in company_users]
+
+            top_assistants = (
+                db.query(
+                    Completion.assistant,
+                    func.sum(Completion.credits_used).label("total_credits_used"),
+                    func.count(Completion.id).label("message_count")
+                )
+                .filter(
+                    Completion.assistant != None,
+                    Completion.created_at >= start_timestamp,
+                    Completion.created_at <= end_timestamp,
+                    Completion.user_id.in_(company_user_ids)
+                )
+                .group_by(
+                    Completion.assistant
+                )
+                .order_by(func.sum(Completion.credits_used).desc())
+                .all()
+            )
+
+        top_assistants_formatted = [
+            {
+                "assistant": assistant,
+                "total_credits_used": total_credits_used,
+                "message_count": message_count
+            }
+            for (
+                assistant,
+                total_credits_used,
+                message_count
+            ) in top_assistants
+        ]
+
+        return {
+            "top_assistants": top_assistants_formatted
         }
 
     @staticmethod
@@ -290,39 +314,6 @@ class AnalyticsService:
 
         return {
             "monthly_chats": chat_data,
-            "percentage_changes": percentage_changes
-        }
-
-    @staticmethod
-    def get_saved_time_in_seconds_by_company(company_id: str, start_date: str, end_date: str):
-        start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
-
-        with get_db() as db:
-            company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
-            company_user_ids = [u.id for u in company_user_ids]
-
-            query = db.query(
-                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
-                func.sum(Completion.time_saved_in_seconds).label("total_saved_time")
-            ).filter(
-                func.to_timestamp(Completion.created_at) >= start_date_dt,
-                func.to_timestamp(Completion.created_at) <= end_date_dt,
-                Completion.user_id.in_(company_user_ids)
-            ).group_by("month").order_by("month")
-
-            # Execute the query and fetch results
-            results = query.group_by("month").order_by("month").all()
-
-            # Convert results to a dictionary
-            monthly_saved_time = {row[0]: int(row[1]) if row[1] is not None else 0 for row in results}
-
-        # Generate month range and calculate data
-        months = AnalyticsService._generate_month_range(start_date_dt, end_date_dt)
-        saved_time_data = {month: monthly_saved_time.get(month, 0) for month in months}
-        percentage_changes = AnalyticsService._calculate_percentage_changes(saved_time_data)
-
-        return {
-            "monthly_saved_time_in_seconds": saved_time_data,
             "percentage_changes": percentage_changes
         }
 

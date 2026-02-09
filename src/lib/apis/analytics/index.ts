@@ -54,91 +54,10 @@ export const getTopUsers = async (token: string, start: string, end: string) => 
     return res;
 };
 
-export const getTotalBilling = async (token: string) => {
-    let error = null;
-
-    const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/total-billing`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        }
-    })
-        .then(async (res) => {
-            if (!res.ok) throw await res.json();
-            return res.json();
-        })
-        .catch((err) => {
-            console.log(err);
-            error = err.detail;
-            return null;
-        });
-
-    if (error) {
-        throw error;
-    }
-
-    return res;
-};
-
 export const getTotalMessages = async (token: string) => {
     let error = null;
 
     const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/total-messages`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        }
-    })
-        .then(async (res) => {
-            if (!res.ok) throw await res.json();
-            return res.json();
-        })
-        .catch((err) => {
-            console.log(err);
-            error = err.detail;
-            return null;
-        });
-
-    if (error) {
-        throw error;
-    }
-
-    return res;
-};
-
-export const getTotalChats = async (token: string) => {
-    let error = null;
-
-    const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/total-chats`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        }
-    })
-        .then(async (res) => {
-            if (!res.ok) throw await res.json();
-            return res.json();
-        })
-        .catch((err) => {
-            console.log(err);
-            error = err.detail;
-            return null;
-        });
-
-    if (error) {
-        throw error;
-    }
-
-    return res;
-};
-
-export const getSavedTimeInSeconds = async (token: string) => {
-    let error = null;
-
-    const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/saved-time-in-seconds`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -189,7 +108,7 @@ export const getTotalUsers = async (token: string) => {
     return res;
 };
 
-export const getAdoptionRate = async (token: string) => {
+export const getAcceptanceRate = async (token: string) => {
     let error = null;
 
     const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/adoption-rate`, {
