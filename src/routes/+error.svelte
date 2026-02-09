@@ -9,7 +9,6 @@
 
 	let errorId = page.status;
 	let errorMessage = page.error.message;
-	// Deactivate Comments for Test
 	// errorId = 500;
 	// errorMessage = 'Internal Server Error';
 
