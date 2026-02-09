@@ -308,7 +308,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=getattr(r, "status", 500),
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     elif request.app.state.config.TTS_ENGINE == "elevenlabs":
@@ -359,7 +359,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=getattr(r, "status", 500),
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     elif request.app.state.config.TTS_ENGINE == "azure":
@@ -412,7 +412,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=getattr(r, "status", 500),
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     elif request.app.state.config.TTS_ENGINE == "transformers":
@@ -523,7 +523,7 @@ def transcribe(request: Request, file_path):
                 except Exception:
                     detail = f"External: {e}"
 
-            raise Exception(detail if detail else "Open WebUI: Server Connection Error")
+            raise Exception(detail if detail else "Server Connection Error")
 
 
 def compress_audio(file_path):
@@ -585,11 +585,8 @@ async def transcription(
 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=ERROR_MESSAGES.DEFAULT,
+                    detail=ERROR_MESSAGES.DEFAULT(),
                 )
-
-            data = transcribe(request, file_path)
-            file_path = file_path.split("/")[-1]
 
             if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 audio = AudioSegment.from_file(file_path)
@@ -598,13 +595,16 @@ async def transcription(
 
                 await credit_service.subtract_credits_by_user_for_stt(user, request.app.state.config.STT_MODEL, duration_in_minutes)
 
+            data = transcribe(request, file_path)
+            file_path = file_path.split("/")[-1]
+
             return {**data, "filename": file_path}
         except Exception as e:
             log.exception(e)
 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT,
+                detail=ERROR_MESSAGES.DEFAULT(),
             )
 
     except Exception as e:
@@ -612,7 +612,7 @@ async def transcription(
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT,
+            detail=ERROR_MESSAGES.DEFAULT(),
         )
 
 

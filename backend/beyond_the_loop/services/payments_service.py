@@ -4,22 +4,35 @@ from fastapi import HTTPException
 import stripe
 import os
 import time
-from datetime import date, datetime
+from datetime import datetime
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
+from beyond_the_loop.services.crm_service import crm_service
+import re
 
 
 def _set_new_credit_recharge_check_date(company):
     try:
-        # Add one month
-        next_check_date = date.today() + relativedelta(months=1)
-        # Update the field as timestamp
-        next_credit_charge_check = datetime.combine(next_check_date, datetime.min.time()).timestamp()
+        # Convert the existing timestamp to datetime
+        last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
 
-        Companies.update_company_by_id(company.id, {"next_credit_charge_check": next_credit_charge_check})
+        # Add one month
+        next_check_dt = last_check_dt + relativedelta(months=1)
+
+        # Convert back to timestamp
+        next_credit_charge_check = next_check_dt.timestamp()
+
+        Companies.update_company_by_id(
+            company.id,
+            {"next_credit_charge_check": next_credit_charge_check}
+        )
+
     except Exception as e:
-        print(f"Failed to update next credit charge check date for company {company.id}: {e}")
+        print(
+            f"Failed to update next credit charge check date for company "
+            f"{company.id}: {e}"
+        )
 
 
 class PaymentsService:
@@ -121,8 +134,7 @@ class PaymentsService:
                 "seats": 1000
             },
             "premium": {
-                "stripe_price_id": self.stripe_price_id_user_seat,
-                "credits_per_month": 1000 # 10,00€ in cents
+                "stripe_price_id": self.stripe_price_id_user_seat
             }
         }
 
@@ -192,13 +204,16 @@ class PaymentsService:
                 return {
                     'credits_remaining': company.credit_balance,
                     'flex_credits_remaining': company.flex_credit_balance,
+                    'credits_per_month': plan.get("credits_per_month", 0),
                     'plan': plan_id,
                     'is_trial': True,
                     "seats": plan.get("seats", 0),
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     'trial_end': trial_end,
                     'days_remaining': days_remaining,
-                    'image_url': image_url
+                    'image_url': image_url,
+                    "subscription_id": trial_subscription.id,
+                    "subscription_item_id": trial_subscription["items"]["data"][0]["id"]
                 }
 
             # If no active subscription, return free plan
@@ -242,6 +257,7 @@ class PaymentsService:
                 "seats_taken": Users.count_users_by_company_id(company_id),
                 "auto_recharge": company.auto_recharge,
                 "image_url": image_url,
+                "credits_per_month": plan.get("credits_per_month", 0),
                 "custom_credit_amount": int(subscription.metadata.get("custom_credit_amount")) if subscription.metadata.get("custom_credit_amount") is not None else None,
                 "next_credit_recharge": company.next_credit_charge_check
             }
@@ -282,7 +298,7 @@ class PaymentsService:
             }
 
     # Legacy
-    def update_company_credits_from_subscription(self, event_data):
+    def handle_company_subscription_update(self, event_data):
         """
         Helper function to update company credits based on subscription data.
 
@@ -293,10 +309,10 @@ class PaymentsService:
             tuple: (company, credits_per_month, plan_id) or (None, None, None) if any step fails
         """
         try:
-            billing_reason = event_data.get('billing_reason')
+            canceled_at = event_data.get("canceled_at")
 
-            # If the billing reason is not subscription_create, ignore the event
-            if billing_reason == 'subscription_create' or billing_reason == 'subscription_update':
+            if canceled_at:
+                print("Subscription canceled, skipping credits update")
                 return None, None, None
 
             # Extract subscription details
@@ -330,6 +346,20 @@ class PaymentsService:
             # Find the plan associated with this price ID
             plan_id = next((plan for plan, details in payments_service.SUBSCRIPTION_PLANS.items()
                             if details.get("stripe_price_id") == price_id), None)
+
+            try:
+                # Replace underscores with spaces
+                plan_name = re.sub(r"_", " ", plan_id)
+                # Capitalize each word
+                plan_name = re.sub(r"(\b\w)", lambda m: m.group(1).upper(), plan_name)
+
+                crm_service.update_company_plan(company.name, plan_name)
+            except Exception as e:
+                print(f"Error updating Attio workspace plan for company {company.id}: {e}")
+
+            if plan_id == "premium":
+                print(f"No credits to add for subscription {subscription_id}: Premium plan")
+                return None, None, None
 
             if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
                 print(f"No plan found for price ID: {price_id}")

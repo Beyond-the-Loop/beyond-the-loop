@@ -7,7 +7,7 @@
 
 	import { getBackendConfig } from '$lib/apis';
 	import { completeInvite } from '$lib/apis/auths';
-    
+
 	import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 
 	import { WEBUI_NAME, config, user, socket, toastVisible, toastMessage, toastType, showToast, company, companyConfig } from '$lib/stores';
@@ -27,7 +27,7 @@
 	let email = '';
 	let password = '';
     let showPassword = false;
-	
+
 	let loading = false;
 	let oauthLoading = false;
 
@@ -64,7 +64,7 @@
 		});
 
 		await setSessionUser(sessionUser);
-		
+
 		const [companyInfo, companyConfigInfo] = await Promise.all([
 			getCompanyDetails(sessionUser.token).catch((error) => {
 				showToast('error', error);
@@ -157,7 +157,7 @@
 	onMount(async () => {
         if ($user !== undefined && $company) {
 			await goto('/');
-		} 
+		}
 		await checkOauthCallback();
     });
 	let logoSrc = '/logo_dark_transparent.png';
@@ -221,7 +221,7 @@
 				/>
 			</div>
 		</div>
-	
+
 		<div class="flex flex-col w-full mb-1">
 			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
 				{#if password}

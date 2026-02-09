@@ -35,7 +35,7 @@ class EmailService:
             print(f"Exception when sending registration email: {e}")
 
     def send_budget_mail_80(self, to_email: str, admin_name: str, company_name: str, billing_page_link: str):
-        """Send a budget alert email to admins when the budget is approaching 80%."""
+        """Send a budget alerts email to admins when the budget is approaching 80%."""
         try:
             loops_service.send_transactional_email(to_email, "cmi74pg602gxmya0ixr7efee0", data_variables={
                 "admin_name": admin_name,
@@ -46,7 +46,7 @@ class EmailService:
             print(f"Exception when sending budget 80: {e}")
 
     def send_budget_mail_100(self, to_email: str, admin_name: str, company_name: str, billing_page_link):
-        """Send a budget alert email to admins when the budget is approaching 100%."""
+        """Send a budget alerts email to admins when the budget is approaching 100%."""
         try:
             loops_service.send_transactional_email(to_email, "cmi77c00o34luya0igdkq62jx", data_variables={
                 "admin_name": admin_name,

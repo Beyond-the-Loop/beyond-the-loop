@@ -19,8 +19,6 @@
 	export let onSourceClick: Function = () => {};
 
 	const isPlainText = (tokens) => tokens.length === 1 && tokens?.[0]?.type === 'text';
-
-	$: console.log(tokens.filter((item) => item.type === 'link'));
 </script>
 
 {#each tokens as token}

@@ -26,7 +26,7 @@
 	let showBuyFlexCredits = false;
 
 	let mounted = false;
-	export let plans = [];
+
 	onMount(() => {
 		mounted = true;
 		const url = new URL(window.location.href);
@@ -101,11 +101,9 @@
 		await pollForCreditChange($subscription?.flex_credits_remaining, 2000, 20000);
 		
 	}
-	
-	$: currentPlan = plans?.find((item) => item.id === $subscription?.plan);
 
 	$: seatsWidth = $subscription?.seats ? $subscription?.seats_taken > $subscription?.seats ? '100%' : `${($subscription?.seats_taken/$subscription?.seats*100)}%` : '100%';
-	$: creditsWidth = $subscription?.credits_remaining ? `${(((currentPlan?.credits_per_month - $subscription?.credits_remaining)/currentPlan?.credits_per_month) * 100)}%` : '100%';
+	$: creditsWidth = $subscription?.credits_remaining ? `${(((($subscription.custom_credit_amount || $subscription?.credits_per_month) - $subscription?.credits_remaining)/($subscription.custom_credit_amount || $subscription?.credits_per_month)) * 100)}%` : '100%';
 
 	$: {
 		if(showBuyFlexCredits === false && mounted){
@@ -314,8 +312,8 @@
 				<div class="flex items-center justify-between pb-2.5 border-b dark:border-customGray-700 mb-5">
 					<div class="text-xs dark:text-customGray-300 font-medium">{$i18n.t('Base credits')}</div>
 					<div class="text-xs dark:text-customGray-590">
-						<span class="text-xs text-lightGray-100 dark:text-customGray-100">€{(currentPlan?.credits_per_month - $subscription?.credits_remaining)?.toFixed(2)} {$i18n.t('used')}</span><span
-							class="dark:text-customGray-590">/ €{($subscription.custom_credit_amount || currentPlan?.credits_per_month).toFixed(2)} {$i18n.t('Included').toLowerCase()}</span
+						<span class="text-xs text-lightGray-100 dark:text-customGray-100">€{(($subscription.custom_credit_amount || $subscription?.credits_per_month) - $subscription?.credits_remaining)?.toFixed(2)} {$i18n.t('used')}</span><span
+							class="dark:text-customGray-590">/ €{($subscription.custom_credit_amount || $subscription?.credits_per_month).toFixed(2)} {$i18n.t('Included').toLowerCase()}</span
 						>
 					</div>
 				</div>
@@ -325,7 +323,7 @@
 				<div class="flex items-center justify-between pt-2.5">
 					{#if !$subscription?.is_trial && $subscription?.cancel_at_period_end !== true && $subscription?.status !== "canceled"}
 						<div class="text-xs dark:text-customGray-590">
-							{$i18n.t('Credits will reset on')} {dayjs($subscription?.next_billing_date * 1000)?.format('DD.MM.YYYY')}
+							{$i18n.t('Credits will reset on')} {dayjs($subscription?.next_credit_recharge * 1000)?.format('DD.MM.YYYY')}
 						</div>
 					{:else}
 						<div></div>

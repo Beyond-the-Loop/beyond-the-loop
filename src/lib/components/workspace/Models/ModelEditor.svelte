@@ -5,23 +5,12 @@
 		tools,
 		functions,
 		knowledge as knowledgeCollections,
-		user,
 		companyConfig
 	} from '$lib/stores';
-
-	import AdvancedParams from '$lib/components/chat/Settings/Advanced/AdvancedParams.svelte';
-	import Tags from '$lib/components/common/Tags.svelte';
-	import Knowledge from '$lib/components/workspace/Models/Knowledge.svelte';
-	import ToolsSelector from '$lib/components/workspace/Models/ToolsSelector.svelte';
-	import FiltersSelector from '$lib/components/workspace/Models/FiltersSelector.svelte';
-	import ActionsSelector from '$lib/components/workspace/Models/ActionsSelector.svelte';
-	import Capabilities from '$lib/components/workspace/Models/Capabilities.svelte';
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import { getTools } from '$lib/apis/tools';
 	import { getFunctions } from '$lib/apis/functions';
 	import { getKnowledgeBases } from '$lib/apis/knowledge';
-	import AccessControl from '../common/AccessControl.svelte';
-	import { stringify } from 'postcss';
 	import { toast } from 'svelte-sonner';
 	import BackIcon from '$lib/components/icons/BackIcon.svelte';
 	import Plus from '$lib/components/icons/Plus.svelte';
@@ -47,7 +36,6 @@
 	const i18n = getContext('i18n');
 
 	export let onSubmit: Function;
-	export let onBack: null | Function = null;
 
 	export let model = null;
 	export let edit = false;
@@ -55,13 +43,9 @@
 	export let preset = true;
 
 	let loading = false;
-	let success = false;
 
 	let filesInputElement;
 	let inputFiles;
-
-	let showAdvanced = false;
-	let showPreview = false;
 
 	let loaded = false;
 	let showEmojiMenu = false;
@@ -94,8 +78,8 @@
 	const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
 	let info = {
 		id: '',
-		base_model_id: $companyConfig?.config?.models?.DEFAULT_MODELS
-			? $companyConfig?.config?.models?.DEFAULT_MODELS
+		base_model_id: $companyConfig?.config?.models?.default_models
+			? $companyConfig?.config?.models?.default_models
 			: gptDefault?.id,
 		name: '',
 		meta: {
@@ -129,19 +113,6 @@
 
 	let accessControl = {};
 
-	const addUsage = (base_model_id) => {
-		const baseModel = $models.find((m) => m.id === base_model_id);
-
-		if (baseModel) {
-			if (baseModel.owned_by === 'openai') {
-				capabilities.usage = baseModel?.meta?.capabilities?.usage ?? false;
-			} else {
-				delete capabilities.usage;
-			}
-			capabilities = capabilities;
-		}
-	};
-
 	const submitHandler = async () => {
 		loading = true;
 
@@ -168,10 +139,14 @@
 		info.meta.capabilities = capabilities;
 		info.meta.files = files;
 
-		info.meta.description = info?.meta?.description?.trim() === '' ? null : info?.meta?.description;
+		info.meta.description = info?.meta?.description?.trim() === '' ? "" : info?.meta?.description;
 
 		if (knowledge.length > 0) {
-			info.meta.knowledge = knowledge;
+			info.meta.knowledge = knowledge.map(k => {
+				return {
+					id: k.id
+				}
+			});
 		} else {
 			if (info.meta.knowledge) {
 				delete info.meta.knowledge;
@@ -219,7 +194,6 @@
 		await onSubmit(info);
 
 		loading = false;
-		success = false;
 	};
 
 	onMount(async () => {
@@ -267,25 +241,8 @@
 			toolIds = model?.meta?.toolIds ?? [];
 			filterIds = model?.meta?.filterIds ?? [];
 			actionIds = model?.meta?.actionIds ?? [];
-			knowledge = (model?.meta?.knowledge ?? []).map((item) => {
-				if (item?.collection_name) {
-					return {
-						id: item.collection_name,
-						name: item.name,
-						legacy: true
-					};
-				} else if (item?.collection_names) {
-					return {
-						name: item.name,
-						type: 'collection',
-						collection_names: item.collection_names,
-						legacy: true
-					};
-				} else {
-					return item;
-				}
-			});
-			// capabilities = { ...capabilities, ...(model?.meta?.capabilities ?? {}) };
+			knowledge = model?.meta?.knowledge ?? [];
+
 			const { usage, ...rest } = model?.meta?.capabilities ?? {};
 			capabilities = { ...capabilities, ...rest };
 
@@ -318,11 +275,14 @@
 
 	let showDropdown = false;
 	let dropdownRef;
+	let temperatureDropdownRef;
+
+	console.log("DAS IST DIE INFIIIIII", info);
+
 	$: selectedModel = $models.find((m) => m.id === info.base_model_id);
 	let disableCreativity = false;
 
 	let showTemperatureDropdown = false;
-	let temperatureDropdownRef;
 
 	const temperatureOptions = [
 		{ label: 'Determined', value: 0.2 },
@@ -392,7 +352,6 @@
 
 	let showAddKnowledge = false;
 
-
 	let organizations = mapModelsToOrganizations(modelsInfo);
 	const desiredOrder = Object.values(organizations).flat();
 	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
@@ -400,34 +359,9 @@
 	function isTemperatureUnsupportedModel(model) {
   		return /^(GPT\s*o|GPT-?5)/i.test(model?.name ?? '');
 	}
-
 </script>
 
 {#if loaded}
-	<!-- {#if onBack}
-		<button
-			class="flex space-x-1"
-			on:click={() => {
-				onBack();
-			}}
-		>
-			<div class=" self-center">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 20 20"
-					fill="currentColor"
-					class="h-4 w-4"
-				>
-					<path
-						fill-rule="evenodd"
-						d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z"
-						clip-rule="evenodd"
-					/>
-				</svg>
-			</div>
-			<div class=" self-center text-sm font-medium">{'Back'}</div>
-		</button>
-	{/if} -->
 	<AddKnowledgeModal
 		bind:show={showAddKnowledge}
 		bind:selectedKnowledge={knowledge}
@@ -569,18 +503,6 @@
 											{/if}
 										</div>
 									</EmojiMenu>
-									<!-- {#if info.meta.profile_image_url}
-										<img
-											src={info.meta.profile_image_url}
-											alt="model profile"
-											class="rounded-lg size-16 object-cover shrink-0"
-										/>
-									{:else}
-										<div
-											class="rounded-lg size-16 shrink-0 bg-customViolet-200 dark:bg-customViolet-300"
-										/>
-									{/if} -->
-
 									<div class="absolute bottom-0 right-0 z-10">
 										<div class="-m-2">
 											<div
@@ -802,7 +724,6 @@
 											</svg>
 											{$i18n.t('Add')}
 										</button>
-										<!-- {/if} -->
 									</div>
 
 									{#if info?.meta?.suggestion_prompts}
@@ -919,7 +840,6 @@
 																			info.params = { ...info.params, temperature: 0.5 };
 																		}
 																	}
-																	// addUsage(model.id);
 																	showDropdown = false;
 																}}
 															>

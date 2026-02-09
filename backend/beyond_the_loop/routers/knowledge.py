@@ -49,14 +49,13 @@ def _validate_knowledge_write_access(knowledge: KnowledgeModel, user):
     if (is_free_user
             or user.role != "admin"
             and knowledge.user_id != user.id
-            and not has_access(user.id, "write", knowledge.access_control)
-            and not has_permission(user.id, "workspace.edit_knowledge")):
+            and (not has_access(user.id, "write", knowledge.access_control) or not has_permission(user.id, "workspace.edit_knowledge"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-def _validate_knowledge_read_access(knowledge: KnowledgeModel, user):
+def validate_knowledge_read_access(knowledge: KnowledgeModel, user):
     if not knowledge:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -68,8 +67,7 @@ def _validate_knowledge_read_access(knowledge: KnowledgeModel, user):
     if (is_free_user
             or user.role != "admin"
             and knowledge.user_id != user.id
-            and not has_access(user.id, "read", knowledge.access_control)
-            and not has_permission(user.id, "workspace.view_knowledge")):
+            and (not has_access(user.id, "read", knowledge.access_control) or not has_permission(user.id, "workspace.view_knowledge"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -111,16 +109,20 @@ async def get_knowledge(user=Depends(get_verified_user)):
                         file_ids.remove(missing_file)
 
                     data["file_ids"] = file_ids
+
                     Knowledges.update_knowledge_data_by_id(
                         id=knowledge_base.id, data=data
                     )
 
                     files = Files.get_file_metadatas_by_ids(file_ids)
 
+        models = Models.get_models_by_knowledge_id(knowledge_base.id)
+
         knowledge_with_files.append(
             KnowledgeUserResponse(
                 **knowledge_base.model_dump(),
                 files=files,
+                models=models
             )
         )
 
@@ -173,14 +175,14 @@ class KnowledgeFilesResponse(KnowledgeResponse):
 async def get_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_read_access(knowledge, user)
+    validate_knowledge_read_access(knowledge, user)
 
     file_ids = knowledge.data.get("file_ids", []) if knowledge.data else []
     files = Files.get_files_by_ids(file_ids)
 
     return KnowledgeFilesResponse(
         **knowledge.model_dump(),
-        files=files,
+        files=files
     )
 
 
@@ -441,8 +443,9 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
                     meta=model.meta,
                     params=model.params,
                     access_control=model.access_control,
-                    is_active=model.is_active,
+                    is_active=model.is_active
                 )
+
                 Models.update_model_by_id_and_company(model.id, model_form, user.company_id)
 
     # Clean up vector DB
@@ -451,8 +454,8 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     except Exception as e:
         log.debug(e)
         pass
-    result = Knowledges.delete_knowledge_by_id(id=id)
-    return result
+
+    return Knowledges.delete_knowledge_by_id(id=id)
 
 
 ############################

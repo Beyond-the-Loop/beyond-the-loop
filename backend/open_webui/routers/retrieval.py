@@ -380,7 +380,7 @@ def save_docs_to_vector_db(
         docs = text_splitter.split_documents(docs)
 
     if len(docs) == 0:
-        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
+        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT())
 
     texts = [doc.page_content for doc in docs]
     metadatas = [
@@ -623,20 +623,18 @@ class ProcessTextForm(BaseModel):
     collection_name: Optional[str] = None
 
 
-@router.post("/process/web/search")
-def process_web_search(
-    request: Request, form_data: SearchForm, user=Depends(get_verified_user)
-):
+def process_web_search(request: Request, query: str, limit: int, user, collection_name: str = None):
     try:
         logging.info(
-            f"trying to web search with {form_data.query}"
+            f"trying to web search with {query}"
         )
 
         web_results = firecrawl.search(
-            form_data.query,
-            limit = 3,
+            query,
+            limit = limit,
             scrape_options = {
-            "formats": ["markdown"]
+                "formats": ["markdown"],
+                "onlyMainContent": True,
             }
         )
 
@@ -671,10 +669,10 @@ def process_web_search(
 
         log.debug(f"web_results: {web_results}")
 
-        collection_name = form_data.collection_name
+        collection_name = collection_name
 
         if collection_name == "" or collection_name is None:
-            collection_name = f"web-search-{calculate_sha256_string(form_data.query)}"[:63]
+            collection_name = f"web-search-{calculate_sha256_string(query)}"[:63]
 
         save_docs_to_vector_db(
             request, docs, collection_name, overwrite=True, user=user

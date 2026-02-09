@@ -425,18 +425,18 @@ class AnalyticsService:
 
             with get_db() as db:
                 query = db.query(
-                    func.strftime(
-                        "%Y-%m", func.datetime(Completion.created_at, "unixepoch")
+                    # Format the Unix timestamp as "YYYY-MM"
+                    func.to_char(
+                        func.to_timestamp(Completion.created_at),
+                        'YYYY-MM'
                     ).label("month"),
                     func.sum(Completion.credits_used).label("total_billing"),
                 ).filter(
-                    func.datetime(Completion.created_at, "unixepoch")
-                    >= start_date_dt.strftime("%Y-%m-%d 00:00:00"),
-                    func.datetime(Completion.created_at, "unixepoch")
-                    <= end_date_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    # Filter using actual timestamps
+                    func.to_timestamp(Completion.created_at) >= start_date_dt,
+                    func.to_timestamp(Completion.created_at) <= end_date_dt,
+                    Completion.user_id == user_id,
                 )
-
-                query = query.filter(Completion.user_id == user_id)
 
                 # Execute the query and fetch results
                 results = query.group_by("month").order_by("month").all()

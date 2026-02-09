@@ -1,25 +1,25 @@
-"""Insert Prebuilt Assistants
+"""Update prebuilt assistants
 
-Revision ID: 004
-Revises: 003
-Create Date: 2026-01-06 12:07:04.497624
+Revision ID: 014
+Revises: 013
+Create Date: 2026-01-22 10:54:12.949579
 
 """
 from typing import Sequence, Union
-import csv
-import time
-import json
-import pathlib
-import uuid
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
+import json
+import uuid
+import time
+import csv
+import pathlib
 
 
 # revision identifiers, used by Alembic.
-revision: str = '004'
-down_revision: Union[str, None] = '003'
+revision: str = '014'
+down_revision: Union[str, None] = '013'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -102,11 +102,11 @@ def upgrade() -> None:
 
             # Insert the assistant into the model table
             insert_query = sa.text("""
-                INSERT INTO model (id, user_id, company_id, base_model_id, name, meta, is_active,
-                                   created_at, updated_at, params)
-                VALUES (:id, :user_id, :company_id, :base_model_id, :name, :meta, :is_active,
-                        :created_at, :updated_at, :params)
-            """)
+                                   INSERT INTO model (id, user_id, company_id, base_model_id, name, meta, is_active,
+                                                      created_at, updated_at, params)
+                                   VALUES (:id, :user_id, :company_id, :base_model_id, :name, :meta, :is_active,
+                                           :created_at, :updated_at, :params)
+                                   """)
 
             connection.execute(insert_query, {
                 'id': assistant_id,

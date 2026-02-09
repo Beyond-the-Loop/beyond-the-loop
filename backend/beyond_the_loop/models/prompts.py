@@ -132,7 +132,8 @@ class PromptsTable:
                     return PromptModel.model_validate(result)
                 else:
                     return None
-        except Exception:
+        except Exception as e:
+            print(e)
             return None
 
     def get_prompt_by_command_and_company(self, command: str, company_id: str) -> Optional[PromptModel]:
