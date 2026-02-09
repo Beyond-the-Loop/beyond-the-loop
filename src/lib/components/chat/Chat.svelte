@@ -38,8 +38,6 @@
 		tools,
 		user,
 		WEBUI_NAME,
-		companyConfig,
-		showLibrary
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
