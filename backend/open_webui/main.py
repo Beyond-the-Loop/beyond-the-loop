@@ -119,6 +119,7 @@ from beyond_the_loop.config import (
     reset_config,
 )
 from beyond_the_loop.config import WEBHOOK_URL
+from beyond_the_loop.models.alert import Alerts
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.models.model_costs import ModelCosts
@@ -147,7 +148,6 @@ from beyond_the_loop.socket.main import (
     periodic_usage_pool_cleanup,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
-from beyond_the_loop.models.alert import Alerts
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
@@ -565,11 +565,15 @@ async def get_active_models(user=Depends(get_verified_user)):
         all_models = [model for model in all_models if model_base_model_names[
             model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
     elif subscription.get("plan") == "premium":
-        all_models = [model for model in all_models if model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
+        all_models = [model for model in all_models if
+                      model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
 
-    # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
-    if user.company_id != "c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4":
-        all_models = [model for model in all_models if model_base_model_names[model.id] not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research", "Perplexity Sonar Reasoning Pro")]
+        # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
+        if user.company_id not in ("c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4", "995d24a9-fc30-43b3-b88b-e8650586d938"):
+            all_models = [model for model in all_models if
+                          model_base_model_names[model.id] not in ("Perplexity Sonar Pro",
+                                                                   "Perplexity Sonar Deep Research",
+                                                                   "Perplexity Sonar Reasoning Pro")]
 
     return {"data": all_models}
 
@@ -585,9 +589,11 @@ async def get_base_models(user=Depends(get_admin_user)):
     elif subscription.get("plan") == "premium":
         base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_premium()]
 
-    # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
-    if user.company_id != "c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4":
-        base_models = [model for model in base_models if model.name not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research", "Perplexity Sonar Reasoning Pro")]
+        # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
+        if user.company_id not in ("c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4", "995d24a9-fc30-43b3-b88b-e8650586d938"):
+            base_models = [model for model in base_models if
+                           model.name not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research",
+                                              "Perplexity Sonar Reasoning Pro")]
 
     return {"data": base_models}
 
