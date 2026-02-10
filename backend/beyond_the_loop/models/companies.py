@@ -365,7 +365,7 @@ class CompanyTable:
 
                 from beyond_the_loop.routers.payments import payments_service
 
-                subscription = payments_service.get_subscription(company.stripe_customer_id)
+                subscription = payments_service.get_subscription(company.id)
                 
                 if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
                     return 1
