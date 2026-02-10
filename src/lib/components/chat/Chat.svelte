@@ -11,6 +11,8 @@
 	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 
+	import { BufferedResponse } from '$lib/utils/buffer/BufferedResponse';
+
 	import { getAlert } from '$lib/apis/alerts';
 
 	import {
@@ -35,7 +37,7 @@
 		temporaryChatEnabled,
 		tools,
 		user,
-		WEBUI_NAME
+		WEBUI_NAME,
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
@@ -52,7 +54,7 @@
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
-	import { chatAction, chatCompleted, generateMoACompletion, stopTask } from '$lib/apis';
+	import { chatCompleted, chatAction, generateMoACompletion, stopTask } from '$lib/apis';
 	import { getTools } from '$lib/apis/tools';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
@@ -623,8 +625,6 @@
 			}
 		}
 
-		console.log("selcted models", selectedModels);
-
 		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
 		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
 			if ($models.length > 0) {
@@ -1011,11 +1011,28 @@
 		}
 	};
 
+	let bufferedResponse: BufferedResponse | null = null;
+
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
+		const {
+			id,
+			done,
+			choices,
+			content,
+			added_content,
+			type,
+			sources,
+			selected_model_id,
+			error,
+			usage
+		} = data;
 
 		if (error) {
 			await handleOpenAIError(error, message);
+		}
+
+		if (taskId == null) {
+			return;
 		}
 
 		if (sources) {
@@ -1065,8 +1082,27 @@
 		}
 
 		if (content) {
+			if (type == 'text') {
+				if (bufferedResponse != null && added_content != null && added_content != undefined) {
+					bufferedResponse.add(added_content);
+				} else if (bufferedResponse === null) {
+					message.content = content;
+					bufferedResponse = new BufferedResponse(message, history, {
+						onCommit: (msg) => {
+							// Trigger Svelte Reactivity Update
+							history.messages = {
+								...history.messages,
+								[msg.id]: { ...msg }
+							};
+							if (autoScroll) scrollToBottom();
+						}
+					});
+				}
+			} else {
+				message.content = content;
+			}
+
 			// REALTIME_CHAT_SAVE is disabled
-			message.content = content;
 
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
@@ -1108,7 +1144,11 @@
 		history.messages[message.id] = message;
 
 		if (done) {
+			bufferedResponse?.stop();
+			bufferedResponse = null;
+
 			message.done = true;
+			message.content = content;
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1542,27 +1582,31 @@
 					: {})
 			},
 			`${WEBUI_BASE_URL}/api`
-		).catch((error) => {
-			if (!error?.includes('402')) {
-				if (error?.includes('ContentPolicyViolationError')) {
-					toast.error('The response was filtered due to the prompt triggering Azure OpenAI\'s content management policy. Please modify your prompt and retry.');
-				} else {
-					toast.error(`${error}`);
+		)
+			.catch((error) => {
+				if (!error?.includes('402')) {
+					if (error?.includes('ContentPolicyViolationError')) {
+						toast.error(
+							"The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry."
+						);
+					} else {
+						toast.error(`${error}`);
+					}
 				}
-			}
 
-			responseMessage.error = {
-				content: error
-			};
-			responseMessage.done = true;
+				responseMessage.error = {
+					content: error
+				};
+				responseMessage.done = true;
 
-			history.messages[responseMessageId] = responseMessage;
-			history.currentId = responseMessageId;
-			return null;
-		}).finally(() => {
-			webSearchEnabled = false;
-			imageGenerationEnabled = false;
-		});
+				history.messages[responseMessageId] = responseMessage;
+				history.currentId = responseMessageId;
+				return null;
+			})
+			.finally(() => {
+				webSearchEnabled = false;
+				imageGenerationEnabled = false;
+			});
 
 		if (res) {
 			taskId = res.task_id;
@@ -1622,6 +1666,10 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
+				responseMessage.content = responseMessage.content.replaceAll(
+					'<details type="reasoning" done="false">',
+					'<details type="reasoning" done="true">'
+				);
 
 				history.messages[history.currentId] = responseMessage;
 
@@ -1629,6 +1677,10 @@
 					scrollToBottom();
 				}
 			}
+		}
+		if (bufferedResponse) {
+			bufferedResponse?.stop();
+			bufferedResponse = null;
 		}
 	};
 
@@ -1899,12 +1951,16 @@
 
 						<div class=" pb-[1rem] max-w-[980px] mx-auto w-full">
 							<div class="px-3 mb-2.5 flex items-center justify-between">
-								<ModelSelector {initNewChatCompleted} bind:selectedModels showSetDefault={!history.currentId} />
+								<ModelSelector
+									{initNewChatCompleted}
+									bind:selectedModels
+									showSetDefault={!history.currentId}
+								/>
 								<button
 									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
-									on:click={() => showLibrary.set(!$showLibrary)}>
-									<BookIcon />
-									<span>{$i18n.t('Library')}</span>
+									on:click={() => showLibrary.set(!$showLibrary)}
+								>
+									<BookIcon /> <span>{$i18n.t('Library')}</span>
 								</button>
 							</div>
 							<div class="mb-4">
@@ -1925,7 +1981,6 @@
 									{createMessagePair}
 									onChange={(input) => {
 										if (input.prompt) {
-
 											// files can exceed 5MB, which can break the local storage.
 											if (input.files && input.files.length > 0) {
 												input.files = [];
@@ -2031,7 +2086,9 @@
 									}
 								}}
 							/>
-							<div class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0">
+							<div
+								class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0"
+							>
 								{#if $companyConfig?.config?.ui?.custom_user_notice}
 									{@html DOMPurify.sanitize(
 										$i18n.t($companyConfig?.config?.ui?.custom_user_notice),
