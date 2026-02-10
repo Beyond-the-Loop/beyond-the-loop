@@ -6,7 +6,7 @@ from typing import Optional
 
 import aiohttp
 import requests
-
+import time
 import os
 
 from aiohttp import ClientResponseError
@@ -70,8 +70,8 @@ async def _get_session() -> aiohttp.ClientSession:
 async def send_get_request(url, key=None):
     timeout = aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST)
     try:
-        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
-            async with session.get(
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as s:
+            async with s.get(
                 url, headers={**({"Authorization": f"Bearer {key}"} if key else {})}
             ) as response:
                 return await response.json()
@@ -82,13 +82,10 @@ async def send_get_request(url, key=None):
 
 
 async def cleanup_response(
-    response: Optional[aiohttp.ClientResponse],
-    session: Optional[aiohttp.ClientSession],
+    response: Optional[aiohttp.ClientResponse]
 ):
     if response:
         response.close()
-    if session:
-        await session.close()
 
 
 ##########################################
@@ -205,11 +202,21 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
-@router.post("/chat/completions")
 async def generate_chat_completion(
         form_data: dict,
-        user=Depends(get_verified_user)
+        user,
+        chat_completion_start_time,
 ):
+    print("Time it took to start generate_chat_completion:", chat_completion_start_time - time.time())
+    chat_completion_start_time = time.time()
+
+    if not form_data.get("model"):
+        raise HTTPException(
+            status_code=400,
+            detail="Model not specified. Please specify a model.",
+        )
+
+
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
@@ -241,6 +248,9 @@ async def generate_chat_completion(
                     if c.get("type") != "image_url"
                 ]
 
+    print("Time before the subscription check:", chat_completion_start_time - time.time())
+    chat_completion_start_time = time.time()
+
     subscription = payments_service.get_subscription(user.company_id)
 
     if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
@@ -260,6 +270,9 @@ async def generate_chat_completion(
             status_code=403,
             detail="Model not found, no access for user",
         )
+
+    print("Time before the fair usage check:", chat_completion_start_time - time.time())
+    chat_completion_start_time = time.time()
 
     # Check model fair usage
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
@@ -289,6 +302,9 @@ async def generate_chat_completion(
         "GPT-5.1 thinking": "azure/gpt-5.1",
     }
 
+    print("Time before the trim message:", chat_completion_start_time - time.time())
+    chat_completion_start_time = time.time()
+
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
@@ -298,7 +314,6 @@ async def generate_chat_completion(
     payload = json.dumps(payload)
 
     r = None
-    session = None
     streaming = False
     response = None
 
@@ -307,6 +322,8 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
+        print("Time before the litellm request:", chat_completion_start_time - time.time())
+
         s = await _get_session()
 
         r = await s.request(
@@ -363,7 +380,7 @@ async def generate_chat_completion(
                 status_code=r.status,
                 headers=dict(r.headers),
                 background=BackgroundTask(
-                    cleanup_response, response=r, session=session
+                    cleanup_response, response=r
                 ),
             )
         else:
@@ -429,10 +446,9 @@ async def generate_chat_completion(
             detail=detail if detail else "Server Connection Error",
         )
     finally:
-        if not streaming and session:
+        if not streaming:
             if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
-            await session.close()
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):

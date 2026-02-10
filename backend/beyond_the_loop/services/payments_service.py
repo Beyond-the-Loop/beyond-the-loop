@@ -11,6 +11,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
 import re
 
+from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
 
 def _set_new_credit_recharge_check_date(company):
     try:
@@ -150,7 +151,7 @@ class PaymentsService:
         Returns:
             tuple: (plan_id, plan_details, image_url)
         """
-        price_id = subscription.plan.id
+        price_id = subscription.get("plan").get("id")
 
         plan_id, plan = next(
             ((plan, details) for plan, details in self.SUBSCRIPTION_PLANS.items() if
@@ -158,8 +159,13 @@ class PaymentsService:
             (None, {}))
 
         # Get the image url of the product
-        product = stripe.Product.retrieve(subscription.plan.product)
-        image_url = product.images[0] if product.images and len(product.images) > 0 else None
+        if subscription.get("plan").get("product") in STRIPE_PRODUCT_CACHE:
+            product = STRIPE_PRODUCT_CACHE[subscription.get("plan").get("product")]
+        else:
+            product = stripe.Product.retrieve(subscription.get("plan").get("product"))
+            STRIPE_PRODUCT_CACHE[subscription.get("plan").get("product")] = product
+
+        image_url = product.get("images")[0] if product.get("images") and len(product.get("images")) > 0 else None
 
         return plan_id, plan, image_url
 
@@ -176,27 +182,37 @@ class PaymentsService:
                     "auto_recharge": company.auto_recharge
                 }
 
+            cached_active_subscriptions = STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.get(company_id)
+
             # Get subscription from Stripe
-            active_subscriptions = stripe.Subscription.list(
+            active_subscriptions = cached_active_subscriptions if cached_active_subscriptions else stripe.Subscription.list(
                 customer=company.stripe_customer_id,
                 status='active',
                 limit=1
             )
 
+            if not cached_active_subscriptions:
+                STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company_id] = active_subscriptions
+
+            cached_trial_subscriptions = STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.get(company_id)
+
             # Check for trial subscriptions
-            trial_subscriptions = stripe.Subscription.list(
+            trial_subscriptions = cached_trial_subscriptions if cached_trial_subscriptions else stripe.Subscription.list(
                 customer=company.stripe_customer_id,
                 status='trialing',
                 limit=1
             )
 
+            if not cached_trial_subscriptions:
+                STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company_id] = trial_subscriptions
+
             # If there's an active trial subscription and no active subscription
-            if trial_subscriptions.data and len(trial_subscriptions.data) > 0 and not active_subscriptions.data:
-                trial_subscription = trial_subscriptions.data[0]
+            if trial_subscriptions.get("data") and len(trial_subscriptions.get("data")) > 0 and not active_subscriptions.get("data"):
+                trial_subscription = trial_subscriptions.get("data")[0]
 
                 # Calculate days remaining in trial
                 current_time = int(time.time())
-                trial_end = trial_subscription.trial_end
+                trial_end = trial_subscription.get("trial_end")
                 days_remaining = max(0, int((trial_end - current_time) / (24 * 60 * 60)))
 
                 plan_id, plan, image_url = self.get_plan_details_from_subscription(trial_subscription)
@@ -212,45 +228,45 @@ class PaymentsService:
                     'trial_end': trial_end,
                     'days_remaining': days_remaining,
                     'image_url': image_url,
-                    "subscription_id": trial_subscription.id,
+                    "subscription_id": trial_subscription.get("id"),
                     "subscription_item_id": trial_subscription["items"]["data"][0]["id"]
                 }
 
             # If no active subscription, return free plan
-            if not active_subscriptions.data:
+            if not active_subscriptions.get("data"):
                 return {
                     "plan": "free",
                     "seats_taken": Users.count_users_by_company_id(company_id)
                 }
 
-            subscription = active_subscriptions.data[0]
+            subscription = active_subscriptions.get("data")[0]
 
             plan_id, plan, image_url = self.get_plan_details_from_subscription(subscription)
 
             if plan_id == "premium":
                 return {
                     "plan": plan_id,
-                    "start_date": subscription.current_period_start,
-                    "end_date": subscription.current_period_end,
-                    "cancel_at_period_end": subscription.cancel_at_period_end,
-                    "canceled_at": subscription.canceled_at if hasattr(subscription, 'canceled_at') else None,
-                    "will_renew": not subscription.cancel_at_period_end and subscription.status == 'active',
-                    "next_billing_date": subscription.current_period_end if not subscription.cancel_at_period_end and subscription.status == 'active' else None,
+                    "start_date": subscription.get("current_period_start"),
+                    "end_date": subscription.get("current_period_end"),
+                    "cancel_at_period_end": subscription.get("cancel_at_period_end"),
+                    "canceled_at": subscription.get("canceled_at") if hasattr(subscription, 'canceled_at') else None,
+                    "will_renew": not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active',
+                    "next_billing_date": subscription.get("current_period_end") if not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active' else None,
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     "image_url": image_url,
-                    "subscription_id": subscription.id,
+                    "subscription_id": subscription.get("id"),
                     "subscription_item_id": subscription["items"]["data"][0]["id"]
                 }
 
             return {
                 "plan": plan_id,
-                "status": subscription.status,
-                "start_date": subscription.current_period_start,
-                "end_date": subscription.current_period_end,
-                "cancel_at_period_end": subscription.cancel_at_period_end,
-                "canceled_at": subscription.canceled_at if hasattr(subscription, 'canceled_at') else None,
-                "will_renew": not subscription.cancel_at_period_end and subscription.status == 'active',
-                "next_billing_date": subscription.current_period_end if not subscription.cancel_at_period_end and subscription.status == 'active' else None,
+                "status": subscription.get("status"),
+                "start_date": subscription.get("current_period_start"),
+                "end_date": subscription.get("current_period_end"),
+                "cancel_at_period_end": subscription.get("cancel_at_period_end"),
+                "canceled_at": subscription.get("canceled_at") if hasattr(subscription, 'canceled_at') else None,
+                "will_renew": not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active',
+                "next_billing_date": subscription.get("current_period_end") if not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active' else None,
                 "flex_credits_remaining": company.flex_credit_balance,
                 "credits_remaining": company.credit_balance,
                 "seats": plan.get("seats", 0),
@@ -258,7 +274,7 @@ class PaymentsService:
                 "auto_recharge": company.auto_recharge,
                 "image_url": image_url,
                 "credits_per_month": plan.get("credits_per_month", 0),
-                "custom_credit_amount": int(subscription.metadata.get("custom_credit_amount")) if subscription.metadata.get("custom_credit_amount") is not None else None,
+                "custom_credit_amount": int(subscription.get("metadata").get("custom_credit_amount")) if subscription.get("metadata").get("custom_credit_amount") is not None else None,
                 "next_credit_recharge": company.next_credit_charge_check
             }
 

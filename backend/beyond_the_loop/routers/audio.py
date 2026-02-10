@@ -415,45 +415,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 detail=detail if detail else "Server Connection Error",
             )
 
-    elif request.app.state.config.TTS_ENGINE == "transformers":
-        payload = None
-        try:
-            payload = json.loads(body.decode("utf-8"))
-        except Exception as e:
-            log.exception(e)
-            raise HTTPException(status_code=400, detail="Invalid JSON payload")
-
-        import torch
-        import soundfile as sf
-
-        load_speech_pipeline(request)
-
-        embeddings_dataset = request.app.state.speech_speaker_embeddings_dataset
-
-        speaker_index = 6799
-        try:
-            speaker_index = embeddings_dataset["filename"].index(
-                request.app.state.config.TTS_MODEL
-            )
-        except Exception:
-            pass
-
-        speaker_embedding = torch.tensor(
-            embeddings_dataset[speaker_index]["xvector"]
-        ).unsqueeze(0)
-
-        speech = request.app.state.speech_synthesiser(
-            payload["input"],
-            forward_params={"speaker_embeddings": speaker_embedding},
-        )
-
-        sf.write(file_path, speech["audio"], samplerate=speech["sampling_rate"])
-
-        async with aiofiles.open(file_body_path, "w") as f:
-            await f.write(json.dumps(payload))
-
-        return FileResponse(file_path)
-
 
 def transcribe(request: Request, file_path):
     print("transcribe", file_path)

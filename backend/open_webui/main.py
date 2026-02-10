@@ -702,6 +702,8 @@ async def chat_completion(
         form_data: dict,
         user=Depends(get_verified_user),
 ):
+    chat_completion_start_time = time.time()
+
     tasks = form_data.pop("background_tasks", None)
 
     try:
@@ -733,7 +735,7 @@ async def chat_completion(
         )
 
     try:
-        response = await chat_completion_handler(form_data, user)
+        response = await chat_completion_handler(form_data, user, chat_completion_start_time)
 
         return await process_chat_response(
             request, response, form_data, user, events, metadata, tasks

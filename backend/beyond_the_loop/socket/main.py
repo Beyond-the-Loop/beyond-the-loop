@@ -5,13 +5,13 @@ import sys
 import time
 
 from beyond_the_loop.models.users import Users, UserNameResponse
+from open_webui.env import REDIS_URL
 from open_webui.models.channels import Channels
 from beyond_the_loop.models.chats import Chats
 
 from open_webui.env import (
     ENABLE_WEBSOCKET_SUPPORT,
     WEBSOCKET_MANAGER,
-    WEBSOCKET_REDIS_URL,
 )
 from open_webui.utils.auth import decode_token
 from beyond_the_loop.socket.utils import RedisDict, RedisLock
@@ -28,7 +28,7 @@ log.setLevel(SRC_LOG_LEVELS["SOCKET"])
 
 
 if WEBSOCKET_MANAGER == "redis":
-    mgr = socketio.AsyncRedisManager(WEBSOCKET_REDIS_URL)
+    mgr = socketio.AsyncRedisManager(REDIS_URL)
     sio = socketio.AsyncServer(
         cors_allowed_origins=[],
         async_mode="asgi",
@@ -46,7 +46,11 @@ else:
         always_connect=True,
     )
 
-COMPANY_CONFIG_CACHE = RedisDict("company_config_cache", redis_url=WEBSOCKET_REDIS_URL)
+COMPANY_CONFIG_CACHE = RedisDict("company_config_cache", redis_url=REDIS_URL)
+
+STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE = RedisDict(":stripe_company_active_subscription_cache", redis_url=REDIS_URL)
+STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE = RedisDict(":stripe_company_trial_subscription_cache", redis_url=REDIS_URL)
+STRIPE_PRODUCT_CACHE = RedisDict(":stripe_product_cache", redis_url=REDIS_URL)
 
 # Timeout duration in seconds
 TIMEOUT_DURATION = 3
@@ -55,12 +59,12 @@ TIMEOUT_DURATION = 3
 
 if WEBSOCKET_MANAGER == "redis":
     log.debug("Using Redis to manage websockets.")
-    SESSION_POOL = RedisDict("open-webui:session_pool", redis_url=WEBSOCKET_REDIS_URL)
-    USER_POOL = RedisDict("open-webui:user_pool", redis_url=WEBSOCKET_REDIS_URL)
-    USAGE_POOL = RedisDict("open-webui:usage_pool", redis_url=WEBSOCKET_REDIS_URL)
+    SESSION_POOL = RedisDict("open-webui:session_pool", redis_url=REDIS_URL)
+    USER_POOL = RedisDict("open-webui:user_pool", redis_url=REDIS_URL)
+    USAGE_POOL = RedisDict("open-webui:usage_pool", redis_url=REDIS_URL)
 
     clean_up_lock = RedisLock(
-        redis_url=WEBSOCKET_REDIS_URL,
+        redis_url=REDIS_URL,
         lock_name="usage_cleanup_lock",
         timeout_secs=TIMEOUT_DURATION * 2,
     )
