@@ -11,8 +11,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
 import re
 
-from beyond_the_loop.socket.main import COMPANY_ACTIVE_SUBSCRIPTION_CACHE, COMPANY_TRIAL_SUBSCRIPTION_CACHE
-
+from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
 
 def _set_new_credit_recharge_check_date(company):
     try:
@@ -160,8 +159,13 @@ class PaymentsService:
             (None, {}))
 
         # Get the image url of the product
-        product = stripe.Product.retrieve(subscription.get("plan").get("product"))
-        image_url = product.images[0] if product.images and len(product.images) > 0 else None
+        if subscription.get("plan").get("product") in STRIPE_PRODUCT_CACHE:
+            product = STRIPE_PRODUCT_CACHE[subscription.get("plan").get("product")]
+        else:
+            product = stripe.Product.retrieve(subscription.get("plan").get("product"))
+            STRIPE_PRODUCT_CACHE[subscription.get("plan").get("product")] = product
+
+        image_url = product.get("images")[0] if product.get("images") and len(product.get("images")) > 0 else None
 
         return plan_id, plan, image_url
 
@@ -178,7 +182,7 @@ class PaymentsService:
                     "auto_recharge": company.auto_recharge
                 }
 
-            cached_active_subscriptions = COMPANY_ACTIVE_SUBSCRIPTION_CACHE.get(company_id)
+            cached_active_subscriptions = STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.get(company_id)
 
             # Get subscription from Stripe
             active_subscriptions = cached_active_subscriptions if cached_active_subscriptions else stripe.Subscription.list(
@@ -188,9 +192,9 @@ class PaymentsService:
             )
 
             if not cached_active_subscriptions:
-                COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company_id] = active_subscriptions
+                STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company_id] = active_subscriptions
 
-            cached_trial_subscriptions = COMPANY_TRIAL_SUBSCRIPTION_CACHE.get(company_id)
+            cached_trial_subscriptions = STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.get(company_id)
 
             # Check for trial subscriptions
             trial_subscriptions = cached_trial_subscriptions if cached_trial_subscriptions else stripe.Subscription.list(
@@ -200,7 +204,7 @@ class PaymentsService:
             )
 
             if not cached_trial_subscriptions:
-                COMPANY_TRIAL_SUBSCRIPTION_CACHE[company_id] = trial_subscriptions
+                STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company_id] = trial_subscriptions
 
             # If there's an active trial subscription and no active subscription
             if trial_subscriptions.get("data") and len(trial_subscriptions.get("data")) > 0 and not active_subscriptions.get("data"):

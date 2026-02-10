@@ -283,7 +283,7 @@ ENABLE_REALTIME_CHAT_SAVE = (
 # REDIS
 ####################################
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL")
 
 ####################################
 # WEBUI_AUTH (Required for security)
@@ -332,8 +332,6 @@ ENABLE_WEBSOCKET_SUPPORT = (
 )
 
 WEBSOCKET_MANAGER = os.environ.get("WEBSOCKET_MANAGER", "")
-
-WEBSOCKET_REDIS_URL = os.environ.get("WEBSOCKET_REDIS_URL", REDIS_URL)
 
 AIOHTTP_CLIENT_TIMEOUT = os.environ.get("AIOHTTP_CLIENT_TIMEOUT", "")
 
