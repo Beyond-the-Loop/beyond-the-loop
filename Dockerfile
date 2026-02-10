@@ -12,6 +12,7 @@ WORKDIR /app
 
 # Set the Node.js memory limit to 32GB
 ENV NODE_OPTIONS="--max-old-space-size=32768"
+ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
 RUN npm ci
