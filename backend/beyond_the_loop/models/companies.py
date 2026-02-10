@@ -366,11 +366,11 @@ class CompanyTable:
                 from beyond_the_loop.routers.payments import payments_service
 
                 subscription = payments_service.get_subscription(company.id)
-                
+
                 if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
                     return 1
                 
-                plan_id = subscription.get("metadata").get('plan_id')
+                plan_id = subscription.get('plan')
                 
                 if plan_id not in payments_service.SUBSCRIPTION_PLANS:
                     return 1  # Unknown plan

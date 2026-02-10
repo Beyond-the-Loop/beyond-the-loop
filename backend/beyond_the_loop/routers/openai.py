@@ -204,12 +204,8 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 async def generate_chat_completion(
         form_data: dict,
-        user,
-        chat_completion_start_time,
+        user
 ):
-    print("Time it took to start generate_chat_completion:", chat_completion_start_time - time.time())
-    chat_completion_start_time = time.time()
-
     if not form_data.get("model"):
         raise HTTPException(
             status_code=400,
@@ -248,9 +244,6 @@ async def generate_chat_completion(
                     if c.get("type") != "image_url"
                 ]
 
-    print("Time before the subscription check:", chat_completion_start_time - time.time())
-    chat_completion_start_time = time.time()
-
     subscription = payments_service.get_subscription(user.company_id)
 
     if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
@@ -270,9 +263,6 @@ async def generate_chat_completion(
             status_code=403,
             detail="Model not found, no access for user",
         )
-
-    print("Time before the fair usage check:", chat_completion_start_time - time.time())
-    chat_completion_start_time = time.time()
 
     # Check model fair usage
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
@@ -302,9 +292,6 @@ async def generate_chat_completion(
         "GPT-5.1 thinking": "azure/gpt-5.1",
     }
 
-    print("Time before the trim message:", chat_completion_start_time - time.time())
-    chat_completion_start_time = time.time()
-
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
@@ -322,8 +309,6 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
-        print("Time before the litellm request:", chat_completion_start_time - time.time())
-
         s = await _get_session()
 
         r = await s.request(
