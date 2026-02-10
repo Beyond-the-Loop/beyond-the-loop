@@ -208,11 +208,11 @@ class PaymentsService:
 
             # If there's an active trial subscription and no active subscription
             if trial_subscriptions.get("data") and len(trial_subscriptions.get("data")) > 0 and not active_subscriptions.get("data"):
-                trial_subscription = trial_subscriptions.data[0]
+                trial_subscription = trial_subscriptions.get("data")[0]
 
                 # Calculate days remaining in trial
                 current_time = int(time.time())
-                trial_end = trial_subscription.trial_end
+                trial_end = trial_subscription.get("trial_end")
                 days_remaining = max(0, int((trial_end - current_time) / (24 * 60 * 60)))
 
                 plan_id, plan, image_url = self.get_plan_details_from_subscription(trial_subscription)
@@ -228,7 +228,7 @@ class PaymentsService:
                     'trial_end': trial_end,
                     'days_remaining': days_remaining,
                     'image_url': image_url,
-                    "subscription_id": trial_subscription.id,
+                    "subscription_id": trial_subscription.get("id"),
                     "subscription_item_id": trial_subscription["items"]["data"][0]["id"]
                 }
 
