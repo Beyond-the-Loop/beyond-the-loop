@@ -20,8 +20,6 @@
 		"test:frontend": "vitest --passWithNoTests"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "3.2.2",
-		"@sveltejs/adapter-static": "3.0.8",
 		"@sveltejs/kit": "2.26.1",
 		"@sveltejs/vite-plugin-svelte": "3.1.2",
 		"@typescript-eslint/eslint-plugin": "6.21.0",
@@ -100,6 +98,8 @@
 		"prosemirror-view": "1.40.1",
 		"socket.io-client": "4.8.1",
 		"sortablejs": "1.15.6",
+        "@sveltejs/adapter-auto": "3.2.2",
+        "@sveltejs/adapter-static": "3.0.8",
 		"svelte-sonner": "0.3.28",
 		"tailwindcss": "3.4.17",
         "@tailwindcss/container-queries": "0.1.1",
