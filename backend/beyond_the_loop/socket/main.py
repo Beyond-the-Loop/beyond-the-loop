@@ -48,6 +48,9 @@ else:
 
 COMPANY_CONFIG_CACHE = RedisDict("company_config_cache", redis_url=WEBSOCKET_REDIS_URL)
 
+COMPANY_ACTIVE_SUBSCRIPTION_CACHE = RedisDict(":company_active_subscription_cache", redis_url=WEBSOCKET_REDIS_URL)
+COMPANY_TRIAL_SUBSCRIPTION_CACHE = RedisDict(":company_trial_subscription_cache", redis_url=WEBSOCKET_REDIS_URL)
+
 # Timeout duration in seconds
 TIMEOUT_DURATION = 3
 
