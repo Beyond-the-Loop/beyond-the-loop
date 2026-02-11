@@ -9,6 +9,7 @@ from beyond_the_loop.models.users import Users
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.crm_service import crm_service
+from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE
 
 router = APIRouter()
 
@@ -110,6 +111,20 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
 
         event_type = event.get("type")
         event_data = event.get("data", {}).get("object", {})
+
+        stripe_customer_id = event_data.get('customer')
+
+        company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
+
+        if not company:
+            # Customer created or other events without customer information
+            return {"message": "Customer not found for Stripe checkout webhook"}
+
+        if company.id in STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE:
+            del STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company.id]
+
+        if company.id in STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE:
+            del STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company.id]
 
         # Subscription events
         if event_type == "customer.subscription.created":
@@ -239,16 +254,6 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
             raise HTTPException(status_code=403, detail="Failed to update auto-recharge setting: Not available for Free or Premium companies")
 
         company = Companies.get_company_by_id(user.company_id)
-
-        # Check if the company has_active_subscription
-        subscriptions = stripe.Subscription.list(
-            customer=company.stripe_customer_id,
-            status='active',
-            limit=1
-        )
-
-        if not company.subscription_not_required and (not subscriptions or len(subscriptions.data) == 0):
-            raise HTTPException(status_code=400, detail="No active subscription found. Please subscribe first.")
 
         # Get the customer's payment methods
         payment_methods = stripe.PaymentMethod.list(

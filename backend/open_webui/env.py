@@ -33,33 +33,7 @@ except ImportError:
 
 DOCKER = os.environ.get("DOCKER", "False").lower() == "true"
 
-# device type embedding models - "cpu" (default), "cuda" (nvidia gpu required) or "mps" (apple silicon) - choosing this right can lead to better performance
-USE_CUDA = os.environ.get("USE_CUDA_DOCKER", "false")
-
-if USE_CUDA.lower() == "true":
-    try:
-        import torch
-
-        assert torch.cuda.is_available(), "CUDA not available"
-        DEVICE_TYPE = "cuda"
-    except Exception as e:
-        cuda_error = (
-            "Error when testing CUDA but USE_CUDA_DOCKER is true. "
-            f"Resetting USE_CUDA_DOCKER to false: {e}"
-        )
-        os.environ["USE_CUDA_DOCKER"] = "false"
-        USE_CUDA = "false"
-        DEVICE_TYPE = "cpu"
-else:
-    DEVICE_TYPE = "cpu"
-
-try:
-    import torch
-
-    if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-        DEVICE_TYPE = "mps"
-except Exception:
-    pass
+DEVICE_TYPE = "cpu"
 
 ####################################
 # LOGGING
@@ -75,9 +49,6 @@ else:
 
 log = logging.getLogger(__name__)
 log.info(f"GLOBAL_LOG_LEVEL: {GLOBAL_LOG_LEVEL}")
-
-if "cuda_error" in locals():
-    log.exception(cuda_error)
 
 log_sources = [
     "AUDIO",
@@ -283,7 +254,7 @@ ENABLE_REALTIME_CHAT_SAVE = (
 # REDIS
 ####################################
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL")
 
 ####################################
 # WEBUI_AUTH (Required for security)
@@ -332,8 +303,6 @@ ENABLE_WEBSOCKET_SUPPORT = (
 )
 
 WEBSOCKET_MANAGER = os.environ.get("WEBSOCKET_MANAGER", "")
-
-WEBSOCKET_REDIS_URL = os.environ.get("WEBSOCKET_REDIS_URL", REDIS_URL)
 
 AIOHTTP_CLIENT_TIMEOUT = os.environ.get("AIOHTTP_CLIENT_TIMEOUT", "")
 
