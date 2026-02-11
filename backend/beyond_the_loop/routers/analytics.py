@@ -2,6 +2,7 @@ from fastapi import HTTPException, Depends
 from fastapi.params import Query
 
 from beyond_the_loop.models.users import get_users_by_company
+from beyond_the_loop.models.analytics import TotalUsersResponse, TotalAssistantsResponse
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.internal.db import get_db
 from beyond_the_loop.models.models import Model
@@ -125,7 +126,8 @@ async def get_total_messages(
 
     try:
         return AnalyticsService.get_total_messages_by_company(company_id=user.company_id, start_date=start_date, end_date=end_date)
-    except ValueError:
+    except ValueError as e:
+        print(e)
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching message stats: {e}")
@@ -145,13 +147,13 @@ async def get_total_users(user=Depends(get_verified_user)):
         )
 
     try:
-        return {"total_users": len(get_users_by_company(user.company_id))}
+        return TotalUsersResponse(total_users=len(get_users_by_company(user.company_id)))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching total users: {e}")
 
 
-@router.get("/stats/acceptance-rate")
-async def get_acceptance_rate(user=Depends(get_verified_user)):
+@router.get("/stats/engagement-score")
+async def get_engagement_score(user=Depends(get_verified_user)):
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
     if is_free_user:
@@ -161,7 +163,7 @@ async def get_acceptance_rate(user=Depends(get_verified_user)):
         )
 
     try:
-        return AnalyticsService.calculate_adoption_rate_by_company(user.company_id)
+        return AnalyticsService.calculate_engagement_score_by_company(user.company_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating adoption rate: {e}")
 
@@ -207,6 +209,6 @@ async def get_total_assistants(user=Depends(get_verified_user)):
                 Model.base_model_id != None
             ).count()
             
-            return {"total_assistants": total_assistants}
+            return TotalAssistantsResponse(total_assistants=total_assistants)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching total assistants: {e}")

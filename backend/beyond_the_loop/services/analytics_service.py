@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 
-from beyond_the_loop.models.models import Model
+from beyond_the_loop.models.analytics import EngagementScoreResponse, TopModelsResponse, TopUsersResponse, TopAssistantsResponse, TotalMessagesResponse, PowerUsersResponse
 from open_webui.internal.db import get_db
 from beyond_the_loop.models.completions import Completion
 from beyond_the_loop.models.users import (
@@ -13,7 +13,7 @@ from beyond_the_loop.models.users import (
     get_active_users_by_company,
 )
 from beyond_the_loop.models.companies import Companies, Company
-from sqlalchemy import func
+from sqlalchemy import func, case
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class AnalyticsService:
         pass
 
     @staticmethod
-    def calculate_adoption_rate_by_company(company_id: str):
+    def calculate_engagement_score_by_company(company_id: str):
         """
         Returns the adoption rate: percentage of users for the user's company
         that logged in in the last 30 days.
@@ -46,14 +46,16 @@ class AnalyticsService:
             )
             # Calculate adoption rate as a percentage
             adoption_rate = (active_users / total_users * 100) if total_users > 0 else 0
-            return {
+
+            data = {
                 "total_users": total_users,
                 "active_users": active_users,
                 "adoption_rate": round(adoption_rate, 2),
             }
+
+            return EngagementScoreResponse.from_data(data)
         except Exception as e:
             log.error(f"Error calculating adoption rate: {e}")
-            return {"total_users": 0, "active_users": 0, "adoption_rate": 0}
 
     @staticmethod
     def get_top_models_by_company(company_id: str, start_date: str, end_date: str):
@@ -90,6 +92,7 @@ class AnalyticsService:
                     Completion.created_at >= start_timestamp,
                     Completion.created_at <= end_timestamp,
                     Completion.user_id.in_(company_user_ids),
+                    Completion.from_agent == False,
                 )
                 .group_by(
                     Completion.model
@@ -103,14 +106,7 @@ class AnalyticsService:
         if not top_models:
             return {"message": "No data found for the given parameters."}
 
-        return [
-            {
-                "model": model,
-                "credits_used": credits_used,
-                "message_count": message_count,
-            }
-            for model, credits_used, message_count in top_models
-        ]
+        return TopModelsResponse.from_query_result(top_models)
 
     @staticmethod
     def get_top_users_by_company(company_id: str, start_date: str, end_date: str):
@@ -122,73 +118,132 @@ class AnalyticsService:
 
         if end_date:
             end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
+            end_date_dt = datetime(
+                end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59
+            )
             end_timestamp = int(end_date_dt.timestamp())
         else:
             end_date_dt = datetime.now()
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
+            end_date_dt = datetime(
+                end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59
+            )
             end_timestamp = int(end_date_dt.timestamp())
 
         if start_timestamp > end_timestamp:
             raise HTTPException(status_code=400, detail="Start date must be before end date.")
 
         with get_db() as db:
-            top_users = (
-                db.query(
-                    Completion.user_id,
-                    func.sum(Completion.credits_used).label("total_credits_used"),
-                    func.count(Completion.id).label("message_count"),
-                    User.first_name,
-                    User.last_name,
-                    User.email,
-                    User.profile_image_url,
-                )
+            base_query = (
+                db.query(Completion)
                 .join(User, User.id == Completion.user_id)
                 .filter(
+                    Completion.from_agent == False,
                     Completion.created_at >= start_timestamp,
                     Completion.created_at <= end_timestamp,
                     User.company_id == company_id,
                 )
+            )
+
+            model_counts = (
+                base_query.with_entities(
+                    Completion.user_id,
+                    Completion.model,
+                    func.count(Completion.id).label("model_count"),
+                )
+                .group_by(Completion.user_id, Completion.model)
+                .subquery()
+            )
+
+            model_ranked = (
+                db.query(
+                    model_counts.c.user_id,
+                    model_counts.c.model,
+                    func.row_number()
+                    .over(
+                        partition_by=model_counts.c.user_id,
+                        order_by=model_counts.c.model_count.desc(),
+                    )
+                    .label("rnk"),
+                )
+                .subquery()
+            )
+
+            top_model_subq = (
+                db.query(model_ranked.c.user_id, model_ranked.c.model)
+                .filter(model_ranked.c.rnk == 1)
+                .subquery()
+            )
+
+            assistant_counts = (
+                base_query.filter(Completion.assistant.isnot(None))
+                .with_entities(
+                    Completion.user_id,
+                    Completion.assistant,
+                    func.count(Completion.id).label("assistant_count"),
+                )
+                .group_by(Completion.user_id, Completion.assistant)
+                .subquery()
+            )
+
+            assistant_ranked = (
+                db.query(
+                    assistant_counts.c.user_id,
+                    assistant_counts.c.assistant,
+                    func.row_number()
+                    .over(
+                        partition_by=assistant_counts.c.user_id,
+                        order_by=assistant_counts.c.assistant_count.desc(),
+                    )
+                    .label("rnk"),
+                )
+                .subquery()
+            )
+
+            top_assistant_subq = (
+                db.query(
+                    assistant_ranked.c.user_id,
+                    assistant_ranked.c.assistant,
+                )
+                .filter(assistant_ranked.c.rnk == 1)
+                .subquery()
+            )
+
+            top_users = (
+                base_query.with_entities(
+                    Completion.user_id,
+                    func.sum(Completion.credits_used).label("total_credits_used"),
+                    func.count(Completion.id).label("message_count"),
+                    (
+                            func.sum(case((Completion.assistant.isnot(None), 1), else_=0))
+                            * 100.0
+                            / func.count(Completion.id)
+                    ).label("assistant_message_percentage"),
+                    User.first_name,
+                    User.last_name,
+                    User.email,
+                    User.profile_image_url,
+                    top_model_subq.c.model.label("top_model"),
+                    top_assistant_subq.c.assistant.label("top_assistant"),
+                )
+                .outerjoin(top_model_subq, top_model_subq.c.user_id == Completion.user_id)
+                .outerjoin(top_assistant_subq, top_assistant_subq.c.user_id == Completion.user_id)
                 .group_by(
                     Completion.user_id,
                     User.first_name,
                     User.last_name,
                     User.email,
                     User.profile_image_url,
+                    top_model_subq.c.model,
+                    top_assistant_subq.c.assistant,
                 )
                 .order_by(func.sum(Completion.credits_used).desc())
                 .all()
             )
 
-        top_users_formatted = [
-            {
-                "user_id": user_id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "email": email,
-                "profile_image_url": profile_image_url,
-                "total_credits_used": total_credits_used,
-                "message_count": message_count,
-            }
-            for (
-                user_id,
-                total_credits_used,
-                message_count,
-                first_name,
-                last_name,
-                email,
-                profile_image_url,
-            ) in top_users
-        ]
-
-        return {
-            "top_users": top_users_formatted
-        }
+            return TopUsersResponse.from_query_result(top_users)
 
     @staticmethod
     def get_top_assistants_by_company(company_id: str, start_date: str, end_date: str):
-        print(start_date, end_date)
-
         if start_date:
             start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
             start_timestamp = int(start_date_dt.timestamp())
@@ -221,7 +276,8 @@ class AnalyticsService:
                     Completion.assistant != None,
                     Completion.created_at >= start_timestamp,
                     Completion.created_at <= end_timestamp,
-                    Completion.user_id.in_(company_user_ids)
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.from_agent == False,
                 )
                 .group_by(
                     Completion.assistant
@@ -230,92 +286,71 @@ class AnalyticsService:
                 .all()
             )
 
-        top_assistants_formatted = [
-            {
-                "assistant": assistant,
-                "total_credits_used": total_credits_used,
-                "message_count": message_count
-            }
-            for (
-                assistant,
-                total_credits_used,
-                message_count
-            ) in top_assistants
-        ]
-
-        return {
-            "top_assistants": top_assistants_formatted
-        }
+            return TopAssistantsResponse.from_query_result(top_assistants)
 
     @staticmethod
     def get_total_messages_by_company(company_id: str, start_date: str, end_date: str):
+        # Parse the date range for monthly aggregation
         start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
         with get_db() as db:
+            # Get all user IDs for the company
             company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_user_ids]
 
-            query = db.query(
-                # Format the Unix timestamp as "YYYY-MM"
-                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
-                func.count(Completion.id).label("total_messages")
-            ).filter(
-                # Filter using actual timestamps
-                func.to_timestamp(Completion.created_at) >= start_date_dt,
-                func.to_timestamp(Completion.created_at) <= end_date_dt,
-                Completion.user_id.in_(company_user_ids)
+            monthly_results = (
+                db.query(
+                    func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
+                    func.count(Completion.id).label("total_messages")
+                )
+                .filter(
+                    Completion.user_id.in_(company_user_ids),
+                    func.to_timestamp(Completion.created_at) >= start_date_dt,
+                    func.to_timestamp(Completion.created_at) <= end_date_dt
+                )
+                .group_by("month")
+                .order_by("month")
+                .all()
             )
 
-            # Execute the query and fetch results
-            results = query.group_by("month").order_by("month").all()
+            monthly_messages = {row.month: row.total_messages for row in monthly_results}
 
-            # Convert results to a dictionary
-            monthly_messages = {row[0]: int(row[1]) for row in results}
-
-        # Generate month range and calculate data
-        months = AnalyticsService._generate_month_range(start_date_dt, end_date_dt)
-        message_data = {month: monthly_messages.get(month, 0) for month in months}
-        percentage_changes = AnalyticsService._calculate_percentage_changes(message_data)
-
-        return {
-            "monthly_messages": message_data,
-            "percentage_changes": percentage_changes
-        }
-
-    @staticmethod
-    def get_total_chats_by_company(company_id: str, start_date: str, end_date: str):
-        start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
-
-        with get_db() as db:
-            company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
-            company_user_ids = [u.id for u in company_user_ids]
-
-            query = db.query(
-                # Format the Unix timestamp as "YYYY-MM"
-                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
-                func.count(func.distinct(Completion.chat_id)).label("total_chats")
-            ).filter(
-                # Filter using actual timestamps
-                func.to_timestamp(Completion.created_at) >= start_date_dt,
-                func.to_timestamp(Completion.created_at) <= end_date_dt,
-                Completion.user_id.in_(company_user_ids)
+            yearly_results = (
+                db.query(
+                    func.to_char(func.to_timestamp(Completion.created_at), 'YYYY').label("year"),
+                    func.count(Completion.id).label("total_messages")
+                )
+                .filter(
+                    Completion.user_id.in_(company_user_ids)
+                )
+                .group_by("year")
+                .order_by("year")
+                .all()
             )
+            yearly_messages = {row.year: row.total_messages for row in yearly_results}
 
-            # Execute the query and fetch results
-            results = query.group_by("month").order_by("month").all()
-
-            # Convert results to a dictionary
-            monthly_chats = {row[0]: int(row[1]) for row in results}
-
-        # Generate month range and calculate data
         months = AnalyticsService._generate_month_range(start_date_dt, end_date_dt)
-        chat_data = {month: monthly_chats.get(month, 0) for month in months}
-        percentage_changes = AnalyticsService._calculate_percentage_changes(chat_data)
+        monthly_data = {month: monthly_messages.get(month, 0) for month in months}
 
-        return {
-            "monthly_chats": chat_data,
-            "percentage_changes": percentage_changes
-        }
+        if yearly_messages:
+            min_year = min(int(y) for y in yearly_messages.keys())
+            max_year = max(int(y) for y in yearly_messages.keys())
+        else:
+            min_year = start_date_dt.year
+            max_year = end_date_dt.year
+
+        years = [str(y) for y in range(min_year, max_year + 1)]
+        yearly_data = {year: yearly_messages.get(year, 0) for year in years}
+
+        monthly_percentage_changes = AnalyticsService._calculate_percentage_changes(monthly_data)
+        yearly_percentage_changes = AnalyticsService._calculate_percentage_changes(yearly_data)
+
+        return TotalMessagesResponse.from_data(
+            monthly_data=monthly_data,
+            monthly_percentage_changes=monthly_percentage_changes,
+            yearly_data=yearly_data,
+            yearly_percentage_changes=yearly_percentage_changes,
+        )
 
     @staticmethod
     def get_power_users_by_company(company_id: str):
@@ -335,7 +370,8 @@ class AnalyticsService:
                 Completion, User.id == Completion.user_id
             ).filter(
                 User.company_id == company_id,
-                Completion.created_at >= thirty_days_ago
+                Completion.created_at >= thirty_days_ago,
+                Completion.from_agent == False,
             ).group_by(
                 User.id, User.first_name, User.last_name, User.email, User.profile_image_url
             ).having(
@@ -363,12 +399,14 @@ class AnalyticsService:
             # Calculate percentage of power users
             power_users_percentage = (len(power_users) / total_users * 100) if total_users > 0 else 0
 
-        return {
+        data = {
             "power_users": power_users,
             "power_users_count": len(power_users),
             "total_users": total_users,
             "power_users_percentage": round(power_users_percentage, 2)  # Round to 2 decimal places
         }
+
+        return PowerUsersResponse.from_data(data)
 
     @staticmethod
     def calculate_credit_consumption_by_company(company_id: str, start_date: str, end_date: str):
@@ -427,6 +465,7 @@ class AnalyticsService:
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt,
                     Completion.user_id == user_id,
+                    Completion.from_agent == False,
                 )
 
                 # Execute the query and fetch results

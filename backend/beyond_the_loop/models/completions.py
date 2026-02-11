@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
-from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float
+
+from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float, Boolean
 
 import uuid
 import time
@@ -20,6 +21,7 @@ class Completion(Base):
     credits_used = Column(Float)
     created_at = Column(BigInteger)
     assistant = Column(Text)
+    from_agent = Column(Boolean, default=False)
 
 class CompletionModel(BaseModel):
     id: str
@@ -28,12 +30,13 @@ class CompletionModel(BaseModel):
     credits_used: float
     created_at: int  # timestamp in epoch
     assistant: Optional[str]
+    from_agent: Optional[bool]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent) -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
@@ -41,7 +44,8 @@ class CompletionTable:
                 "created_at": int(time.time()),
                 "model": model,
                 "credits_used": credits_used,
-                "assistant": assistant
+                "assistant": assistant,
+                "from_agent": from_agent
             }
         )
 

@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import open_webui.internal.db
 
 
 # revision identifiers, used by Alembic.
@@ -32,6 +31,9 @@ def upgrade() -> None:
 
                 ALTER TABLE completion
                     ADD COLUMN assistant text;
+                    
+                ALTER TABLE completion
+                    ADD COLUMN from_agent boolean;
                 """)
     )
 
