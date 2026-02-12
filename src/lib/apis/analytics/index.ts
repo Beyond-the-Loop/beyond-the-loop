@@ -111,7 +111,7 @@ export const getTotalUsers = async (token: string) => {
 export const getAcceptanceRate = async (token: string) => {
     let error = null;
 
-    const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/adoption-rate`, {
+    const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/engagement-score`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
