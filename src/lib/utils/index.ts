@@ -282,9 +282,9 @@ export const generateInitialsImage = (name) => {
 	const initials =
 		sanitizedName.length > 0
 			? sanitizedName[0] +
-				(sanitizedName.split(' ').length > 1
-					? sanitizedName[sanitizedName.lastIndexOf(' ') + 1]
-					: '')
+			(sanitizedName.split(' ').length > 1
+				? sanitizedName[sanitizedName.lastIndexOf(' ') + 1]
+				: '')
 			: '';
 
 	ctx.fillText(initials.toUpperCase(), canvas.width / 2, canvas.height / 2);
@@ -307,15 +307,15 @@ export const formatDate = (inputDate) => {
 
 function linkifyCitations(content, sources) {
 	if (!content || !sources || sources.length === 0) return content;
-	
+
 	const citationRegex = /\[(\d+)]/g;
-	
+
 	return content.replace(citationRegex, (match, number) => {
-		const citationIndex = parseInt(number, 10) - 1; 
+		const citationIndex = parseInt(number, 10) - 1;
 		if (sources[citationIndex]) {
 			return ` [${match}](${sources[citationIndex].source.name} "citation")`;
 		}
-		return match; 
+		return match;
 	});
 }
 
@@ -363,8 +363,7 @@ export const copyToClipboard = async (text) => {
 
 export const copyToClipboardResponse = async (text, sources) => {
 	let result = false;
-	console.log(text)
-	
+
 	const processedText = sources ? linkifyCitations(text, sources) : text;
 
 	let html = marked.parse(processedText);
@@ -517,10 +516,10 @@ export const compareVersion = (latest, current) => {
 	return current === '0.0.0'
 		? false
 		: current.localeCompare(latest, undefined, {
-				numeric: true,
-				sensitivity: 'case',
-				caseFirst: 'upper'
-			}) < 0;
+			numeric: true,
+			sensitivity: 'case',
+			caseFirst: 'upper'
+		}) < 0;
 };
 
 export const findWordIndices = (text) => {
@@ -1230,7 +1229,7 @@ export function onClickOutside(node, callback) {
 }
 
 export function getModelIcon(label: string): string {
-	if(!label) return '';
+	if (!label) return '';
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
@@ -1251,7 +1250,7 @@ export function getModelIcon(label: string): string {
 	} else if (lower.includes('lama')) {
 		return '/meta-color.svg';
 	} else if (lower.includes('grok')) {
-		if(isDark) {
+		if (isDark) {
 			return '/grok-dark.svg';
 		} else {
 			return '/grok.svg';
@@ -1328,54 +1327,54 @@ export const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14',
 
 
 export function extractUrlFromSourceObj(obj) {
-  // Try priority order: source.name (if URL), first document, metadata[0].source
-  const candidates = [
-    obj?.source?.name,
-    Array.isArray(obj?.document) ? obj.document[0] : null,
-    Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null,
-  ].filter(Boolean);
+	// Try priority order: source.name (if URL), first document, metadata[0].source
+	const candidates = [
+		obj?.source?.name,
+		Array.isArray(obj?.document) ? obj.document[0] : null,
+		Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null,
+	].filter(Boolean);
 
-  const first = candidates.find((v) => typeof v === 'string');
-  return first || null;
+	const first = candidates.find((v) => typeof v === 'string');
+	return first || null;
 }
 
 export function normalizeUrl(url) {
-  try {
-    const u = new URL(url);
-    // Normalize: lower host, strip default ports & trailing slash
-    u.host = u.host.toLowerCase();
-    if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
-      u.port = '';
-    }
-    // Remove trailing slash except root
-    if (u.pathname.endsWith('/') && u.pathname !== '/') {
-      u.pathname = u.pathname.slice(0, -1);
-    }
-    return u.toString();
-  } catch {
-    // If it's not a valid URL, return as-is for display but can't dedupe well
-    return url;
-  }
+	try {
+		const u = new URL(url);
+		// Normalize: lower host, strip default ports & trailing slash
+		u.host = u.host.toLowerCase();
+		if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
+			u.port = '';
+		}
+		// Remove trailing slash except root
+		if (u.pathname.endsWith('/') && u.pathname !== '/') {
+			u.pathname = u.pathname.slice(0, -1);
+		}
+		return u.toString();
+	} catch {
+		// If it's not a valid URL, return as-is for display but can't dedupe well
+		return url;
+	}
 }
 
 // Remap local [n] citations in one message to global indices
 export function remapCitations(content, messageSources, urlToGlobalIndex, globalList) {
-  if (!Array.isArray(messageSources) || messageSources.length === 0) return content;
+	if (!Array.isArray(messageSources) || messageSources.length === 0) return content;
 
-  return content.replace(/\[(\d+)\]/g, (match, numStr) => {
-    const n = Number(numStr);
-    const srcObj = messageSources[n - 1];
-    if (!srcObj) return match; // out of range, leave as-is
+	return content.replace(/\[(\d+)\]/g, (match, numStr) => {
+		const n = Number(numStr);
+		const srcObj = messageSources[n - 1];
+		if (!srcObj) return match; // out of range, leave as-is
 
-    const urlRaw = extractUrlFromSourceObj(srcObj);
-    if (!urlRaw) return match;
+		const urlRaw = extractUrlFromSourceObj(srcObj);
+		if (!urlRaw) return match;
 
-    const url = normalizeUrl(urlRaw);
-    if (!urlToGlobalIndex.has(url)) {
-      globalList.push({ url, title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null });
-      urlToGlobalIndex.set(url, globalList.length); // 1-based index
-    }
-    const idx = urlToGlobalIndex.get(url);
-    return `[${idx}]`;
-  });
+		const url = normalizeUrl(urlRaw);
+		if (!urlToGlobalIndex.has(url)) {
+			globalList.push({ url, title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null });
+			urlToGlobalIndex.set(url, globalList.length); // 1-based index
+		}
+		const idx = urlToGlobalIndex.get(url);
+		return `[${idx}]`;
+	});
 }

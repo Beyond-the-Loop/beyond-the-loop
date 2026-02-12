@@ -1090,8 +1090,10 @@
 		if (content) {
 			if (type == 'text') {
 				if (bufferedResponse != null && added_content != null && added_content != undefined) {
-					bufferedResponse.add(added_content);
 					message.text_content = text_content;
+
+					console.log(message.text_content);
+					bufferedResponse.add(added_content);
 				} else if (bufferedResponse === null) {
 					message.content = content;
 					bufferedResponse = new BufferedResponse(message, history, {
@@ -1156,7 +1158,6 @@
 
 			message.done = true;
 			message.content = content;
-			message.text_content = text_content;
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1674,10 +1675,7 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
-				responseMessage.content = responseMessage.content.replaceAll(
-					'<details type="reasoning" done="false">',
-					'<details type="reasoning" done="true">'
-				);
+				responseMessage.content = responseMessage.content.replaceAll('done="false"', 'done="true"');
 
 				history.messages[history.currentId] = responseMessage;
 

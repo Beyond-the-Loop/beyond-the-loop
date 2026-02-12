@@ -57,6 +57,7 @@
 	import StopReading from '$lib/components/icons/StopReading.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import CustomChatError from './CustomChatError.svelte';
+	import WarningIcon from '$lib/components/icons/WarningIcon.svelte';
 
 	interface MessageType {
 		id: string;
@@ -750,7 +751,7 @@
 								class="w-full flex flex-col relative text-base leading-[1.5] dark:text-customGray-100"
 								id="response-content-container"
 							>
-								{#if message.content === '' && !message.error}
+								{#if message.content === '' && !message.error && !message.done}
 									<Skeleton />
 								{:else if message.content && message.error !== true}
 									<!-- always show message contents even if there's an error -->
@@ -796,6 +797,10 @@
 											}
 										}}
 									/>
+								{:else if message?.done}
+									<div class="text-gray-500 text-base flex gap-2 flex-row items-center my-2">
+										<WarningIcon className="size-4" color="currentColor" /> Vorgang abgebrochen.
+									</div>
 								{/if}
 
 								{#if message?.error}
@@ -902,6 +907,7 @@
 											? 'visible'
 											: 'invisible group-hover:visible'} p-1.5 rounded-lg dark:hover:text-white hover:text-black transition copy-response-button"
 										on:click={() => {
+											console.log(message.text_content);
 											copyToClipboard(
 												message.text_content ? message.text_content : message.content,
 												message?.sources
