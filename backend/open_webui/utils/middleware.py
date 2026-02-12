@@ -1563,6 +1563,13 @@ async def process_chat_response(
                                             ),
                                             "type": "reasoning",
                                         }
+                                    elif (content_blocks[-1]["type"] == "code_interpreter"):
+                                        data = {
+                                            "content": serialize_content_blocks(
+                                                content_blocks
+                                            ),
+                                            "type": "code_interpreter",
+                                        }
                                     else:
                                         text_blocks = [block for block in content_blocks if block.get("type") == "text"]
                                         data = {
