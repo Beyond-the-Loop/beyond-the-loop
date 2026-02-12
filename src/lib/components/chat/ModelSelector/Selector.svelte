@@ -60,7 +60,7 @@
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
 		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
-	
+
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
 		: filteredSourceItems;
@@ -237,7 +237,7 @@
 			})).find((item) => item?.model?.id === selectedModel?.model?.base_model_id);
 		}
 	}
-	
+
 </script>
 
 <DropdownMenu.Root
@@ -335,10 +335,10 @@
 				{#each filteredItems as item, index}
 					<button
 						aria-label="model-item"
-						class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm text-lightGray-100 dark:text-customGray-100 outline-none transition-all duration-75 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white rounded-lg cursor-pointer {value ===
-						item.value
-							? 'bg-lightGray-700 dark:bg-customGray-950'
-							: ''}"
+						class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm outline-none transition-all duration-75 rounded-lg
+       				{value === item.value ? 'bg-lightGray-700 dark:bg-customGray-950' : ''}
+       				{!item.model?.is_active ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
+
 						data-arrow-selected={index === selectedModelIdx}
 						on:mouseenter={() => (hoveredItem = item)}
 						on:mouseleave={() => (hoveredItem = null)}
@@ -348,6 +348,7 @@
 
 							show = false;
 						}}
+						disabled={!item.model?.is_active}
 					>
 						<div class="flex flex-col">
 							{#if $mobile && (item?.model?.meta?.tags ?? []).length > 0}
@@ -482,7 +483,7 @@
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
 									{#if knowledgeCutoff}
-										{knowledgeCutoff}	
+										{knowledgeCutoff}
 									{:else}
 										N/A
 									{/if}

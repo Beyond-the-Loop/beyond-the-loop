@@ -19,7 +19,7 @@ class FairModelUsageService:
 
         # If no value -> no access no limit
         if not allowed_messages_per_three_hours:
-            return
+            raise HTTPException(status_code=400, detail="No access to model.")
 
         messages_last_three_hours = Completions.get_completions_last_three_hours_by_user_and_model(user.id, model_name)
 
