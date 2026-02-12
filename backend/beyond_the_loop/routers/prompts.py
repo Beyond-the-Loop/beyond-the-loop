@@ -7,7 +7,7 @@ from beyond_the_loop.models.prompts import (
     Prompts, TagResponse
 )
 from open_webui.constants import ERROR_MESSAGES
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_access, has_permission
 
@@ -96,7 +96,7 @@ async def create_new_prompt(
     if not has_permission(user.id, "workspace.view_prompts"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.UNAUTHORIZED(),
+            detail=ERROR_MESSAGES.UNAUTHORIZED,
         )
 
     prompt = Prompts.get_prompt_by_command_and_company(form_data.command, user.company_id)
@@ -108,12 +108,12 @@ async def create_new_prompt(
             return prompt
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(),
+            detail=ERROR_MESSAGES.DEFAULT,
         )
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail=ERROR_MESSAGES.COMMAND_TAKEN(),
+        detail=ERROR_MESSAGES.TITLE_TAKEN,
     )
 
 
@@ -163,7 +163,7 @@ async def update_prompt_by_command(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.COMMAND_TAKEN,
+            detail=ERROR_MESSAGES.TITLE_TAKEN,
         )
 
 

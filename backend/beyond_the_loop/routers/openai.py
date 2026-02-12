@@ -6,7 +6,6 @@ from typing import Optional
 
 import aiohttp
 import requests
-import time
 import os
 
 from aiohttp import ClientResponseError
@@ -45,6 +44,7 @@ from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
+from beyond_the_loop.socket.main import get_event_emitter
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -210,6 +210,19 @@ async def generate_chat_completion(
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
+    event_emitter = get_event_emitter(metadata)
+
+    await event_emitter(
+        {
+            "type": "status",
+            "data": {
+                "action": "generating_response",
+                "done": False,
+                "description": "Preparing model request"
+            },
+        }
+    )
+
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
     if model is None:
@@ -301,6 +314,17 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "generating_response",
+                    "done": False,
+                    "description": "Waiting for model response"
+                },
+            }
+        )
+
         s = await _get_session()
 
         r = await s.request(
@@ -321,6 +345,16 @@ async def generate_chat_completion(
                     else {}
                 ),
             },
+        )
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "generating_response",
+                    "done": True,
+                },
+            }
         )
 
         # Check if response is SSE
