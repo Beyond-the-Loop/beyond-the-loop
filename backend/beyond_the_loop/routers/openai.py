@@ -322,12 +322,24 @@ async def generate_chat_completion(
                     "data": {
                         "action": "generating_response",
                         "done": False,
-                        "description": "Waiting for model response"
+                        "description": "Creating session"
                     },
                 }
             )
 
         s = await _get_session()
+
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Waiting for model response"
+                    },
+                }
+            )
 
         r = await s.request(
             method="POST",
