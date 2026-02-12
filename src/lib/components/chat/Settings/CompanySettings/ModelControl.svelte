@@ -58,9 +58,11 @@
 		config = await getModelsConfig(localStorage.token);
 
 		const modelOrderList = config.MODEL_ORDER_LIST || [];
-		const allModelIds = $storeModels.map((model) => model.id);
+		console.log("DEFAULT MODEELL", config);
 
+		const allModelIds = $storeModels.map((model) => model.id);
 		if (config?.default_models) {
+
 			defaultModelIds = (config?.default_models ?? '')
 				.split(',')
 				.filter(Boolean)
@@ -82,7 +84,7 @@
 
 	const savebaseModel = async (defaultModelIds) => {
 		const res = await setModelsConfig(localStorage.token, {
-			DEFAULT_MODELS: defaultModelIds.join(','),
+			default_models: defaultModelIds.join(','),
 			MODEL_ORDER_LIST: modelIds
 		});
 
