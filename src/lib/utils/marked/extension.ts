@@ -48,6 +48,7 @@ function detailsTokenizer(src: string) {
 			summary = summaryMatch[1].trim();
 			content = content.slice(summaryMatch[0].length).trim();
 		}
+		console.log(attributes);
 
 		return {
 			type: 'details',
@@ -66,8 +67,8 @@ function detailsStart(src: string) {
 function detailsRenderer(token: any) {
 	const attributesString = token.attributes
 		? Object.entries(token.attributes)
-				.map(([key, value]) => `${key}="${value}"`)
-				.join(' ')
+			.map(([key, value]) => `${key}="${value}"`)
+			.join(' ')
 		: '';
 
 	return `<details ${attributesString}>

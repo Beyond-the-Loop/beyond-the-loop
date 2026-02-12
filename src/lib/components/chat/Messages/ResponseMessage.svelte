@@ -798,8 +798,15 @@
 										}}
 									/>
 								{:else if message?.done}
-									<div class="text-gray-500 text-base flex gap-2 flex-row items-center my-2">
-										<WarningIcon className="size-4" color="currentColor" /> Vorgang abgebrochen.
+									<div
+										class="text-gray-600 hover:text-gray-400 text-base flex gap-2 flex-row items-center my-2"
+									>
+										<WarningIcon className="size-4" color="currentColor" />
+										<Tooltip
+											content={$i18n.t('Click Regenerate Icon to regenerate response')}
+											placement="top"
+											>Vorgang unterbrochen.
+										</Tooltip>
 									</div>
 								{/if}
 

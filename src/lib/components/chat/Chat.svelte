@@ -1675,13 +1675,22 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
-				responseMessage.content = responseMessage.content.replaceAll('done="false"', 'done="true"');
+				responseMessage.content = responseMessage.content.replaceAll(
+					'done="false"',
+					'cancelled="true" done="true"'
+				);
 
 				history.messages[history.currentId] = responseMessage;
 
 				if (autoScroll) {
 					scrollToBottom();
 				}
+				const _chatId = JSON.parse(JSON.stringify($chatId));
+				(async () => {
+					await tick();
+
+					await saveChatHandler(_chatId, history);
+				})();
 			}
 		}
 		if (bufferedResponse) {

@@ -22,6 +22,7 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
 from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
 from beyond_the_loop.models.files import FileForm
+from open_webui.tasks import stop_task, list_tasks  
 from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -694,13 +695,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     web_search_active = features and features.get("web_search")
     web_search_queries = None
+    web_search_task_id = None
 
     # Include web search files before deciding task intent and building RAG context
     if web_search_active:
-        web_search_files, web_search_queries = await chat_web_search_handler(
-            request, form_data, extra_params, user
-        )
-
+        task_id, task = create_task(        chat_web_search_handler(request, form_data, extra_params, user)    )  
+        web_search_task_id = task_id
+        web_search_files, web_search_queries = await task
         files.extend(web_search_files)
 
     # First, decide if this is a RAG task or content extraction task
