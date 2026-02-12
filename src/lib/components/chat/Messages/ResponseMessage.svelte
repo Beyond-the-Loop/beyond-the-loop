@@ -9,7 +9,16 @@
 
 	const dispatch = createEventDispatcher();
 
-	import { config, models, settings, user, company, companyConfig, isBlocked, blockedMessage } from '$lib/stores';
+	import {
+		config,
+		models,
+		settings,
+		user,
+		company,
+		companyConfig,
+		isBlocked,
+		blockedMessage
+	} from '$lib/stores';
 	import { synthesizeOpenAISpeech } from '$lib/apis/audio';
 	import { imageGenerations } from '$lib/apis/images';
 	import {
@@ -49,11 +58,11 @@
 	import { getModelIcon } from '$lib/utils';
 	import CustomChatError from './CustomChatError.svelte';
 
-
 	interface MessageType {
 		id: string;
 		model: string;
 		content: string;
+		text_content: string;
 		files?: { type: string; url: string }[];
 		timestamp: number;
 		role: string;
@@ -112,7 +121,7 @@
 		}
 	}
 	$: {
-		if(message?.error?.content?.includes('402')){
+		if (message?.error?.content?.includes('402')) {
 			isBlocked.set(true);
 			blockedMessage.set(message?.error?.content);
 		}
@@ -493,12 +502,12 @@
 	});
 
 	let modelIconUrl = '';
-	$: console.log(model, 'model---->')
+	$: console.log(model, 'model---->');
 
 	$: {
-		if($companyConfig?.config?.ui?.hide_model_logo_in_chat){
+		if ($companyConfig?.config?.ui?.hide_model_logo_in_chat) {
 			modelIconUrl = $company?.profile_image_url;
-		}else if (!model?.base_model_id) {
+		} else if (!model?.base_model_id) {
 			modelIconUrl = getModelIcon(model?.name);
 		} else if (
 			model?.meta?.profile_image_url &&
@@ -510,45 +519,39 @@
 		}
 	}
 
-  let answerEl: HTMLDivElement;
+	let answerEl: HTMLDivElement;
 
-  function handleCopy(event: ClipboardEvent) {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+	function handleCopy(event: ClipboardEvent) {
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0) return;
 
-    const anchor = selection.anchorNode;
-    const focus = selection.focusNode;
+		const anchor = selection.anchorNode;
+		const focus = selection.focusNode;
 
-    if (
-      !anchor ||
-      !focus ||
-      !answerEl.contains(anchor) ||
-      !answerEl.contains(focus)
-    ) {
-      return;
-    }
+		if (!anchor || !focus || !answerEl.contains(anchor) || !answerEl.contains(focus)) {
+			return;
+		}
 
-    const range = selection.getRangeAt(0);
-    const fragment = range.cloneContents();
+		const range = selection.getRangeAt(0);
+		const fragment = range.cloneContents();
 
-    const container = document.createElement('div');
-    container.appendChild(fragment);
+		const container = document.createElement('div');
+		container.appendChild(fragment);
 
-    container.querySelectorAll<HTMLElement>('*').forEach((el) => {
-      el.style.backgroundColor = '';
-      el.style.background = '';
-      el.removeAttribute('bgcolor');
-    });
+		container.querySelectorAll<HTMLElement>('*').forEach((el) => {
+			el.style.backgroundColor = '';
+			el.style.background = '';
+			el.removeAttribute('bgcolor');
+		});
 
-    const cleanedText = container.textContent ?? '';
-    const cleanedHtml = container.innerHTML;
+		const cleanedText = container.textContent ?? '';
+		const cleanedHtml = container.innerHTML;
 
-    event.preventDefault();
+		event.preventDefault();
 
-    event.clipboardData?.setData('text/plain', cleanedText);
-    event.clipboardData?.setData('text/html', cleanedHtml);
-  }
-
+		event.clipboardData?.setData('text/plain', cleanedText);
+		event.clipboardData?.setData('text/html', cleanedHtml);
+	}
 </script>
 
 {#key message.id}
@@ -568,9 +571,9 @@
 		<div class="flex-auto w-0 pl-1">
 			<Name>
 				<!-- <Tooltip content={model?.name ?? message.model} placement="top-start"> -->
-					<span class="line-clamp-1 text-base">
-						{model?.name ?? message.model}
-					</span>
+				<span class="line-clamp-1 text-base">
+					{model?.name ?? message.model}
+				</span>
 				<!-- </Tooltip> -->
 
 				{#if message.timestamp}
@@ -578,7 +581,7 @@
 						class=" self-center text-2xs invisible group-hover:visible text-gray-400 font-medium first-letter:capitalize ml-0.5 translate-y-[1px]"
 					>
 						<!-- <Tooltip content={dayjs(message.timestamp * 1000).format('LLLL')}> -->
-							<span class="line-clamp-1">{formatDate(message.timestamp * 1000)}</span>
+						<span class="line-clamp-1">{formatDate(message.timestamp * 1000)}</span>
 						<!-- </Tooltip> -->
 					</div>
 				{/if}
@@ -597,10 +600,11 @@
 					</div>
 				{/if}
 
-				<div 
+				<div
 					bind:this={answerEl}
-  					on:copy={handleCopy}
-				 	class="chat-{message.role} w-full min-w-full markdown-prose">
+					on:copy={handleCopy}
+					class="chat-{message.role} w-full min-w-full markdown-prose"
+				>
 					<div>
 						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
 							{@const status = (
@@ -624,7 +628,12 @@
 												>
 													{#if status?.description.includes('{{count}}')}
 														{$i18n.t(status?.description, {
-															count: status.query_summaries ? status.query_summaries.reduce((acc, q) => acc + ((q.filenames || []).length), 0) : status?.urls.length
+															count: status.query_summaries
+																? status.query_summaries.reduce(
+																		(acc, q) => acc + (q.filenames || []).length,
+																		0
+																	)
+																: status?.urls.length
 														})}
 													{:else}
 														{$i18n.t(status?.description)}
@@ -651,7 +660,7 @@
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
-												{$i18n.t("Analyzing results")}
+												{$i18n.t('Analyzing results')}
 											</div>
 										</div>
 									{:else}
@@ -666,7 +675,7 @@
 														searchQuery: status?.query
 													})}
 												{:else}
-													{$i18n.t(status?.description || "")}
+													{$i18n.t(status?.description || '')}
 												{/if}
 											</div>
 										</div>
@@ -794,7 +803,7 @@
 										
 										<CustomChatError content={message?.error?.content ?? message.content}/>
 									{:else} -->
-										<Error content={message?.error?.content ?? message.content} />
+									<Error content={message?.error?.content ?? message.content} />
 									<!-- {/if}	 -->
 								{/if}
 
@@ -893,7 +902,10 @@
 											? 'visible'
 											: 'invisible group-hover:visible'} p-1.5 rounded-lg dark:hover:text-white hover:text-black transition copy-response-button"
 										on:click={() => {
-											copyToClipboard(message.content, message?.sources);
+											copyToClipboard(
+												message.text_content ? message.text_content : message.content,
+												message?.sources
+											);
 										}}
 									>
 										<CopyMessageIcon />
@@ -945,7 +957,7 @@
 												<circle class="spinner_S1WN spinner_JApP" cx="20" cy="12" r="3" />
 											</svg>
 										{:else if speaking}
-											<StopReading className="size-3"/>	
+											<StopReading className="size-3" />
 										{:else}
 											<ReadMessageIcon />
 										{/if}

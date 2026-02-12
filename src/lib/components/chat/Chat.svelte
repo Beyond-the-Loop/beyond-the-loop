@@ -37,7 +37,7 @@
 		temporaryChatEnabled,
 		tools,
 		user,
-		WEBUI_NAME,
+		WEBUI_NAME
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
@@ -48,7 +48,14 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
+	import {
+		createNewChat,
+		getAllTags,
+		getChatById,
+		getChatList,
+		getTagsById,
+		updateChatById
+	} from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
@@ -146,8 +153,7 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-					} catch (e) {
-					}
+					} catch (e) {}
 				}
 
 				window.setTimeout(() => scrollToBottom(), 0);
@@ -417,8 +423,7 @@
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
 
-		chats.subscribe(() => {
-		});
+		chats.subscribe(() => {});
 
 		alert = await getAlert();
 	});
@@ -616,11 +621,11 @@
 				selectedModels = $settings?.models;
 			} else if ($companyConfig?.config?.models?.default_models) {
 				const ids = $companyConfig?.config?.models?.default_models?.split(',');
-				const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
-				const isActive = $models?.some(model => ids?.includes(model.id));
-				selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
+				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
+				const isActive = $models?.some((model) => ids?.includes(model.id));
+				selectedModels = isActive ? ids : gptDefault ? [gptDefault?.id] : [];
 			} else {
-				const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
+				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
 				selectedModels = [gptDefault?.id];
 			}
 		}
@@ -1020,6 +1025,7 @@
 			choices,
 			content,
 			added_content,
+			text_content,
 			type,
 			sources,
 			selected_model_id,
@@ -1085,6 +1091,7 @@
 			if (type == 'text') {
 				if (bufferedResponse != null && added_content != null && added_content != undefined) {
 					bufferedResponse.add(added_content);
+					message.text_content = text_content;
 				} else if (bufferedResponse === null) {
 					message.content = content;
 					bufferedResponse = new BufferedResponse(message, history, {
@@ -1149,6 +1156,7 @@
 
 			message.done = true;
 			message.content = content;
+			message.text_content = text_content;
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1470,19 +1478,19 @@
 		const messages = [
 			params?.system || $settings.system || (responseMessage?.userContext ?? null)
 				? {
-					role: 'system',
-					content: `${promptTemplate(
-						params?.system ?? $settings?.system ?? '',
-						`${$user.first_name} ${$user.last_name}`,
-						$settings?.userLocation
-							? await getAndUpdateUserLocation(localStorage.token)
-							: undefined
-					)}${
-						(responseMessage?.userContext ?? null)
-							? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
-							: ''
-					}`
-				}
+						role: 'system',
+						content: `${promptTemplate(
+							params?.system ?? $settings?.system ?? '',
+							`${$user.first_name} ${$user.last_name}`,
+							$settings?.userLocation
+								? await getAndUpdateUserLocation(localStorage.token)
+								: undefined
+						)}${
+							(responseMessage?.userContext ?? null)
+								? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
+								: ''
+						}`
+					}
 				: undefined,
 			...createMessagesList(_history, responseMessageId).map((message) => ({
 				...message,
@@ -1495,24 +1503,24 @@
 				...((message.files?.filter((file) => file.type === 'image').length > 0 ?? false) &&
 				message.role === 'user'
 					? {
-						content: [
-							{
-								type: 'text',
-								text: message?.merged?.content ?? message.content
-							},
-							...message.files
-								.filter((file) => file.type === 'image')
-								.map((file) => ({
-									type: 'image_url',
-									image_url: {
-										url: file.url
-									}
-								}))
-						]
-					}
+							content: [
+								{
+									type: 'text',
+									text: message?.merged?.content ?? message.content
+								},
+								...message.files
+									.filter((file) => file.type === 'image')
+									.map((file) => ({
+										type: 'image_url',
+										image_url: {
+											url: file.url
+										}
+									}))
+							]
+						}
 					: {
-						content: message?.merged?.content ?? message.content
-					})
+							content: message?.merged?.content ?? message.content
+						})
 			}));
 
 		const res = await generateOpenAIChatCompletion(
@@ -1530,8 +1538,8 @@
 					stop:
 						(params?.stop ?? $settings?.params?.stop ?? undefined)
 							? (params?.stop.split(',').map((token) => token.trim()) ?? $settings.params.stop).map(
-								(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
-							)
+									(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
+								)
 							: undefined
 				},
 
@@ -1566,19 +1574,19 @@
 						messages.at(1)?.role === 'user')) &&
 				selectedModels[0] === model.id
 					? {
-						background_tasks: {
-							title_generation: $settings?.title?.auto ?? true,
-							tags_generation: $settings?.autoTags ?? true
+							background_tasks: {
+								title_generation: $settings?.title?.auto ?? true,
+								tags_generation: $settings?.autoTags ?? true
+							}
 						}
-					}
 					: {}),
 
 				...(stream && (model.info?.meta?.capabilities?.usage ?? false)
 					? {
-						stream_options: {
-							include_usage: true
+							stream_options: {
+								include_usage: true
+							}
 						}
-					}
 					: {})
 			},
 			`${WEBUI_BASE_URL}/api`
@@ -1878,7 +1886,6 @@
 		: ' '} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
-
 	{#if chatIdProp === '' || (!loading && chatIdProp)}
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div

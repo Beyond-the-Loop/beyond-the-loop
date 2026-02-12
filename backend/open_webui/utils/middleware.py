@@ -1564,12 +1564,14 @@ async def process_chat_response(
                                             "type": "reasoning",
                                         }
                                     else:
+                                        text_blocks = [block for block in content_blocks if block.get("type") == "text"]
                                         data = {
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
                                             "type": "text",
                                             "added_content": value,
+                                            "text_content": serialize_content_blocks(text_blocks)
                                         }
 
                             await event_emitter(

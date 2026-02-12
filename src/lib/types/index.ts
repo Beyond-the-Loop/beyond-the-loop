@@ -18,6 +18,7 @@ export type ChatMessage = {
 	childrenIds: string[];
 	role: 'user' | 'assistant' | 'system';
 	content: string;
+	copy_content: string | null;
 	model: string;
 	modelName: string;
 	modelIdx: number;
