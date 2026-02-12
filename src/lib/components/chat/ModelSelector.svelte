@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { models, user } from '$lib/stores';
+	import { user } from '$lib/stores';
 	import { getContext } from 'svelte';
 	import Selector from './ModelSelector/Selector.svelte';
 
@@ -7,8 +7,6 @@
 
 	export let selectedModels = [];
 
-	export let initNewChatCompleted;
-	
 </script>
 
 <div class="flex flex-col items-start bg-lightGray-800 dark:bg-customGray-800 py-[4px] px-[6px] rounded-md w-fit">

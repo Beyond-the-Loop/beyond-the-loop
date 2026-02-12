@@ -561,12 +561,17 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") == "free":
-        all_models = [model for model in all_models if model_base_model_names[
-            model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
-    elif subscription.get("plan") == "premium":
+    if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
         all_models = [model for model in all_models if
                       model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
+
+        if subscription.get("plan") == "free":
+            allowed = set(ModelCosts.get_allowed_model_names_free())
+
+            for model in all_models:
+                # Set models to inactive if they are not allowed in free plan but send them with the response to show them in the frontend
+                base = model_base_model_names[model.id]
+                model.is_active = base in allowed
 
         # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
         if user.company_id not in ("c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4", "995d24a9-fc30-43b3-b88b-e8650586d938"):
@@ -715,8 +720,7 @@ async def chat_completion(
             "message_id": form_data.pop("id", None),
             "session_id": form_data.pop("session_id", None),
             "files": form_data.get("files", None),
-            "features": form_data.get("features", None),
-            "model": model
+            "features": form_data.get("features", None)
         }
 
         form_data["metadata"] = metadata
@@ -733,10 +737,10 @@ async def chat_completion(
         )
 
     try:
-        response = await chat_completion_handler(form_data, user)
+        response = await chat_completion_handler(form_data, user, model)
 
         return await process_chat_response(
-            request, response, form_data, user, events, metadata, tasks
+            request, response, form_data, user, events, metadata, tasks, model
         )
     except Exception as e:
         print(e)

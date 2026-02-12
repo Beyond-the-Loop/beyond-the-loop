@@ -31,10 +31,9 @@ from beyond_the_loop.models.knowledge import Knowledges
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
-    generate_image_prompt,
-    generate_chat_tags,
+    generate_image_prompt
 )
-from open_webui.routers.retrieval import process_web_search, SearchForm
+from open_webui.routers.retrieval import process_web_search
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
@@ -230,7 +229,6 @@ async def chat_image_generation_handler(
         })
 
         decision_form_data = {
-            "model": model.id,
             "messages": decision_messages,
             "stream": False,
             "metadata": {
@@ -240,7 +238,7 @@ async def chat_image_generation_handler(
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user)
+        response = await generate_chat_completion(decision_form_data, user, model)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -402,7 +400,6 @@ async def chat_file_intent_decision_handler(
         ]
         
         decision_form_data = {
-            "model": model.id,
             "messages": decision_messages,
             "stream": False,
             "metadata": {
@@ -412,7 +409,7 @@ async def chat_file_intent_decision_handler(
             "temperature": 0.0
         }
         
-        response = await generate_chat_completion(decision_form_data, user)
+        response = await generate_chat_completion(decision_form_data, user, model)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -659,7 +656,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         ]
 
         decision_form_data = {
-            "model": model.id,
             "messages": decision_messages,
             "stream": False,
             "metadata": {
@@ -669,7 +665,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user)
+        response = await generate_chat_completion(decision_form_data, user, model)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
 
         use_model_knowledge_or_files = response_content == 'YES'
@@ -877,7 +873,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
 
 async def process_chat_response(
-    request, response, form_data, user, events, metadata, tasks
+    request, response, form_data, user, events, metadata, tasks, model
 ):
     async def background_tasks_handler():
         message_map = Chats.get_messages_by_chat_id(metadata["chat_id"])
@@ -942,46 +938,6 @@ async def process_chat_response(
                                 "data": message.get("content", "New chat"),
                             }
                         )
-
-                if TASKS.TAGS_GENERATION in tasks and tasks[TASKS.TAGS_GENERATION]:
-                    res = await generate_chat_tags(
-                        request,
-                        {
-                            "model": message["model"],
-                            "messages": messages,
-                            "chat_id": metadata["chat_id"],
-                        },
-                        user,
-                    )
-
-                    if res and isinstance(res, dict):
-                        if len(res.get("choices", [])) == 1:
-                            tags_string = (
-                                res.get("choices", [])[0]
-                                .get("message", {})
-                                .get("content", "")
-                            )
-                        else:
-                            tags_string = ""
-
-                        tags_string = tags_string[
-                            tags_string.find("{") : tags_string.rfind("}") + 1
-                        ]
-
-                        try:
-                            tags = json.loads(tags_string).get("tags", [])
-                            Chats.update_chat_tags_by_id(
-                                metadata["chat_id"], tags, user
-                            )
-
-                            await event_emitter(
-                                {
-                                    "type": "chat:tags",
-                                    "data": tags,
-                                }
-                            )
-                        except Exception as e:
-                            pass
 
     event_emitter = None
     event_caller = None
@@ -1073,13 +1029,11 @@ async def process_chat_response(
 
     # Streaming response
     if event_emitter and event_caller:
-        model_id = form_data.get("model", "")
-
         Chats.upsert_message_to_chat_by_id_and_message_id(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": model_id,
+                "model": model.id,
             },
         )
 
@@ -1702,7 +1656,6 @@ async def process_chat_response(
 
                     try:
                         res = await generate_chat_completion({
-                            "model": model_id,
                             "stream": True,
                             "messages": [
                                 *form_data["messages"],
@@ -1722,7 +1675,7 @@ async def process_chat_response(
                                     for result in results
                                 ],
                             ],
-                        }, user)
+                        }, user, model)
 
                         if isinstance(res, StreamingResponse):
                             await stream_body_handler(res)
@@ -1981,14 +1934,12 @@ async def process_chat_response(
                             ]
 
                             res = await generate_chat_completion({
-                                "model": Models.get_model_by_name_and_company(
-                                    os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id).id,
                                 "stream": True,
                                 "messages": followup_messages,
                                 "metadata": {
                                     "agent_or_task_prompt": True
                                 }
-                            }, user)
+                            }, user, Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id))
 
                             if isinstance(res, StreamingResponse):
                                 await stream_body_handler(res)

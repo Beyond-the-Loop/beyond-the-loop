@@ -6,7 +6,6 @@ from typing import Optional
 
 import aiohttp
 import requests
-import time
 import os
 
 from aiohttp import ClientResponseError
@@ -45,6 +44,7 @@ from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
+from beyond_the_loop.socket.main import get_event_emitter
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -204,23 +204,29 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 async def generate_chat_completion(
         form_data: dict,
-        user
+        user,
+        model
 ):
-    if not form_data.get("model"):
-        raise HTTPException(
-            status_code=400,
-            detail="Model not specified. Please specify a model.",
-        )
-
-
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
+    event_emitter = get_event_emitter(metadata)
+
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
-    model_info = Models.get_model_by_id(form_data.get("model"))
+    if not agent_or_task_prompt:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "generating_response",
+                    "done": False,
+                    "description": "Preparing model request"
+                },
+            }
+        )
 
-    if model_info is None:
+    if model is None:
         raise HTTPException(
             status_code=404,
             detail="Model not found. Please check the model ID is correct.",
@@ -228,10 +234,10 @@ async def generate_chat_completion(
 
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
-    if model_info.base_model_id:
-        model_name = model_info.base_model_id if model_info.user_id == "system" else Models.get_model_by_id(model_info.base_model_id).name
+    if model.base_model_id:
+        model_name = model.base_model_id if model.user_id == "system" else Models.get_model_by_id(model.base_model_id).name
     else:
-        model_name = model_info.name
+        model_name = model.name
 
     payload["model"] = model_name
 
@@ -249,14 +255,14 @@ async def generate_chat_completion(
     if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
-    params = model_info.params.model_dump()
+    params = model.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
     # Check model access
     if not agent_or_task_prompt and not(
-        model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
-            user.id, type="read", access_control=model_info.access_control
+        model.is_active and (user.id == model.user_id or (not model.base_model_id and user.role == "admin") or has_access(
+            user.id, type="read", access_control=model.access_control
         ))
     ):
         raise HTTPException(
@@ -309,7 +315,31 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Creating session"
+                    },
+                }
+            )
+
         s = await _get_session()
+
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Waiting for model response"
+                    },
+                }
+            )
 
         r = await s.request(
             method="POST",
@@ -330,6 +360,17 @@ async def generate_chat_completion(
                 ),
             },
         )
+
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": True,
+                    },
+                }
+            )
 
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
@@ -385,7 +426,6 @@ async def generate_chat_completion(
                 model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
                 form_data = {
-                    "model": model.id,
                     "messages": [
                         {
                             "role": "assistant",
@@ -403,7 +443,7 @@ async def generate_chat_completion(
                     "temperature": 0.0
                 }
 
-                return await generate_chat_completion(form_data, user)
+                return await generate_chat_completion(form_data, user, model)
 
             credit_cost = 0
 
@@ -577,7 +617,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
     """
 
     form_data = {
-        "model": model.id,
         "messages": [
             {
                 "role": "assistant",
@@ -595,6 +634,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(form_data, user)
+    message = await generate_chat_completion(form_data, user, model)
 
     return message['choices'][0]['message']['content']

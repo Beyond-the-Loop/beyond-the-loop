@@ -1234,8 +1234,6 @@ export function getModelIcon(label: string): string {
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
-	console.log("LAGEB", label);
-
 	if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {
