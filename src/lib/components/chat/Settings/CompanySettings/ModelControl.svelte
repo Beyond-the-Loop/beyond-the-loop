@@ -58,7 +58,6 @@
 		config = await getModelsConfig(localStorage.token);
 
 		const modelOrderList = config.MODEL_ORDER_LIST || [];
-		console.log("DEFAULT MODEELL", config);
 
 		const allModelIds = $storeModels.map((model) => model.id);
 		if (config?.default_models) {
