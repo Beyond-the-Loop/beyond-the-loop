@@ -247,6 +247,10 @@
 						}
 					}
 				} else if (type === 'chat:completion') {
+					message.statusHistory.push({
+						action: "generating_response",
+						done: true,
+					});
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);

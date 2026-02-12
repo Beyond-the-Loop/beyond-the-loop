@@ -68,7 +68,6 @@
 	const pullModelHandler = async () => {
 		const sanitizedModelTag = searchValue.trim().replace(/^ollama\s+(run|pull)\s+/, '');
 
-		console.log($MODEL_DOWNLOAD_POOL);
 		if ($MODEL_DOWNLOAD_POOL[sanitizedModelTag]) {
 			toast.error(
 				$i18n.t(`Model '{{modelTag}}' is already in queue for downloading.`, {
@@ -371,7 +370,12 @@
 												alt="Model"
 												class="rounded-full size-5 flex items-center mr-2"
 											/>
-											<span class="text-xs">{item.label}</span>
+											<div class="text-xs">
+												<span>{item.label}</span>
+												{#if !item.model?.is_active}
+													<span class="text-[0.4rem] ml-[-2px] align-super">Premium</span>
+												{/if}
+											</div>
 										</div>
 									</div>
 								</div>
