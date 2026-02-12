@@ -212,18 +212,19 @@ async def generate_chat_completion(
 
     event_emitter = get_event_emitter(metadata)
 
-    await event_emitter(
-        {
-            "type": "status",
-            "data": {
-                "action": "generating_response",
-                "done": False,
-                "description": "Preparing model request"
-            },
-        }
-    )
-
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
+
+    if not agent_or_task_prompt:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "generating_response",
+                    "done": False,
+                    "description": "Preparing model request"
+                },
+            }
+        )
 
     if model is None:
         raise HTTPException(
@@ -314,16 +315,17 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "generating_response",
-                    "done": False,
-                    "description": "Waiting for model response"
-                },
-            }
-        )
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Waiting for model response"
+                    },
+                }
+            )
 
         s = await _get_session()
 
@@ -347,15 +349,16 @@ async def generate_chat_completion(
             },
         )
 
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "generating_response",
-                    "done": True,
-                },
-            }
-        )
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": True,
+                    },
+                }
+            )
 
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
