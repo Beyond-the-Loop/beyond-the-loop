@@ -40,6 +40,7 @@ from beyond_the_loop.retrieval.utils import (
     query_doc,
     query_doc_with_hybrid_search,
 )
+from beyond_the_loop.models.users import Users
 
 from open_webui.utils.misc import (
     calculate_sha256_string,
@@ -309,7 +310,7 @@ class QuerySettingsForm(BaseModel):
 #
 # Document process and retrieval
 #
-####################################
+###################################
 
 
 def save_docs_to_vector_db(
@@ -455,6 +456,53 @@ class ProcessFileForm(BaseModel):
     content: Optional[str] = None
     collection_name: Optional[str] = None
 
+@router.post("/add-files-to-pgvector")
+def add_files_to_pgvector(request: Request):
+    files = Files.get_files()
+
+    for file in files:
+        loader = Loader()
+
+        file_path = Storage.get_file(file.path)
+
+        docs = loader.load(
+            file.filename, file.meta.get("content_type"), file_path
+        )
+
+        docs = [
+            Document(
+                page_content=doc.page_content,
+                metadata={
+                    **doc.metadata,
+                    "name": file.filename,
+                    "created_by": file.user_id,
+                    "file_id": file.id,
+                    "source": file.filename,
+                },
+            )
+            for doc in docs
+        ]
+
+        text_content = " ".join([doc.page_content for doc in docs])
+        hash = calculate_sha256_string(text_content)
+
+        user = Users.get_user_by_id(file.user_id)
+
+        try:
+            save_docs_to_vector_db(
+                request,
+                docs=docs,
+                collection_name=file.meta.get("collection_name"),
+                metadata={
+                    "file_id": file.id,
+                    "name": file.filename,
+                    "hash": hash,
+                },
+                add=(True if file.meta.get("collection_name") else False),
+                user=user,
+            )
+        except Exception as e:
+            raise e
 
 @router.post("/process/file")
 def process_file(
