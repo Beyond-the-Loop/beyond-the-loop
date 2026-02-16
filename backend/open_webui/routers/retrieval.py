@@ -465,6 +465,10 @@ def add_files_to_pgvector(request: Request):
 
         if not file.path.startswith("/app"):
             file_path = Storage.get_file(file.path)
+        else:
+            file_path = file.path
+
+        print("DAS IST DER FILE PATH", file_path)
 
         docs = loader.load(
             file.filename, file.meta.get("content_type"), file_path
