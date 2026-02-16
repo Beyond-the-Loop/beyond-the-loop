@@ -468,11 +468,14 @@ def add_files_to_pgvector(request: Request):
         else:
             file_path = file.path
 
-        print("DAS IST DER FILE PATH", file_path)
-
-        docs = loader.load(
-            file.filename, file.meta.get("content_type"), file_path
-        )
+        try:
+            docs = loader.load(
+                file.filename, file.meta.get("content_type"), file_path
+            )
+        except Exception as e:
+            print("File", file.filename, "could not be loaded on file path", file_path)
+            print(e)
+            continue
 
         docs = [
             Document(
@@ -507,7 +510,9 @@ def add_files_to_pgvector(request: Request):
                 user=user,
             )
         except Exception as e:
-            raise e
+            print("File", file.filename, "could not be added to pgvector")
+            print(e)
+            continue
 
 @router.post("/process/file")
 def process_file(
