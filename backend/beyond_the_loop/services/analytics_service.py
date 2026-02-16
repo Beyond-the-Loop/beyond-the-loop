@@ -59,23 +59,7 @@ class AnalyticsService:
 
     @staticmethod
     def get_top_models_by_company(company_id: str, start_date: str, end_date: str):
-        if start_date:
-            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            start_timestamp = int(start_date_dt.timestamp())
-        else:
-            raise HTTPException(status_code=400, detail="Start date is required.")
-
-        if end_date:
-            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
-            end_timestamp = int(end_date_dt.timestamp())
-        else:
-            end_date_dt = datetime.now()
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
-            end_timestamp = int(end_date_dt.timestamp())
-
-        if start_timestamp > end_timestamp:
-            raise HTTPException(status_code=400, detail="Start date must be before end date.")
+        start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
         with get_db() as db:
             company_users = db.query(User.id).filter_by(company_id=company_id).all()
@@ -89,8 +73,8 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.assistant == None,
-                    Completion.created_at >= start_timestamp,
-                    Completion.created_at <= end_timestamp,
+                    Completion.created_at >= int(start_date_dt.timestamp()),
+                    Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
                     Completion.from_agent == False,
                 )
@@ -110,27 +94,7 @@ class AnalyticsService:
 
     @staticmethod
     def get_top_users_by_company(company_id: str, start_date: str, end_date: str):
-        if start_date:
-            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            start_timestamp = int(start_date_dt.timestamp())
-        else:
-            raise HTTPException(status_code=400, detail="Start date is required.")
-
-        if end_date:
-            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            end_date_dt = datetime(
-                end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59
-            )
-            end_timestamp = int(end_date_dt.timestamp())
-        else:
-            end_date_dt = datetime.now()
-            end_date_dt = datetime(
-                end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59
-            )
-            end_timestamp = int(end_date_dt.timestamp())
-
-        if start_timestamp > end_timestamp:
-            raise HTTPException(status_code=400, detail="Start date must be before end date.")
+        start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
         with get_db() as db:
             base_query = (
@@ -138,8 +102,8 @@ class AnalyticsService:
                 .join(User, User.id == Completion.user_id)
                 .filter(
                     Completion.from_agent == False,
-                    Completion.created_at >= start_timestamp,
-                    Completion.created_at <= end_timestamp,
+                    Completion.created_at >= int(start_date_dt.timestamp()),
+                    Completion.created_at <= int(end_date_dt.timestamp()),
                     User.company_id == company_id,
                 )
             )
@@ -244,23 +208,7 @@ class AnalyticsService:
 
     @staticmethod
     def get_top_assistants_by_company(company_id: str, start_date: str, end_date: str):
-        if start_date:
-            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            start_timestamp = int(start_date_dt.timestamp())
-        else:
-            raise HTTPException(status_code=400, detail="Start date is required.")
-
-        if end_date:
-            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
-            end_timestamp = int(end_date_dt.timestamp())
-        else:
-            end_date_dt = datetime.now()
-            end_date_dt = datetime(end_date_dt.year, end_date_dt.month, end_date_dt.day, 23, 59, 59)
-            end_timestamp = int(end_date_dt.timestamp())
-
-        if start_timestamp > end_timestamp:
-            raise HTTPException(status_code=400, detail="Start date must be before end date.")
+        start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
         with get_db() as db:
             company_users = db.query(User.id).filter_by(company_id=company_id).all()
@@ -274,8 +222,8 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.assistant != None,
-                    Completion.created_at >= start_timestamp,
-                    Completion.created_at <= end_timestamp,
+                    Completion.created_at >= int(start_date_dt.timestamp()),
+                    Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
                     Completion.from_agent == False,
                 )
