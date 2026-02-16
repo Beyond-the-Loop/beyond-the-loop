@@ -20,6 +20,7 @@ export type ChatMessage = {
 	content: string;
 	model: string;
 	modelName: string;
+	sources: string[];
 	modelIdx: number;
 	userContext: any | null;
 	timestamp: number;

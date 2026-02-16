@@ -184,7 +184,6 @@
 			});
 
 			if (res) {
-				console.log(res);
 				const blob = new Blob([res.text], { type: 'text/plain' });
 				file = blobToFile(blob, `${file.name}.txt`);
 
@@ -309,12 +308,10 @@
 
 	const onDrop = async (e) => {
 		e.preventDefault();
-		console.log(e);
 
 		if (e.dataTransfer?.files) {
 			const inputFiles = Array.from(e.dataTransfer?.files);
 			if (inputFiles && inputFiles.length > 0) {
-				console.log(inputFiles);
 				inputFilesHandler(inputFiles);
 			}
 		}
@@ -382,7 +379,6 @@
 		}
 
 		if (command.content.includes('{{USER_NAME}}')) {
-			console.log($user);
 			const name = `${$user.first_name} ${$user.last_name}` || 'User';
 			text = text.replaceAll('{{USER_NAME}}', name);
 		}
@@ -465,7 +461,6 @@
 	});
 
 	let customModel = null;
-	$: console.log(customModel);
 
 	$: {
 		if (selectedModels.length === 1) {
@@ -779,9 +774,6 @@
 														files.splice(fileIdx, 1);
 														files = files;
 													}}
-													on:click={() => {
-														console.log(file);
-													}}
 												/>
 											{/if}
 										{/each}
@@ -825,7 +817,6 @@
 														return null;
 													});
 
-													console.log(res);
 													return res;
 												}}
 												on:keydown={async (e) => {
@@ -950,7 +941,6 @@
 												}}
 												on:paste={async (e) => {
 													e = e.detail.event;
-													console.log(e);
 
 													const clipboardData = e.clipboardData || window.clipboardData;
 
@@ -1054,8 +1044,6 @@
 													const editButton = [
 														...document.getElementsByClassName('edit-user-message-button')
 													]?.at(-1);
-
-													console.log(userMessageElement);
 
 													userMessageElement.scrollIntoView({ block: 'center' });
 													editButton?.click();

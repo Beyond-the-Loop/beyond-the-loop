@@ -487,13 +487,10 @@
 	}
 
 	onMount(async () => {
-		// console.log('ResponseMessage mounted');
-
 		await tick();
 	});
 
 	let modelIconUrl = '';
-	$: console.log(model, 'model---->')
 
 	$: {
 		if($companyConfig?.config?.ui?.hide_model_logo_in_chat){
