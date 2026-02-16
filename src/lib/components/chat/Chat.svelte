@@ -254,8 +254,8 @@
 					}
 				} else if (type === 'chat:completion') {
 					message.statusHistory.push({
-						action: "generating_response",
-						done: true,
+						action: 'generating_response',
+						done: true
 					});
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
@@ -1029,7 +1029,6 @@
 			choices,
 			content,
 			added_content,
-			text_content,
 			type,
 			sources,
 			selected_model_id,
@@ -1094,9 +1093,6 @@
 		if (content) {
 			if (type == 'text') {
 				if (bufferedResponse != null && added_content != null && added_content != undefined) {
-					message.text_content = text_content;
-
-					console.log(message.text_content);
 					bufferedResponse.add(added_content);
 				} else if (bufferedResponse === null) {
 					message.content = content;

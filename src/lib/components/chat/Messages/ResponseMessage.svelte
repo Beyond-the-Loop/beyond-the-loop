@@ -35,6 +35,7 @@
 	import ProfileImage from './ProfileImage.svelte';
 	import Skeleton from './Skeleton.svelte';
 	import Image from '$lib/components/common/Image.svelte';
+	import WarningIcon from '$lib/components/icons/WarningIcon.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import RateComment from './RateComment.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -57,7 +58,6 @@
 	import StopReading from '$lib/components/icons/StopReading.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import CustomChatError from './CustomChatError.svelte';
-	import WarningIcon from '$lib/components/icons/WarningIcon.svelte';
 
 	interface MessageType {
 		id: string;
@@ -806,7 +806,7 @@
 											}
 										}}
 									/>
-								{:else if message?.done}
+								{:else if message.done}
 									<div
 										class="text-gray-600 hover:text-gray-400 text-base flex gap-2 flex-row items-center my-2"
 									>
@@ -814,7 +814,7 @@
 										<Tooltip
 											content={$i18n.t('Click Regenerate Icon to regenerate response')}
 											placement="top"
-											>Vorgang unterbrochen.
+											>{$i18n.t('Process interrupted')}.
 										</Tooltip>
 									</div>
 								{/if}
