@@ -460,8 +460,12 @@ class ProcessFileForm(BaseModel):
 def add_files_to_pgvector(request: Request):
     files = Files.get_files()
 
+    loader = Loader()
+
     for file in files:
-        loader = Loader()
+        if not file.meta.get("collection_name"):
+            print("Skipping file", file.filename, "as it does not have a collection name")
+            continue
 
         if not file.path.startswith("/app"):
             file_path = Storage.get_file(file.path)
