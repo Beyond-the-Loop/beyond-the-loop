@@ -468,7 +468,11 @@ def add_files_to_pgvector(request: Request):
             continue
 
         if not file.path.startswith("/app"):
-            file_path = Storage.get_file(file.path)
+            try:
+                file_path = Storage.get_file(file.path)
+            except Exception as e:
+                print("File not found in GCP storage")
+                continue
         else:
             file_path = file.path
 
