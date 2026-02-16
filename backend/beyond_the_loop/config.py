@@ -4,11 +4,10 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
 import chromadb
-from pydantic import BaseModel
 from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
