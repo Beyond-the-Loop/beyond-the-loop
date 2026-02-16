@@ -1,9 +1,9 @@
 export type AlertType = 'info' | 'warning' | 'success';
 
 export type Alert = {
-	title: string;
-	message: string;
-	type: AlertType;
+	title: string,
+	message: string,
+	type: AlertType
 };
 
 export enum TTS_RESPONSE_SPLIT {
@@ -29,3 +29,4 @@ export type ChatHistory = {
 	currentId: string | null;
 	messages: Record<string, ChatMessage>;
 };
+
