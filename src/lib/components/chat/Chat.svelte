@@ -87,6 +87,7 @@
 	let controlPaneComponent;
 
 	let autoScroll = true;
+	let isAtTop = false;
 	let processing = '';
 	let messagesContainerElement: HTMLDivElement;
 
@@ -216,6 +217,8 @@
 			await tick();
 			let message = history.messages[event.message_id];
 
+			console.log('NEW CHAT EVENT AND MESSAGE LOADED', event, message);
+
 			if (message) {
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
@@ -325,6 +328,8 @@
 				} else {
 					console.log('Unknown message type', data);
 				}
+
+				console.log('CHAT EVENT HANDLER MESSAGE RESULT', message);
 
 				history.messages[event.message_id] = message;
 			}
@@ -1093,7 +1098,7 @@
 		if (content) {
 			if (type == 'text') {
 				if (bufferedResponse != null && added_content != null && added_content != undefined) {
-					bufferedResponse.add(added_content);
+					bufferedResponse.add_content(added_content);
 				} else if (bufferedResponse === null) {
 					message.content = content;
 					bufferedResponse = new BufferedResponse(message, history, {
@@ -1155,11 +1160,14 @@
 		history.messages[message.id] = message;
 
 		if (done) {
+			console.log('DONE MESSAGE', message);
 			bufferedResponse?.stop();
 			bufferedResponse = null;
 
 			message.done = true;
 			message.content = content;
+
+			console.log('DONE MESSAGE AFTER FINAL CONTENT UPDATE', message);
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1943,6 +1951,7 @@
 								autoScroll =
 									messagesContainerElement.scrollHeight - messagesContainerElement.scrollTop <=
 									messagesContainerElement.clientHeight + 5;
+								isAtTop = messagesContainerElement.scrollTop <= 5;
 							}}
 						>
 							<div class=" h-full w-full flex flex-col">
@@ -1986,6 +1995,7 @@
 									bind:files
 									bind:prompt
 									bind:autoScroll
+									bind:isAtTop
 									bind:selectedToolIds
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
