@@ -25,6 +25,7 @@
 	import { onMount } from 'svelte';
 	import ChevronRight from '$lib/components/icons/ChevronRight.svelte';
 	import ChevronLeft from '$lib/components/icons/ChevronLeft.svelte';
+	import { Tabs } from 'bits-ui';
 
 	const i18n = getContext('i18n');
 	export let analyticsLoading = true;
@@ -310,7 +311,7 @@
 						<!-- 91.3% -->
 					</div>
 					<div class="text-xs dark:text-customGray-100/50 text-center">
-						{$i18n.t('Adoption rate')}
+						{$i18n.t('Acceptance rate')}
 					</div>
 				</div>
 			</div>
@@ -367,148 +368,318 @@
 			</div>
 		</div>
 
-		<div
-			class="bg-gray-100 p-[2px] rounded-lg flex flex-row items-center my-6 w-fit flex-shrink-0 flex-grow-0"
-		>
-			<button class="text-xs py-[10px] px-4 rounded-lg bg-gray-200 flex flex-row items-center">
-				<div class="size-3 bg-gray-800 mr-2"></div>
-				Users
-			</button>
-			<button class="text-xs py-[10px] px-4 rounded-lg flex flex-row items-center">
-				<div class="size-3 bg-gray-800 mr-2"></div>
-				Models
-			</button>
-			<button class="text-xs py-[10px] px-4 rounded-lg flex flex-row items-center">
-				<div class="size-3 bg-gray-800 mr-2"></div>
-				Assistants
-			</button>
-		</div>
-		<div class="">
-			<table class="w-full ring-1 ring-gray-200 rounded-2xl bg-lightGray-300 text-xs table-auto">
-				<thead class="text-slate-500/90">
-					<tr>
-						<th class="w-4"></th>
+		<Tabs.Root value="users" class="rounded-card border-muted w-full shadow-card mt-6 ">
+			<Tabs.List
+				class="bg-gray-100 dark:bg-gray-800 rounded-lg flex flex-row p-[2px] text-xs w-fit"
+			>
+				<Tabs.Trigger
+					value="users"
+					class="dark:data-[state=active]:bg-gray-700 py-[10px] px-4 data-[state=active]:text-gray-900 text-gray-600 py-1 rounded-md flex flex-rowitems-center data-[state=active]:bg-gray-200"
+					><div class="size-3 bg-gray-800 mr-2"></div>
+					Users</Tabs.Trigger
+				>
+				<Tabs.Trigger
+					value="models"
+					class="dark:data-[state=active]:bg-gray-700 py-[10px] px-4 data-[state=active]:text-gray-900 text-gray-600 rounded-md flex flex-row items-center data-[state=active]:bg-gray-200"
+					><div class="size-3 bg-gray-800 mr-2"></div>
+					Models</Tabs.Trigger
+				>
+				<Tabs.Trigger
+					value="assistants"
+					class="dark:data-[state=active]:bg-gray-700 py-[10px] px-4 data-[state=active]:text-gray-900 text-gray-600 rounded-md flex flex-row items-center data-[state=active]:bg-gray-200"
+					><div class="size-3 bg-gray-800 mr-2"></div>
+					Assistants</Tabs.Trigger
+				>
+			</Tabs.List>
+			<Tabs.Content value="users" class="select-none pt-3">
+				<table class="w-full ring-1 ring-gray-200 rounded-2xl bg-lightGray-300 text-xs table-auto">
+					<thead class="text-slate-500/90">
+						<tr>
+							<th class="w-4"></th>
 
-						<th
-							class="p-3 text-left relative hover:opacity-90 cursor-pointer select-none"
-							on:click={() => toggleSort('user')}
-						>
-							User
+							<th
+								class="p-3 text-left relative hover:opacity-90 cursor-pointer select-none"
+								on:click={() => toggleSort('user')}
+							>
+								User
 
-							<div class="absolute left-12 top-[14px]">
-								{#if sortKey === 'user'}
-									{#if sortDir === 'asc'}
-										<ChevronDown className="size-3" strokeWidth="2.5" />
-									{:else}
-										<ChevronUp className="size-3" strokeWidth="2.5" />
+								<div class="absolute left-12 top-[14px]">
+									{#if sortKey === 'user'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
 									{/if}
-								{/if}
-							</div>
-						</th>
-
-						<th
-							class="p-3 text-right relative hover:opacity-90 cursor-pointer select-none"
-							on:click={() => toggleSort('credits')}
-						>
-							Credits used
-
-							<div class="absolute -right-1 top-[14px]">
-								{#if sortKey === 'credits'}
-									{#if sortDir === 'asc'}
-										<ChevronDown className="size-3" strokeWidth="2.5" />
-									{:else}
-										<ChevronUp className="size-3" strokeWidth="2.5" />
-									{/if}
-								{/if}
-							</div>
-						</th>
-
-						<th
-							class="p-3 text-right relative hover:opacity-90 cursor-pointer pr-5 select-none"
-							on:click={() => toggleSort('messages')}
-						>
-							Messages sent
-
-							<div class="absolute right-1 top-[14px]">
-								{#if sortKey === 'messages'}
-									{#if sortDir === 'asc'}
-										<ChevronDown className="size-3" strokeWidth="2.5" />
-									{:else}
-										<ChevronUp className="size-3" strokeWidth="2.5" />
-									{/if}
-								{/if}
-							</div>
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each rows as row}
-						<tr class="hover:bg-gray-50">
-							<td class="w-8 border-t border-1 border-gray-200/60">
-								<div class="mx-2 text-slate-500/90">
-									<ChevronRight className="size-3" strokeWidth="2.5" />
 								</div>
-							</td>
-							<td class="border-t border-1 border-gray-200/60 p-3">
-								<div class="flex flex-row items-center">
-									<img
-										class="rounded-full size-6 object-cover mr-2.5"
-										src={row.user?.profile_image_url?.startsWith(WEBUI_BASE_URL) ||
-										row.user?.profile_image_url?.startsWith('https://www.gravatar.com/avatar/') ||
-										row.user?.profile_image_url?.startsWith('data:')
-											? row.user.profile_image_url
-											: `/user.png`}
-										alt="user"
-									/>
-									<div>
-										<div class="text-xs font-semibold dark:text-customGray-100">
-											{row.user.first_name}
-											{row.user.last_name}
+							</th>
+
+							<th
+								class="p-3 text-right relative hover:opacity-90 cursor-pointer select-none"
+								on:click={() => toggleSort('credits')}
+							>
+								Credits used
+
+								<div class="absolute -right-1 top-[14px]">
+									{#if sortKey === 'credits'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
+								</div>
+							</th>
+
+							<th
+								class="p-3 text-right relative hover:opacity-90 cursor-pointer pr-5 select-none"
+								on:click={() => toggleSort('messages')}
+							>
+								Messages sent
+
+								<div class="absolute right-1 top-[14px]">
+									{#if sortKey === 'messages'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
+								</div>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each rows as row}
+							<tr class="hover:bg-gray-50">
+								<td class="w-8 border-t border-1 border-gray-200/60">
+									<div class="mx-2 text-slate-500/90">
+										<ChevronRight className="size-3" strokeWidth="2.5" />
+									</div>
+								</td>
+								<td class="border-t border-1 border-gray-200/60 p-3">
+									<div class="flex flex-row items-center">
+										<img
+											class="rounded-full size-6 object-cover mr-2.5"
+											src={row.user?.profile_image_url?.startsWith(WEBUI_BASE_URL) ||
+											row.user?.profile_image_url?.startsWith('https://www.gravatar.com/avatar/') ||
+											row.user?.profile_image_url?.startsWith('data:')
+												? row.user.profile_image_url
+												: `/user.png`}
+											alt="user"
+										/>
+										<div>
+											<div class="text-xs font-semibold dark:text-customGray-100">
+												{row.user.first_name}
+												{row.user.last_name}
+											</div>
+											<div class="text-2xs text-slate-500/90">{row.user.email}</div>
 										</div>
-										<div class="text-2xs text-slate-500/90">{row.user.email}</div>
+									</div>
+								</td>
+								<td class="border-t border-1 border-gray-200/60 p-3 text-right font-semibold"
+									>€{(row.user?.total_credits_used).toFixed(2)}</td
+								>
+								<td class="border-t border-1 border-gray-200/60 p-3 pr-5 text-right font-semibold"
+									>{row.user.message_count}</td
+								>
+							</tr>
+						{/each}
+					</tbody>
+					<tfoot>
+						<tr class="border-t border-1 border-gray-200/60">
+							<td colspan="4" class="p-3">
+								<div class="flex flex-row justify-between items-center">
+									<div class="flex flex-row items-center">
+										<div class="text-gray-600 pr-2">Rows per page</div>
+										<select class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2">
+											<option selected>5</option> <option value="10">10</option>
+											<option value="15">15</option> <option value="20">20</option>
+										</select>
+									</div>
+									<div class="flex flex-row items-center">
+										<button
+											class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
+											disabled><ChevronLeft /></button
+										>
+										<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
+											>1</button
+										>
+										<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button
+										>
+										<button
+											class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
+											><ChevronRight className="size-3" strokeWidth="2.5" /></button
+										>
 									</div>
 								</div>
 							</td>
-							<td class="border-t border-1 border-gray-200/60 p-3 text-right font-semibold"
-								>€{(row.user?.total_credits_used).toFixed(2)}</td
-							>
-							<td class="border-t border-1 border-gray-200/60 p-3 pr-5 text-right font-semibold"
-								>{row.user.message_count}</td
-							>
 						</tr>
-					{/each}
-				</tbody>
-				<tfoot>
-					<tr class="border-t border-1 border-gray-200/60">
-						<td colspan="4" class="p-3">
-							<div class="flex flex-row justify-between items-center">
-								<div class="flex flex-row items-center">
-									<div class="text-gray-600 pr-2">Rows per page</div>
-									<select class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2">
-										<option selected>5</option> <option value="10">10</option>
-										<option value="15">15</option> <option value="20">20</option>
-									</select>
+					</tfoot>
+				</table>
+			</Tabs.Content>
+			<Tabs.Content value="models" class="select-none pt-3">
+				<table class="w-full ring-1 ring-gray-200 rounded-2xl bg-lightGray-300 text-xs table-auto">
+					<thead class="text-slate-500/90">
+						<tr>
+							<th class="w-4"></th>
+
+							<th
+								class="p-3 text-left relative hover:opacity-90 cursor-pointer select-none"
+								on:click={() => toggleSort('user')}
+							>
+								Model
+
+								<div class="absolute left-12 top-[14px]">
+									{#if sortKey === 'user'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
 								</div>
-								<div class="flex flex-row items-center">
-									<button
-										class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
-										disabled><ChevronLeft /></button
-									>
-									<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
-										>1</button
-									>
-									<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button>
-									<button
-										class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
-										><ChevronRight className="size-3" strokeWidth="2.5" /></button
-									>
+							</th>
+
+							<th
+								class="p-3 text-right relative hover:opacity-90 cursor-pointer select-none"
+								on:click={() => toggleSort('credits')}
+							>
+								Credits used
+
+								<div class="absolute -right-1 top-[14px]">
+									{#if sortKey === 'credits'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
 								</div>
-							</div>
-						</td>
-					</tr>
-				</tfoot>
-			</table>
+							</th>
+
+							<th
+								class="p-3 text-right relative hover:opacity-90 cursor-pointer pr-5 select-none"
+								on:click={() => toggleSort('messages')}
+							>
+								Messages sent
+
+								<div class="absolute right-1 top-[14px]">
+									{#if sortKey === 'messages'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
+								</div>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each rows as row}
+							<tr class="hover:bg-gray-50">
+								<td class="w-8 border-t border-1 border-gray-200/60">
+									<div class="mx-2 text-slate-500/90">
+										<ChevronRight className="size-3" strokeWidth="2.5" />
+									</div>
+								</td>
+								<td class="border-t border-1 border-gray-200/60 p-3">
+									<div class="flex flex-row items-center">
+										<img
+											class="rounded-full size-6 object-cover mr-2.5"
+											src={row.user?.profile_image_url?.startsWith(WEBUI_BASE_URL) ||
+											row.user?.profile_image_url?.startsWith('https://www.gravatar.com/avatar/') ||
+											row.user?.profile_image_url?.startsWith('data:')
+												? row.user.profile_image_url
+												: `/user.png`}
+											alt="user"
+										/>
+										<div>
+											<div class="text-xs font-semibold dark:text-customGray-100">
+												{row.user.first_name}
+												{row.user.last_name}
+											</div>
+											<div class="text-2xs text-slate-500/90">{row.user.email}</div>
+										</div>
+									</div>
+								</td>
+								<td class="border-t border-1 border-gray-200/60 p-3 text-right font-semibold"
+									>€{(row.user?.total_credits_used).toFixed(2)}</td
+								>
+								<td class="border-t border-1 border-gray-200/60 p-3 pr-5 text-right font-semibold"
+									>{row.user.message_count}</td
+								>
+							</tr>
+						{/each}
+					</tbody>
+					<tfoot>
+						<tr class="border-t border-1 border-gray-200/60">
+							<td colspan="4" class="p-3">
+								<div class="flex flex-row justify-between items-center">
+									<div class="flex flex-row items-center">
+										<div class="text-gray-600 pr-2">Rows per page</div>
+										<select class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2">
+											<option selected>5</option> <option value="10">10</option>
+											<option value="15">15</option> <option value="20">20</option>
+										</select>
+									</div>
+									<div class="flex flex-row items-center">
+										<button
+											class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
+											disabled><ChevronLeft /></button
+										>
+										<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
+											>1</button
+										>
+										<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button
+										>
+										<button
+											class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
+											><ChevronRight className="size-3" strokeWidth="2.5" /></button
+										>
+									</div>
+								</div>
+							</td>
+						</tr>
+					</tfoot>
+				</table>
+			</Tabs.Content>
+			<Tabs.Content value="assistants" class="select-none pt-3"></Tabs.Content>
+		</Tabs.Root>
+
+		<div class="pb-1 border-t-[1px] border-lightGray-400 dark:border-customGray-700 mt-6 pt-2">
+			<div class="flex w-full justify-between items-center">
+				<div class="text-2xs text-lightGray-100 dark:text-customGray-300 font-semibold">
+					{$i18n.t('USAGE HISTORY')}
+				</div>
+			</div>
 		</div>
+		<Tabs.Root value="monthly" class="rounded-card border-muted w-full shadow-card mt-6 ">
+			<Tabs.List
+				class="bg-gray-100 dark:bg-gray-800 rounded-lg flex flex-row p-[2px] text-xs w-fit"
+			>
+				<Tabs.Trigger
+					value="monthly"
+					class="dark:data-[state=active]:bg-gray-700 py-[10px] px-4 data-[state=active]:text-gray-900 text-gray-600 py-1 rounded-md items-center data-[state=active]:bg-gray-200"
+				>
+					Monthly</Tabs.Trigger
+				>
+				<Tabs.Trigger
+					value="models"
+					class="dark:data-[state=active]:bg-gray-700 py-[10px] px-4 data-[state=active]:text-gray-900 text-gray-600 rounded-md items-center data-[state=active]:bg-gray-200"
+				>
+					Yearly</Tabs.Trigger
+				>
+			</Tabs.List>
+			<Tabs.Content value="monthly" class="select-none text-xs pt-3">
+				<div class="w-full bg-lightGray-300 flex flex-col justify-start gap-2 p-2">
+					This Month vs. Last Month
+					<div class="text-lg font-semibold">6300</div>
+					<div class="text-slate-500/90">Messages sent</div>
+				</div>
+			</Tabs.Content>
+		</Tabs.Root>
 		<div class="bg-lightGray-300 dark:bg-customGray-900 rounded-2xl p-4 pb-1 mt-5">
 			<div
 				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
