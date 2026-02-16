@@ -14,11 +14,15 @@ export class BufferedResponse {
         private hook: BufferedResponseHook
     ) { }
 
-    add(content: string) {
+    add_content(content: string) {
         this.buffer += content;
         if (this.renderTimeout === null) {
             this.render();
         }
+    }
+
+		add_sources(sources: string[]) {
+			this.message.sources = sources;
     }
 
     flushImmediate(content: string) {

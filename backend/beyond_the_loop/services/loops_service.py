@@ -2,10 +2,7 @@ import requests
 import os
 
 from beyond_the_loop.models.users import UserModel
-from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.payments_service import payments_service
-from beyond_the_loop.models.companies import Companies
-
 
 class LoopsService:
 
@@ -65,25 +62,6 @@ class LoopsService:
 
         if not response.json().get("success"):
             raise Exception(response.json())
-
-    def update_company_users_loops_contact(self, event_data):
-        stripe_customer_id = event_data.get('customer')
-
-        if not stripe_customer_id:
-            print("Missing customer_id in event data in company users loops update")
-            return
-
-        # Get the company associated with this Stripe customer
-        company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
-
-        if not company:
-            print("Company not found in event data in company users loops update")
-            return
-
-        users = Users.get_users_by_company_id(company.id)
-
-        for user in users:
-            loops_service.create_or_update_loops_contact(user)
 
     def send_transactional_email(
             self,
