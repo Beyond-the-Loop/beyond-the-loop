@@ -1532,8 +1532,7 @@ async def process_chat_response(
                                                 content_blocks
                                             ),
                                             "type": "text",
-                                            "added_content": value,
-                                            "text_content": serialize_content_blocks(text_blocks)
+                                            "added_content": value
                                         }
 
                             await event_emitter(

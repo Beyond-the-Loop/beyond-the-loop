@@ -63,7 +63,6 @@
 		id: string;
 		model: string;
 		content: string;
-		text_content: string;
 		files?: { type: string; url: string }[];
 		timestamp: number;
 		role: string;
@@ -924,11 +923,7 @@
 											? 'visible'
 											: 'invisible group-hover:visible'} p-1.5 rounded-lg dark:hover:text-white hover:text-black transition copy-response-button"
 										on:click={() => {
-											console.log(message.text_content);
-											copyToClipboard(
-												message.text_content ? message.text_content : message.content,
-												message?.sources
-											);
+											copyToClipboard(message.content, message?.sources);
 										}}
 									>
 										<CopyMessageIcon />
