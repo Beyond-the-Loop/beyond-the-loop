@@ -12,7 +12,7 @@ from fastapi import (
     HTTPException,
     Request,
     status,
-    APIRouter,
+    APIRouter, BackgroundTasks,
 )
 from pydantic import BaseModel
 import tiktoken
@@ -456,14 +456,12 @@ class ProcessFileForm(BaseModel):
     content: Optional[str] = None
     collection_name: Optional[str] = None
 
-@router.post("/add-files-to-pgvector")
-def add_files_to_pgvector(request: Request):
+def process_files(request: Request):
     files = Files.get_files()
-
     loader = Loader()
 
     for index, file in enumerate(files):
-        print("Processing file", index, "of", len(files), " - ", file.filename, " -")
+        print("Processing file", index, "of", len(files), "-", file.filename, "-")
 
         if not file.meta.get("collection_name"):
             print("Skipping file as it does not have a collection name")
@@ -479,10 +477,8 @@ def add_files_to_pgvector(request: Request):
             file_path = file.path
 
         try:
-            docs = loader.load(
-                file.filename, file.meta.get("content_type"), file_path
-            )
-        except Exception as e:
+            docs = loader.load(file.filename, file.meta.get("content_type"), file_path)
+        except Exception:
             print("Skipping file as it could not be loaded or was not on the file path", file_path)
             continue
 
@@ -515,13 +511,19 @@ def add_files_to_pgvector(request: Request):
                     "name": file.filename,
                     "hash": hash,
                 },
-                add=(True if file.meta.get("collection_name") else False),
+                add=True,
                 user=user,
             )
             print("Successfully added file to PGVector")
         except Exception as e:
-            print("Skipping file because of an general error", e)
+            print("Skipping file because of a general error", e)
             continue
+
+@router.post("/add-files-to-pgvector")
+def add_files_to_pgvector(request: Request, background_tasks: BackgroundTasks):
+    # Schedule the background task
+    background_tasks.add_task(process_files, request)
+    return {"status": "processing started"}
 
 @router.post("/process/file")
 def process_file(
