@@ -462,16 +462,18 @@ def add_files_to_pgvector(request: Request):
 
     loader = Loader()
 
-    for file in files:
+    for index, file in enumerate(files):
+        print("Processing file", index, "of", len(files), " - ", file.filename, " -")
+
         if not file.meta.get("collection_name"):
-            print("Skipping file", file.filename, "as it does not have a collection name")
+            print("Skipping file as it does not have a collection name")
             continue
 
         if not file.path.startswith("/app"):
             try:
                 file_path = Storage.get_file(file.path)
-            except Exception as e:
-                print("File not found in GCP storage")
+            except Exception:
+                print("Skipping file as it was not found in GCP Storage", file.path)
                 continue
         else:
             file_path = file.path
@@ -481,8 +483,7 @@ def add_files_to_pgvector(request: Request):
                 file.filename, file.meta.get("content_type"), file_path
             )
         except Exception as e:
-            print("File", file.filename, "could not be loaded on file path", file_path)
-            print(e)
+            print("Skipping file as it could not be loaded or was not on the file path", file_path)
             continue
 
         docs = [
@@ -517,9 +518,9 @@ def add_files_to_pgvector(request: Request):
                 add=(True if file.meta.get("collection_name") else False),
                 user=user,
             )
+            print("Successfully added file to PGVector")
         except Exception as e:
-            print("File", file.filename, "could not be added to pgvector")
-            print(e)
+            print("Skipping file because of an general error", e)
             continue
 
 @router.post("/process/file")
