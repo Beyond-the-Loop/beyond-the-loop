@@ -77,8 +77,7 @@ async def chat_web_search_handler(
 ):
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     event_emitter = extra_params["__event_emitter__"]
 

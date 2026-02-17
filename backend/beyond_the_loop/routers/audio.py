@@ -233,8 +233,7 @@ def load_speech_pipeline(request):
 async def speech(request: Request, user=Depends(get_verified_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     body = await request.body()
     name = hashlib.sha256(
@@ -515,8 +514,7 @@ async def transcription(
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     if file.content_type not in ["audio/mpeg", "audio/wav", "audio/ogg", "audio/x-m4a"]:
         raise HTTPException(
