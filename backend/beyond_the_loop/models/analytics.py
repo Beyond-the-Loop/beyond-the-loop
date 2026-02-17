@@ -29,7 +29,7 @@ class TopUserItem(BaseModel):
     email: Optional[str]
     profile_image_url: Optional[str]
 
-    total_credits_used: int
+    total_credits_used: float
     message_count: int
     assistant_message_percentage: float
 
@@ -74,7 +74,7 @@ class TopUsersResponse(BaseModel):
 
 class TopAssistantItem(BaseModel):
     assistant: str
-    total_credits_used: int
+    total_credits_used: float
     message_count: int
 
 class TopAssistantsResponse(BaseModel):

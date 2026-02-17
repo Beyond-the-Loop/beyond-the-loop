@@ -6,6 +6,8 @@
 	export let data;
 	export let options = {};
 
+	export let height = 100;
+
 	let canvas;
 
 	onMount(() => {
@@ -19,4 +21,4 @@
 	});
 </script>
 
-<canvas bind:this={canvas}></canvas>
+<canvas bind:this={canvas} {height}></canvas>

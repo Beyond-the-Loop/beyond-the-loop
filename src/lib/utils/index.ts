@@ -307,15 +307,15 @@ export const formatDate = (inputDate) => {
 
 function linkifyCitations(content, sources) {
 	if (!content || !sources || sources.length === 0) return content;
-	
+
 	const citationRegex = /\[(\d+)]/g;
-	
+
 	return content.replace(citationRegex, (match, number) => {
-		const citationIndex = parseInt(number, 10) - 1; 
+		const citationIndex = parseInt(number, 10) - 1;
 		if (sources[citationIndex]) {
 			return ` [${match}](${sources[citationIndex].source.name} "citation")`;
 		}
-		return match; 
+		return match;
 	});
 }
 
@@ -363,8 +363,8 @@ export const copyToClipboard = async (text) => {
 
 export const copyToClipboardResponse = async (text, sources) => {
 	let result = false;
-	console.log(text)
-	
+	console.log(text);
+
 	const processedText = sources ? linkifyCitations(text, sources) : text;
 
 	let html = marked.parse(processedText);
@@ -376,8 +376,8 @@ export const copyToClipboardResponse = async (text, sources) => {
 			const blobHtml = new Blob([html], { type: 'text/html' });
 
 			const clipboardItem = new ClipboardItem({
-				"text/plain": blobPlain,
-				"text/html": blobHtml,
+				'text/plain': blobPlain,
+				'text/html': blobHtml
 			});
 
 			await navigator.clipboard.write([clipboardItem]);
@@ -411,9 +411,11 @@ export const copyToClipboardResponse = async (text, sources) => {
 	return result;
 };
 
-
 function getTextFromTokens(tokens) {
-	return tokens.map(t => t.raw ?? t.text ?? '').join(' ').trim();
+	return tokens
+		.map((t) => t.raw ?? t.text ?? '')
+		.join(' ')
+		.trim();
 }
 
 function generateMarkdownTable(token) {
@@ -1230,11 +1232,11 @@ export function onClickOutside(node, callback) {
 }
 
 export function getModelIcon(label: string): string {
-	if(!label) return '';
+	if (!label) return '';
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
-	console.log("LAGEB", label);
+	console.log('LAGEB', label);
 
 	if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
@@ -1251,7 +1253,7 @@ export function getModelIcon(label: string): string {
 	} else if (lower.includes('lama')) {
 		return '/meta-color.svg';
 	} else if (lower.includes('grok')) {
-		if(isDark) {
+		if (isDark) {
 			return '/grok-dark.svg';
 		} else {
 			return '/grok.svg';
@@ -1261,20 +1263,32 @@ export function getModelIcon(label: string): string {
 	}
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// export const getMonths = (data) => {
+// 	const values = [];
+// 	const keys = Object.keys(data);
+// 	const start = Number(keys?.[0]?.split('-')?.[1]) - 1;
+// 	const count = Object.keys(data)?.length + start;
+
+// 	for (let i = start; i < count; ++i) {
+// 		const value = MONTHS[Math.ceil(i) % 12];
+// 		values.push(value);
+// 	}
+// 	return values;
+// }
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const getMonths = (data) => {
-	const values = [];
-	const keys = Object.keys(data);
-	const start = Number(keys?.[0]?.split('-')?.[1]) - 1;
-	const count = Object.keys(data)?.length + start;
+	// data is now an array of objects with period property
+	if (!data || !Array.isArray(data)) return [];
 
-	for (let i = start; i < count; ++i) {
-		const value = MONTHS[Math.ceil(i) % 12];
-		values.push(value);
-	}
-	return values;
-}
+	return data.map((item) => {
+		const [year, month] = item.period.split('-');
+		// Convert month number (01-12) to month name
+		return MONTHS[parseInt(month) - 1];
+	});
+};
 
 export function getMonthRange(year: number, month: number) {
 	const start = dayjs(`${year}-${month.toString().padStart(2, '0')}-01`);
@@ -1282,9 +1296,7 @@ export function getMonthRange(year: number, month: number) {
 
 	const isCurrentMonth = now.year() === year && now.month() === month - 1;
 
-	const end = isCurrentMonth
-		? now
-		: start.endOf('month');
+	const end = isCurrentMonth ? now : start.endOf('month');
 
 	return {
 		start: start.format('YYYY-MM-DD'),
@@ -1323,59 +1335,90 @@ export const emojiToBase64 = (emoji) => {
 	return emoji;
 };
 
-export const tagColorsLight = ['#D6F1D9', '#DCFFCA', '#D1FCE4', '#FDF2C8', '#FDE3C8', '#F5FDC8', '#E4ECFD', '#CFF6F2', '#CFEBF6', '#E4CFF6', '#F6CFEB', '#F6CFD8'];
-export const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14', '#556111', '#112550', '#12595A', '#114558', '#340E56', '#4D123D', '#591626'];
-
+export const tagColorsLight = [
+	'#D6F1D9',
+	'#DCFFCA',
+	'#D1FCE4',
+	'#FDF2C8',
+	'#FDE3C8',
+	'#F5FDC8',
+	'#E4ECFD',
+	'#CFF6F2',
+	'#CFEBF6',
+	'#E4CFF6',
+	'#F6CFEB',
+	'#F6CFD8'
+];
+export const tagColors = [
+	'#115A1A',
+	'#32472D',
+	'#476956',
+	'#5D4D0D',
+	'#633B14',
+	'#556111',
+	'#112550',
+	'#12595A',
+	'#114558',
+	'#340E56',
+	'#4D123D',
+	'#591626'
+];
 
 export function extractUrlFromSourceObj(obj) {
-  // Try priority order: source.name (if URL), first document, metadata[0].source
-  const candidates = [
-    obj?.source?.name,
-    Array.isArray(obj?.document) ? obj.document[0] : null,
-    Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null,
-  ].filter(Boolean);
+	// Try priority order: source.name (if URL), first document, metadata[0].source
+	const candidates = [
+		obj?.source?.name,
+		Array.isArray(obj?.document) ? obj.document[0] : null,
+		Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null
+	].filter(Boolean);
 
-  const first = candidates.find((v) => typeof v === 'string');
-  return first || null;
+	const first = candidates.find((v) => typeof v === 'string');
+	return first || null;
 }
 
 export function normalizeUrl(url) {
-  try {
-    const u = new URL(url);
-    // Normalize: lower host, strip default ports & trailing slash
-    u.host = u.host.toLowerCase();
-    if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
-      u.port = '';
-    }
-    // Remove trailing slash except root
-    if (u.pathname.endsWith('/') && u.pathname !== '/') {
-      u.pathname = u.pathname.slice(0, -1);
-    }
-    return u.toString();
-  } catch {
-    // If it's not a valid URL, return as-is for display but can't dedupe well
-    return url;
-  }
+	try {
+		const u = new URL(url);
+		// Normalize: lower host, strip default ports & trailing slash
+		u.host = u.host.toLowerCase();
+		if (
+			(u.protocol === 'http:' && u.port === '80') ||
+			(u.protocol === 'https:' && u.port === '443')
+		) {
+			u.port = '';
+		}
+		// Remove trailing slash except root
+		if (u.pathname.endsWith('/') && u.pathname !== '/') {
+			u.pathname = u.pathname.slice(0, -1);
+		}
+		return u.toString();
+	} catch {
+		// If it's not a valid URL, return as-is for display but can't dedupe well
+		return url;
+	}
 }
 
 // Remap local [n] citations in one message to global indices
 export function remapCitations(content, messageSources, urlToGlobalIndex, globalList) {
-  if (!Array.isArray(messageSources) || messageSources.length === 0) return content;
+	if (!Array.isArray(messageSources) || messageSources.length === 0) return content;
 
-  return content.replace(/\[(\d+)\]/g, (match, numStr) => {
-    const n = Number(numStr);
-    const srcObj = messageSources[n - 1];
-    if (!srcObj) return match; // out of range, leave as-is
+	return content.replace(/\[(\d+)\]/g, (match, numStr) => {
+		const n = Number(numStr);
+		const srcObj = messageSources[n - 1];
+		if (!srcObj) return match; // out of range, leave as-is
 
-    const urlRaw = extractUrlFromSourceObj(srcObj);
-    if (!urlRaw) return match;
+		const urlRaw = extractUrlFromSourceObj(srcObj);
+		if (!urlRaw) return match;
 
-    const url = normalizeUrl(urlRaw);
-    if (!urlToGlobalIndex.has(url)) {
-      globalList.push({ url, title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null });
-      urlToGlobalIndex.set(url, globalList.length); // 1-based index
-    }
-    const idx = urlToGlobalIndex.get(url);
-    return `[${idx}]`;
-  });
+		const url = normalizeUrl(urlRaw);
+		if (!urlToGlobalIndex.has(url)) {
+			globalList.push({
+				url,
+				title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null
+			});
+			urlToGlobalIndex.set(url, globalList.length); // 1-based index
+		}
+		const idx = urlToGlobalIndex.get(url);
+		return `[${idx}]`;
+	});
 }
