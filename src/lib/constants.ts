@@ -3,7 +3,7 @@ import { version } from '../../package.json';
 
 export const APP_NAME = 'Beyond the Loop';
 
-export const WEBUI_HOSTNAME = browser ? (dev ? `${location.hostname}:8080` : ``) : '';
+export const WEBUI_HOSTNAME = browser ? (dev ? `localhost:8080` : ``) : '';
 export const WEBUI_BASE_URL = browser ? (dev ? `http://${WEBUI_HOSTNAME}` : ``) : ``;
 export const WEBUI_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1`;
 
@@ -15,7 +15,6 @@ export const RETRIEVAL_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1/retrieval`;
 
 export const WEBUI_VERSION = version;
 export const WEBUI_BUILD_HASH = version;
-export const REQUIRED_OLLAMA_VERSION = '0.1.16';
 
 export const SUPPORTED_FILE_TYPE = [
 	'application/epub+zip',

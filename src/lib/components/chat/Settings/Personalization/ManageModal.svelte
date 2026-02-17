@@ -136,14 +136,14 @@
 					class=" px-3.5 py-1.5 font-medium hover:bg-black/5 dark:hover:bg-white/5 outline outline-1 outline-gray-300 dark:outline-gray-800 rounded-3xl"
 					on:click={() => {
 						showAddMemoryModal = true;
-					}}>{$i18n.t('Add Memory')}</button
+					}}>{$i18n.t('Add memory')}</button
 				> -->
 				<button
 					class=" text-xs h-10 px-4 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 hover:bg-gray-900 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
 					on:click={async () => {
 						if(memories.length < 1) return;
 						showDeleteConfirm = true;
-					}}>{$i18n.t('Delete All Memories')}</button
+					}}>{$i18n.t('Delete all memories')}</button
 				>
 			</div>
 		</div>

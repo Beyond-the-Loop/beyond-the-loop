@@ -32,12 +32,12 @@
 			legacy_documents.length > 0
 				? [
 						{
-							name: 'All Documents',
+							name: 'All documents',
 							legacy: true,
 							type: 'collection',
 							description: 'Deprecated (legacy collection), please create a new knowledge base.',
 
-							title: $i18n.t('All Documents'),
+							title: $i18n.t('All documents'),
 							collection_names: legacy_documents.map((item) => item.id)
 						},
 
@@ -119,7 +119,7 @@
 			<div class="max-h-48 overflow-y-scroll">
 				{#if filteredItems.length === 0}
 					<div class="text-center text-sm text-gray-500 dark:text-gray-400">
-						{$i18n.t('No knowledge found')}
+						{$i18n.t('No Knowledge found')}
 					</div>
 				{:else}
 					{#each filteredItems as item}

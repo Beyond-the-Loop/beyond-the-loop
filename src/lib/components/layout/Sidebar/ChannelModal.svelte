@@ -73,9 +73,9 @@
 		<div class=" flex justify-between dark:text-gray-300 px-5 pt-4 pb-1">
 			<div class=" text-lg font-medium self-center">
 				{#if edit}
-					{$i18n.t('Edit Channel')}
+					{$i18n.t('Edit channel')}
 				{:else}
-					{$i18n.t('Create Channel')}
+					{$i18n.t('Create channel')}
 				{/if}
 			</div>
 			<button
@@ -108,7 +108,7 @@
 					}}
 				>
 					<div class="flex flex-col w-full mt-2">
-						<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Channel Name')}</div>
+						<div class=" mb-1 text-xs text-gray-500">{$i18n.t('Channel name')}</div>
 
 						<div class="flex-1">
 							<input

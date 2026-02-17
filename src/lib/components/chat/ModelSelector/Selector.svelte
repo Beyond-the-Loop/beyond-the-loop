@@ -1,37 +1,28 @@
 <script lang="ts">
-	import { DropdownMenu } from 'bits-ui';
-	import { marked } from 'marked';
-	import Fuse from 'fuse.js';
-
 	import { flyAndScale } from '$lib/utils/transitions';
-	import { createEventDispatcher, onMount, getContext, tick } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import Check from '$lib/components/icons/Check.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
 
 	import { deleteModel, getOllamaVersion, pullModel } from '$lib/apis/ollama';
 
-	import { user, MODEL_DOWNLOAD_POOL, models, mobile, temporaryChatEnabled } from '$lib/stores';
+	import { user, MODEL_DOWNLOAD_POOL, models, mobile } from '$lib/stores';
 	import { toast } from 'svelte-sonner';
-	import { capitalizeFirstLetter, sanitizeResponseContent, splitStream } from '$lib/utils';
+	import { splitStream } from '$lib/utils';
 	import { getModels } from '$lib/apis';
 
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	import Switch from '$lib/components/common/Switch.svelte';
-	import ChatBubbleOval from '$lib/components/icons/ChatBubbleOval.svelte';
-	import { goto } from '$app/navigation';
-	import DeleteIcon from '$lib/components/icons/DeleteIcon.svelte';
 	import StarRating from './IntelligenceRating.svelte';
 	import SpeedRating from './SpeedRating.svelte';
 	import { modelsInfo, mapModelsToOrganizations } from '../../../../data/modelsInfo';
 	import { getModelIcon } from '$lib/utils';
 	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
 	import CostRating from './CostRating.svelte';
-
+	import { subscription } from '$lib/stores';
+	import { DropdownMenu } from 'bits-ui';
 
 	const i18n = getContext('i18n');
-	const dispatch = createEventDispatcher();
 
 	export let id = '';
 	export let value = '';
@@ -39,14 +30,13 @@
 	export let searchEnabled = true;
 	export let searchPlaceholder = $i18n.t('Search a model');
 
-	export let showTemporaryChatControl = false;
-
 	export let className = '180px';
 	export let triggerClassName = 'text-xs';
 
 	let show = false;
 
 	let selectedModel = '';
+
 	$: selectedModel = $models.map((model) => ({
 		value: model.id,
 		label: model.name,
@@ -70,8 +60,7 @@
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
 		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
-	
-	
+
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
 		: filteredSourceItems;
@@ -79,7 +68,6 @@
 	const pullModelHandler = async () => {
 		const sanitizedModelTag = searchValue.trim().replace(/^ollama\s+(run|pull)\s+/, '');
 
-		console.log($MODEL_DOWNLOAD_POOL);
 		if ($MODEL_DOWNLOAD_POOL[sanitizedModelTag]) {
 			toast.error(
 				$i18n.t(`Model '{{modelTag}}' is already in queue for downloading.`, {
@@ -225,7 +213,6 @@
 
 	$: {
 		if (modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff) {
-			console.log(modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff, 'hovered ')
 			const date = new Date(modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff);
 
 			const formatted = date.toLocaleString('default', {
@@ -237,7 +224,9 @@
 			knowledgeCutoff = null;
 		}
 	}
+
 	let baseModel = null;
+
 	$: {
 		if (selectedModel?.model?.base_model_id) {
 			baseModel = $models.map((model) => ({
@@ -247,7 +236,7 @@
 			})).find((item) => item?.model?.id === selectedModel?.model?.base_model_id);
 		}
 	}
-	
+
 </script>
 
 <DropdownMenu.Root
@@ -345,10 +334,10 @@
 				{#each filteredItems as item, index}
 					<button
 						aria-label="model-item"
-						class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm text-lightGray-100 dark:text-customGray-100 outline-none transition-all duration-75 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white rounded-lg cursor-pointer {value ===
-						item.value
-							? 'bg-lightGray-700 dark:bg-customGray-950'
-							: ''}"
+						class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm outline-none transition-all duration-75 rounded-lg
+       				{value === item.value ? 'bg-lightGray-700 dark:bg-customGray-950' : ''}
+       				{!item.model?.is_active ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
+
 						data-arrow-selected={index === selectedModelIdx}
 						on:mouseenter={() => (hoveredItem = item)}
 						on:mouseleave={() => (hoveredItem = null)}
@@ -358,6 +347,7 @@
 
 							show = false;
 						}}
+						disabled={!item.model?.is_active}
 					>
 						<div class="flex flex-col">
 							{#if $mobile && (item?.model?.meta?.tags ?? []).length > 0}
@@ -375,112 +365,20 @@
 								<div class="flex items-center min-w-fit">
 									<div class="line-clamp-1">
 										<div class="flex items-center min-w-fit">
-											<!-- <Tooltip
-												content={$user?.role === 'admin' ? (item?.value ?? '') : ''}
-												placement="top-start"
-											> -->
 											<img
 												src={getModelIcon(item.label)}
 												alt="Model"
 												class="rounded-full size-5 flex items-center mr-2"
 											/>
-											<span class="text-xs">{item.label}</span>
-											<!-- </Tooltip> -->
+											<div class="text-xs">
+												<span>{item.label}</span>
+												{#if !item.model?.is_active}
+													<span class="text-[0.4rem] ml-[-2px] align-super">Premium</span>
+												{/if}
+											</div>
 										</div>
-										<!-- <div class="text-2xs ml-7 text-[#808080] leading-normal">
-											{modelsInfo?.[item.label]?.description}
-										</div> -->
 									</div>
-									<!-- {#if item.model.owned_by === 'ollama' && (item.model.ollama?.details?.parameter_size ?? '') !== ''}
-										<div class="flex ml-1 items-center translate-y-[0.5px]">
-											<Tooltip
-												content={`${
-													item.model.ollama?.details?.quantization_level
-														? item.model.ollama?.details?.quantization_level + ' '
-														: ''
-												}${
-													item.model.ollama?.size
-														? `(${(item.model.ollama?.size / 1024 ** 3).toFixed(1)}GB)`
-														: ''
-												}`}
-												className="self-end"
-											>
-												<span
-													class=" text-xs font-medium text-gray-600 dark:text-gray-400 line-clamp-1"
-													>{item.model.ollama?.details?.parameter_size ?? ''}</span
-												>
-											</Tooltip>
-										</div>
-									{/if} -->
 								</div>
-
-								<!-- {JSON.stringify(item.info)} -->
-
-								<!-- {#if item.model.owned_by === 'openai'}
-									<Tooltip content={`${'External'}`}>
-										<div class="translate-y-[1px]">
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												viewBox="0 0 16 16"
-												fill="currentColor"
-												class="size-3"
-											>
-												<path
-													fill-rule="evenodd"
-													d="M8.914 6.025a.75.75 0 0 1 1.06 0 3.5 3.5 0 0 1 0 4.95l-2 2a3.5 3.5 0 0 1-5.396-4.402.75.75 0 0 1 1.251.827 2 2 0 0 0 3.085 2.514l2-2a2 2 0 0 0 0-2.828.75.75 0 0 1 0-1.06Z"
-													clip-rule="evenodd"
-												/>
-												<path
-													fill-rule="evenodd"
-													d="M7.086 9.975a.75.75 0 0 1-1.06 0 3.5 3.5 0 0 1 0-4.95l2-2a3.5 3.5 0 0 1 5.396 4.402.75.75 0 0 1-1.251-.827 2 2 0 0 0-3.085-2.514l-2 2a2 2 0 0 0 0 2.828.75.75 0 0 1 0 1.06Z"
-													clip-rule="evenodd"
-												/>
-											</svg>
-										</div>
-									</Tooltip>
-								{/if} -->
-
-								<!-- {#if item.model?.info?.meta?.description}
-									<Tooltip
-										content={`${marked.parse(
-											sanitizeResponseContent(item.model?.info?.meta?.description).replaceAll(
-												'\n',
-												'<br>'
-											)
-										)}`}
-									>
-										<div class=" translate-y-[1px]">
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke-width="1.5"
-												stroke="currentColor"
-												class="w-4 h-4"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
-												/>
-											</svg>
-										</div>
-									</Tooltip>
-								{/if} -->
-
-								<!-- {#if !$mobile && (item?.model?.info?.meta?.tags ?? []).length > 0}
-									<div class="flex gap-0.5 self-center items-center h-full translate-y-[0.5px]">
-										{#each item.model?.info?.meta.tags as tag}
-											<Tooltip content={tag.name}>
-												<div
-													class=" text-xs font-bold px-1 rounded uppercase line-clamp-1 bg-gray-500/20 text-gray-700 dark:text-gray-200"
-												>
-													{tag.name}
-												</div>
-											</Tooltip>
-										{/each}
-									</div>
-								{/if} -->
 							</div>
 						</div>
 
@@ -545,21 +443,32 @@
 							{/if}
 						</div>
 						<div class="grid grid-cols-3 gap-y-4 gap-x-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700">
-							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
-								{#if modelsInfo?.[hoveredItem?.label]?.costFactor}
-									<CostRating rating={modelsInfo?.[hoveredItem?.label]?.costFactor} />
-								{:else}
-									N/A
-								{/if}
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Cost')}</p>
-							</div>
+							{#if $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
+								<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
+									{#if modelsInfo?.[hoveredItem?.label]?.costFactor}
+										<CostRating rating={modelsInfo?.[hoveredItem?.label]?.costFactor} />
+									{:else}
+										N/A
+									{/if}
+									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Cost')}</p>
+								</div>
+							{:else}
+								<div class="flex flex-col items-center text-xs justify-end">
+									{#if modelsInfo?.[hoveredItem?.label]?.category}
+										{modelsInfo?.[hoveredItem?.label]?.category}
+									{:else}
+										N/A
+									{/if}
+									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Fair Usage category')}</p>
+								</div>
+							{/if}
 							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.intelligence_score && "justify-end"}">
 								{#if modelsInfo?.[hoveredItem?.label]?.intelligence_score}
 									<StarRating rating={modelsInfo?.[hoveredItem?.label]?.intelligence_score} />
 								{:else}
 									N/A
 								{/if}
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Intelligence Score')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Intelligence score')}</p>
 							</div>
 							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.speed && "justify-end"}">
 								{#if modelsInfo?.[hoveredItem?.label]?.speed}
@@ -572,18 +481,18 @@
 							<div class="flex flex-col items-center py-2">
 								{#if modelsInfo?.[hoveredItem?.label]?.hosted_in}
 									<p class="text-xs dark:text-customGray-100">{modelsInfo?.[hoveredItem?.label]?.hosted_in}</p>
-									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted In')}</p>
+									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted in')}</p>
 								{/if}
 							</div>
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
 									{#if knowledgeCutoff}
-										{knowledgeCutoff}	
+										{knowledgeCutoff}
 									{:else}
 										N/A
 									{/if}
 								</p>
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge Cutoff')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge cutoff')}</p>
 							</div>
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
@@ -593,7 +502,7 @@
 										N/A
 									{/if}
 								</p>
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context Window')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context window')}</p>
 							</div>
 						</div>
 					</div>
@@ -730,7 +639,7 @@
 						<div class="flex gap-2.5 items-center">
 							<ChatBubbleOval className="size-4" strokeWidth="2.5" />
 
-							{$i18n.t(`Temporary Chat`)}
+							{$i18n.t(`Temporary chat`)}
 						</div>
 
 						<div>

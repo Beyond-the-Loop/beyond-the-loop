@@ -204,7 +204,7 @@
 		// Function to update the UI with the progress
 		const updateProgress = () => {
 			const percentage = (uploadedFiles / totalFiles) * 100;
-			toast.info(`Upload Progress: ${uploadedFiles}/${totalFiles} (${percentage.toFixed(2)}%)`);
+			toast.info(`Upload progress: ${uploadedFiles}/${totalFiles} (${percentage.toFixed(2)}%)`);
 		};
 
 		// Recursive function to count all files excluding hidden ones
@@ -288,7 +288,7 @@
 					const updateProgress = () => {
 						const percentage = (uploadedFiles / totalFiles) * 100;
 						toast.info(
-							`Upload Progress: ${uploadedFiles}/${totalFiles} (${percentage.toFixed(2)}%)`
+							`Upload progress: ${uploadedFiles}/${totalFiles} (${percentage.toFixed(2)}%)`
 						);
 					};
 
@@ -817,7 +817,7 @@
 								<input
 									class=" w-full text-sm pr-4 py-1 rounded-r-xl outline-none bg-transparent"
 									bind:value={query}
-									placeholder={$i18n.t('Search Collection')}
+									placeholder={$i18n.t('Search collection')}
 									on:focus={() => {
 										selectedFileId = null;
 									}}

@@ -7,7 +7,7 @@ from beyond_the_loop.models.prompts import (
     Prompts, TagResponse
 )
 from open_webui.constants import ERROR_MESSAGES
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_access, has_permission
 
@@ -33,8 +33,7 @@ def _validate_prompt_write_access(prompt: PromptModel, user):
 
     if (user.role != "admin"
             and prompt.user_id != user.id
-            and not has_access(user.id, "write", prompt.access_control)
-            and not has_permission(user.id, "workspace.edit_prompts")):
+            and (not has_access(user.id, "write", prompt.access_control) or not has_permission(user.id, "workspace.edit_prompts"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -49,8 +48,7 @@ def _validate_prompt_read_access(prompt: PromptModel, user):
 
     if (user.role != "admin"
             and prompt.user_id != user.id
-            and not has_access(user.id, "read", prompt.access_control)
-            and not has_permission(user.id, "workspace.view_prompts")):
+            and (not has_access(user.id, "read", prompt.access_control) or not has_permission(user.id, "workspace.view_prompts"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -115,7 +113,7 @@ async def create_new_prompt(
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail=ERROR_MESSAGES.COMMAND_TAKEN,
+        detail=ERROR_MESSAGES.TITLE_TAKEN,
     )
 
 
@@ -165,7 +163,7 @@ async def update_prompt_by_command(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.COMMAND_TAKEN,
+            detail=ERROR_MESSAGES.TITLE_TAKEN,
         )
 
 

@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { createEventDispatcher, onMount, getContext } from 'svelte';
+	import { createEventDispatcher, getContext, onMount } from 'svelte';
 	import { getLanguages } from '$lib/i18n';
-	const dispatch = createEventDispatcher();
-
-	import { models, settings, theme, user, config, mobile } from '$lib/stores';
+	import { config, mobile, settings, theme, user } from '$lib/stores';
 	import { onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import { getVoices as _getVoices } from '$lib/apis/audio';
@@ -14,12 +12,11 @@
 	import DarkIcon from '$lib/components/icons/DarkIcon.svelte';
 	import LightIcon from '$lib/components/icons/LightIcon.svelte';
 
+	const dispatch = createEventDispatcher();
+
 	const i18n = getContext('i18n');
 
-	import AdvancedParams from './Advanced/AdvancedParams.svelte';
-
 	export let saveSettings: Function;
-	export let getModels: Function;
 
 	// General
 	let themes = ['dark', 'light', 'rose-pine dark', 'rose-pine-dawn light', 'oled-dark'];
@@ -27,77 +24,22 @@
 
 	let languages: Awaited<ReturnType<typeof getLanguages>> = [];
 	let lang = $i18n.language;
-	let notificationEnabled = false;
 	let system = '';
-
-
-	let showAdvanced = false;
-
-	const toggleNotification = async () => {
-		const permission = await Notification.requestPermission();
-
-		if (permission === 'granted') {
-			notificationEnabled = !notificationEnabled;
-			saveSettings({ notificationEnabled: notificationEnabled });
-		} else {
-			toast.error(
-				$i18n.t(
-					'Response notifications cannot be activated as the website permissions have been denied. Please visit your browser settings to grant the necessary access.'
-				)
-			);
-		}
-	};
-
-	// Advanced
-	let requestFormat = '';
-	let keepAlive: string | null = null;
-
-	let params = {
-		// Advanced
-		stream_response: null,
-		function_calling: null,
-		seed: null,
-		temperature: null,
-		frequency_penalty: null,
-		repeat_last_n: null,
-		mirostat: null,
-		mirostat_eta: null,
-		mirostat_tau: null,
-		top_k: null,
-		top_p: null,
-		min_p: null,
-		stop: null,
-		tfs_z: null,
-		num_ctx: null,
-		num_batch: null,
-		num_keep: null,
-		max_tokens: null,
-		num_gpu: null
-	};
-
-	const toggleRequestFormat = async () => {
-		if (requestFormat === '') {
-			requestFormat = 'json';
-		} else {
-			requestFormat = '';
-		}
-
-		saveSettings({ requestFormat: requestFormat !== '' ? requestFormat : undefined });
-	};
 
 	onMount(async () => {
 		selectedTheme = localStorage.theme ?? 'system';
 
 		languages = await getLanguages();
 
-		notificationEnabled = $settings.notificationEnabled ?? false;
 		system = $settings.system ?? '';
 
-		requestFormat = $settings.requestFormat ?? '';
-		keepAlive = $settings.keepAlive ?? null;
+		if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
+			voice = $settings?.audio?.tts?.voice ?? $config.audio.tts.voice ?? '';
+		} else {
+			voice = $config.audio.tts.voice ?? '';
+		}
 
-		params = { ...params, ...$settings.params };
-		params.stop = $settings?.params?.stop ? ($settings?.params?.stop ?? []).join(',') : null;
+		await getVoices();
 	});
 
 	const applyTheme = (_theme: string) => {
@@ -132,10 +74,8 @@
 				const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
 					? 'dark'
 					: 'light';
-				console.log('Setting system meta theme color: ' + systemTheme);
 				metaThemeColor.setAttribute('content', systemTheme === 'light' ? '#ffffff' : '#171717');
 			} else {
-				console.log('Setting meta theme color: ' + _theme);
 				metaThemeColor.setAttribute(
 					'content',
 					_theme === 'dark'
@@ -148,8 +88,6 @@
 				);
 			}
 		}
-
-		console.log(_theme);
 	};
 
 	const themeChangeHandler = (_theme: string) => {
@@ -170,13 +108,10 @@
 
 	let selectedLanguage;
 
-	$: selectedLanguage = languages?.find(item => item.code === lang);
+	$: selectedLanguage = languages?.find(item => item.code.toLowerCase() === lang.toLowerCase());
 
 	// Audio
-	let conversationMode = false;
-	let speechAutoSend = false;
-	let responseAutoPlayback = false;
-	let nonLocalVoices = false;
+	let nonLocalVoices = true;
 
 	let STTEngine = '';
 
@@ -189,7 +124,7 @@
 	const getVoices = async () => {
 		if ($config.audio.tts.engine === '') {
 			const getVoicesLoop = setInterval(async () => {
-				voices = await speechSynthesis.getVoices();
+				voices = speechSynthesis.getVoices();
 
 				// do your loop
 				if (voices.length > 0) {
@@ -206,29 +141,6 @@
 			}
 		}
 	};
-	
-
-	onMount(async () => {
-		playbackRate = $settings.audio?.tts?.playbackRate ?? 1;
-		conversationMode = $settings.conversationMode ?? false;
-		speechAutoSend = $settings.speechAutoSend ?? false;
-		responseAutoPlayback = $settings.responseAutoPlayback ?? false;
-
-		STTEngine = $settings?.audio?.stt?.engine ?? '';
-
-		if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
-			voice = $settings?.audio?.tts?.voice ?? $config.audio.tts.voice ?? '';
-		} else {
-			voice = $config.audio.tts.voice ?? '';
-		}
-
-		// nonLocalVoices = $settings.audio?.tts?.nonLocalVoices ?? false;
-
-		// Set this to true for now, because I'm not sure where it is set in the backend
-		nonLocalVoices = true;
-
-		await getVoices();
-	});
 
 	let showVoiceDropdown = false;
 	let voiceDropdownRef;
@@ -241,7 +153,6 @@
 	onMount(async () => {
 		enableMemory = $settings?.memory ?? false;
 	});
-
 
 </script>
 
@@ -262,10 +173,10 @@
 							}}
 					>
 						<span class="text-lightGray-100 dark:text-customGray-100"
-							>{$i18n.t('Language')}</span
+						>{$i18n.t('Language')}</span
 						>
 						<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
-							{selectedLanguage?.['title']?.replace(/\s*\(.*?\)/, '')}
+							{$i18n.t(selectedLanguage?.['title_translation_key'])}
 							<ChevronDown className="size-3" />
 						</div>
 					</button>
@@ -285,7 +196,7 @@
 											showLanguageDropdown = false;
 										}}
 									>
-										{language['title']}
+										{$i18n.t(language['title_translation_key'])}
 									</button>
 								{/each}
 							</div>
@@ -306,12 +217,12 @@
 								}}
 						>
 							<span class="text-lightGray-100 dark:text-customGray-100"
-								>{$i18n.t('Voice for audio output')}</span>
+							>{$i18n.t('Voice for audio output')}</span>
 							<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
 								<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50 capitalize">
 									{voice}
-								<ChevronDown className="size-3" />
-							</div>
+									<ChevronDown className="size-3" />
+								</div>
 						</button>
 
 						{#if showVoiceDropdown}
@@ -337,7 +248,7 @@
 															nonLocalVoices: $config.audio.tts.engine === '' ? nonLocalVoices : undefined
 														}
 													}
-												});												
+												});
 												showVoiceDropdown = false;
 											}}
 										>
@@ -349,52 +260,7 @@
 						{/if}
 					</div>
 				</div>
-				<!-- <div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set Voice')}</div>
-				<div class="flex w-full">
-					<div class="flex-1">
-						<select
-							class="w-full rounded-lg py-2 px-4 text-sm dark:text-gray-300 dark:bg-gray-850 outline-none"
-							bind:value={voice}
-						>
-							<option value="" selected={voice !== ''}>{$i18n.t('Default')}</option>
-							{#each voices.filter((v) => nonLocalVoices || v.localService === true) as _voice}
-								<option
-									value={_voice.name}
-									class="bg-gray-100 dark:bg-gray-700"
-									selected={voice === _voice.name}>{_voice.name}</option
-								>
-							{/each}
-						</select>
-					</div>
-				</div> -->
-				<!-- <div class="flex items-center justify-between my-1.5">
-					<div class="text-xs">
-						{$i18n.t('Allow non-local voices')}
-					</div>
-
-					<div class="mt-1">
-						<Switch bind:state={nonLocalVoices} />
-					</div>
-				</div> -->
 			</div>
-			<!-- <div class=" flex w-full justify-between">
-				<div class=" self-center text-xs font-medium">{$i18n.t('Language')}</div>
-				<div class="flex items-center relative">
-					<select
-						class=" dark:bg-gray-900 w-fit pr-8 rounded py-2 px-2 text-xs bg-transparent outline-none text-right"
-						bind:value={lang}
-						placeholder="Select a language"
-						on:change={(e) => {
-							$i18n.changeLanguage(lang);
-						}}
-					>
-						{#each languages as language}
-							<option value={language['code']}>{language['title']}</option>
-						{/each}
-					</select>
-				</div>
-			</div> -->
-
 			<div
 				class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
 			>
@@ -404,233 +270,122 @@
 			</div>
 
 			<div class="flex gap-x-2.5 min-h-[90px]">
-				<div on:click={() => themeChangeHandler('system')} class="w-full relative rounded-lg {selectedTheme === "system" ? "border-2 border-[#305BE4]" : ""}">
-					<img class="rounded-lg max-w-full h-full" src="/system.png" alt="system theme"/>
-					<div class="flex items-center pl-2.5 absolute bottom-[0.625rem] text-customGray-550 text-xs">
-						<SystemIcon className="size-3.5 mr-1"/>
-						{#if ($mobile)}
-							{$i18n.t('System')}
-						{:else}
-							{$i18n.t('System (Default)')}
-						{/if}
-						
-					</div>
-				</div>
-				<div on:click={() => themeChangeHandler('light')}  class="w-full relative rounded-lg {selectedTheme === "light" ? "border-2 border-[#305BE4]" : ""}">
-					<img class="rounded-lg max-w-full h-full" src="/light.png" alt="light theme"/>
-					<div class="flex items-center pl-2.5 absolute bottom-[0.625rem] text-customGray-550 text-xs">
-						<LightIcon className="size-3.5 mr-1"/>
-						{$i18n.t('Light')}
-					</div>
-				</div>
-				<div on:click={() => themeChangeHandler('dark')} class="w-full relative rounded-lg {selectedTheme === "dark" ? "border-2 border-[#305BE4]" : ""}">
-					<img class="rounded-lg max-w-full h-full" src="/dark.png" alt="dark theme"/>
-					<div class="flex items-center pl-2.5 absolute bottom-[0.625rem] text-customGray-550 text-xs">
-						<DarkIcon className="size-3.5 mr-1"/>
-						{$i18n.t('Dark')}
-					</div>
+				<div on:click={() => themeChangeHandler('system')}
+						 class="w-full relative rounded-lg {selectedTheme === "system" ? "border-2 border-[#305BE4]" : ""}">
+
+				<img class="rounded-lg max-w-full h-full" src="/system.png" alt="system theme" />
+				<div class="flex items-center pl-2.5 absolute bottom-[0.625rem] text-customGray-550 text-xs">
+					<SystemIcon className="size-3.5 mr-1" />
+					{#if ($mobile)}
+						{$i18n.t('System')}
+					{:else}
+						{$i18n.t('System (Default)')}
+					{/if}
+
 				</div>
 			</div>
+			<div on:click={() => themeChangeHandler('light')}
+					 class="w-full relative rounded-lg {selectedTheme === "light" ? "border-2 border-[#305BE4]" : ""}">
 
-			<!-- <div class="flex w-full justify-between">
-				<div class=" self-center text-xs font-medium">{$i18n.t('Theme')}</div>
-				<div class="flex items-center relative">
-					<select
-						class=" dark:bg-gray-900 w-fit pr-8 rounded py-2 px-2 text-xs bg-transparent outline-none text-right"
-						bind:value={selectedTheme}
-						placeholder="Select a theme"
-						on:change={() => themeChangeHandler(selectedTheme)}
-					>
-						<option value="system">⚙️ {$i18n.t('System')}</option>
-						<option value="dark">🌑 {$i18n.t('Dark')}</option>
-						<option value="oled-dark">🌃 {$i18n.t('OLED Dark')}</option>
-						<option value="light">☀️ {$i18n.t('Light')}</option>
-						<option value="her">🌷 Her</option>
-					</select>
-				</div>
-			</div> -->
-			<!-- {#if $i18n.language === 'en-US'}
-				<div class="mb-2 text-xs text-gray-400 dark:text-gray-500">
-					Couldn't find your language?
-					<a
-						class=" text-gray-300 font-medium underline"
-						href="https://github.com/open-webui/open-webui/blob/main/docs/CONTRIBUTING.md#-translations-and-internationalization"
-						target="_blank"
-					>
-						Help us translate Open WebUI!
-					</a>
-				</div>
-			{/if} -->
-
-			<!-- <div>
-				<div class=" py-0.5 flex w-full justify-between">
-					<div class=" self-center text-xs font-medium">{$i18n.t('Notifications')}</div>
-
-					<button
-						class="p-1 px-3 text-xs flex rounded transition"
-						on:click={() => {
-							toggleNotification();
-						}}
-						type="button"
-					>
-						{#if notificationEnabled === true}
-							<span class="ml-2 self-center">{$i18n.t('On')}</span>
-						{:else}
-							<span class="ml-2 self-center">{$i18n.t('Off')}</span>
-						{/if}
-					</button>
-				</div>
-			</div> -->
+			<img class="rounded-lg max-w-full h-full" src="/light.png" alt="light theme" />
+			<div class="flex items-center pl-2.5 absolute bottom-[0.625rem] text-customGray-550 text-xs">
+				<LightIcon className="size-3.5 mr-1" />
+				{$i18n.t('Light')}
+			</div>
 		</div>
+		<div on:click={() => themeChangeHandler('dark')}
+				 class="w-full relative rounded-lg {selectedTheme === "dark" ? "border-2 border-[#305BE4]" : ""}">
 
-		 {#if $user.role === 'admin' || $user?.permissions.chat?.controls}
+		<img class="rounded-lg max-w-full h-full" src="/dark.png" alt="dark theme" />
+		<div class="flex items-center pl-2.5 absolute bottom-[0.625rem] text-customGray-550 text-xs">
+			<DarkIcon className="size-3.5 mr-1" />
+			{$i18n.t('Dark')}
+		</div>
+	</div>
+</div>
+</div>
+
+{#if $user.role === 'admin' || $user?.permissions.chat?.controls}
+	<div
+		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
+	>
+		<div class="flex w-full justify-between items-center">
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Custom instructions')}</div>
+		</div>
+	</div>
+
+	<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
+		{#if system}
 			<div
-				class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
-			>
-				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Custom Instructions')}</div>
-				</div>
-			</div>
-
-			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
-				{#if system}
-					<div class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System Prompt')}</div>
-				{/if}
-				<textarea
-					bind:value={system}
-					placeholder={$i18n.t('System Prompt')}
-					class="px-2.5 py-2 text-sm {system ? "pt-4" : "pt-2"} text-lightGray-100 placeholder:text-lightGray-100 w-full h-20 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none"
+				class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System prompt')}</div>
+		{/if}
+		<textarea
+			bind:value={system}
+			placeholder={$i18n.t('System prompt')}
+			class="px-2.5 py-2 text-sm {system ? "pt-4" : "pt-2"} text-lightGray-100 placeholder:text-lightGray-100 w-full h-20 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none"
 					rows="4"
 				/>
 			</div>
-			<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
-				<div>
-					{$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')}
-				</div>
-			</div>
-
-			
-			<div class="mb-2.5">
-				<div class="flex items-center justify-between mb-1 w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md h-12 px-2.5 py-2">
-					
-						<div class="text-sm text-lightGray-100 dark:text-customGray-100">
-							{$i18n.t('Memory')}
-						</div>
-	
-					<div class="">
-						<Switch
-							bind:state={enableMemory}
-							on:change={async () => {
-								saveSettings({ memory: enableMemory });
-							}}
-						/>
-					</div>
-				</div>
-			</div>
-		
-			<div class="text-xs text-gray-600 dark:text-customGray-100/50">
-				<div>
-					{$i18n.t(
-						"You can personalize your interactions with LLMs by adding memories through the 'Manage' button below, making them more helpful and tailored to you."
-					)}
-				</div>
-			</div>
-		
-			<div class="mt-3 mb-1 ml-1">
-				<button
-					type="button"
-					class=" text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
-					on:click={() => {
-						showManageModal = true;
-					}}
-				>
-					{$i18n.t('Manage')}
-				</button>
-			</div>
-			
-
-			<!-- <div class="mt-2 space-y-3 pr-1.5">
-				<div class="flex justify-between items-center text-sm">
-					<div class="  font-medium">{$i18n.t('Advanced Parameters')}</div>
-					<button
-						class=" text-xs font-medium text-gray-500"
-						type="button"
-						on:click={() => {
-							showAdvanced = !showAdvanced;
-						}}>{showAdvanced ? $i18n.t('Hide') : $i18n.t('Show')}</button
-					>
-				</div>
-
-				{#if showAdvanced}
-					<AdvancedParams admin={$user?.role === 'admin'} bind:params />
-					<hr class=" dark:border-gray-850" />
-
-					<div class=" py-1 w-full justify-between">
-						<div class="flex w-full justify-between">
-							<div class=" self-center text-xs font-medium">{$i18n.t('Keep Alive')}</div>
-
-							<button
-								class="p-1 px-3 text-xs flex rounded transition"
-								type="button"
-								on:click={() => {
-									keepAlive = keepAlive === null ? '5m' : null;
-								}}
-							>
-								{#if keepAlive === null}
-									<span class="ml-2 self-center"> {$i18n.t('Default')} </span>
-								{:else}
-									<span class="ml-2 self-center"> {$i18n.t('Custom')} </span>
-								{/if}
-							</button>
-						</div>
-
-						{#if keepAlive !== null}
-							<div class="flex mt-1 space-x-2">
-								<input
-									class="w-full rounded-lg py-2 px-4 text-sm dark:text-gray-300 dark:bg-gray-850 outline-none"
-									type="text"
-									placeholder={$i18n.t("e.g. '30s','10m'. Valid time units are 's', 'm', 'h'.")}
-									bind:value={keepAlive}
-								/>
-							</div>
-						{/if}
-					</div>
-
-					<div>
-						<div class=" py-1 flex w-full justify-between">
-							<div class=" self-center text-sm font-medium">{$i18n.t('Request Mode')}</div>
-
-							<button
-								class="p-1 px-3 text-xs flex rounded transition"
-								on:click={() => {
-									toggleRequestFormat();
-								}}
-							>
-								{#if requestFormat === ''}
-									<span class="ml-2 self-center"> {$i18n.t('Default')} </span>
-								{:else if requestFormat === 'json'}
-									<span class="ml-2 self-center"> {$i18n.t('JSON')} </span>
-								{/if}
-							</button>
-						</div>
-					</div>
-				{/if}
-			</div> -->
-		{/if} 
+	<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
+		<div>
+			{$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')}
+		</div>
 	</div>
 
-	<div class="flex justify-end pt-3 text-sm font-medium">
+
+	<div class="mb-2.5">
+		<div
+			class="flex items-center justify-between mb-1 w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md h-12 px-2.5 py-2">
+
+			<div class="text-sm text-lightGray-100 dark:text-customGray-100">
+				{$i18n.t('Memory')}
+			</div>
+
+			<div class="">
+				<Switch
+					bind:state={enableMemory}
+					on:change={async () => {
+								saveSettings({ memory: enableMemory });
+							}}
+				/>
+			</div>
+		</div>
+	</div>
+
+	<div class="text-xs text-gray-600 dark:text-customGray-100/50">
+		<div>
+			{$i18n.t(
+				"You can personalize your interactions with LLMs by adding memories through the 'Manage' button below, making them more helpful and tailored to you."
+			)}
+		</div>
+	</div>
+
+	<div class="mt-3 mb-1 ml-1">
 		<button
+			type="button"
+			class=" text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
+			on:click={() => {
+						showManageModal = true;
+					}}
+		>
+			{$i18n.t('Manage')}
+		</button>
+	</div>
+{/if}
+</div>
+
+<div class="flex justify-end pt-3 text-sm font-medium">
+	<button
 		class=" text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
 		type="submit"
-			on:click={() => {
+		on:click={() => {
 				saveSettings({
 					system: system !== '' ? system : undefined
 				});
 				dispatch('save');
 			}}
-		>
-			{$i18n.t('Save')}
-		</button>
-	</div>
+	>
+		{$i18n.t('Save')}
+	</button>
+</div>
 </div>

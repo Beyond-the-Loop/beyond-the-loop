@@ -17,7 +17,7 @@
 			tagName = '';
 			showTagInput = false;
 		} else {
-			toast.error($i18n.t(`Invalid Tag`));
+			toast.error($i18n.t(`Invalid tag`));
 		}
 	};
 </script>
@@ -42,7 +42,7 @@
 				{/each}
 			</datalist>
 
-			<button type="button" aria-label={$i18n.t('Save Tag')} on:click={addTagHandler}>
+			<button type="button" aria-label={$i18n.t('Save tag')} on:click={addTagHandler}>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 16 16"

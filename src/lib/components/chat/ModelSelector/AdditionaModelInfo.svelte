@@ -92,7 +92,7 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 			<div class="flex flex-col items-center py-2">
 				{#if modelsInfo?.[hoveredItem?.name]?.hosted_in}
 					<p class="text-xs dark:text-customGray-100">{modelsInfo?.[hoveredItem?.name]?.hosted_in}</p>
-					<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted In')}</p>
+					<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted in')}</p>
 				{/if}
 			</div>
 			<div class="flex flex-col items-center py-2 border-r border-l border-lightGray-400 dark:border-customGray-700">
@@ -103,7 +103,7 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 						N/A
 					{/if}
 				</p>
-				<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge Cutoff')}</p>
+				<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge cutoff')}</p>
 			</div>
 			<div class="flex flex-col items-center py-2">
 				<p class="text-xs dark:text-customGray-100">
@@ -113,7 +113,7 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 						N/A
 					{/if}
 				</p>
-				<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context Window')}</p>
+				<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context window')}</p>
 			</div>
 		</div>
 	</div>

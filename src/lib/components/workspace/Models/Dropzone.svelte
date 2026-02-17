@@ -48,7 +48,7 @@
 		<div class="flex flex-col items-center text-xs text-gray-600 dark:text-customGray-100/50">
 			<UploadIcon />
 			<p>
-				{$i18n.t('Upload Files')}
+				{$i18n.t('Upload files')}
 			</p>
 		</div>
 	{/if}

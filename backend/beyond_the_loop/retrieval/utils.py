@@ -116,11 +116,6 @@ def query_doc_with_hybrid_search(
             "documents": [[d.page_content for d in result]],
             "metadatas": [[d.metadata for d in result]],
         }
-
-        print(
-            "query_doc_with_hybrid_search:result "
-            + f'{result["metadatas"]} {result["distances"]}'
-        )
         return result
     except Exception as e:
         raise e

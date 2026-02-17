@@ -192,7 +192,7 @@
 				<input
 					class=" w-full text-sm pr-4 py-1 rounded-r-xl outline-none bg-transparent"
 					bind:value={query}
-					placeholder={$i18n.t('Search Tools')}
+					placeholder={$i18n.t('Search tools')}
 				/>
 			</div>
 
@@ -251,7 +251,7 @@
 
 								<div class="text-xs text-gray-500 shrink-0">
 									<Tooltip
-										content={tool?.user?.email ?? $i18n.t('Deleted User')}
+										content={tool?.user?.email ?? $i18n.t('Deleted user')}
 										className="flex shrink-0"
 										placement="top-start"
 									>
@@ -260,7 +260,7 @@
 									{:else if (tool?.user?.email)}
 										{tool?.user?.email}
 									{:else}
-										{$i18n.t('Deleted User')}
+										{$i18n.t('Deleted user')}
 									{/if}
 									</Tooltip>
 								</div>
@@ -382,7 +382,7 @@
 						toolsImportInputElement.click();
 					}}
 				>
-					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import Tools')}</div>
+					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Import tools')}</div>
 
 					<div class=" self-center">
 						<svg
@@ -416,7 +416,7 @@
 						}
 					}}
 				>
-					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export Tools')}</div>
+					<div class=" self-center mr-2 font-medium line-clamp-1">{$i18n.t('Export tools')}</div>
 
 					<div class=" self-center">
 						<svg

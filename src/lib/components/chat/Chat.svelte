@@ -1,51 +1,49 @@
 <script lang="ts">
 	import { v4 as uuidv4 } from 'uuid';
 	import { toast } from 'svelte-sonner';
-	import mermaid from 'mermaid';
-	import { PaneGroup, Pane, PaneResizer } from 'paneforge';
+	import { Pane, PaneGroup } from 'paneforge';
 
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
-	const i18n: Writable<i18nType> = getContext('i18n');
-
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
-	import { get, type Unsubscriber, type Writable } from 'svelte/store';
+	import { type Unsubscriber, type Writable } from 'svelte/store';
 	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
+
+	import { BufferedResponse } from '$lib/utils/buffer/BufferedResponse';
+
+	import { getAlert } from '$lib/apis/alerts';
 
 	import {
 		chatId,
 		chats,
+		chatTitle,
+		companyConfig,
 		config,
+		currentChatPage,
+		mobile,
 		type Model,
 		models,
-		tags as allTags,
 		settings,
-		showSidebar,
-		WEBUI_NAME,
-		banners,
-		user,
-		socket,
-		showControls,
-		showCallOverlay,
-		currentChatPage,
-		temporaryChatEnabled,
-		mobile,
-		showOverview,
-		chatTitle,
 		showArtifacts,
+		showCallOverlay,
+		showControls,
+		showLibrary,
+		showOverview,
+		showSidebar,
+		socket,
+		tags as allTags,
+		temporaryChatEnabled,
 		tools,
-		companyConfig,
-
-		showLibrary
-
+		user,
+		WEBUI_NAME
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
 		copyToClipboard,
-		getMessageContentParts,
 		createMessagesList,
+		getMessageContentParts,
 		promptTemplate,
 		removeDetails
 	} from '$lib/utils';
@@ -58,23 +56,17 @@
 		getTagsById,
 		updateChatById
 	} from '$lib/apis/chats';
-	import { generateOpenAIChatCompletion, generateMagicPrompt } from '$lib/apis/openai';
+	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
-	import {
-		chatCompleted,
-		chatAction,
-		generateMoACompletion,
-		stopTask
-	} from '$lib/apis';
+	import { chatCompleted, chatAction, generateMoACompletion, stopTask } from '$lib/apis';
 	import { getTools } from '$lib/apis/tools';
-
-	import Banner from '../common/Banner.svelte';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
+	import AlertBanner from '$lib/components/chat/AlertBanner.svelte';
 	import ChatControls from './ChatControls.svelte';
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Placeholder from './Placeholder.svelte';
@@ -82,6 +74,9 @@
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
 	import DOMPurify from 'dompurify';
+	import type { Alert } from '$lib/types';
+
+	const i18n: Writable<i18nType> = getContext('i18n');
 
 	export let chatIdProp = '';
 
@@ -107,7 +102,7 @@
 
 	let chatIdUnsubscriber: Unsubscriber | undefined;
 
-	let selectedModels = [''];
+	let selectedModels = [];
 	let atSelectedModel: Model | undefined;
 	let selectedModelIds = [];
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
@@ -118,6 +113,7 @@
 	let codeInterpreterEnabled = false;
 	let chat = null;
 	let tags = [];
+	let alert: Alert;
 
 	let history = {
 		messages: {},
@@ -137,7 +133,6 @@
 	$: if (chatIdProp) {
 		(async () => {
 			loading = true;
-			console.log(chatIdProp);
 
 			prompt = '';
 			files = [];
@@ -169,18 +164,6 @@
 			}
 		})();
 	}
-
-	$: if (selectedModels && chatIdProp !== '') {
-		saveSessionSelectedModels();
-	}
-
-	const saveSessionSelectedModels = () => {
-		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
-			return;
-		}
-		sessionStorage.selectedModels = JSON.stringify(selectedModels);
-		console.log('saveSessionSelectedModels', selectedModels, sessionStorage.selectedModels);
-	};
 
 	$: if (selectedModels) {
 		setToolIds();
@@ -229,11 +212,11 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
-		console.log(event);
-
 		if (event.chat_id === $chatId) {
 			await tick();
 			let message = history.messages[event.message_id];
+
+			console.log("NEW CHAT EVENT AND MESSAGE LOADED", event, message);
 
 			if (message) {
 				const type = event?.data?.type ?? null;
@@ -272,6 +255,10 @@
 						}
 					}
 				} else if (type === 'chat:completion') {
+					message.statusHistory.push({
+						action: "generating_response",
+						done: true,
+					});
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
@@ -340,6 +327,8 @@
 				} else {
 					console.log('Unknown message type', data);
 				}
+
+				console.log("CHAT EVENT HANDLER MESSAGE RESULT", message);
 
 				history.messages[event.message_id] = message;
 			}
@@ -443,6 +432,8 @@
 		chatInput?.focus();
 
 		chats.subscribe(() => {});
+
+		alert = await getAlert();
 	});
 
 	onDestroy(() => {
@@ -454,15 +445,6 @@
 	// File upload functions
 
 	const uploadGoogleDriveFile = async (fileData) => {
-		console.log('Starting uploadGoogleDriveFile with:', {
-			id: fileData.id,
-			name: fileData.name,
-			url: fileData.url,
-			headers: {
-				Authorization: `Bearer ${token}`
-			}
-		});
-
 		// Validate input
 		if (!fileData?.id || !fileData?.name || !fileData?.url || !fileData?.headers?.Authorization) {
 			throw new Error('Invalid file data provided');
@@ -484,7 +466,6 @@
 
 		try {
 			files = [...files, fileItem];
-			console.log('Processing web file with URL:', fileData.url);
 
 			// Configure fetch options with proper headers
 			const fetchOptions = {
@@ -496,7 +477,6 @@
 			};
 
 			// Attempt to fetch the file
-			console.log('Fetching file content from Google Drive...');
 			const fileResponse = await fetch(fileData.url, fetchOptions);
 
 			if (!fileResponse.ok) {
@@ -506,30 +486,17 @@
 
 			// Get content type from response
 			const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
-			console.log('Response received with content-type:', contentType);
 
 			// Convert response to blob
-			console.log('Converting response to blob...');
 			const fileBlob = await fileResponse.blob();
 
 			if (fileBlob.size === 0) {
 				throw new Error('Retrieved file is empty');
 			}
 
-			console.log('Blob created:', {
-				size: fileBlob.size,
-				type: fileBlob.type || contentType
-			});
-
 			// Create File object with proper MIME type
 			const file = new File([fileBlob], fileData.name, {
 				type: fileBlob.type || contentType
-			});
-
-			console.log('File object created:', {
-				name: file.name,
-				size: file.size,
-				type: file.type
 			});
 
 			if (file.size === 0) {
@@ -537,14 +504,11 @@
 			}
 
 			// Upload file to server
-			console.log('Uploading file to server...');
 			const uploadedFile = await uploadFile(localStorage.token, file);
 
 			if (!uploadedFile) {
 				throw new Error('Server returned null response for file upload');
 			}
-
-			console.log('File uploaded successfully:', uploadedFile);
 
 			// Update file item with upload results
 			fileItem.status = 'uploaded';
@@ -568,8 +532,6 @@
 	};
 
 	const uploadWeb = async (url) => {
-		console.log(url);
-
 		const fileItem = {
 			type: 'doc',
 			name: url,
@@ -601,8 +563,6 @@
 	};
 
 	const uploadYoutubeTranscription = async (url) => {
-		console.log(url);
-
 		const fileItem = {
 			type: 'doc',
 			name: url,
@@ -665,23 +625,17 @@
 				selectedModels = urlModels;
 			}
 		} else {
-			
-			// if (sessionStorage.selectedModels) {
-			// 	selectedModels = JSON.parse(sessionStorage.selectedModels);
-			// 	sessionStorage.removeItem('selectedModels');
-			// } else {
-				if ($settings?.models) {
-					selectedModels = $settings?.models;
-				} else if ($companyConfig?.config?.models?.DEFAULT_MODELS) {
-					const ids = $companyConfig?.config?.models?.DEFAULT_MODELS?.split(',');
-					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini');
-					const isActive = $models?.some(model => ids?.includes(model.id));
-					selectedModels = isActive ? ids : (gptDefault ? [gptDefault?.id] : []);
-				} else {
-					const gptDefault = $models?.find(item => item.name === 'GPT-5 mini')
-					selectedModels = [gptDefault?.id];
-				}
-			//}
+			if ($settings?.models) {
+				selectedModels = $settings?.models;
+			} else if ($companyConfig?.config?.models?.default_models) {
+				const ids = $companyConfig?.config?.models?.default_models?.split(',');
+				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
+				const isActive = $models?.some((model) => ids?.includes(model.id));
+				selectedModels = isActive ? ids : gptDefault ? [gptDefault?.id] : [];
+			} else {
+				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
+				selectedModels = [gptDefault?.id];
+			}
 		}
 
 		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
@@ -787,8 +741,6 @@
 			const chatContent = chat.chat;
 
 			if (chatContent) {
-				console.log(chatContent);
-
 				selectedModels =
 					(chatContent?.models ?? undefined) !== undefined
 						? chatContent.models
@@ -1072,11 +1024,28 @@
 		}
 	};
 
+	let bufferedResponse: BufferedResponse | null = null;
+
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
+		const {
+			id,
+			done,
+			choices,
+			content,
+			added_content,
+			type,
+			sources,
+			selected_model_id,
+			error,
+			usage
+		} = data;
 
 		if (error) {
 			await handleOpenAIError(error, message);
+		}
+
+		if (taskId == null) {
+			return;
 		}
 
 		if (sources) {
@@ -1126,8 +1095,29 @@
 		}
 
 		if (content) {
+			if (type == 'text') {
+				if (bufferedResponse != null && added_content != null && added_content != undefined) {
+					bufferedResponse.add_content(added_content);
+				} else if (bufferedResponse === null) {
+					message.content = content;
+					bufferedResponse = new BufferedResponse(message, history, {
+						onCommit: (msg) => {
+							// Trigger Svelte Reactivity Update
+							history.messages = {
+								...history.messages,
+								[msg.id]: { ...msg }
+							};
+							if (autoScroll) scrollToBottom();
+						}
+					});
+				}
+			} else {
+				message.content = content;
+				bufferedResponse?.stop();
+				bufferedResponse = null;
+			}
+
 			// REALTIME_CHAT_SAVE is disabled
-			message.content = content;
 
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
@@ -1169,7 +1159,14 @@
 		history.messages[message.id] = message;
 
 		if (done) {
+			console.log("DONE MESSAGE", message);
+			bufferedResponse?.stop();
+			bufferedResponse = null;
+
 			message.done = true;
+			message.content = content;
+
+			console.log("DONE MESSAGE AFTER FINAL CONTENT UPDATE", message);
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1210,7 +1207,6 @@
 			);
 		}
 
-		console.log(data);
 		if (autoScroll) {
 			scrollToBottom();
 		}
@@ -1221,8 +1217,6 @@
 	//////////////////////////
 
 	const submitPrompt = async (userPrompt, { _raw = false } = {}) => {
-		console.log('submitPrompt', userPrompt, $chatId);
-
 		const messages = createMessagesList(history, history.currentId);
 		const _selectedModels = selectedModels.map((modelId) =>
 			$models.map((m) => m.id).includes(modelId) ? modelId : ''
@@ -1316,8 +1310,6 @@
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
 
-		saveSessionSelectedModels();
-
 		await sendPrompt(history, userPrompt, userMessageId, { newChat: true });
 	};
 
@@ -1326,7 +1318,6 @@
 
 		try {
 			const res = await generateMagicPrompt(localStorage.token, { prompt: userPrompt });
-			console.log(res);
 			prompt = res;
 		} catch (err) {
 			console.error('Magic prompt error:', err);
@@ -1402,7 +1393,6 @@
 
 		await Promise.all(
 			selectedModelIds.map(async (modelId, _modelIdx) => {
-				console.log('modelId', modelId);
 				const model = $models.filter((m) => m.id === modelId).at(0);
 
 				if (model) {
@@ -1441,8 +1431,6 @@
 										return `${acc}${index + 1}. [${createdAtDate}]. ${doc}\n`;
 									}, '');
 								}
-
-								console.log(userContext);
 							}
 						}
 					}
@@ -1612,29 +1600,31 @@
 					: {})
 			},
 			`${WEBUI_BASE_URL}/api`
-		).catch((error) => {
-			if(!error?.includes('402')) {
-				if(error?.includes('ContentPolicyViolationError')) {
-					toast.error("The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry.");
-				} else {
-					toast.error(`${error}`);
-				}	
-			}
-			
-			responseMessage.error = {
-				content: error
-			};
-			responseMessage.done = true;
+		)
+			.catch((error) => {
+				if (!error?.includes('402')) {
+					if (error?.includes('ContentPolicyViolationError')) {
+						toast.error(
+							"The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry."
+						);
+					} else {
+						toast.error(`${error}`);
+					}
+				}
 
-			history.messages[responseMessageId] = responseMessage;
-			history.currentId = responseMessageId;
-			return null;
-		}).finally(() => {
-			webSearchEnabled = false;
-			imageGenerationEnabled = false;
-		});
+				responseMessage.error = {
+					content: error
+				};
+				responseMessage.done = true;
 
-		console.log(res);
+				history.messages[responseMessageId] = responseMessage;
+				history.currentId = responseMessageId;
+				return null;
+			})
+			.finally(() => {
+				webSearchEnabled = false;
+				imageGenerationEnabled = false;
+			});
 
 		if (res) {
 			taskId = res.task_id;
@@ -1694,6 +1684,10 @@
 
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
+				responseMessage.content = responseMessage.content.replaceAll(
+					'<details type="reasoning" done="false">',
+					'<details type="reasoning" done="true">'
+				);
 
 				history.messages[history.currentId] = responseMessage;
 
@@ -1701,6 +1695,10 @@
 					scrollToBottom();
 				}
 			}
+		}
+		if (bufferedResponse) {
+			bufferedResponse?.stop();
+			bufferedResponse = null;
 		}
 	};
 
@@ -1732,8 +1730,6 @@
 	};
 
 	const regenerateResponse = async (message) => {
-		console.log('regenerateResponse');
-
 		if (history.currentId) {
 			let userMessage = history.messages[message.parentId];
 			let userPrompt = userMessage.content;
@@ -1753,7 +1749,6 @@
 	};
 
 	const continueResponse = async () => {
-		console.log('continueResponse');
 		const _chatId = JSON.parse(JSON.stringify($chatId));
 
 		if (history.currentId && history.messages[history.currentId].done == true) {
@@ -1772,7 +1767,6 @@
 	};
 
 	const mergeResponses = async (messageId, responses, _chatId) => {
-		console.log('mergeResponses', messageId, responses);
 		const message = history.messages[messageId];
 		const mergedResponse = {
 			status: true,
@@ -1824,7 +1818,7 @@
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(localStorage.token, {
 				id: _chatId,
-				title: $i18n.t('New Chat'),
+				title: $i18n.t('New chat'),
 				models: selectedModels,
 				system: $settings.system ?? undefined,
 				params: params,
@@ -1934,32 +1928,10 @@
 			shareEnabled={!!history.currentId}
 			{initNewChat}
 		/>
-
 		<PaneGroup direction="horizontal" class="w-full h-full">
 			<Pane defaultSize={50} class="h-full flex w-full relative">
-				{#if $banners.length > 0 && !history.currentId && !$chatId && selectedModels.length <= 1}
-					<div class="absolute top-12 left-0 right-0 w-full z-30">
-						<div class=" flex flex-col gap-1 w-full">
-							{#each $banners.filter( (b) => (b.dismissible ? !JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]').includes(b.id) : true) ) as banner}
-								<Banner
-									{banner}
-									on:dismiss={(e) => {
-										const bannerId = e.detail;
-
-										localStorage.setItem(
-											'dismissedBannerIds',
-											JSON.stringify(
-												[
-													bannerId,
-													...JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]')
-												].filter((id) => $banners.find((b) => b.id === id))
-											)
-										);
-									}}
-								/>
-							{/each}
-						</div>
-					</div>
+				{#if alert != null}
+					<AlertBanner {alert} />
 				{/if}
 
 				<div class="flex flex-col flex-auto z-10 w-full @container">
@@ -1996,10 +1968,17 @@
 
 						<div class=" pb-[1rem] max-w-[980px] mx-auto w-full">
 							<div class="px-3 mb-2.5 flex items-center justify-between">
-								<ModelSelector {initNewChatCompleted} bind:selectedModels showSetDefault={!history.currentId} />
-									<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
-										<BookIcon /> <span>{$i18n.t('Library')}</span>
-									</button>
+								<ModelSelector
+									{initNewChatCompleted}
+									bind:selectedModels
+									showSetDefault={!history.currentId}
+								/>
+								<button
+									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+									on:click={() => showLibrary.set(!$showLibrary)}
+								>
+									<BookIcon /> <span>{$i18n.t('Library')}</span>
+								</button>
 							</div>
 							<div class="mb-4">
 								<MessageInput
@@ -2019,7 +1998,6 @@
 									{createMessagePair}
 									onChange={(input) => {
 										if (input.prompt) {
-
 											// files can exceed 5MB, which can break the local storage.
 											if (input.files && input.files.length > 0) {
 												input.files = [];
@@ -2066,12 +2044,12 @@
 
 							<div
 								class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0"
-							>	
+							>
 								{#if $companyConfig?.config?.ui?.custom_user_notice}
 									{@html DOMPurify.sanitize(
 										$i18n.t($companyConfig?.config?.ui?.custom_user_notice),
 										{ ADD_ATTR: ['target'] }
-									)}	
+									)}
 								{:else}
 									{$i18n.t('LLMs can make mistakes. Verify important information.')}
 								{/if}
@@ -2106,7 +2084,6 @@
 								}}
 								on:submit={async (e) => {
 									if (e.detail) {
-										// console.log(e.detail)
 										await tick();
 										submitPrompt(
 											($settings?.richTextInput ?? true)
@@ -2116,7 +2093,6 @@
 									}
 								}}
 								on:magicPrompt={async (e) => {
-									console.log('🔥 magicPrompt from child:', e.detail);
 									if (e.detail) {
 										await tick();
 										submitMagicPrompt(
@@ -2127,7 +2103,9 @@
 									}
 								}}
 							/>
-							<div class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0">
+							<div
+								class="user-notice absolute bottom-1 text-xs text-gray-500 text-center line-clamp-1 right-0 left-0"
+							>
 								{#if $companyConfig?.config?.ui?.custom_user_notice}
 									{@html DOMPurify.sanitize(
 										$i18n.t($companyConfig?.config?.ui?.custom_user_notice),

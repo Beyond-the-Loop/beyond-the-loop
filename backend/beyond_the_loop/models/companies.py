@@ -1,16 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
-import time
+
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 
 from sqlalchemy.orm import relationship
-from sqlalchemy import String, Column, Text, Boolean, Float
+from sqlalchemy import String, Column, Text, Boolean, Float, BigInteger, and_
 
 from open_webui.internal.db import get_db, Base
 from enum import Enum
-from beyond_the_loop.models.users import get_active_users_by_company, get_users_by_company
-from beyond_the_loop.services.crm_service import crm_service
 
 # Constants
 NO_COMPANY = "NO_COMPANY"
@@ -30,7 +28,6 @@ class Company(Base):
     credit_balance = Column(Float, default=0)
     flex_credit_balance = Column(Float, nullable=True)
     auto_recharge = Column(Boolean, default=False)
-    credit_card_number = Column(String, nullable=True)
     size = Column(String, nullable=True)
     industry = Column(String, nullable=True)
     team_function = Column(String, nullable=True)
@@ -38,6 +35,7 @@ class Company(Base):
     budget_mail_80_sent = Column(Boolean, nullable=True)
     budget_mail_100_sent = Column(Boolean, nullable=True)
     subscription_not_required = Column(Boolean, nullable=True)
+    next_credit_charge_check = Column(BigInteger, nullable=True)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
@@ -46,12 +44,11 @@ class CompanyModel(BaseModel):
     id: str
     name: str
     profile_image_url: Optional[str] = None
-    default_model: Optional[str] = "GPT-5 mini"
+    default_model: Optional[str] = None
     allowed_models: Optional[str] = None
     credit_balance: Optional[float] = 0
     flex_credit_balance: Optional[float] = None
     auto_recharge: Optional[bool] = False
-    credit_card_number: Optional[str] = None
     size: Optional[str] = None
     industry: Optional[str] = None
     team_function: Optional[str] = None
@@ -59,6 +56,7 @@ class CompanyModel(BaseModel):
     budget_mail_80_sent: Optional[bool] = False
     budget_mail_100_sent: Optional[bool] = False
     subscription_not_required: Optional[bool] = False
+    next_credit_charge_check: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -122,7 +120,7 @@ class CompanyResponse(BaseModel):
     id: str
     name: str
     profile_image_url: Optional[str] = None
-    default_model: Optional[str] = "GPT-5 mini"
+    default_model: Optional[str] = None
     allowed_models: Optional[str]
     auto_recharge: bool
 
@@ -160,6 +158,27 @@ class CompanyTable:
             print(f"Error updating company", e)
             return None
 
+    def get_companies_due_for_credit_recharge_check(self) -> list[CompanyModel]:
+        try:
+            with get_db() as db:
+                now_ts = datetime.now().timestamp()
+
+                due_companies = (
+                    db.query(Company)
+                    .filter(
+                        and_(
+                            Company.next_credit_charge_check <= now_ts,
+                            Company.stripe_customer_id.isnot(None)
+                        )
+                    )
+                    .all()
+                )
+
+                return due_companies
+
+        except Exception as e:
+            print("Error fetching companies due for credit recharge check:", e)
+            return []
 
     def update_auto_recharge(self, company_id: str, auto_recharge: bool) -> Optional[CompanyModel]:
 
@@ -343,22 +362,15 @@ class CompanyTable:
                 company = db.query(Company).filter_by(id=company_id).first()
                 if not company or not company.stripe_customer_id:
                     return 1  # Default value for free plan
-                
-                # Get subscription from Stripe
-                subscriptions = stripe.Subscription.list(
-                    customer=company.stripe_customer_id,
-                    status='active',
-                    limit=1
-                )
-                
-                if not subscriptions.data:
-                    return 1  # No active subscription
-                
-                subscription = subscriptions.data[0]
-                plan_id = subscription.metadata.get('plan_id')
 
-                # Import here to avoid circular imports
                 from beyond_the_loop.routers.payments import payments_service
+
+                subscription = payments_service.get_subscription(company.id)
+
+                if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
+                    return 1
+                
+                plan_id = subscription.get('plan')
                 
                 if plan_id not in payments_service.SUBSCRIPTION_PLANS:
                     return 1  # Unknown plan

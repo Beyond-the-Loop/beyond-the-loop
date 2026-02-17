@@ -22,18 +22,18 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
 from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
 from beyond_the_loop.models.files import FileForm
-from open_webui.socket.main import (
+from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
     get_active_status_by_user_id,
 )
+from beyond_the_loop.models.knowledge import Knowledges
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
-    generate_image_prompt,
-    generate_chat_tags,
+    generate_image_prompt
 )
-from open_webui.routers.retrieval import process_web_search, SearchForm
+from open_webui.routers.retrieval import process_web_search
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
@@ -41,7 +41,7 @@ from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
 from beyond_the_loop.routers.openai import generate_chat_completion
 from beyond_the_loop.models.files import Files
-from open_webui.storage.provider import Storage
+from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
 from open_webui.utils.task import (
     rag_template,
@@ -65,7 +65,8 @@ from open_webui.env import (
 )
 from open_webui.constants import TASKS
 from open_webui.routers.retrieval import process_file, ProcessFileForm
-from beyond_the_loop.services.credit_service import CreditService
+from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -74,6 +75,11 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 async def chat_web_search_handler(
     request: Request, form_data: dict, extra_params: dict, user
 ):
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+
     event_emitter = extra_params["__event_emitter__"]
 
     web_search_files = []
@@ -83,7 +89,7 @@ async def chat_web_search_handler(
             "type": "status",
             "data": {
                 "action": "web_search",
-                "description": "Generating search query",
+                "description": "Generating search queries",
                 "done": False,
             },
         }
@@ -94,135 +100,99 @@ async def chat_web_search_handler(
 
     try:
         res = await generate_queries(
-            request,
-            {
-                "model": form_data["model"],
-                "messages": messages,
-                "prompt": user_message,
-                "type": "web_search",
-            },
-            user,
+            "web_search",
+            messages,
+            form_data.get("chat_id", None),
+            user
         )
 
-        response = res["choices"][0]["message"]["content"]
+        content = res["choices"][0]["message"]["content"]
 
         try:
-            bracket_start = response.find("{")
-            bracket_end = response.rfind("}") + 1
-
-            if bracket_start == -1 or bracket_end == -1:
-                raise Exception("No JSON object found in the response")
-
-            response = response[bracket_start:bracket_end]
-            queries = json.loads(response)
-            queries = queries.get("queries", [])
-        except Exception as e:
-            log.exception(e)
-            queries = [response]
-
+            search_queries = json.loads(content).get("queries", [])
+        except json.JSONDecodeError:
+            return []
     except Exception as e:
         log.exception(e)
-        queries = [user_message]
+        search_queries = [{"query": user_message, "result_limit": 3}]
 
-    if len(queries) == 0:
+    for search_query in search_queries:
         await event_emitter(
             {
                 "type": "status",
                 "data": {
                     "action": "web_search",
-                    "description": "No search query generated",
-                    "done": True,
+                    "description": 'Searching "{{searchQuery}}"',
+                    "query": search_query.get("query", ""),
+                    "done": False,
                 },
             }
         )
-        return web_search_files
 
-    search_query = queries[0]
+        try:
+            # Offload process_web_search to a separate thread
+            loop = asyncio.get_running_loop()
 
-    await event_emitter(
-        {
-            "type": "status",
-            "data": {
-                "action": "web_search",
-                "description": 'Searching "{{searchQuery}}"',
-                "query": search_query,
-                "done": False,
-            },
-        }
-    )
-
-    try:
-
-        # Offload process_web_search to a separate thread
-        loop = asyncio.get_running_loop()
-        with ThreadPoolExecutor() as executor:
-            results = await loop.run_in_executor(
-                executor,
-                lambda: process_web_search(
-                    request,
-                    SearchForm(
-                        **{
-                            "query": search_query,
-                        }
+            with ThreadPoolExecutor() as executor:
+                results = await loop.run_in_executor(
+                    executor,
+                    lambda: process_web_search(
+                        request,
+                        search_query.get("query", ""),
+                        search_query.get("result_limit", 3),
+                        user
                     ),
-                    user,
-                ),
-            )
+                )
 
-        if results:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "web_search",
-                        "description": "Searched {{count}} sites",
-                        "query": search_query,
+            if results:
+                search_query["filenames"] = results["filenames"]
+
+                web_search_files.append(
+                    {
+                        "collection_name": results["collection_name"],
+                        "name": search_query.get("query", ""),
+                        "type": "web_search_results",
                         "urls": results["filenames"],
-                        "done": True,
-                    },
-                }
-            )
-
-            web_search_files.append(
-                {
-                    "collection_name": results["collection_name"],
-                    "name": search_query,
-                    "type": "web_search_results",
-                    "urls": results["filenames"],
-                }
-            )
-        else:
+                    }
+                )
+            else:
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "web_search",
+                            "description": "No search results found",
+                            "query": search_query.get("query", ""),
+                            "done": True,
+                            "error": True,
+                        },
+                    }
+                )
+        except Exception as e:
+            log.exception(e)
             await event_emitter(
                 {
                     "type": "status",
                     "data": {
                         "action": "web_search",
-                        "description": "No search results found",
-                        "query": search_query,
+                        "description": 'Error searching "{{searchQuery}}"',
+                        "query": search_query.get("query", ""),
                         "done": True,
                         "error": True,
                     },
                 }
             )
 
-        credit_service = CreditService()
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.subtract_credits_by_user_for_web_search(user)
-    except Exception as e:
-        log.exception(e)
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "web_search",
-                    "description": 'Error searching "{{searchQuery}}"',
-                    "query": search_query,
-                    "done": True,
-                    "error": True,
-                },
-            }
-        )
 
-    return web_search_files
+    system_message_content = "<context>You are a websearch agent and the websearch is done now. Answer the user's question with the web search results. IMPORTANT: Don't ask any questions, just answer the question.</context>"
+
+    form_data["messages"] = add_or_update_system_message(
+        system_message_content, form_data["messages"]
+    )
+
+    return web_search_files, search_queries
 
 
 async def chat_image_generation_handler(
@@ -259,7 +229,6 @@ async def chat_image_generation_handler(
         })
 
         decision_form_data = {
-            "model": model.id,
             "messages": decision_messages,
             "stream": False,
             "metadata": {
@@ -269,7 +238,7 @@ async def chat_image_generation_handler(
             "temperature": 0.0
         }
 
-        response = await generate_chat_completion(decision_form_data, user)
+        response = await generate_chat_completion(decision_form_data, user, model)
 
         response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
@@ -431,7 +400,6 @@ async def chat_file_intent_decision_handler(
         ]
         
         decision_form_data = {
-            "model": model.id,
             "messages": decision_messages,
             "stream": False,
             "metadata": {
@@ -441,7 +409,7 @@ async def chat_file_intent_decision_handler(
             "temperature": 0.0
         }
         
-        response = await generate_chat_completion(decision_form_data, user)
+        response = await generate_chat_completion(decision_form_data, user, model)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
         
         is_rag_task = response_content == 'RAG'
@@ -495,21 +463,31 @@ def extract_file_content_with_loader(file_id: str) -> str:
 
 
 async def chat_completion_files_handler(
-    request: Request, body: dict, user: UserModel
+    request: Request, body: dict, user: UserModel, extra_params: dict, web_search_queries
 ) -> tuple[dict, dict[str, list]]:
     sources = []
 
     if files := body.get("metadata", {}).get("files", None):
+        event_emitter = extra_params["__event_emitter__"]
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "analyzing_results",
+                    "done": False
+                },
+            }
+        )
+
         try:
             queries_response = await generate_queries(
-                request,
-                {
-                    "model": body["model"],
-                    "messages": body["messages"],
-                    "type": "retrieval",
-                },
-                user,
+                "retrieval",
+                body["messages"],
+                body.get("chat_id", None),
+                user
             )
+
             queries_response = queries_response["choices"][0]["message"]["content"]
 
             try:
@@ -553,6 +531,29 @@ async def chat_completion_files_handler(
         except Exception as e:
             log.exception(e)
 
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "analyzing_results",
+                    "done": True
+                },
+            }
+        )
+
+        if web_search_queries:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "web_search",
+                        "description": "Searched {{count}} sites",
+                        "query_summaries": web_search_queries,
+                        "done": True,
+                    },
+                }
+            )
+
         log.debug(f"rag_contexts:sources: {sources}")
 
     return body, {"sources": sources}
@@ -594,7 +595,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     log.debug(f"form_data: {form_data}")
 
-
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
 
@@ -619,7 +619,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     user_message = get_last_user_message(form_data["messages"])
 
-    model_knowledge = model.meta.knowledge
+    model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
+
     model_files = model.meta.files
 
     # Remove file duplicates and remove files from form_data, add it to metadata
@@ -634,48 +635,73 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data["metadata"] = metadata
 
     if model_knowledge or model_files:
-                await event_emitter(
+        file_names = ', '.join([f.get('name', '') for f in model_files]) if model_files else ''
+
+        knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
+
+        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
+
+        knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
+
+        # Create decision prompt
+        decision_messages = [
             {
-                "type": "status",
-                "data": {
-                    "action": "knowledge_search",
-                    "query": user_message,
-                    "done": False,
-                },
+                "role": "system",
+                "content": "You are an AI assistant that determines user intent. The user has attached a knowledge base and/or single files to the prompt. Analyze their message and determine:\n\nFor the user's intent, is it necessary to search the knowledge or the files?\n\nExamples that need the knowledge/files:\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n- Answering specific questions about the document\n- Finding particular information or facts in the knowledge base\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'YES' or 'NO' - nothing else. Return no only, of you know that you don't need extra knowledge to answer the question."
+            },
+            {
+                "role": "user",
+                "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
             }
+        ]
+
+        decision_form_data = {
+            "messages": decision_messages,
+            "stream": False,
+            "metadata": {
+                "chat_id": None,
+                "agent_or_task_prompt": True
+            },
+            "temperature": 0.0
+        }
+
+        response = await generate_chat_completion(decision_form_data, user, model)
+        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
+
+        use_model_knowledge_or_files = response_content == 'YES'
+
+        if use_model_knowledge_or_files:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "knowledge_search",
+                        "query": user_message,
+                        "done": False,
+                    },
+                }
+            )
+
+            if model_knowledge:
+                files.extend([{"type": "collection", "id": f"file-{file.id}"} for file in knowledge_files])
+
+            if model_files:
+                files.extend(model_files)
+
+    web_search_active = features and features.get("web_search")
+    web_search_queries = None
+
+    # Include web search files before deciding task intent and building RAG context
+    if web_search_active:
+        web_search_files, web_search_queries = await chat_web_search_handler(
+            request, form_data, extra_params, user
         )
 
-    if model_knowledge:
-        knowledge_files = []
-        for item in model_knowledge:
-            if item.get("collection_name"):
-                knowledge_files.append(
-                    {
-                        "id": item.get("collection_name"),
-                        "name": item.get("name"),
-                        "legacy": True,
-                    }
-                )
-            elif item.get("collection_names"):
-                knowledge_files.append(
-                    {
-                        "name": item.get("name"),
-                        "type": "collection",
-                        "collection_names": item.get("collection_names"),
-                        "legacy": True,
-                    }
-                )
-            else:
-                knowledge_files.extend([{"type": "collection", "id": f"file-{file_id}"} for file_id in item["data"]["file_ids"]])
-
-        files.extend(knowledge_files)
-
-    if model_files:
-        files.extend(model_files)
+        files.extend(web_search_files)
 
     # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge else (form_data, True)
+        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active else (form_data, True)
 
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
@@ -684,7 +710,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if is_rag_task:
         # Proceed with normal RAG processing
         try:
-            form_data, flags = await chat_completion_files_handler(request, form_data, user)
+            form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params, web_search_queries)
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
@@ -755,7 +781,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-
         if not ("code_interpreter" in features and features["code_interpreter"]):
             form_data["messages"] = add_or_update_system_message(
                 rag_template(
@@ -768,7 +793,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 context_string,
                 form_data["messages"]
             )
-
 
     # If there are citations, add them to the data_items
     sources = [source for source in sources if source.get("source", {}).get("name", "")]
@@ -789,14 +813,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
+    # Avoid running web search twice; check if already added
+    did_add_web_search = any(isinstance(f, dict) and f.get("type") == "web_search_results" for f in files)
+
     if features:
-        if "web_search" in features and features["web_search"]:
-            web_search_files = await chat_web_search_handler(
-                request, form_data, extra_params, user
-            )
-
-            files.extend(web_search_files)
-
         if "image_generation" in features and features["image_generation"]:
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
@@ -853,7 +873,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
 
 async def process_chat_response(
-    request, response, form_data, user, events, metadata, tasks
+    request, response, form_data, user, events, metadata, tasks, model
 ):
     async def background_tasks_handler():
         message_map = Chats.get_messages_by_chat_id(metadata["chat_id"])
@@ -880,7 +900,7 @@ async def process_chat_response(
                                 title_string = (
                                     res.get("choices", [])[0]
                                     .get("message", {})
-                                    .get("content", message.get("content", "New Chat"))
+                                    .get("content", message.get("content", "New chat"))
                                 )
                             else:
                                 title_string = ""
@@ -891,13 +911,13 @@ async def process_chat_response(
 
                             try:
                                 title = json.loads(title_string).get(
-                                    "title", "New Chat"
+                                    "title", "New chat"
                                 )
                             except Exception as e:
                                 title = ""
 
                             if not title:
-                                title = messages[0].get("content", "New Chat")
+                                title = messages[0].get("content", "New chat")
 
                             Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
@@ -908,56 +928,16 @@ async def process_chat_response(
                                 }
                             )
                     elif len(messages) == 2:
-                        title = messages[0].get("content", "New Chat")
+                        title = messages[0].get("content", "New chat")
 
                         Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
                         await event_emitter(
                             {
                                 "type": "chat:title",
-                                "data": message.get("content", "New Chat"),
+                                "data": message.get("content", "New chat"),
                             }
                         )
-
-                if TASKS.TAGS_GENERATION in tasks and tasks[TASKS.TAGS_GENERATION]:
-                    res = await generate_chat_tags(
-                        request,
-                        {
-                            "model": message["model"],
-                            "messages": messages,
-                            "chat_id": metadata["chat_id"],
-                        },
-                        user,
-                    )
-
-                    if res and isinstance(res, dict):
-                        if len(res.get("choices", [])) == 1:
-                            tags_string = (
-                                res.get("choices", [])[0]
-                                .get("message", {})
-                                .get("content", "")
-                            )
-                        else:
-                            tags_string = ""
-
-                        tags_string = tags_string[
-                            tags_string.find("{") : tags_string.rfind("}") + 1
-                        ]
-
-                        try:
-                            tags = json.loads(tags_string).get("tags", [])
-                            Chats.update_chat_tags_by_id(
-                                metadata["chat_id"], tags, user
-                            )
-
-                            await event_emitter(
-                                {
-                                    "type": "chat:tags",
-                                    "data": tags,
-                                }
-                            )
-                        except Exception as e:
-                            pass
 
     event_emitter = None
     event_caller = None
@@ -1049,13 +1029,11 @@ async def process_chat_response(
 
     # Streaming response
     if event_emitter and event_caller:
-        model_id = form_data.get("model", "")
-
         Chats.upsert_message_to_chat_by_id_and_message_id(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": model_id,
+                "model": model.id,
             },
         )
 
@@ -1142,6 +1120,10 @@ async def process_chat_response(
                         content = f"{content}{block['type']}: {block_content}\n"
 
                 return content.strip()
+
+            def format_reasoning_content(text):
+                """Adds \n after each ** Pair in Reasoning Summaries, to adjust for Litellms OpenAI Formatting. Can hopefully be removed in future LiteLLM Updates"""
+                return text.replace("**", " \n>\n>**").replace(" \n>\n>**\n>", "**\n>")
 
             def tag_content_handler(content_type, tags, content, content_blocks):
                 end_flag = False
@@ -1423,10 +1405,64 @@ async def process_chat_response(
                                                         "arguments"
                                                     ] += delta_arguments
 
+                                reasoning_content = (
+                                    delta.get("reasoning_content")
+                                    or delta.get("reasoning")
+                                    or delta.get("thinking")
+                                )
+
+                                if reasoning_content:
+                                    if (
+                                        not content_blocks
+                                        or content_blocks[-1]["type"] != "reasoning"
+                                    ):
+                                        reasoning_block = {
+                                            "type": "reasoning",
+                                            "attributes": {
+                                                "type": "reasoning_content"
+                                            },
+                                            "content": "",
+                                            "started_at": time.time(),
+                                        }
+                                        content_blocks.append(reasoning_block)
+                                    else:
+                                        reasoning_block = content_blocks[-1]
+
+                                    reasoning_block["content"] += reasoning_content
+
+                                    data = {
+                                        "content": format_reasoning_content(serialize_content_blocks(
+                                            content_blocks
+                                        )),
+                                        "type": "reasoning",
+                                    }
+
                                 value = delta.get("content")
 
                                 if value:
                                     content = f"{content}{value}"
+                                    if (
+                                        content_blocks
+                                        and content_blocks[-1]["type"]
+                                        == "reasoning"
+                                        and content_blocks[-1]
+                                        .get("attributes", {})
+                                        .get("type")
+                                        == "reasoning_content"
+                                    ):
+                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block["ended_at"] = time.time()
+                                        reasoning_block["duration"] = int(
+                                            reasoning_block["ended_at"]
+                                            - reasoning_block["started_at"]
+                                        )
+
+                                        content_blocks.append(
+                                            {
+                                                "type": "text",
+                                                "content": "",
+                                            }
+                                        )
 
                                     if not content_blocks:
                                         content_blocks.append(
@@ -1474,11 +1510,27 @@ async def process_chat_response(
                                                 ),
                                             },
                                         )
+                                    elif (content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
+                                        data = {
+                                            "content": serialize_content_blocks(
+                                                content_blocks
+                                            ),
+                                            "type": "reasoning",
+                                        }
+                                    elif (content_blocks[-1]["type"] == "code_interpreter"):
+                                        data = {
+                                            "content": serialize_content_blocks(
+                                                content_blocks
+                                            ),
+                                            "type": "code_interpreter",
+                                        }
                                     else:
                                         data = {
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
+                                            "type": "text",
+                                            "added_content": value,
                                         }
 
                             await event_emitter(
@@ -1611,7 +1663,6 @@ async def process_chat_response(
 
                     try:
                         res = await generate_chat_completion({
-                            "model": model_id,
                             "stream": True,
                             "messages": [
                                 *form_data["messages"],
@@ -1631,7 +1682,7 @@ async def process_chat_response(
                                     for result in results
                                 ],
                             ],
-                        }, user)
+                        }, user, model)
 
                         if isinstance(res, StreamingResponse):
                             await stream_body_handler(res)
@@ -1747,8 +1798,10 @@ async def process_chat_response(
                                     # }
 
                                     if isinstance(data, dict):
-                                        credit_service = CreditService()
-                                        await credit_service.subtract_credits_by_user_for_code_interpreter(user)
+                                        subscription = payments_service.get_subscription(user.company_id)
+
+                                        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                                            await credit_service.subtract_credits_by_user_for_code_interpreter(user)
 
                                         output = data
                                         # Ensure keys exist
@@ -1888,14 +1941,12 @@ async def process_chat_response(
                             ]
 
                             res = await generate_chat_completion({
-                                "model": Models.get_model_by_name_and_company(
-                                    os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id).id,
                                 "stream": True,
                                 "messages": followup_messages,
                                 "metadata": {
                                     "agent_or_task_prompt": True
                                 }
-                            }, user)
+                            }, user, Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id))
 
                             if isinstance(res, StreamingResponse):
                                 await stream_body_handler(res)

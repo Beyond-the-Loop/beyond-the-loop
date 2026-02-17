@@ -287,7 +287,7 @@
 
 					{#if isLastMessage}
 						<div class=" flex-shrink-0 text-gray-600 dark:text-gray-500 mt-1">
-							<Tooltip content={$i18n.t('Merge Responses')} placement="bottom">
+							<Tooltip content={$i18n.t('Merge responses')} placement="bottom">
 								<button
 									type="button"
 									id="merge-response-button"

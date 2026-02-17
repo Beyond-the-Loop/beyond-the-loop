@@ -59,7 +59,7 @@
 			}}
 		>
 			<div
-				class=" w-full font-medium flex items-center justify-between gap-2 {attributes?.done &&
+				class=" w-full font-medium flex items-center justify-between gap-2 mb-2 {attributes?.done &&
 				attributes?.done !== 'true'
 					? 'shimmer'
 					: ''}
@@ -71,12 +71,14 @@
 					</div>
 				{/if}
 
-				<div class="">
+				<div class="flex-grow text-left">
 					{#if attributes?.type === 'reasoning'}
 						{#if attributes?.done === 'true' && attributes?.duration}
 							{$i18n.t('Thought for {{DURATION}}', {
 								DURATION: dayjs.duration(attributes.duration, 'seconds').humanize()
 							})}
+						{:else if attributes?.done === 'true'}
+							{$i18n.t('Thinking stopped')}
 						{:else}
 							{$i18n.t('Thinking...')}
 						{/if}
