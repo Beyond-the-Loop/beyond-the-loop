@@ -114,8 +114,8 @@ class CreditService:
 
         return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
-    async def subtract_credits_by_user_for_image(self, user, model_name: str):
-        image_cost = ModelCosts.get_cost_per_image_by_model_name(model_name) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
+    async def subtract_credits_by_user_for_image(self, user):
+        image_cost = ModelCosts.get_cost_per_image_by_model_name("Nano Banana") * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
 
         credit_cost = image_cost
 

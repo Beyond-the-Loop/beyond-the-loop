@@ -244,7 +244,7 @@ async def chat_image_generation_handler(
 
         edit_last_image = response_message.lower().strip() == 'yes'
 
-    if not edit_last_image and request.app.state.config.ENABLE_IMAGE_PROMPT_GENERATION:
+    if not edit_last_image:
         try:
             res = await generate_image_prompt(
                 request,
@@ -274,26 +274,15 @@ async def chat_image_generation_handler(
             log.exception(e)
             prompt = user_message
 
-    input_image_data = None
+    input_image_path = None
 
     if edit_last_image:
-        try:
-            last_image_path = already_generated_images[-1]
-            full_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
-            if not full_image_path.startswith(CACHE_DIR):
-                raise Exception("Access to the specified path is not allowed.")
-            with open(full_image_path, 'rb') as image_file:
-                image_data = image_file.read()
-                mime_type = mimetypes.guess_type(full_image_path)[0] or 'image/jpeg'
-                base64_data = base64.b64encode(image_data).decode('utf-8')
-                input_image_data = f"data:{mime_type};base64,{base64_data}"
-        except Exception:
-            pass # input_image_data will remain None
+        last_image_path = already_generated_images[-1]
+        input_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
 
     try:
         images = await image_generations(
-            request=request,
-            form_data=GenerateImageForm(**{"prompt": prompt, "input_image_data": input_image_data}),
+            form_data=GenerateImageForm(**{"prompt": prompt, "input_image_path": input_image_path}),
             user=user,
         )
 
@@ -812,9 +801,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 },
             }
         )
-
-    # Avoid running web search twice; check if already added
-    did_add_web_search = any(isinstance(f, dict) and f.get("type") == "web_search_results" for f in files)
 
     if features:
         if "image_generation" in features and features["image_generation"]:

@@ -1216,59 +1216,14 @@ RAG_OPENAI_API_KEY = PersistentConfig(
     os.getenv("RAG_OPENAI_API_KEY", OPENAI_API_KEY),
 )
 
-
-
 ####################################
 # Images
 ####################################
-
-IMAGE_GENERATION_ENGINE = PersistentConfig(
-    "IMAGE_GENERATION_ENGINE",
-    "image_generation.engine",
-    os.getenv("IMAGE_GENERATION_ENGINE", "openai"),
-)
 
 ENABLE_IMAGE_GENERATION = PersistentConfig(
     "ENABLE_IMAGE_GENERATION",
     "image_generation.enable",
     os.environ.get("ENABLE_IMAGE_GENERATION", "").lower() == "true",
-)
-
-ENABLE_IMAGE_PROMPT_GENERATION = PersistentConfig(
-    "ENABLE_IMAGE_PROMPT_GENERATION",
-    "image_generation.prompt.enable",
-    os.environ.get("ENABLE_IMAGE_PROMPT_GENERATION", "true").lower() == "true",
-)
-
-IMAGES_OPENAI_API_BASE_URL = PersistentConfig(
-    "IMAGES_OPENAI_API_BASE_URL",
-    "image_generation.openai.api_base_url",
-    os.getenv("IMAGES_OPENAI_API_BASE_URL", OPENAI_API_BASE_URL),
-)
-IMAGES_OPENAI_API_KEY = PersistentConfig(
-    "IMAGES_OPENAI_API_KEY",
-    "image_generation.openai.api_key",
-    os.getenv("IMAGES_OPENAI_API_KEY", OPENAI_API_KEY),
-)
-
-IMAGE_SIZE = PersistentConfig(
-    "IMAGE_SIZE", "image_generation.size", os.getenv("IMAGE_SIZE", "512x512")
-)
-
-IMAGE_STEPS = PersistentConfig(
-    "IMAGE_STEPS", "image_generation.steps", int(os.getenv("IMAGE_STEPS", 50))
-)
-
-IMAGE_GENERATION_MODEL = PersistentConfig(
-    "IMAGE_GENERATION_MODEL",
-    "image_generation.model",
-    os.getenv("IMAGE_GENERATION_MODEL", ""),
-)
-
-BLACK_FOREST_LABS_API_KEY = PersistentConfig(
-    "BLACK_FOREST_LABS_API_KEY",
-    "image_generation.flux.api_key",
-    os.getenv("BLACK_FOREST_LABS_API_KEY", ""),
 )
 
 ####################################

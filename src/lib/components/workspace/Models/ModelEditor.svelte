@@ -102,7 +102,6 @@
 		image_generation: false,
 		code_interpreter: false,
 		vision: true,
-		// usage: undefined,
 		citations: true
 	};
 
