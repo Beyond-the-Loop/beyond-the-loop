@@ -1,16 +1,17 @@
-import json
 import time
 import uuid
+from datetime import datetime
 from typing import Optional
 
+from sqlalchemy.dialects.postgresql import TIMESTAMP
+
 from open_webui.internal.db import Base, get_db
-from open_webui.models.tags import TagModel, Tag, Tags
+from open_webui.models.tags import TagModel, Tags
 
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Boolean, Column, String, Text, JSON
-from sqlalchemy import or_, func, select, and_, text
-from sqlalchemy.sql import exists
+from sqlalchemy import or_, and_, text
 
 ####################
 # Chat DB Schema
@@ -44,8 +45,8 @@ class ChatModel(BaseModel):
     title: str
     chat: dict
 
-    created_at: int  # timestamp in epoch
-    updated_at: int  # timestamp in epoch
+    created_at: int
+    updated_at: int
 
     share_id: Optional[str] = None
     archived: bool = False
@@ -84,8 +85,8 @@ class ChatResponse(BaseModel):
     user_id: str
     title: str
     chat: dict
-    updated_at: int  # timestamp in epoch
-    created_at: int  # timestamp in epoch
+    updated_at: int
+    created_at: int
     share_id: Optional[str] = None  # id of the chat to be shared
     archived: bool
     pinned: Optional[bool] = False
@@ -111,7 +112,7 @@ class ChatTable:
                     "title": (
                         form_data.chat["title"]
                         if "title" in form_data.chat
-                        else "New Chat"
+                        else "New chat"
                     ),
                     "chat": form_data.chat,
                     "created_at": int(time.time()),
@@ -137,7 +138,7 @@ class ChatTable:
                     "title": (
                         form_data.chat["title"]
                         if "title" in form_data.chat
-                        else "New Chat"
+                        else "New chat"
                     ),
                     "chat": form_data.chat,
                     "meta": form_data.meta,
@@ -160,13 +161,14 @@ class ChatTable:
                 chat_item = db.get(Chat, id)
 
                 chat_item.chat = chat
-                chat_item.title = chat["title"] if "title" in chat else "New Chat"
+                chat_item.title = chat["title"] if "title" in chat else "New chat"
                 chat_item.updated_at = int(time.time())
                 db.commit()
                 db.refresh(chat_item)
 
                 return ChatModel.model_validate(chat_item)
-        except Exception:
+        except Exception as e:
+            print("Error on updating chat by id", e)
             return None
 
     def update_chat_title_by_id(self, id: str, title: str) -> Optional[ChatModel]:
@@ -204,7 +206,7 @@ class ChatTable:
         if chat is None:
             return None
 
-        return chat.chat.get("title", "New Chat")
+        return chat.chat.get("title", "New chat")
 
     def get_messages_by_chat_id(self, id: str) -> Optional[dict]:
         chat = self.get_chat_by_id(id)
@@ -486,7 +488,8 @@ class ChatTable:
             with get_db() as db:
                 chat = db.query(Chat).filter_by(id=id, user_id=user_id).first()
                 return ChatModel.model_validate(chat)
-        except Exception:
+        except Exception as e:
+            print(e)
             return None
 
     def get_chats(self, skip: int = 0, limit: int = 50) -> list[ChatModel]:

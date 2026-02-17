@@ -257,7 +257,7 @@
 				>
 					<div class="flex gap-2 justify-between items-center">
 						<div class=" flex-shrink-0 font-medium ml-1.5">
-							{$i18n.t('System Instructions')}
+							{$i18n.t('System instructions')}
 						</div>
 
 						{#if !showSystem}
@@ -323,14 +323,13 @@
 				</div>
 				<div class="border border-gray-50 dark:border-gray-850 w-full px-3 py-2.5 rounded-xl">
 					<div class="py-0.5">
-						<!-- $i18n.t('a user') -->
-						<!-- $i18n.t('an assistant') -->
 						<textarea
 							bind:value={message}
 							class=" w-full h-full bg-transparent resize-none outline-none text-sm"
-							placeholder={$i18n.t(`Enter {{role}} message here`, {
-								role: role === 'user' ? $i18n.t('a user') : $i18n.t('an assistant')
-							})}
+							placeholder={$i18n.t(message.role === 'user'   
+								? 'Enter user message here'   
+								: 'Enter assistant message here'
+							)}
 							on:input={(e) => {
 								e.target.style.height = '';
 								e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';

@@ -70,7 +70,7 @@
 				}}
 			>
 				<DocumentArrowUpSolid />
-				<div class="line-clamp-1">{$i18n.t('Upload Files')}</div>
+				<div class="line-clamp-1">{$i18n.t('Upload files')}</div>
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</div>

@@ -87,7 +87,7 @@ class AbstractPostgresTest(AbstractIntegrationTest):
             time.sleep(0.5)
 
             database_url = cls._create_db_url(env_vars_postgres)
-            os.environ["DATABASE_URL"] = database_url
+            os.environ["APP_DATABASE_URL"] = database_url
             retries = 10
             db = None
             while retries > 0:

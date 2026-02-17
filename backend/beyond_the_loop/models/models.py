@@ -13,7 +13,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
-
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import JSONB
 
 from beyond_the_loop.utils.access_control import has_access
 
@@ -163,6 +164,7 @@ class ModelForm(BaseModel):
     params: ModelParams
     access_control: Optional[dict] = None
     is_active: bool = True
+    updated_at: int = int(time.time())
 
 class TagResponse(BaseModel):
     name: str
@@ -223,6 +225,7 @@ class ModelsTable:
     def get_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id).all()
+
             return [
                 ModelModel.model_validate(model)
                 for model in models
@@ -231,26 +234,28 @@ class ModelsTable:
     
     def get_active_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
-            models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active == 1).all()
+            models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active).all()
             return [
                 ModelModel.model_validate(model)
                 for model in models
                 if has_access(user_id, "read", model.access_control) or role == "admin"
             ]
 
-    def get_models_by_user_and_company(
+    def get_assistants_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read"
     ) -> list[ModelUserResponse]:
         with get_db() as db:
             result = db.execute(
                 select(user_model_bookmark.c.model_id).where(user_model_bookmark.c.user_id == user_id)
             )
+
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-            all_models = self.get_assistants()
+            assistants = self.get_assistants()
 
             filtered_models = []
-            for model in all_models:
+
+            for model in assistants:
                 if (
                     model.user_id == "system"
                     or model.user_id == user_id
@@ -266,12 +271,12 @@ class ModelsTable:
                     model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
                     filtered_models.append(ModelUserResponse(**model_dict))
 
-            filtered_models.sort(key=lambda m: not m.bookmarked_by_user)
-            return filtered_models
+            filtered_models.sort(
+                key=lambda m: (m.bookmarked_by_user, m.created_at),
+                reverse=True
+            )
 
-    def get_models_by_company_id(self, company_id: str) -> list[ModelModel]:
-        models = self.get_assistants()
-        return [model for model in models if model.company_id == company_id]
+            return filtered_models
 
     def get_model_by_id(self, id: str) -> Optional[ModelModel]:
         try:
@@ -308,9 +313,11 @@ class ModelsTable:
 
     def update_model_by_id_and_company(self, id: str, model: ModelForm, company_id: str) -> Optional[ModelModel]:
         try:
+            model.updated_at = int(time.time())
+
             with get_db() as db:
                 # update only the fields that are present in the model
-                result = (
+                (
                     db.query(Model)
                     .filter_by(id=id, company_id=company_id)
                     .update(model.model_dump(exclude={"id"}))
@@ -416,5 +423,10 @@ class ModelsTable:
         except Exception as e:
             print("Error in get_system_and_user_tags:", e)
             return []
+
+    def get_models_by_knowledge_id(self, knowledge_id: str):
+        with get_db() as db:
+            return db.query(Model).filter(cast(Model.meta, JSONB)["knowledge"].contains([{"id": knowledge_id}])).all()
+
 
 Models = ModelsTable()

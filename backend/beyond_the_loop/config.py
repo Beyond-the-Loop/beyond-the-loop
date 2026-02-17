@@ -4,27 +4,21 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
 import chromadb
-import requests
-from pydantic import BaseModel
 from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
     DATA_DIR,
-    DATABASE_URL,
-    ENV,
     FRONTEND_BUILD_DIR,
     OFFLINE_MODE,
     OPEN_WEBUI_DIR,
-    WEBUI_AUTH,
-    WEBUI_FAVICON_URL,
-    WEBUI_NAME,
     log,
 )
 from open_webui.internal.db import Base, get_db
+from beyond_the_loop.socket.main import COMPANY_CONFIG_CACHE
 
 
 class EndpointFilter(logging.Filter):
@@ -150,12 +144,20 @@ def get_config(company_id):
     if company_id is None:
         return DEFAULT_CONFIG
 
+    cached = COMPANY_CONFIG_CACHE.get(company_id)
+
     with get_db() as db:
         config_entry = db.query(Config).filter_by(company_id=company_id).order_by(Config.id.desc()).first()
-        if not config_entry:
+
+        if not config_entry and not cached:
             # If no config exists for this company, return the default config
             return DEFAULT_CONFIG
-        return config_entry.data
+
+        if cached:
+            return cached
+        else:
+            COMPANY_CONFIG_CACHE[company_id] = config_entry.data
+            return config_entry.data
 
 
 # Initialize with the default config
@@ -180,6 +182,9 @@ def save_config(config, company_id):
     # If company_id is None, we can't save to the database (company_id is required)
     if company_id is None:
         return False
+
+    if company_id in COMPANY_CONFIG_CACHE:
+        del COMPANY_CONFIG_CACHE[company_id]
 
     global CONFIG_DATA
     global PERSISTENT_CONFIG_REGISTRY
@@ -244,10 +249,10 @@ class PersistentConfig(Generic[T]):
         # If company_id is None, we can't save to the database
         if company_id is None:
             return
-            
+
         #log.info(f"Saving '{self.env_name}' to the database")
         path_parts = self.config_path.split(".")
-        
+
         # Get the full config
         full_config = get_config(company_id)
         
@@ -297,25 +302,6 @@ class AppConfig:
 ####################################
 # WEBUI_AUTH (Required for security)
 ####################################
-
-ENABLE_API_KEY = PersistentConfig(
-    "ENABLE_API_KEY",
-    "auth.api_key.enable",
-    os.environ.get("ENABLE_API_KEY", "True").lower() == "true",
-)
-
-ENABLE_API_KEY_ENDPOINT_RESTRICTIONS = PersistentConfig(
-    "ENABLE_API_KEY_ENDPOINT_RESTRICTIONS",
-    "auth.api_key.endpoint_restrictions",
-    os.environ.get("ENABLE_API_KEY_ENDPOINT_RESTRICTIONS", "False").lower() == "true",
-)
-
-API_KEY_ALLOWED_ENDPOINTS = PersistentConfig(
-    "API_KEY_ALLOWED_ENDPOINTS",
-    "auth.api_key.allowed_endpoints",
-    os.environ.get("API_KEY_ALLOWED_ENDPOINTS", ""),
-)
-
 
 JWT_EXPIRES_IN = PersistentConfig(
     "JWT_EXPIRES_IN", "auth.jwt_expiry", os.environ.get("JWT_EXPIRES_IN", "-1")
@@ -580,7 +566,7 @@ else:
 # STORAGE PROVIDER
 ####################################
 
-STORAGE_PROVIDER = os.environ.get("STORAGE_PROVIDER", "local")  # defaults to local, s3
+STORAGE_PROVIDER = "gcs"
 
 S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID", None)
 S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY", None)
@@ -588,7 +574,8 @@ S3_REGION_NAME = os.environ.get("S3_REGION_NAME", None)
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", None)
 S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", None)
 
-GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", None)
+GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "bchat-uploads-dev")
+
 GOOGLE_APPLICATION_CREDENTIALS_JSON = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS_JSON", None
 )
@@ -777,26 +764,6 @@ if "*" in CORS_ALLOW_ORIGIN:
 
 validate_cors_origins(CORS_ALLOW_ORIGIN)
 
-
-class BannerModel(BaseModel):
-    id: str
-    type: str
-    title: Optional[str] = None
-    content: str
-    dismissible: bool
-    timestamp: int
-
-
-try:
-    banners = json.loads(os.environ.get("WEBUI_BANNERS", "[]"))
-    banners = [BannerModel(**banner) for banner in banners]
-except Exception as e:
-    print(f"Error loading WEBUI_BANNERS: {e}")
-    banners = []
-
-WEBUI_BANNERS = PersistentConfig("WEBUI_BANNERS", "ui.banners", banners)
-
-
 ####################################
 # TASKS
 ####################################
@@ -883,44 +850,23 @@ ENABLE_TAGS_GENERATION = PersistentConfig(
     os.environ.get("ENABLE_TAGS_GENERATION", "False").lower() == "true",
 )
 
-ENABLE_RETRIEVAL_QUERY_GENERATION = PersistentConfig(
-    "ENABLE_RETRIEVAL_QUERY_GENERATION",
-    "task.query.retrieval.enable",
-    os.environ.get("ENABLE_RETRIEVAL_QUERY_GENERATION", "True").lower() == "true",
-)
-
-QUERY_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
-    "QUERY_GENERATION_PROMPT_TEMPLATE",
-    "task.query.prompt_template",
-    os.environ.get("QUERY_GENERATION_PROMPT_TEMPLATE", ""),
-)
-
 WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )
 
 WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Analyze the chat history to generate web search queries in the given language. By default, **prioritize generating 1–3 broad and relevant search queries** that can retrieve **updated, comprehensive, and trustworthy** information from the web.
+Please generate 1-3 web search queries for me that help me to answer the user's question.
+For each of the web search queries I want you to tell me a result_limit that determines how many web pages are scraped for the query.
 
 ### Guidelines:
-- Respond **EXCLUSIVELY** with a JSON object. No extra commentary or explanation.
-- Response format: { "queries": ["query1", "query2"] }
-- Err on the side of suggesting search queries if there’s any potential value.
-- Use the chat’s language; default to English if unclear.
-- Always prioritize **web scraping or API-based retrieval** services (e.g., Firecrawl).
+- Use the language given in the user's prompt; default to English if unclear.
 - Today's date is: {{CURRENT_DATE}}.
-- IMPORTANT: Generate at lease one query!
+- Do **not** wrap URLs in phrases like “search for” or “analyze”.
+- IMPORTANT: Generate at least one query and result_limit should also always be at least one! In general be very conservative so only create more than one web search query if you really think it is necessary to answer the question.
 
 ### URL Extraction Rules:
 - Scan messages for URLs (http:// or https://)
-- If found, insert the URL (unaltered) as the **first element** of the "queries" array
-- Example: { "queries": ["https://example.com", "related search query"] }
-- Do **not** wrap URLs in phrases like “search for” or “analyze”.
-
-### Output:
-{
-  "queries": ["query1", "query2"]
-}
+- If found, insert the URL (unaltered) as the **first element** your response
 
 ### Chat History:
 <chat_history>
@@ -1050,10 +996,6 @@ MODEL_ORDER_LIST = PersistentConfig(
     "MODEL_ORDER_LIST",
     "ui.model_order_list",
     [],
-)
-
-DEFAULT_MODELS = PersistentConfig(
-    "DEFAULT_MODELS", "ui.default_models", os.environ.get("DEFAULT_MODELS", None)
 )
 
 VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")
@@ -1211,6 +1153,19 @@ CHUNK_OVERLAP = PersistentConfig(
     "rag.chunk_overlap",
     int(os.environ.get("CHUNK_OVERLAP", "100")),
 )
+
+COMPLETION_ERROR_MESSAGE_PROMPT = """
+You are an AI assistant generating a helpful fallback message after an upstream model request failed.
+Your goal is to explain the failure in a clear and reassuring way.
+- Describe the error in human-readable terms.
+- Do not invent technical details.
+- Do not blame the user.
+- Keep the tone calm, neutral, and professional.
+- If the cause is unknown, say that the system encountered an unexpected error.
+
+IMPORTANT: If appropriate based on the error, suggest that the user try a different model.
+Only make this suggestion when the error clearly indicates that the current model cannot handle the task.
+"""
 
 DEFAULT_RAG_TEMPLATE = """### Task:
 Respond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.

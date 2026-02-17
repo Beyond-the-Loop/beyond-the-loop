@@ -316,6 +316,14 @@ class UsersTable:
         with get_db() as db:
             return db.query(User).filter(User.company_id == company_id).count()
 
+    def get_num_active_users_by_company_id(self, company_id: str) -> Optional[int]:
+        with get_db() as db:
+            return     db.query(User).filter(
+        User.company_id == company_id,
+        User.invite_token.is_(None),
+        User.registration_code.is_(None),
+    ).count()
+
     def get_first_user(self) -> UserModel:
         try:
             with get_db() as db:

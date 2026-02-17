@@ -20,7 +20,7 @@
 	import { transcribeAudio } from '$lib/apis/audio';
 	import FilesOverlay from '../chat/MessageInput/FilesOverlay.svelte';
 
-	export let placeholder = $i18n.t('Send a Message');
+	export let placeholder = $i18n.t('Send a message');
 	export let transparentBackground = false;
 
 	export let id = null;
@@ -561,7 +561,7 @@
 													toast.error($i18n.t('Permission denied when accessing microphone'));
 												}
 											}}
-											aria-label="Voice Input"
+											aria-label="Voice input"
 										>
 											<svg
 												xmlns="http://www.w3.org/2000/svg"

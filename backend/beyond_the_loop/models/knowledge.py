@@ -3,6 +3,7 @@ import time
 from typing import Optional
 import uuid
 
+from beyond_the_loop.models.models import ModelModel
 from open_webui.internal.db import Base, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -93,6 +94,7 @@ class KnowledgeResponse(KnowledgeModel):
 
 class KnowledgeUserResponse(KnowledgeUserModel):
     files: Optional[list[FileMetadataResponse | dict]] = None
+    models: Optional[list[ModelModel]] = None
 
 
 class KnowledgeForm(BaseModel):
@@ -163,6 +165,14 @@ class KnowledgeTable:
             with get_db() as db:
                 knowledge = db.query(Knowledge).filter_by(id=id).first()
                 return KnowledgeModel.model_validate(knowledge) if knowledge else None
+        except Exception:
+            return None
+
+    def get_knowledge_by_ids(self, ids: list[str]) -> Optional[list[KnowledgeModel]]:
+        try:
+            with get_db() as db:
+                knowledge = db.query(Knowledge).filter(Knowledge.id.in_(ids)).all()
+                return [KnowledgeModel.model_validate(k) for k in knowledge] if knowledge else None
         except Exception:
             return None
 

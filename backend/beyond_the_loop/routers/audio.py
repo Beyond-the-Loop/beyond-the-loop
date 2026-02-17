@@ -1,13 +1,10 @@
 import hashlib
 import json
 import logging
-import math
 import os
 import uuid
 from functools import lru_cache
 from pathlib import Path
-from pydub import AudioSegment
-from pydub.silence import split_on_silence
 
 import aiohttp
 import aiofiles
@@ -15,7 +12,6 @@ import requests
 
 from fastapi import (
     Depends,
-    FastAPI,
     File,
     HTTPException,
     Request,
@@ -23,7 +19,6 @@ from fastapi import (
     status,
     APIRouter,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -37,12 +32,12 @@ from beyond_the_loop.config import (
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import (
-    ENV,
     SRC_LOG_LEVELS,
     DEVICE_TYPE,
     ENABLE_FORWARD_USER_INFO_HEADERS,
 )
-from beyond_the_loop.services.credit_service import CreditService
+from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
 
@@ -236,8 +231,10 @@ def load_speech_pipeline(request):
 
 @router.post("/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
-    credit_service = CreditService()
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     body = await request.body()
     name = hashlib.sha256(
@@ -284,9 +281,9 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 ) as r:
                     r.raise_for_status()
 
-                    number_of_characters_in_input = len(payload["input"])
-
-                    await credit_service.subtract_credits_by_user_for_tts(user, request.app.state.config.TTS_MODEL, number_of_characters_in_input)
+                    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                        number_of_characters_in_input = len(payload["input"])
+                        await credit_service.subtract_credits_by_user_for_tts(user, request.app.state.config.TTS_MODEL, number_of_characters_in_input)
 
                     async with aiofiles.open(file_path, "wb") as f:
                         await f.write(await r.read())
@@ -311,7 +308,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=getattr(r, "status", 500),
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     elif request.app.state.config.TTS_ENGINE == "elevenlabs":
@@ -362,7 +359,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=getattr(r, "status", 500),
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     elif request.app.state.config.TTS_ENGINE == "azure":
@@ -415,47 +412,8 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=getattr(r, "status", 500),
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
-
-    elif request.app.state.config.TTS_ENGINE == "transformers":
-        payload = None
-        try:
-            payload = json.loads(body.decode("utf-8"))
-        except Exception as e:
-            log.exception(e)
-            raise HTTPException(status_code=400, detail="Invalid JSON payload")
-
-        import torch
-        import soundfile as sf
-
-        load_speech_pipeline(request)
-
-        embeddings_dataset = request.app.state.speech_speaker_embeddings_dataset
-
-        speaker_index = 6799
-        try:
-            speaker_index = embeddings_dataset["filename"].index(
-                request.app.state.config.TTS_MODEL
-            )
-        except Exception:
-            pass
-
-        speaker_embedding = torch.tensor(
-            embeddings_dataset[speaker_index]["xvector"]
-        ).unsqueeze(0)
-
-        speech = request.app.state.speech_synthesiser(
-            payload["input"],
-            forward_params={"speaker_embeddings": speaker_embedding},
-        )
-
-        sf.write(file_path, speech["audio"], samplerate=speech["sampling_rate"])
-
-        async with aiofiles.open(file_body_path, "w") as f:
-            await f.write(json.dumps(payload))
-
-        return FileResponse(file_path)
 
 
 def transcribe(request: Request, file_path):
@@ -526,7 +484,7 @@ def transcribe(request: Request, file_path):
                 except Exception:
                     detail = f"External: {e}"
 
-            raise Exception(detail if detail else "Open WebUI: Server Connection Error")
+            raise Exception(detail if detail else "Server Connection Error")
 
 
 def compress_audio(file_path):
@@ -555,8 +513,10 @@ async def transcription(
 ):
     log.info(f"file.content_type: {file.content_type}")
 
-    credit_service = CreditService()
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    subscription = payments_service.get_subscription(user.company_id)
+
+    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     if file.content_type not in ["audio/mpeg", "audio/wav", "audio/ogg", "audio/x-m4a"]:
         raise HTTPException(
@@ -586,17 +546,18 @@ async def transcription(
 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=ERROR_MESSAGES.DEFAULT(e),
+                    detail=ERROR_MESSAGES.DEFAULT(),
                 )
 
-            audio = AudioSegment.from_file(file_path)
-            duration_in_seconds = len(audio) / 1000  # pydub uses milliseconds
-            duration_in_minutes = duration_in_seconds / 60  # Calculate exact minutes as a float
+            if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                audio = AudioSegment.from_file(file_path)
+                duration_in_seconds = len(audio) / 1000  # pydub uses milliseconds
+                duration_in_minutes = duration_in_seconds / 60  # Calculate exact minutes as a float
+
+                await credit_service.subtract_credits_by_user_for_stt(user, request.app.state.config.STT_MODEL, duration_in_minutes)
 
             data = transcribe(request, file_path)
             file_path = file_path.split("/")[-1]
-
-            await credit_service.subtract_credits_by_user_for_stt(user, request.app.state.config.STT_MODEL, duration_in_minutes)
 
             return {**data, "filename": file_path}
         except Exception as e:
@@ -604,7 +565,7 @@ async def transcription(
 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT(e),
+                detail=ERROR_MESSAGES.DEFAULT(),
             )
 
     except Exception as e:
@@ -612,7 +573,7 @@ async def transcription(
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
+            detail=ERROR_MESSAGES.DEFAULT(),
         )
 
 

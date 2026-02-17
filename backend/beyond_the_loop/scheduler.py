@@ -20,8 +20,26 @@ from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.analytics_service import AnalyticsService
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
+
+
+def _run_credit_recharge_checks():
+    """Execute the credit recharge checks process"""
+    log.info("Starting scheduled credit recharge checks process")
+
+    try:
+        result = payments_service.run_credit_recharge_checks()
+
+        if result["success"]:
+            log.info(f"Credit recharge checks completed successfully: "
+                    f"{result['companies_processed']} companies processed")
+        else:
+            log.error(f"Credit recharge checks failed: {result.get('error', 'Unknown error')}")
+    except Exception as e:
+        log.error(f"Error during scheduled credit recharge checks: {e}", exc_info=True)
+
 
 class TaskScheduler:
     """Background task scheduler for automated processes"""
@@ -35,7 +53,7 @@ class TaskScheduler:
         if self.is_running:
             log.warning("Scheduler is already running")
             return
-        
+
         try:
             # Configure scheduler with thread pool
             executors = {
@@ -99,6 +117,14 @@ class TaskScheduler:
                 replace_existing=True
             )
 
+            self.scheduler.add_job(
+                func=_run_credit_recharge_checks,
+                trigger=CronTrigger(hour=1, minute=0),  # Daily at 01:00
+                id='daily_credit_recharge_checks',
+                name='Daily Credit Recharge Checks',
+                replace_existing=True
+            )
+
             # Start the scheduler
             self.scheduler.start()
             self.is_running = True
@@ -140,7 +166,7 @@ class TaskScheduler:
                 
         except Exception as e:
             log.error(f"Error during scheduled chat archival: {e}", exc_info=True)
-    
+
     def _run_file_cleanup(self):
         """Execute the daily file cleanup process"""
         log.info("Starting scheduled file cleanup process")

@@ -6,14 +6,13 @@ from typing import Optional
 
 import aiohttp
 import requests
-
 import os
 
+from aiohttp import ClientResponseError
 from fastapi import Depends, HTTPException, Request, APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
-from beyond_the_loop.utils import magic_prompt_util
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
@@ -24,6 +23,7 @@ from beyond_the_loop.config import (
     CACHE_DIR,
 )
 from beyond_the_loop.config import DEFAULT_AGENT_MODEL
+from beyond_the_loop.config import COMPLETION_ERROR_MESSAGE_PROMPT
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
@@ -39,9 +39,12 @@ from open_webui.utils.payload import (
     apply_model_system_prompt_to_body,
 )
 
-from open_webui.utils.auth import get_verified_user
+from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.utils.access_control import has_access
-from beyond_the_loop.services.credit_service import CreditService
+from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
+from beyond_the_loop.socket.main import get_event_emitter
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -52,12 +55,23 @@ log.setLevel(SRC_LOG_LEVELS["OPENAI"])
 #
 ##########################################
 
+session: aiohttp.ClientSession | None = None
+
+async def _get_session() -> aiohttp.ClientSession:
+    global session
+    if session is None or session.closed:
+        session = aiohttp.ClientSession(
+            trust_env=True,
+            timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
+            connector=aiohttp.TCPConnector(limit=100)  # limits concurrent connections
+        )
+    return session
 
 async def send_get_request(url, key=None):
     timeout = aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST)
     try:
-        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
-            async with session.get(
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as s:
+            async with s.get(
                 url, headers={**({"Authorization": f"Bearer {key}"} if key else {})}
             ) as response:
                 return await response.json()
@@ -68,13 +82,10 @@ async def send_get_request(url, key=None):
 
 
 async def cleanup_response(
-    response: Optional[aiohttp.ClientResponse],
-    session: Optional[aiohttp.ClientSession],
+    response: Optional[aiohttp.ClientResponse]
 ):
     if response:
         response.close()
-    if session:
-        await session.close()
 
 
 ##########################################
@@ -83,7 +94,7 @@ async def cleanup_response(
 #
 ##########################################
 
-async def get_all_models(request: Request):
+async def get_all_models():
     """
     Fetch all available models from the litellm server.
     Returns the models in OpenAI API format.
@@ -123,7 +134,6 @@ router = APIRouter()
 
 @router.post("/audio/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
-    idx = None
     try:
         body = await request.body()
         name = hashlib.sha256(body).hexdigest()
@@ -186,28 +196,37 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             raise HTTPException(
                 status_code=r.status_code if r else 500,
-                detail=detail if detail else "Open WebUI: Server Connection Error",
+                detail=detail if detail else "Server Connection Error",
             )
 
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
-
-@router.post("/chat/completions")
 async def generate_chat_completion(
-        form_data: dict, user=Depends(get_verified_user)
+        form_data: dict,
+        user,
+        model
 ):
-    print("NEW CHAT COMPLETION WITH FORM DATA:", form_data)
-
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
+    event_emitter = get_event_emitter(metadata)
+
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
+    if not agent_or_task_prompt:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "generating_response",
+                    "done": False,
+                    "description": "Preparing model request"
+                },
+            }
+        )
 
-    model_info = Models.get_model_by_id(form_data.get("model"))
-
-    if model_info is None:
+    if model is None:
         raise HTTPException(
             status_code=404,
             detail="Model not found. Please check the model ID is correct.",
@@ -215,10 +234,10 @@ async def generate_chat_completion(
 
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
-    if model_info.base_model_id:
-        model_name = model_info.base_model_id if model_info.user_id == "system" else Models.get_model_by_id(model_info.base_model_id).name
+    if model.base_model_id:
+        model_name = model.base_model_id if model.user_id == "system" else Models.get_model_by_id(model.base_model_id).name
     else:
-        model_name = model_info.name
+        model_name = model.name
 
     payload["model"] = model_name
 
@@ -231,24 +250,29 @@ async def generate_chat_completion(
                     if c.get("type") != "image_url"
                 ]
 
-    credit_service = CreditService()
+    subscription = payments_service.get_subscription(user.company_id)
 
-    if has_chat_id or agent_or_task_prompt:
+    if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
-    params = model_info.params.model_dump()
+    params = model.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    if not agent_or_task_prompt and not (
-        model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
-            user.id, type="read", access_control=model_info.access_control
+    # Check model access
+    if not agent_or_task_prompt and not(
+        model.is_active and (user.id == model.user_id or (not model.base_model_id and user.role == "admin") or has_access(
+            user.id, type="read", access_control=model.access_control
         ))
     ):
         raise HTTPException(
             status_code=403,
             detail="Model not found, no access for user",
         )
+
+    # Check model fair usage
+    if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
+        fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
@@ -283,7 +307,6 @@ async def generate_chat_completion(
     payload = json.dumps(payload)
 
     r = None
-    session = None
     streaming = False
     response = None
 
@@ -292,11 +315,33 @@ async def generate_chat_completion(
     last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
-        session = aiohttp.ClientSession(
-            trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
-        )
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Creating session"
+                    },
+                }
+            )
 
-        r = await session.request(
+        s = await _get_session()
+
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Waiting for model response"
+                    },
+                }
+            )
+
+        r = await s.request(
             method="POST",
             url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
             data=payload,
@@ -316,6 +361,17 @@ async def generate_chat_completion(
             },
         )
 
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": True,
+                    },
+                }
+            )
+
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
@@ -333,25 +389,16 @@ async def generate_chat_completion(
                             elif data.get('usage'):
                                 # End of stream
                                 # Add completion to completion table if it's a chat message from the user
-                                if has_chat_id:
-                                    input_tokens = data.get('usage', {}).get('prompt_tokens', 0)
-                                    output_tokens = data.get('usage', {}).get('completion_tokens', 0)
+                                credit_cost_streaming = 0
 
-                                    # Safely access nested dictionary values
-                                    completion_tokens_details = data.get('usage', {}).get(
-                                        'completion_tokens_details', {})
-                                    reasoning_tokens = 0
-                                    if completion_tokens_details is not None:
-                                        reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
+                                if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
 
-                                    with_search_query_cost = "Perplexity" in model_name
-
-                                    credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
-
-                                    Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, full_response))
+                                Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
 
                         except json.JSONDecodeError:
                             print(f"\n{chunk_str}")
+
                     yield chunk
 
             return StreamingResponse(
@@ -359,40 +406,58 @@ async def generate_chat_completion(
                 status_code=r.status,
                 headers=dict(r.headers),
                 background=BackgroundTask(
-                    cleanup_response, response=r, session=session
+                    cleanup_response, response=r
                 ),
             )
         else:
             try:
                 response = await r.json()
             except Exception as e:
-                log.error(e)
+                print(e)
                 response = await r.text()
 
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except ClientResponseError as e:
+                print(e)
+                if agent_or_task_prompt:
+                    raise e
 
-            if has_chat_id:
-                # Add completion to completion table
-                response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+                model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
-                input_tokens = response.get('usage', {}).get('prompt_tokens', 0)
-                output_tokens = response.get('usage', {}).get('completion_tokens', 0)
+                form_data = {
+                    "messages": [
+                        {
+                            "role": "assistant",
+                            "content": COMPLETION_ERROR_MESSAGE_PROMPT
+                        },
+                        {
+                            "role": "user",
+                            "content": str(response)
+                        }],
+                    "stream": False,
+                    "metadata": {
+                        "chat_id": None,
+                        "agent_or_task_prompt": True
+                    },
+                    "temperature": 0.0
+                }
 
-                # Safely access nested dictionary values
-                completion_tokens_details = response.get('usage', {}).get('completion_tokens_details', {})
-                reasoning_tokens = 0
-                if completion_tokens_details is not None:
-                    reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
+                return await generate_chat_completion(form_data, user, model)
 
-                with_search_query_cost = "Perplexity" in model_name
+            credit_cost = 0
 
-                credit_cost = await credit_service.subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
+            # Add completion to completion table
+            response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
-                Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, response_content))
+            if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
+
+            Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, response_content))
 
             return response
     except Exception as e:
-        log.exception(e)
+        print(e)
 
         detail = None
         if isinstance(response, dict):
@@ -403,16 +468,15 @@ async def generate_chat_completion(
 
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail=detail if detail else "Open WebUI: Server Connection Error",
+            detail=detail if detail else "Server Connection Error",
         )
     finally:
-        if not streaming and session:
-            if r:
+        if not streaming:
+            if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
-            await session.close()
 
 @router.post("/magicPrompt")
-async def generate_prompt(request: Request, form_data: dict, user=Depends(get_verified_user)):
+async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
     model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
     thore_test = """
@@ -553,7 +617,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
     """
 
     form_data = {
-        "model": model.id,
         "messages": [
             {
                 "role": "assistant",
@@ -571,6 +634,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(form_data, user)
+    message = await generate_chat_completion(form_data, user, model)
 
     return message['choices'][0]['message']['content']

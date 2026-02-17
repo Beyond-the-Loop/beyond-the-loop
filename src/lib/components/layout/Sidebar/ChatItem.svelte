@@ -209,7 +209,7 @@
 
 <DeleteConfirmDialog
 	bind:show={showDeleteConfirm}
-	title={$i18n.t('Delete chat?')}
+	title={`${$i18n.t('Delete chat')}?`}
 	on:confirm={() => {
 		deleteChatHandler(id);
 	}}

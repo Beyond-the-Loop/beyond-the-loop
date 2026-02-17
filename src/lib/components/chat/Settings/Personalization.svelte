@@ -1,10 +1,7 @@
 <script lang="ts">
-	import { getBackendConfig } from '$lib/apis';
-	import { setDefaultPromptSuggestions } from '$lib/apis/configs';
 	import Switch from '$lib/components/common/Switch.svelte';
-	import { config, models, settings, user } from '$lib/stores';
+	import { settings } from '$lib/stores';
 	import { createEventDispatcher, onMount, getContext, tick } from 'svelte';
-	import { toast } from 'svelte-sonner';
 	import ManageModal from './Personalization/ManageModal.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	const dispatch = createEventDispatcher();
@@ -63,15 +60,6 @@
 					"You can personalize your interactions with LLMs by adding memories through the 'Manage' button below, making them more helpful and tailored to you."
 				)}
 			</div>
-
-			<!-- <div class="mt-3">
-				To understand what LLM remembers or teach it something new, just chat with it:
-
-				<div>- “Remember that I like concise responses.”</div>
-				<div>- “I just got a puppy!”</div>
-				<div>- “What do you remember about me?”</div>
-				<div>- “Where did we leave off on my last project?”</div>
-			</div> -->
 		</div>
 
 		<div class="mt-3 mb-1 ml-1">

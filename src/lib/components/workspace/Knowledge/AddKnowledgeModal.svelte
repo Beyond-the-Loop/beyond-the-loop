@@ -105,13 +105,13 @@
 									<img
 										class="w-3 h-3 rounded-full mr-1"
 										src={knowledge?.user?.profile_image_url}
-										alt={knowledge?.user?.first_name ?? knowledge?.user?.email ?? $i18n.t('Deleted User')}
+										alt={knowledge?.user?.first_name ?? knowledge?.user?.email ?? $i18n.t('Deleted user')}
 									/>
 								{/if}
 
 								{$i18n.t('{{name}}', {
 									name: capitalizeFirstLetter(
-										(knowledge?.user?.first_name && knowledge?.user?.last_name) ? `${knowledge?.user?.first_name} ${knowledge?.user?.last_name}` : knowledge?.user?.email ?  knowledge?.user?.email : $i18n.t('Deleted User')
+										(knowledge?.user?.first_name && knowledge?.user?.last_name) ? `${knowledge?.user?.first_name} ${knowledge?.user?.last_name}` : knowledge?.user?.email ?  knowledge?.user?.email : $i18n.t('Deleted user')
 									)
 								})}
 							</div>

@@ -12,6 +12,7 @@ WORKDIR /app
 
 # Set the Node.js memory limit to 32GB
 ENV NODE_OPTIONS="--max-old-space-size=32768"
+ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -58,7 +59,6 @@ RUN pip3 install -r requirements.txt --no-cache-dir
 
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
-COPY --chown=$UID:$GID --from=build /app/CHANGELOG.md /app/CHANGELOG.md
 COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 
 # copy backend files
@@ -66,6 +66,8 @@ COPY --chown=$UID:$GID ./backend .
 
 RUN apt-get update && apt-get install -y \
     curl jq bash ffmpeg \
+    poppler-utils \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8080

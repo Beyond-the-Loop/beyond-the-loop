@@ -87,11 +87,11 @@
 			legacy_documents.length > 0
 				? [
 						{
-							name: 'All Documents',
+							name: 'All documents',
 							legacy: true,
 							type: 'collection',
 							description: 'Deprecated (legacy collection), please create a new knowledge base.',
-							title: $i18n.t('All Documents'),
+							title: $i18n.t('All documents'),
 							collection_names: legacy_documents.map((item) => item.id)
 						},
 
