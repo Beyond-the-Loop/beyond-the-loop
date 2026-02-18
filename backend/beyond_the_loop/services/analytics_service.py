@@ -222,8 +222,10 @@ class AnalyticsService:
                 db.query(
                     Completion.assistant,
                     func.sum(Completion.credits_used).label("total_credits_used"),
-                    func.count(Completion.id).label("message_count")
+                    func.count(Completion.id).label("message_count"),
+                    Model.meta,
                 )
+                .outerjoin(Model, Completion.assistant == Model.name)
                 .filter(
                     Completion.assistant != None,
                     Completion.created_at >= int(start_date_dt.timestamp()),
@@ -232,7 +234,8 @@ class AnalyticsService:
                     Completion.from_agent == False,
                 )
                 .group_by(
-                    Completion.assistant
+                    Completion.assistant,
+                    Model.meta,
                 )
                 .order_by(func.sum(Completion.credits_used).desc())
                 .all()

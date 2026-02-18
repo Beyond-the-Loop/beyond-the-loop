@@ -78,6 +78,7 @@ class TopAssistantItem(BaseModel):
     assistant: str
     total_credits_used: float
     message_count: int
+    profile_image_url: Optional[str] = None
 
 class TopAssistantsResponse(BaseModel):
     top_assistants: List[TopAssistantItem]
@@ -90,11 +91,13 @@ class TopAssistantsResponse(BaseModel):
                     assistant=assistant,
                     total_credits_used=total_credits_used,
                     message_count=message_count,
+                    profile_image_url=meta.get('profile_image_url') if isinstance(meta, dict) else None,
                 )
                 for (
                     assistant,
                     total_credits_used,
                     message_count,
+                    meta,
                 ) in top_assistants
             ]
         )
