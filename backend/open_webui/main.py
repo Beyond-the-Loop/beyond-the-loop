@@ -588,7 +588,6 @@ async def get_base_models(user=Depends(get_admin_user)):
 
     return {"data": base_models}
 
-
 # Public API
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):

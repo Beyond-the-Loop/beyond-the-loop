@@ -250,7 +250,7 @@ async def chat_image_generation_handler(
                 request,
                 {
                     "model": form_data["model"],
-                    "messages": messages,
+                    "messages": messages
                 },
                 user,
             )
@@ -282,7 +282,11 @@ async def chat_image_generation_handler(
 
     try:
         images = await image_generations(
-            form_data=GenerateImageForm(**{"prompt": prompt, "input_image_path": input_image_path}),
+            form_data=GenerateImageForm(**{
+                "prompt": prompt,
+                "input_image_path": input_image_path,
+                "images": form_data["metadata"]["images"]
+            }),
             user=user,
         )
 
@@ -803,6 +807,30 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
     if features:
+        form_data["metadata"]["images"] = []
+
+        # Add images to form_data metadata
+        for message in form_data["messages"]:
+            if "content" in message and isinstance(message["content"], list):
+                for c in message["content"]:
+                    if c.get("type") == "image_url":
+                        url = c.get("image_url", {}).get("url")
+
+                        if url:
+                            ext = get_extension_from_base64(url)
+                            filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                            parts = url.split(',')
+                            if len(parts) > 1:
+                                url = parts[1]
+                            else:
+                                url = parts[0]
+
+                            form_data["metadata"]["images"].append({
+                                "name": filename,
+                                "content": url
+                            })
+
         if "image_generation" in features and features["image_generation"]:
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
@@ -815,29 +843,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
             form_data["model"] = model.id
-
-            form_data["metadata"]["images"] = []
-
-            for message in form_data["messages"]:
-                if "content" in message and isinstance(message["content"], list):
-                    for c in message["content"]:
-                        if c.get("type") == "image_url":
-                            url = c.get("image_url", {}).get("url")
-
-                            if url:
-                                ext = get_extension_from_base64(url)
-                                filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                                parts = url.split(',')
-                                if len(parts) > 1:
-                                    url = parts[1]
-                                else:
-                                    url = parts[0]
-
-                                form_data["metadata"]["images"].append({
-                                    "name": filename,
-                                    "content": url
-                                })
 
             code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
             form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
