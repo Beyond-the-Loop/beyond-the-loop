@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from beyond_the_loop.models.analytics import EngagementScoreResponse, TopModelsResponse, TopUsersResponse, TopAssistantsResponse, TotalMessagesResponse, PowerUsersResponse
 from open_webui.internal.db import get_db
 from beyond_the_loop.models.completions import Completion
+from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import (
     User,
     get_users_by_company,
@@ -70,7 +71,9 @@ class AnalyticsService:
                     Completion.model,
                     func.sum(Completion.credits_used).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
+                    Model.meta,
                 )
+                .outerjoin(Model, Completion.model == Model.name)
                 .filter(
                     Completion.assistant == None,
                     Completion.created_at >= int(start_date_dt.timestamp()),
@@ -79,7 +82,8 @@ class AnalyticsService:
                     Completion.from_agent == False,
                 )
                 .group_by(
-                    Completion.model
+                    Completion.model,
+                    Model.meta
                 )
                 .order_by(
                     func.sum(Completion.credits_used).desc()
@@ -246,6 +250,13 @@ class AnalyticsService:
             company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_user_ids]
 
+            # Find the first usage timestamp for this company
+            first_usage_ts = (
+                db.query(func.min(Completion.created_at))
+                .filter(Completion.user_id.in_(company_user_ids))
+                .scalar()
+            )
+
             monthly_results = (
                 db.query(
                     func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
@@ -278,6 +289,12 @@ class AnalyticsService:
             yearly_messages = {row.year: row.total_messages for row in yearly_results}
 
         months = AnalyticsService._generate_month_range(start_date_dt, end_date_dt)
+
+        # Trim months to start from the month of first usage
+        if first_usage_ts:
+            first_usage_month = datetime.fromtimestamp(first_usage_ts).strftime('%Y-%m')
+            months = [m for m in months if m >= first_usage_month]
+
         monthly_data = {month: monthly_messages.get(month, 0) for month in months}
 
         if yearly_messages:
@@ -532,13 +549,20 @@ class AnalyticsService:
             HTTPException: If start_date is after end_date
         """
         current_date = datetime.now()
-        one_year_ago = current_date.replace(day=1) - timedelta(days=365)
+        # Calculate 11 months ago (12 months total including current month)
+        first_of_month = current_date.replace(day=1)
+        m = first_of_month.month - 11
+        y = first_of_month.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        twelve_months_start = datetime(y, m, 1)
 
         # Parse start_date
         if start_date:
             start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
         else:
-            start_date_dt = one_year_ago  # Default to one year ago
+            start_date_dt = twelve_months_start  # Default to 12 months ago
 
         # Parse end_date
         if end_date:

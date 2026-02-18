@@ -3,8 +3,9 @@ from typing import List, Optional
 
 class TopModelItem(BaseModel):
     model: str
-    credits_used: int
+    credits_used: float
     message_count: int
+    profile_image_url: Optional[str] = None
 
 class TopModelsResponse(BaseModel):
     items: List[TopModelItem]
@@ -17,8 +18,9 @@ class TopModelsResponse(BaseModel):
                     model=model,
                     credits_used=credits_used,
                     message_count=message_count,
+                    profile_image_url=meta.get('profile_image_url') if isinstance(meta, dict) else None,
                 )
-                for model, credits_used, message_count in top_models
+                for model, credits_used, message_count, meta in top_models
             ]
         )
 
