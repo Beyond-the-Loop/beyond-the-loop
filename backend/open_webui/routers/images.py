@@ -1,4 +1,5 @@
 import base64
+import io
 import logging
 import mimetypes
 import os
@@ -34,6 +35,7 @@ router = APIRouter()
 class GenerateImageForm(BaseModel):
     prompt: str
     input_image_path: Optional[str] = None
+    images: Optional[list] = None
 
 
 def save_b64_image(b64_str):
@@ -99,6 +101,17 @@ def save_url_image(url, headers=None):
         log.exception(f"Error saving image: {e}")
         return None
 
+def images_to_bytes(images_list):
+    if not images_list:
+        return []
+
+    bytes_list = []
+    for img in images_list:
+        b64_data = img["content"]
+        if "," in b64_data:
+            b64_data = b64_data.split(",")[1]
+        bytes_list.append(base64.b64decode(b64_data))
+    return bytes_list
 
 async def image_generations(
     form_data: GenerateImageForm,
@@ -110,20 +123,27 @@ async def image_generations(
         if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
             await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
+        image_bytes_list = images_to_bytes(form_data.images) if form_data.images else []
+
         client = OpenAI(
             base_url=os.getenv("OPENAI_API_BASE_URL"),
             api_key=os.getenv("OPENAI_API_KEY")
         )
 
-        print(form_data.input_image_path)
-
         if form_data.input_image_path:
-            with open(form_data.input_image_path, "rb") as image_file:
+            with open(form_data.input_image_path, "rb") as f:
+                image_bytes_list.insert(0, f)
                 response = client.images.edit(
                     model="Nano Banana",
                     prompt=form_data.prompt,
-                    image=image_file,
+                    image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
                 )
+        elif image_bytes_list:
+            response = client.images.edit(
+                model="Nano Banana",
+                prompt=form_data.prompt,
+                image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
+            )
         else:
             response = client.images.generate(
                 model="Nano Banana",
