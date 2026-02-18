@@ -12,7 +12,6 @@
 
 	import Prompts from './Commands/Prompts.svelte';
 	import Knowledge from './Commands/Knowledge.svelte';
-	import Models from './Commands/Models.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
 	export let prompt = '';
@@ -33,7 +32,7 @@
 	$: command = prompt?.split('\n').pop()?.split(' ')?.pop() ?? '';
 
 	let show = false;
-	$: show = ['/', '#', '@'].includes(command?.charAt(0)) || '\\#' === command.slice(0, 2);
+	$: show = ['/', '#'].includes(command?.charAt(0)) || '\\#' === command.slice(0, 2);
 
 	$: if (show) {
 		init();
@@ -91,19 +90,6 @@
 					];
 
 					dispatch('select');
-				}}
-			/>
-		{:else if command?.charAt(0) === '@'}
-			<Models
-				bind:this={commandElement}
-				{command}
-				on:select={(e) => {
-					prompt = removeLastWordFromString(prompt, command);
-
-					dispatch('select', {
-						type: 'model',
-						data: e.detail
-					});
 				}}
 			/>
 		{/if}

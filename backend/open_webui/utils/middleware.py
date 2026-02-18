@@ -700,7 +700,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active else (form_data, True)
+        has_user_collections = any(f.get("type") == "collection" for f in files)
+        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active and not has_user_collections else (form_data, True)
 
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")

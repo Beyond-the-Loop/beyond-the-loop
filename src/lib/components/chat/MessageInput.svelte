@@ -30,6 +30,7 @@
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
 	import FilesOverlay from './MessageInput/FilesOverlay.svelte';
+	import Commands from './MessageInput/Commands.svelte';
 
 	import RichTextInput from '../common/RichTextInput.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
@@ -634,7 +635,7 @@
 						</div>
 					{/if}
 
-					<!-- <Commands
+					<Commands
 						bind:this={commandsElement}
 						bind:prompt
 						bind:files
@@ -642,16 +643,10 @@
 							dispatch('upload', e.detail);
 						}}
 						on:select={(e) => {
-							const data = e.detail;
-
-							if (data?.type === 'model') {
-								atSelectedModel = data.data;
-							}
-
 							const chatInputElement = document.getElementById('chat-input');
 							chatInputElement?.focus();
 						}}
-					/> -->
+					/>
 				</div>
 			</div>
 		</div>
