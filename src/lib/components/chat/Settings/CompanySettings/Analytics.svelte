@@ -85,6 +85,8 @@
 	let chartMessagesData = null;
 	let chartMessagesDataYearly = null;
 
+	let rowsPerPage = 5;
+
 	const token = localStorage.token;
 	const now = new Date();
 	const year = now.getFullYear();
@@ -157,7 +159,10 @@
 
 	$: {
 		if (analytics?.topUsers != null) {
-			rows = top_by_messages();
+			// rows = top_by_messages(analytics?.topUsers?.top_users);
+		}
+		if (analytics?.topModels != null) {
+			modelRows = top_by_messages(analytics?.topModels.items);
 		}
 		if (analytics?.topAssistants != null) {
 			assistantRows = analytics?.topAssistants.top_assistants;
@@ -296,9 +301,10 @@
 		message_count: 156,
 		assistant_count: 1
 	};
-	const usersList = [Max, Lisa, Anna, Tom, Sarah];
+	const usersList = [Max, Lisa, Anna, Tom, Sarah, Max, Lisa, Anna];
 	let rows: User[] = usersList;
 	let assistantRows = null;
+	let modelRows = null;
 	type SortKey = 'user' | 'credits' | 'messages';
 	type SortDir = 'asc' | 'desc';
 	let sortKey: SortKey | null = null;
@@ -311,27 +317,27 @@
 			sortDir = 'asc';
 		}
 		if (key === 'credits') {
-			rows = top_by_credits();
+			rows = top_by_credits(rows);
 		} else if (key === 'messages') {
-			rows = top_by_messages();
+			rows = top_by_messages(rows);
 		} else if (key === 'user') {
-			rows = top_alphabetically();
+			rows = top_alphabetically(rows);
 		}
 	}
-	function top_by_credits() {
-		return [...analytics?.topUsers?.top_users].sort((a, b) => {
+	function top_by_credits(rowsToSort) {
+		return [...rowsToSort].sort((a, b) => {
 			return b.total_credits_used - a.total_credits_used;
 		});
 	}
 
-	function top_by_messages() {
-		return [...analytics?.topUsers?.top_users].sort((a, b) => {
+	function top_by_messages(rowsToSort) {
+		return [...rowsToSort].sort((a, b) => {
 			return b.message_count - a.message_count;
 		});
 	}
 
-	function top_alphabetically() {
-		return [...analytics?.topUsers?.top_users].sort((a, b) => {
+	function top_alphabetically(rowsToSort) {
+		return [...rowsToSort].sort((a, b) => {
 			const lastNameCompare = a.last_name.localeCompare(b.last_name);
 			if (lastNameCompare !== 0) {
 				return lastNameCompare;
@@ -488,7 +494,6 @@
 					<AssistantsIcon className="bg-blue-700 size-5 rounded-md text-white p-1" />
 					<Tooltip content={$i18n.t('The number of assistants created within the company.')}>
 						<!-- zB offset={[0, -48]} mitgeben -->
-
 						<div
 							class="cursor-pointer w-[12px] h-[12px] rounded-full text-gray-700 dark:text-lightGray-200"
 						>
@@ -590,7 +595,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each rows as row}
+						{#each rows.slice(0, rowsPerPage) as row}
 							<tr class="hover:bg-gray-50">
 								<td class="w-8 border-t border-1 border-gray-200/60">
 									<div class="mx-2 text-slate-500/90">
@@ -634,9 +639,12 @@
 								<div class="flex flex-row justify-between items-center">
 									<div class="flex flex-row items-center">
 										<div class="text-gray-600 pr-2 text-2xs">Rows per page</div>
-										<select class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2">
-											<option selected>5</option> <option value="10">10</option>
-											<option value="15">15</option> <option value="20">20</option>
+										<select
+											bind:value={rowsPerPage}
+											class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2"
+										>
+											<option value={5}>5</option> <option value={10}>10</option>
+											<option value={15}>15</option> <option value={20}>20</option>
 										</select>
 									</div>
 									<div class="flex flex-row items-center">
@@ -660,41 +668,154 @@
 					</tfoot>
 				</table>
 			</Tabs.Content>
-			<Tabs.Content value="models" class="select-none pt-3"></Tabs.Content>
-			<Tabs.Content value="assistants" class="select-none pt-3">
+			<Tabs.Content value="models" class="select-none pt-3">
 				<table class="w-full ring-1 ring-gray-200 rounded-2xl bg-lightGray-300 text-xs table-auto">
 					<thead class="text-slate-500/90">
 						<tr>
-							<th class="w-4 font-medium">Rank</th>
-
-							<th
-								class="p-2 text-left font-medium relative hover:opacity-90 cursor-pointer select-none"
-							>
-								Assistants
-							</th>
+							<th class="pl-5 p-2 text-left font-medium select-none"> Model </th>
 
 							<th
 								class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer select-none"
+								on:click={() => toggleSort('credits')}
+							>
+								Credits used
+
+								<div class="absolute -right-2 top-[12px]">
+									{#if sortKey === 'credits'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
+								</div>
+							</th>
+
+							<th
+								class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer pr-5 select-none"
+								on:click={() => toggleSort('messages')}
 							>
 								Messages sent
+
+								<div class="absolute right-1 top-[12px]">
+									{#if sortKey === 'messages'}
+										{#if sortDir === 'asc'}
+											<ChevronDown className="size-3" strokeWidth="2.5" />
+										{:else}
+											<ChevronUp className="size-3" strokeWidth="2.5" />
+										{/if}
+									{/if}
+								</div>
 							</th>
 						</tr>
 					</thead>
 					<tbody>
-						{#each assistantRows as row}
+						{#each modelRows.slice(0, rowsPerPage) as row}
 							<tr class="hover:bg-gray-50">
-								<td class="w-8 border-t border-1 border-gray-200/60">
-									1
-									<!-- (row index) -->
-								</td>
-								<td class="border-t border-1 border-gray-200/60 p-2">
+								<td class="pl-5 border-t border-1 border-gray-200/60 p-2">
 									<div class="flex flex-row items-center">
 										<img
 											class="rounded-full size-6 object-cover mr-2.5"
-											src={getModelIcon(row.assistant)}
+											src={getModelIcon(row.model)}
 											alt="model"
 										/>
 										<div class="text-xs font-semibold dark:text-customGray-100">
+											{row.model}
+										</div>
+									</div>
+								</td>
+								<td
+									class="border-t border-1 border-gray-200/60 p-2 text-right min-w-[100px] font-semibold"
+									>€{row.credits_used.toFixed(2)}</td
+								>
+								<td
+									class="border-t border-1 border-gray-200/60 p-2 pr-5 text-right min-w-[150px] font-semibold"
+									>{row.message_count}</td
+								>
+							</tr>
+						{/each}
+					</tbody>
+					<tfoot>
+						<tr class="border-t border-1 border-gray-200/60">
+							<td colspan="4" class="p-2">
+								<div class="flex flex-row justify-between items-center">
+									<div class="flex flex-row items-center">
+										<div class="text-gray-600 pr-2 text-2xs">Rows per page</div>
+										<select
+											bind:value={rowsPerPage}
+											class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2"
+										>
+											<option value={5}>5</option> <option value={10}>10</option>
+											<option value={15}>15</option> <option value={20}>20</option>
+										</select>
+									</div>
+									<div class="flex flex-row items-center">
+										<button
+											class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
+											disabled><ChevronLeft /></button
+										>
+										<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
+											>1</button
+										>
+										<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button
+										>
+										<button
+											class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
+											><ChevronRight className="size-3" strokeWidth="2.5" /></button
+										>
+									</div>
+								</div>
+							</td>
+						</tr>
+					</tfoot>
+				</table>
+			</Tabs.Content>
+			<Tabs.Content value="assistants" class="select-none pt-3">
+				<table class="w-full ring-1 ring-gray-200 rounded-2xl bg-lightGray-300 text-xs table-auto">
+					<thead class="text-slate-500/90">
+						<tr>
+							<th class="p-2 text-left font-medium select-none pl-5">Rank</th>
+
+							<th class="p-2 text-left font-medium select-none"> Assistants </th>
+
+							<th class="p-2 text-right font-medium select-none pr-5"> Messages sent </th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each assistantRows as row, index}
+							<tr class="hover:bg-gray-50">
+								<td class="border-t border-1 p-2 border-gray-200/60 pl-5">
+									<!-- (row index) -->
+									{#if index + 1 == 1}
+										<div
+											class="rounded-full bg-blue-700 size-6 font-semibold flex items-center justify-center text-white"
+										>
+											1
+										</div>
+									{:else}
+										<div
+											class="rounded-full bg-lightGray-300 size-6 font-semibold flex items-center justify-center text-slate-500/90"
+										>
+											{index + 1}
+										</div>
+									{/if}
+								</td>
+								<td class="border-t border-1 border-gray-200/60 p-2">
+									<div class="flex flex-row items-center">
+										{#if !row.profile_image_url || row.profile_image_url.length > 5}
+											<img
+												src={row.profile_image_url}
+												alt="modelfile profile"
+												class="rounded-md size-6 object-cover mr-2.5"
+											/>
+										{:else}
+											<div
+												class="text-[1.0rem] bg-blue-400/20 flex justify-center items-center size-6 rounded-md object-cover mr-2.5"
+											>
+												{row.profile_image_url}
+											</div>
+										{/if}
+										<div class="text-xs font-medium dark:text-customGray-100">
 											{row.assistant}
 										</div>
 									</div>
