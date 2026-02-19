@@ -1621,10 +1621,6 @@
 				history.messages[responseMessageId] = responseMessage;
 				history.currentId = responseMessageId;
 				return null;
-			})
-			.finally(() => {
-				webSearchEnabled = false;
-				imageGenerationEnabled = false;
 			});
 
 		if (res) {

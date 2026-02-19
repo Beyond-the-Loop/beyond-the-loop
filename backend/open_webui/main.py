@@ -29,13 +29,8 @@ from starlette.responses import Response
 
 from beyond_the_loop.config import (
     # Image
-    BLACK_FOREST_LABS_API_KEY,
     ENABLE_IMAGE_GENERATION,
-    ENABLE_IMAGE_PROMPT_GENERATION,
-    IMAGE_GENERATION_ENGINE,
-    IMAGE_GENERATION_MODEL,
-    IMAGE_SIZE,
-    IMAGE_STEPS,
+
     # Audio
     AUDIO_STT_ENGINE,
     AUDIO_STT_MODEL,
@@ -369,16 +364,7 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
 #
 ########################################
 
-app.state.config.IMAGE_GENERATION_ENGINE = IMAGE_GENERATION_ENGINE
 app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
-app.state.config.ENABLE_IMAGE_PROMPT_GENERATION = ENABLE_IMAGE_PROMPT_GENERATION
-
-app.state.config.IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODEL
-
-app.state.config.BLACK_FOREST_LABS_API_KEY = BLACK_FOREST_LABS_API_KEY
-
-app.state.config.IMAGE_SIZE = IMAGE_SIZE
-app.state.config.IMAGE_STEPS = IMAGE_STEPS
 
 ########################################
 #
@@ -601,7 +587,6 @@ async def get_base_models(user=Depends(get_admin_user)):
                                               "Perplexity Sonar Reasoning Pro")]
 
     return {"data": base_models}
-
 
 # Public API
 @app.post("/api/openai/chat/completions")
