@@ -165,7 +165,7 @@ async def update_profile(
         if user:
             return user
         else:
-            raise HTTPException(400, detail=ERROR_MESSAGES.DEFAULT())
+            raise HTTPException(400, detail=ERROR_MESSAGES.DEFAULT)
     else:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
