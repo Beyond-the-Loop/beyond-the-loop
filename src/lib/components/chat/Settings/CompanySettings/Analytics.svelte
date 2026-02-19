@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 	import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { WEBUI_BASE_URL } from '$lib/constants';
@@ -9,22 +9,28 @@
 	import { getMonths } from '$lib/utils';
 	import { onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import dayjs from 'dayjs';
-	import { getTopModels } from '$lib/apis/analytics';
+	import {
+		getAdoptionRate,
+		getPowerUsers,
+		getSavedTimeInSeconds,
+		getTopModels, getTopUsers, getTotalAssistants, getTotalBilling, getTotalChats,
+		getTotalMessages,
+		getTotalUsers
+	} from '$lib/apis/analytics';
 	import { getMonthRange, getPeriodRange } from '$lib/utils';
+	import { onMount } from 'svelte';
 
 	const i18n = getContext('i18n');
-	export let analytics = {};
-	export let analyticsLoading = false;
+	export let analyticsLoading = true;
 	let activeTab = 'messages';
 
 	let showUsersSortDropdown = false;
 	let usersSortRef;
 
 	let sortOptions = [
-		{ value: 'credits', label: 'By Credits Used' },
-		{ value: 'assistants', label: 'By Assistants Created' },
-		{ value: 'messages', label: 'By Messages Sent' }
+		{ value: 'credits', label: 'By credits used' },
+		{ value: 'assistants', label: 'By assistants created' },
+		{ value: 'messages', label: 'By messages sent' }
 	];
 	let selectedSortOrder = sortOptions[0];
 
@@ -33,19 +39,19 @@
 
 	const periodOptions = [
 		{
-			label: 'This Month',
+			label: 'This month',
 			value: 'this_month'
 		},
 		{
-			label: 'Past 30 Days',
+			label: 'Past 30 days',
 			value: 'past_30_days'
 		},
 		{
-			label: 'Past 3 Months',
+			label: 'Past 3 months',
 			value: 'past_3_months'
 		},
 		{
-			label: 'Past Year',
+			label: 'Past year',
 			value: 'past_year'
 		}
 	]
@@ -55,12 +61,64 @@
 	let chartChatsData = null;
 
 	let users = [];
+
+	const token = localStorage.token;
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = now.getMonth() + 1;
+	const { start, end } = getMonthRange(year, month);
+
+	let analytics = {};
+
+	onMount(async () => {
+		try {
+			const [
+				topModels,
+				totalUsers,
+				totalMessages,
+				adoptionRate,
+				powerUsers,
+				savedTime,
+				topUsers,
+				totalBilling,
+				totalChats,
+				totalAssistants
+			] = await Promise.allSettled([
+				getTopModels(token, start, end),
+				getTotalUsers(token),
+				getTotalMessages(token),
+				getAdoptionRate(token),
+				getPowerUsers(token),
+				getSavedTimeInSeconds(token),
+				getTopUsers(token, start, end),
+				getTotalBilling(token),
+				getTotalChats(token),
+				getTotalAssistants(token),
+			]);
+
+			analytics = {
+				topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
+				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
+				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
+				adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
+				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
+				savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
+				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
+				totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
+				totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
+				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
+			}
+		} catch (error) {
+			console.error('Error fetching analytics:', error);
+		} finally {
+			analyticsLoading = false;
+		}
+	})
+
 	$: {
 		if (analytics?.topUsers?.top_by_credits?.length > 0) {
 			users = analytics?.topUsers?.top_by_credits;
-		} 
-	}
-	$: {
+		}
 		if (analytics?.totalMessages?.monthly_messages) {
 			chartMessagesData = {
 				labels: analytics?.totalMessages?.monthly_messages
@@ -95,8 +153,6 @@
 		}
 	}
 
-	
-
 	const chartOptions = {
 		responsive: true,
 		plugins: {
@@ -122,7 +178,7 @@
 			class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 		>
 			<div class="flex w-full justify-between items-center">
-				<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Key Summary')}</div>
+				<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Key summary')}</div>
 			</div>
 		</div>
 		<div class="grid grid-cols-2 md:grid-cols-4 gap-[6px]">
@@ -130,7 +186,7 @@
 				<div class="text-2xl text-lightGray-100 dark:text-customGray-100 mb-2.5">
 					{analytics?.totalUsers?.total_users}
 				</div>
-				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Total Users')}</div>
+				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Total users')}</div>
 				<Tooltip content={$i18n.t('The total number of users.')}>
 					<div
 						class="ml-1 cursor-pointer group relative flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
@@ -143,7 +199,7 @@
 				<div class="text-2xl text-lightGray-100 dark:text-customGray-100 mb-2.5">
 					{analytics?.adoptionRate?.adoption_rate}%
 				</div>
-				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Adoption Rate')}</div>
+				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Adoption rate')}</div>
 				<Tooltip content={$i18n.t('The proportion of users who logged in during the last month.')}>
 					<div
 						class="ml-1 cursor-pointer group relative flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
@@ -156,7 +212,7 @@
 				<div class="text-2xl dark:text-customGray-100 mb-2.5">
 					{analytics?.powerUsers?.power_users_count}
 				</div>
-				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Power Users')}</div>
+				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1 text-center">{$i18n.t('Power users')}</div>
 				<Tooltip content={$i18n.t('Users who sent 400 or more messages in the last month.')}>
 					<div
 						class="ml-1 cursor-pointer group relative flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
@@ -169,7 +225,7 @@
 				<div class="text-2xl dark:text-customGray-100 mb-2.5">
 					{analytics?.totalAssistants?.total_assistants}
 				</div>
-				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1">{$i18n.t('Assistants Created')}</div>
+				<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mb-1">{$i18n.t('Assistants created')}</div>
 				<Tooltip content={$i18n.t('The number of assistants created within the company.')}>
 					<div
 						class="ml-1 cursor-pointer group relative flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700"
@@ -184,7 +240,7 @@
 				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 			>
 				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Top Users')} ({$i18n.t('this month')})</div>
+					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Top users')} ({$i18n.t('This month').toLowerCase()})</div>
 				</div>
 				<div use:onClickOutside={() => (showUsersSortDropdown = false)}>
 					<div class="relative" bind:this={usersSortRef}>
@@ -280,7 +336,7 @@
 				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 			>
 				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Top 3 Models Used')}</div>
+					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Top 3 models used')}</div>
 				</div>
 				<div use:onClickOutside={() => (showMonthsDropdown = false)}>
 					<div class="relative" bind:this={monthsRef}>
@@ -351,7 +407,7 @@
 				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 			>
 				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('User Activity Insights')}</div>
+					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('User activity insights')}</div>
 				</div>
 			</div>
 			<div class="w-fit flex bg-lightGray-700 dark:bg-customGray-900 rounded-md mx-auto mb-2.5">

@@ -22,7 +22,7 @@
 					openOnClick: false
 				})
 			],
-			content: $companyConfig?.config?.ui?.custom_user_notice ? $companyConfig?.config?.ui?.custom_user_notice : 'LLMs can make mistakes. Verify important information.',
+			content: $companyConfig?.config?.ui?.custom_user_notice ? $companyConfig?.config?.ui?.custom_user_notice : $i18n.t('LLMs can make mistakes. Verify important information.'),
 			onUpdate: ({ editor }) => {
 				dispatch('updateContent', editor.getHTML());
 			}
@@ -60,6 +60,7 @@
 	<button on:click={setLink} class="absolute right-2 w-4 h-4 top-4">
 		<AddLinkIcon />
 	</button>
+
 
 	{#if showLinkInput}
 		<div>

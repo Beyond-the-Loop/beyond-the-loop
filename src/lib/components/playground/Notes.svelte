@@ -78,7 +78,7 @@
 					/>
 				</div>
 			{:else}
-				<Tooltip content={$i18n.t('Voice Input')}>
+				<Tooltip content={$i18n.t('Voice input')}>
 					<button
 						class="cursor-pointer p-2.5 flex rounded-full hover:bg-gray-100 dark:hover:bg-gray-850 transition shadow-xl"
 						type="button"

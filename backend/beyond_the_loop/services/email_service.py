@@ -10,7 +10,7 @@ class EmailService:
             loops_service.send_transactional_email(to_email, "cmi727wo32ga51g0iw8l68hor", data_variables={
                 "admin_name": admin_name,
                 "workspace_name": company_name,
-                "invitation_link": f"{os.getenv('BACKEND_ADDRESS')}/register?inviteToken={invite_token}"
+                "invitation_link": f"{os.getenv('FRONTEND_BASE_URL')}/register?inviteToken={invite_token}"
             })
         except Exception as e:
             print(f"Exception when sending invitation email: {e}")
@@ -20,7 +20,7 @@ class EmailService:
         try:
             loops_service.send_transactional_email(to_email, "cmi7b233s3wpmyd0iebq70mdz", data_variables={
                 "user_name": user_name,
-                "reset_link": f"{os.getenv('BACKEND_ADDRESS')}/create-new-password?token={reset_token}"
+                "reset_link": f"{os.getenv('FRONTEND_BASE_URL')}/create-new-password?token={reset_token}"
             })
         except Exception as e:
             print(f"Exception when sending reset password email: {e}")
@@ -35,7 +35,7 @@ class EmailService:
             print(f"Exception when sending registration email: {e}")
 
     def send_budget_mail_80(self, to_email: str, admin_name: str, company_name: str, billing_page_link: str):
-        """Send a budget alert email to admins when the budget is approaching 80%."""
+        """Send a budget alerts email to admins when the budget is approaching 80%."""
         try:
             loops_service.send_transactional_email(to_email, "cmi74pg602gxmya0ixr7efee0", data_variables={
                 "admin_name": admin_name,
@@ -46,7 +46,7 @@ class EmailService:
             print(f"Exception when sending budget 80: {e}")
 
     def send_budget_mail_100(self, to_email: str, admin_name: str, company_name: str, billing_page_link):
-        """Send a budget alert email to admins when the budget is approaching 100%."""
+        """Send a budget alerts email to admins when the budget is approaching 100%."""
         try:
             loops_service.send_transactional_email(to_email, "cmi77c00o34luya0igdkq62jx", data_variables={
                 "admin_name": admin_name,

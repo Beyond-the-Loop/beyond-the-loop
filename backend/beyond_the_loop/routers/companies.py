@@ -20,7 +20,6 @@ from beyond_the_loop.config import save_config, get_config
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
-from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
 
@@ -92,7 +91,7 @@ async def update_company_config(
         
         # Get the current config
         current_config = get_config(company_id)
-        
+
         # Update only the specific fields that were provided
         if form_data.hide_model_logo_in_chat is not None:
             if "ui" not in current_config:
@@ -215,12 +214,12 @@ async def update_company_details(
 
 @router.post("/create", response_model=CompanyModel)
 async def create_company(
-    request: Request,
     form_data: CreateCompanyForm,
     user=Depends(get_current_user),
 ):
     try:
         company_id = str(uuid.uuid4())
+
         Companies.create_company(
             {
                 "id": company_id,
@@ -232,14 +231,16 @@ async def create_company(
                 "profile_image_url": form_data.company_profile_image_url,
             }
         )
+
         Users.update_company_by_id(user.id, company_id)
 
         # Save default config for the new company
         from beyond_the_loop.config import save_config, DEFAULT_CONFIG
+
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
-        openai_models = await openai.get_all_models(request)
+        openai_models = await openai.get_all_models()
 
         openai_models = openai_models["data"]
 
@@ -247,8 +248,6 @@ async def create_company(
             "Perplexity Sonar Deep Research",
             "Perplexity Sonar Reasoning Pro",
         ]
-
-        print("OPENAI MODELS", openai_models)
 
         # Register OpenAI models in the database if they don't exist
         for model in openai_models:
@@ -285,28 +284,18 @@ async def create_company(
             company_id, {"stripe_customer_id": stripe_customer.id}
         )
 
-        # Create the subscription with the price
-        stripe.Subscription.create(
-            customer=stripe_customer.id,
-            trial_period_days=7,  # 7-day trial
-            trial_settings={
-                "end_behavior": {
-                    "missing_payment_method": "cancel"  # Cancel when trial ends if no payment method
-                }
-            },
-            items=[{"price": payments_service.SUBSCRIPTION_PLANS["starter_monthly"]["stripe_price_id"]}]
-        )
-
         try:
             loops_service.create_or_update_loops_contact(user)
-            crm_service.create_company(company_name=company.name)
+            crm_service.create_company(company_name=company.name, super_admin_email=user.email)
             crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin")
+            crm_service.update_company_super_admin(company_name=company.name, super_admin_email=user.email)
         except Exception as e:
             log.error(f"Failed to create company or user in CRM or in Loops: {e}")
 
         return company
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating company: {str(e)}"

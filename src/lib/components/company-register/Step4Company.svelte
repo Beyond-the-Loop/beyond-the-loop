@@ -91,7 +91,7 @@
 		<div>
 			<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
 		</div>
-		<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">{$i18n.t('Company & Team Information')}</div>
+		<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">{$i18n.t('Company & team information')}</div>
 		<div class="text-center text-xs font-medium text-[#8A8B8D] dark:text-customGray-300">
 			{$i18n.t('Let’s get to know your company and team.')}
 		</div>
@@ -220,7 +220,7 @@
                     }}
             >
                 <span class="text-lightGray-100 dark:text-customGray-100"
-                    >{$i18n.t('Company Size')}</span
+                    >{$i18n.t('Company size')}</span
                 >
                
                 <div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
@@ -309,7 +309,7 @@
                     }}
             >
                 <span class="text-lightGray-100 dark:text-customGray-100"
-                    >{$i18n.t('Team Function')}</span
+                    >{$i18n.t('Team function')}</span
                 >
                
                 <div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">

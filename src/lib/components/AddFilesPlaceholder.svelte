@@ -15,7 +15,7 @@
 		{#if title}
 			{title}
 		{:else}
-			{$i18n.t('Add Files')}
+			{$i18n.t('Add files')}
 		{/if}
 	</div>
 

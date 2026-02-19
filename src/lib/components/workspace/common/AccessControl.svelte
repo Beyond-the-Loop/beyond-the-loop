@@ -158,7 +158,7 @@
 								</select>
 							</div>
 							<!-- <div>
-								<Tooltip content={$i18n.t('Add Group')}>
+								<Tooltip content={$i18n.t('Add group')}>
 									<button
 										class=" p-1 rounded-xl bg-transparent dark:hover:bg-white/5 hover:bg-black/5 transition font-medium text-sm flex items-center space-x-1"
 										type="button"

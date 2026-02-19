@@ -224,7 +224,7 @@
 												type="text"
 												class="my-0.5 w-full text-sm outline-none bg-transparent"
 												autocomplete="name"
-												placeholder={$i18n.t('Enter Your Full Name')}
+												placeholder={$i18n.t('Enter your full name')}
 												required
 											/>
 										</div>
@@ -239,7 +239,7 @@
 												class="my-0.5 w-full text-sm outline-none bg-transparent"
 												autocomplete="username"
 												name="username"
-												placeholder={$i18n.t('Enter Your Username')}
+												placeholder={$i18n.t('Enter your username')}
 												required
 											/>
 										</div>
@@ -252,7 +252,7 @@
 												class="my-0.5 w-full text-sm outline-none bg-transparent"
 												autocomplete="email"
 												name="email"
-												placeholder={$i18n.t('Enter Your Email')}
+												placeholder={$i18n.t('Enter your email')}
 												required
 											/>
 										</div>
@@ -265,7 +265,7 @@
 											bind:value={password}
 											type="password"
 											class="my-0.5 w-full text-sm outline-none bg-transparent"
-											placeholder={$i18n.t('Enter Your Password')}
+											placeholder={$i18n.t('Enter your password')}
 											autocomplete="current-password"
 											name="current-password"
 											required
@@ -290,8 +290,8 @@
 											{mode === 'signin'
 												? $i18n.t('Sign in')
 												: ($config?.onboarding ?? false)
-													? $i18n.t('Create Admin Account')
-													: $i18n.t('Create Account')}
+													? $i18n.t('Create admin account')
+													: $i18n.t('Create account')}
 										</button>
 
 										{#if $config?.features.enable_signup && !($config?.onboarding ?? false)}
@@ -326,7 +326,7 @@
 								{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
 									<span
 										class="px-3 text-sm font-medium text-gray-900 dark:text-white bg-transparent"
-										>{$i18n.t('or')}</span
+										>{$i18n.t('Or').toLowerCase()}</span
 									>
 								{/if}
 
@@ -444,7 +444,7 @@
 								>
 									<span
 										>{mode === 'ldap'
-											? $i18n.t('Continue with Email')
+											? $i18n.t('Continue with email')
 											: $i18n.t('Continue with LDAP')}</span
 									>
 								</button>

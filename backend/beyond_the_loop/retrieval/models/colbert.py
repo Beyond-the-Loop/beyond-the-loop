@@ -1,14 +1,13 @@
 import os
-import torch
 import numpy as np
-from beyond_the_loop.retrieval.models.colbert import ColBERTConfig
-from beyond_the_loop.retrieval.models.colbert import Checkpoint
+from colbert.infra import ColBERTConfig
+from colbert.modeling.checkpoint import Checkpoint
 
 
 class ColBERT:
     def __init__(self, name, **kwargs) -> None:
         print("ColBERT: Loading model", name)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cpu"
 
         DOCKER = kwargs.get("env") == "docker"
         if DOCKER:
@@ -48,17 +47,22 @@ class ColBERT:
                 "There should be either one query or queries equal to the number of documents."
             )
 
-        # Transpose the query embeddings to align for matrix multiplication
-        transposed_query_embeddings = query_embeddings.permute(0, 2, 1)
-        # Compute similarity scores using batch matrix multiplication
-        computed_scores = torch.matmul(document_embeddings, transposed_query_embeddings)
-        # Apply max pooling to extract the highest semantic similarity across each document's sequence
-        maximum_scores = torch.max(computed_scores, dim=1).values
+        # query_embeddings: (B, Q, D)
+        # document_embeddings: (B, T, D)
 
-        # Sum up the maximum scores across features to get the overall document relevance scores
-        final_scores = maximum_scores.sum(dim=1)
+        transposed_query_embeddings = np.transpose(query_embeddings, (0, 2, 1))
 
-        normalized_scores = torch.softmax(final_scores, dim=0)
+        computed_scores = np.matmul(document_embeddings, transposed_query_embeddings)
+        # (B, T, Q)
+
+        maximum_scores = computed_scores.max(axis=1)
+        # (B, Q)
+
+        final_scores = maximum_scores.sum(axis=1)
+        # (B,)
+
+        exp_scores = np.exp(final_scores - final_scores.max())
+        normalized_scores = exp_scores / exp_scores.sum()
 
         return normalized_scores.detach().cpu().numpy().astype(np.float32)
 

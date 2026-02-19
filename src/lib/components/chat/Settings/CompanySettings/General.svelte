@@ -58,8 +58,8 @@
 	};
 
 	const userPermissionsText = {
-		websearch: "Web Search",
-		image_generation: "Image Gen",
+		websearch: $i18n.t('Web Search'),
+		image_generation: $i18n.t('Image Generation')
 		// code_interpreter: "Code Interpreter",
 		// audio: "Audio In and Out"
 	}
@@ -70,7 +70,7 @@
 	let showChatRetentionDaysDropdown = false;
 	let chatRetentionDaysDropdownRef;
 
-	const chatRetentionDaysOptions = [{value: 30, label: '30 days'}, {value: 90, label: '3 months'}, {value: 180, label: '6 months'}, {value: 270, label: '9 months'}, {value: 365, label: '1 year'}];
+	const chatRetentionDaysOptions = [{value: 30, label: '30 ' + $i18n.t('days')}, {value: 90, label: '3 ' + $i18n.t('months')}, {value: 180, label: '6 ' + $i18n.t('months')}, {value: 270, label: '9 ' + $i18n.t('months')}, {value: 365, label: '1 ' + $i18n.t('year')}];
 	let chatRetentionDays = chatRetentionDaysOptions[1];
 
 	let userNotice = '';
@@ -139,7 +139,7 @@
 				companyConfig.set(companyConfigInfo);	
 			}
   			
-			toast.success($i18n.t('Updated successfuly'));
+			toast.success($i18n.t('Updated successfully'));
 		} catch(error) {
 			toast.error(`${error}`);
 		}
@@ -272,7 +272,7 @@
 				</div>
 
 				<div class="flex-1 flex flex-col self-center gap-0.5 mb-5">
-					<div class=" mb-0.5 text-sm dark:text-customGray-100">{$i18n.t('Profile Picture')}</div>
+					<div class=" mb-0.5 text-sm dark:text-customGray-100">{$i18n.t('Profile picture')}</div>
 					<div class="text-xs dark:text-customGray-100/50 mb-2">
 						{$i18n.t('We only support PNGs, JPEGs and GIFs under 10MB')}
 					</div>
@@ -286,7 +286,7 @@
 							class="flex items-center font-medium text-xs dark:text-customGray-300 px-2 py-1 rounded-xl border border-customGray-700 dark:bg-customGray-900"
 						>
 							<CameraIcon className="size-4 mr-1" />
-							{$i18n.t('Upload Image')}
+							{$i18n.t('Upload image')}
 						</button>
 						
 						<button
@@ -321,13 +321,13 @@
 						
 							<div class="text-sm text-lightGray-100 dark:text-customGray-100">
 								{$i18n.t('Hide model logo in chat')}
-							</div>
+							</div> 
 		
 						<div class="flex items-center">
 							{#if hideModelLogo}
-								<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mr-2">On</div>
+								<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mr-2">{$i18n.t('On')}</div>
 							{:else}
-								<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mr-2">Off</div>
+								<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mr-2">{$i18n.t('Off')}</div>
 							{/if}
 							<Switch
 								bind:state={hideModelLogo}
@@ -356,7 +356,7 @@
 						} border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 dark:bg-customGray-900 cursor-pointer"
 						on:click={() => (showUserPermissionsDropdown = !showUserPermissionsDropdown)}
 					>
-						<span class="text-lightGray-100 dark:text-customGray-100">{$i18n.t('User Permissions')}</span>
+						<span class="text-lightGray-100 dark:text-customGray-100">{$i18n.t('User permissions')}</span>
 						<div class="flex items-center">
 							<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 max-w-[15rem] text-left">
 								{Object.keys(userPermissions)?.filter(item => userPermissions?.[item]).map(el => userPermissionsText[el]).join(', ')}
@@ -384,7 +384,11 @@
 													className="size-4"
 												/>
 											{/if}
-											<span class="capitalize">{permission.replace(/_/g, ' ')}</span>
+											<!-- Vorher (nur englisch möglich): <span class="capitalize">{permission.replace(/_/g, ' ')}</span> -->
+											{#if userPermissionsText?.[permission]}
+												<span class="capitalize">{userPermissionsText?.[permission]}</span>
+											{/if}
+											 
 										</div>
 										<Checkbox
 											state={userPermissions?.[permission] ? 'checked' : 'unchecked'}

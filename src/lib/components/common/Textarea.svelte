@@ -28,8 +28,10 @@
 
 	const resize = () => {
 		if (textareaElement) {
-			textareaElement.style.height = '';
-			textareaElement.style.height = `${textareaElement.scrollHeight}px`;
+			textareaElement.style.height = 'auto';
+			const newHeight = textareaElement.scrollHeight;
+
+			textareaElement.style.height = `${newHeight}px`;
 		}
 	};
 </script>

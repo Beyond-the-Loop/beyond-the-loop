@@ -10,6 +10,8 @@
 	export let title = '';
 	export let message = '';
 
+	export let additionalMessage = '';
+
 	export let noMessage = false;
 
 	export let inputType = 'textarea';
@@ -109,6 +111,12 @@
 							{:else}
 								{$i18n.t('This action cannot be undone. Do you wish to continue?')}
 							{/if}
+						{/if}
+
+						{#if additionalMessage}
+							<div class="mt-2">
+								{additionalMessage}
+							</div>
 						{/if}
 
 						{#if input}

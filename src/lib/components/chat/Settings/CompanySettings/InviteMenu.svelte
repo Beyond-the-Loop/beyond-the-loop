@@ -35,7 +35,7 @@
 
 	async function reinvite() {
 		await reinviteUser(localStorage.token, user?.email)
-		.then(() => toast.success($i18n.t('Successfully resend invite')))
+		.then(() => toast.success($i18n.t('Successfully resent invite')))
 		.catch((error) => {
 			toast.error(`${error}`);
 		});		
