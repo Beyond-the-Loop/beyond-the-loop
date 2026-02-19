@@ -220,7 +220,7 @@ class Tools:
 								<input
 									class="w-full text-2xl font-semibold bg-transparent outline-none"
 									type="text"
-									placeholder={$i18n.t('Tool Name')}
+									placeholder={$i18n.t('Tool name')}
 									bind:value={name}
 									required
 								/>
@@ -270,7 +270,7 @@ class Tools:
 							<input
 								class="w-full text-sm bg-transparent outline-none"
 								type="text"
-								placeholder={$i18n.t('Tool Description')}
+								placeholder={$i18n.t('Tool description')}
 								bind:value={meta.description}
 								required
 							/>
@@ -298,7 +298,7 @@ class Tools:
 				<div class="pb-3 flex justify-between">
 					<div class="flex-1 pr-3">
 						<div class="text-xs text-gray-500 line-clamp-2">
-							<span class=" font-semibold dark:text-gray-200">{$i18n.t('Warning:')}</span>
+							<span class=" font-semibold dark:text-gray-200">{`${$i18n.t('Warning')}:`}</span>
 							{$i18n.t('Tools are a function calling system with arbitrary code execution')} <br />—
 							<span class=" font-medium dark:text-gray-400"
 								>{$i18n.t(`don't install random tools from sources you don't trust.`)}</span

@@ -50,7 +50,7 @@
 							$i18n.t('Explore the cosmos'),
 							$i18n.t('Unlock mysteries'),
 							$i18n.t('Chart new frontiers'),
-							$i18n.t('Dive into knowledge'),
+							$i18n.t('Dive into Knowledge'),
 							$i18n.t('Discover wonders'),
 							$i18n.t('Ignite curiosity'),
 							$i18n.t('Forge new paths'),

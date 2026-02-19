@@ -8,6 +8,7 @@
 		chats,
 		settings,
 		showSettings,
+		subscription,
 		chatId,
 		tags,
 		showSidebar,
@@ -511,7 +512,7 @@
 	<!-- <button on:click={() => (showCreateFolder = true)}>test</button> -->
 	<AddNewFolderDialog
 		bind:show={showCreateFolder}
-		title="Create New Folder"
+		title="Create new folder"
 		bind:inputValue={newFolderName}
 		input={true}
 		inputPlaceholder={$i18n.t('Title')}
@@ -603,39 +604,43 @@
 
 		<div class="px-2">
 			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_assistants}
-				<div
-					class="{$page.url.pathname.startsWith('/workspace/models')
+			<div
+				class="{$page.url.pathname.startsWith('/workspace/models')
 						? 'dark:bg-customGray-900 bg-lightGray-700'
-						: ''} font-medium flex items-center space-x-[10px] rounded-[5px] px-2 py-1.5 text-lightGray-100 dark:text-customGray-100 dark:hover:text-white hover:bg-lightGray-700 dark:hover:bg-customGray-900 transition"
-				>
-					<Assistans />
-					<a
-						class="w-full text-sm"
-						href="/workspace/models"
-						on:click={() => {
-							selectedChatId = null;
-							chatId.set('');
+						: ''} font-medium flex items-center space-x-[10px] rounded-[5px] px-2 py-1.5 text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-900 transition
+					{ $subscription?.plan === 'free' ? 'opacity-50 cursor-not-allowed pointer-events-none' : '' }"
+			>
+				<Assistans />
+				<a
+					class="w-full text-sm"
+					href="/workspace/models"
+					on:click={(e) => {
+						selectedChatId = null;
+						chatId.set('');
 
-							if ($mobile) {
-								showSidebar.set(false);
-							}
-						}}
-						draggable="false">{$i18n.t('Assistants')}</a
-					>
-				</div>
+						if ($mobile) {
+							showSidebar.set(false);
+						}
+					}}
+					draggable="false"
+				>
+					{$i18n.t('Assistants')}
+				</a>
+			</div>
 			{/if}
 
 			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_knowledge}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/knowledge')
-						? 'dark:bg-customGray-900 bg-lightGray-700'
-						: ''} font-medium flex items-center space-x-[10px] rounded-[5px] px-2 py-1.5 text-lightGray-100 dark:text-customGray-100 dark:hover:text-white hover:bg-lightGray-700 dark:hover:bg-customGray-900 transition"
+							? 'dark:bg-customGray-900 bg-lightGray-700'
+							: ''} font-medium flex items-center space-x-[10px] rounded-[5px] px-2 py-1.5 text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-900 transition
+						{ $subscription?.plan === 'free' ? 'opacity-50 cursor-not-allowed pointer-events-none hover:bg-transparent dark:hover:bg-transparent' : '' }"
 				>
 					<Knowledge />
 					<a
 						class="w-full text-sm"
 						href="/workspace/knowledge"
-						on:click={() => {
+						on:click={(e) => {
 							selectedChatId = null;
 							chatId.set('');
 
@@ -697,7 +702,7 @@
 					<div class="relative bottom-[0.5px] mr-[6px]">
 						<Plus className="w-[12px] h-[12px]" />
 					</div>
-					{$i18n.t('New Chat')}
+					{$i18n.t('New chat')}
 				</a>
 			</div>
 		{/if}
@@ -721,7 +726,7 @@
 							}, 0);
 						}
 					}}
-					onAddLabel={$i18n.t('Create Channel')}
+					onAddLabel={$i18n.t('Create channel')}
 				>
 					{#each $channels as channel}
 						<ChannelItem
@@ -745,7 +750,7 @@
 				onAdd={() => {
 					createFolder();
 				}}
-				onAddLabel={$i18n.t('New Folder')}
+				onAddLabel={$i18n.t('New folder')}
 				on:import={(e) => {
 					importChatHandler(e.detail);
 				}}
@@ -959,14 +964,14 @@
 										class="w-full flex justify-left pl-2.5 py-1 text-sm animate-pulse items-center gap-2"
 									>
 										<Spinner className=" size-4" />
-										<div class=" ">Loading...</div>
+										<div class=" ">{$i18n.t('Loading...')}</div>
 									</div>
 								</Loader>
 							{/if}
 						{:else}
 							<div class="w-full flex justify-center py-1 text-sm animate-pulse items-center gap-2">
 								<Spinner className=" size-4" />
-								<div class=" ">Loading...</div>
+								<div class=" ">{$i18n.t('Loading...')}</div>
 							</div>
 						{/if}
 					</div>

@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { getContext, tick, onMount } from 'svelte';
+	import { getContext, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { models, settings, user, mobile } from '$lib/stores';
+	import { models, settings, mobile } from '$lib/stores';
+	import { subscription } from '$lib/stores';
+
 	import { updateUserSettings } from '$lib/apis/users';
 	import { getModels as _getModels } from '$lib/apis';
 	import { goto } from '$app/navigation';
@@ -16,16 +18,12 @@
 	import { getUsers } from '$lib/apis/users';
 	import AnalyticsIcon from '../icons/AnalyticsIcon.svelte';
 	import Analytics from './Settings/CompanySettings/Analytics.svelte';
-	import { getTopModels, getTotalUsers, getTotalMessages, getAdoptionRate, getPowerUsers, getSavedTimeInSeconds, getTopUsers, getTotalBilling, getTotalChats, getTotalAssistants } from '$lib/apis/analytics';
 	import BillingIcon from '../icons/BillingIcon.svelte';
 	import Billing from './Settings/CompanySettings/Billing.svelte';
-	import { getMonthRange } from '$lib/utils';
 	import { page } from '$app/stores';
 	import {
-		getCurrentSubscription,
-		getSubscriptionPlans
+		getCurrentSubscription
 	} from '$lib/apis/payments';
-	import { subscription } from '$lib/stores';
 	import BackIcon from '../icons/BackIcon.svelte';
 	import DomainSettings from './Settings/CompanySettings/DomainSettings.svelte';
 	import DomainSettingsIcon from '../icons/DomainSettingsIcon.svelte';
@@ -35,7 +33,6 @@
 
 	export let show = false;
 	let selectedTab = 'general-settings';
-	let plans = [];
 
 	interface SettingsTab {
 		id: string;
@@ -50,28 +47,28 @@
 		window.history.replaceState({}, '', url); 
 	}
 
-	const searchData: SettingsTab[] = [
+	const settingsTabs: SettingsTab[] = [
 		{
 			id: 'general-settings',
-			title: 'General Settings',
+			title: 'General settings',
 			keywords: [	
 			]
 		},
 		{
 			id: 'domain-settings',
-			title: 'Domain Settings',
+			title: 'Domain settings',
 			keywords: [	
 			]
 		},
 		{
 			id: 'user-management',
-			title: 'User Management',
+			title: 'User management',
 			keywords: [	
 			]
 		},
 		{
 			id: 'model-control',
-			title: 'Model Control',
+			title: 'Model control',
 			keywords: [	
 			]
 		},
@@ -91,29 +88,17 @@
 		}
 		];
 
-	let search = '';
-	let visibleTabs = searchData.map((tab) => tab.id);
 	let searchDebounceTimeout;
 
 	const searchSettings = (query: string): string[] => {
 		const lowerCaseQuery = query.toLowerCase().trim();
-		return searchData
+		return settingsTabs
 			.filter(
 				(tab) =>
 					tab.title.toLowerCase().includes(lowerCaseQuery) ||
 					tab.keywords.some((keyword) => keyword.includes(lowerCaseQuery))
 			)
 			.map((tab) => tab.id);
-	};
-
-	const searchDebounceHandler = () => {
-		clearTimeout(searchDebounceTimeout);
-		searchDebounceTimeout = setTimeout(() => {
-			visibleTabs = searchSettings(search);
-			if (visibleTabs.length > 0 && !visibleTabs.includes(selectedTab)) {
-				selectedTab = visibleTabs[0];
-			}
-		}, 100);
 	};
 
 	const saveSettings = async (updated) => {
@@ -162,59 +147,6 @@
 		users = await getUsers(localStorage.token);
 	};
 
-	let analytics = null;
-	let analyticsLoading = false;
-
-	async function fetchAnalytics() {
-	const token = localStorage.token;
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = now.getMonth() + 1;
-	const { start, end } = getMonthRange(year, month);
-	try {
-		analyticsLoading = true;
-		const [
-			topModels,
-			totalUsers,
-			totalMessages,
-			adoptionRate,
-			powerUsers,
-			savedTime,
-			topUsers,
-			totalBilling,
-			totalChats,
-			totalAssistants
-		] = await Promise.allSettled([
-			getTopModels(token, start, end),
-			getTotalUsers(token),
-			getTotalMessages(token),
-			getAdoptionRate(token),
-			getPowerUsers(token),
-			getSavedTimeInSeconds(token),
-			getTopUsers(token, start, end),
-			getTotalBilling(token),
-			getTotalChats(token),
-			getTotalAssistants(token),
-		]);
-		
-		analytics = {
-			topModels: topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
-			totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
-			totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-			adoptionRate: adoptionRate?.status === 'fulfilled' ? adoptionRate?.value : {},
-			powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
-			savedTime: savedTime?.status === 'fulfilled' ? savedTime?.value : {},
-			topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
-			totalBilling: totalBilling?.status === 'fulfilled' ? totalBilling?.value : {},
-			totalChats: totalChats?.status === 'fulfilled' ? totalChats?.value : {},
-			totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {},
-		}
-		} catch (error) {
-			console.error('Error fetching analytics:', error);
-		} finally {
-			analyticsLoading = false;
-		}
-	}
 	let autoRecharge = false;
 	let subscriptionLoading = false;
 	async function getSubscription() {
@@ -229,19 +161,11 @@
 			subscriptionLoading = false;
 		}
 	}
-	async function getPlans() {
-		const res = await getSubscriptionPlans(localStorage.token).catch((error) => console.log(error));
-		if (res) {
-			plans = res;
-		}
-	}
 
 
 	$: if(show){
 		getUsersHandler();
 		getSubscription();
-		getPlans();
-		fetchAnalytics();
 		const tabParam = $page.url.searchParams.get('tab');
 		const resetTabs = $page.url.searchParams.get('resetTabs');
 		if(resetTabs) {
@@ -250,8 +174,6 @@
 			selectedTab = tabParam || 'general-settings';
 		}	
 	}
-
-
 </script>
 
 <Modal size="md-plus" bind:show blockBackdropClick={true} className="dark:bg-customGray-800 rounded-2xl" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[7.44px]">
@@ -261,10 +183,10 @@
 				{#if selectedTab && $mobile}
 					<button class="capitalize flex items-center" on:click={() => selectedTab = null}>
 						<BackIcon className="mr-1 size-4 shrink-0"/>
-						<div class="shrink-0">{$i18n.t(searchData?.find(item => item?.id === selectedTab).title)}</div>
+						<div class="shrink-0">{$i18n.t(settingsTabs?.find(item => item?.id === selectedTab).title)}</div>
 					</button>
 				{:else}
-					<div class="self-center">{$i18n.t('Company Settings')}</div>
+					<div class="self-center">{$i18n.t('Company settings')}</div>
 				{/if}
 				<button
 					class="self-center"
@@ -295,9 +217,9 @@
 					id="settings-tabs-container"
 					class="rounded-bl-lg md:pl-4 md:pt-5 pr-2 tabs flex flex-col md:dark:bg-customGray-900 md:gap-1 w-full md:w-[252px] dark:text-gray-200 text-sm font-medium text-left mb-1 md:mb-0"
 				>
-					{#if visibleTabs.length > 0}
-						{#each visibleTabs as tabId (tabId)}
-						{#if tabId === 'general-settings'}
+					{#if settingsTabs.length > 0}
+						{#each settingsTabs as settingsTab}
+						{#if settingsTab.id === 'general-settings'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'general-settings'
@@ -312,10 +234,10 @@
 								<div class=" self-center mr-2">
 									<ProfileIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('General Settings')}</div>
+								<div class=" self-center">{$i18n.t('General settings')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'domain-settings'}
+						{:else if settingsTab.id === 'domain-settings'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'domain-settings'
@@ -330,10 +252,10 @@
 								<div class=" self-center mr-2">
 									<DomainSettingsIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('Domain Settings')}</div>
+								<div class=" self-center">{$i18n.t('Domain settings')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'user-management'}
+						{:else if settingsTab.id === 'user-management'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'user-management'
@@ -351,7 +273,7 @@
 								<div class=" self-center">{$i18n.t('User management')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'model-control'}
+						{:else if settingsTab.id === 'model-control'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'model-control'
@@ -366,10 +288,10 @@
 								<div class=" self-center mr-2">
 									<ModelControlIcon/>
 								</div>
-								<div class=" self-center">{$i18n.t('Model Control')}</div>
+								<div class=" self-center">{$i18n.t('Model control')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'analytics'}
+						{:else if settingsTab.id === 'analytics'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'analytics'
@@ -387,7 +309,7 @@
 								<div class=" self-center">{$i18n.t('Analytics')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'billing'}
+						{:else if settingsTab.id === 'billing'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'billing'
@@ -437,9 +359,9 @@
 				{:else if selectedTab === 'model-control'}
 					<ModelControl/>
 				{:else if selectedTab === 'analytics'}
-					<Analytics {analytics} {analyticsLoading}/>
+					<Analytics/>
 				{:else if selectedTab === 'billing'}
-					<Billing bind:autoRecharge bind:subscriptionLoading {plans}/>
+					<Billing bind:autoRecharge bind:subscriptionLoading/>
 				{/if}
 			</div>
 		</div>

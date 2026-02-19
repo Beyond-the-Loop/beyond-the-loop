@@ -1,4 +1,4 @@
-import { WEBUI_API_BASE_URL } from '$lib/constants';
+import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 
 export const getModels = async (token: string = '') => {
 	let error = null;
@@ -34,7 +34,7 @@ export const getModels = async (token: string = '') => {
 export const getBaseModels = async (token: string = '') => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/models/base`, {
+	const res = await fetch(`${WEBUI_BASE_URL}/api/models/base`, {
 		method: 'GET',
 		headers: {
 			Accept: 'application/json',
@@ -59,7 +59,7 @@ export const getBaseModels = async (token: string = '') => {
 		throw error;
 	}
 
-	return res;
+	return res?.data ?? [];
 };
 
 export const createNewModel = async (token: string, model: object) => {

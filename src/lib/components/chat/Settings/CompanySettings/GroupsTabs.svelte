@@ -112,7 +112,7 @@
 
 <RenameGroupDialog
 	bind:show={showRenameGroup}
-	title="Create New Folder"
+	title="Create new folder"
 	bind:inputValue={renameName}
 	input={true}
 	inputPlaceholder={$i18n.t('Title')}
@@ -152,7 +152,7 @@
 		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
 	>
 		<div class="flex w-full justify-between items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Group Management')}</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">{$i18n.t('Group management')}</div>
 		</div>
 	</div>
 	<div class="flex flex-col md:flex-row justify-between items-center mb-5">
@@ -200,7 +200,7 @@
 					<ManageUsersMenu {users} {group} {updateGroupHandler}>
 						<button type="button" class="flex items-center mr-1 font-medium hover:dark:text-white">
 							<Plus className="size-2" />
-							<span class="mr-1 ml-1">{$i18n.t('Add User')}</span>
+							<span class="mr-1 ml-1">{$i18n.t('Add user')}</span>
 							<ChevronDown className="size-2" />
 						</button>
 					</ManageUsersMenu>

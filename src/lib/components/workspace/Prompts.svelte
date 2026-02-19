@@ -316,7 +316,7 @@
 						<input
 							class="w-[5rem] md:w-full text-xs outline-none text-lightGray-100 dark:text-customGray-100 bg-transparent leading-none pl-2"
 							bind:value={query}
-							placeholder={$i18n.t('Search Prompts')}
+							placeholder={$i18n.t('Search prompts')}
 							autofocus
 							on:blur={() => {
 								if (query.trim() === '') showInput = false;
@@ -363,7 +363,7 @@
 					<div
 						class="font-medium text-lightGray-100 dark:text-customGray-300 text-xs whitespace-nowrap h-[22px] flex items-center mb-2 sm:mb-0"
 					>
-						{$i18n.t('Filter by category:')}
+						{$i18n.t('Filter by category')}:
 					</div>
 					<div class="flex flex-wrap gap-1">
 						{#each tags as tag, i}
@@ -392,7 +392,7 @@
 				<button
 					on:click={() => (accessFilter = 'private')}
 					class={`${accessFilter === 'private' ? 'bg-lightGray-400 text-lightGray-100 dark:bg-customGray-900 rounded-md border border-lightGray-250 dark:border-customGray-700' : 'text-lightGray-100/70'} font-medium px-2 md:px-[23px] py-[7px] flex-shrink-0 text-xs leading-none dark:text-white`}
-					>{$i18n.t('My Prompts')}</button
+					>{$i18n.t('My prompts')}</button
 				>
 				<button
 					on:click={() => (accessFilter = 'public')}

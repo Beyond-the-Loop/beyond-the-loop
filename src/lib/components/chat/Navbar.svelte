@@ -208,12 +208,12 @@
 					on:click={() => {
 						initNewChat();
 					}}
-					aria-label="New Chat"
+					aria-label="New chat"
 				>
 					<div class="relative bottom-[0.5px] mr-[6px]">
 						<Plus className="w-[12px] h-[12px]" />
 					</div>
-					{$i18n.t('New Chat')}
+					{$i18n.t('New chat')}
 				</button>
 
 

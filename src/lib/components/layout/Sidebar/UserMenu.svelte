@@ -55,7 +55,7 @@
 				<div class=" self-center mr-3">
 					<SettingsIcon/>	
 				</div>
-				<div class=" self-center truncate">{$i18n.t('Account Settings')}</div>
+				<div class=" self-center truncate">{$i18n.t('Account settings')}</div>
 			</button>
 			{#if role === 'admin'}
 				<button
@@ -80,7 +80,7 @@
 					<div class=" self-center mr-3">
 						<CompanySettingsIcon/>	
 					</div>
-					<div class=" self-center truncate">{$i18n.t('Company Settings')}</div>
+					<div class=" self-center truncate">{$i18n.t('Company settings')}</div>
 				</button>
 			{/if}
 
@@ -98,7 +98,7 @@
 				<div class=" self-center mr-3">
 					<ArchiveBox className="size-5" strokeWidth="1.5" />
 				</div>
-				<div class=" self-center truncate">{$i18n.t('Archived Chats')}</div>
+				<div class=" self-center truncate">{$i18n.t('Archived chats')}</div>
 			</button> -->
 
 			<!-- {#if role === 'admin'}
@@ -159,7 +159,7 @@
 							/>
 						</svg>
 					</div>
-					<div class=" self-center truncate">{$i18n.t('Admin Panel')}</div>
+					<div class=" self-center truncate">{$i18n.t('Admin panel')}</div>
 				</a>
 			{/if} -->
 
@@ -178,7 +178,7 @@
 				<div class=" self-center mr-3">
 					<SignOutIcon/>		
 				</div>
-				<div class=" self-center truncate">{$i18n.t('Sign Out')}</div>
+				<div class=" self-center truncate">{$i18n.t('Sign out')}</div>
 			</button>
 
 			<!-- {#if $activeUserIds?.length > 0}
@@ -201,7 +201,7 @@
 
 						<div class=" ">
 							<span class="">
-								{$i18n.t('Active Users')}:
+								{$i18n.t('Active users')}:
 							</span>
 							<span class=" font-semibold">
 								{$activeUserIds?.length}

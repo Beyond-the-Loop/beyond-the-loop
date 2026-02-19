@@ -20,10 +20,10 @@ from beyond_the_loop.models.users import (
 )
 
 
-from open_webui.socket.main import get_active_status_by_user_id
+from beyond_the_loop.socket.main import get_active_status_by_user_id
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.misc import validate_email_format
@@ -51,7 +51,9 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
         company = Companies.get_company_by_id(user.company_id)
 
-        if not company.subscription_not_required:
+        subscription_details = get_subscription(user)
+
+        if not company.subscription_not_required and not subscription_details.get("plan") == "free" and not subscription_details.get("plan") == "premium":
             # Get subscription details
             subscription_details = get_subscription(user)
 
@@ -540,7 +542,7 @@ async def update_user_by_id(
 @router.delete("/{user_id}", response_model=bool)
 async def delete_user_by_id(user_id: str, user=Depends(get_admin_user)):
     if user.id != user_id:
-        result = Auths.delete_auth_by_id(user_id)
+        result = Auths.delete_auth_by_id(user_id, user.company_id)
 
         if result:
             return True
@@ -590,17 +592,12 @@ async def reinvite_user(form_data: UserReinviteForm, user=Depends(get_admin_user
 
     # Send the invitation email
     email_service = EmailService()
-    email_sent = email_service.send_invite_mail(
+    email_service.send_invite_mail(
         to_email=form_data.email.lower(),
         invite_token=invite_token,
         admin_name=user.first_name,
         company_name=company.name
     )
-
-    if not email_sent:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send invitation email"
-        )
 
     return {"message": "User reinvited successfully", "user_id": existing_user.id}
 

@@ -4,35 +4,22 @@
 	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
-	import mermaid from 'mermaid';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { fade } from 'svelte/transition';
 
-	import { getKnowledgeBases } from '$lib/apis/knowledge';
-	import { getFunctions } from '$lib/apis/functions';
 	import { getModels, getVersionUpdates } from '$lib/apis';
-	import { getAllTags } from '$lib/apis/chats';
-	import { getPrompts } from '$lib/apis/prompts';
 	import { getTools } from '$lib/apis/tools';
-	import { getBanners } from '$lib/apis/configs';
 	import { getUserSettings } from '$lib/apis/users';
 
 	import { WEBUI_VERSION } from '$lib/constants';
-	import { compareVersion } from '$lib/utils';
 
 	import {
 		config,
 		user,
 		settings,
 		models,
-		prompts,
-		knowledge,
 		tools,
-		functions,
-		tags,
-		banners,
 		showSettings,
 		showCompanySettings,
 		showChangelog,
@@ -42,9 +29,7 @@
 
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
-	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
-	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
 	import CompanySettingsModal from '$lib/components/chat/CompanySettingsModal.svelte';
 	import { isBlocked, subscription } from '$lib/stores';
 	import CustomChatError from '$lib/components/chat/Messages/CustomChatError.svelte';
@@ -119,7 +104,6 @@
 			}
 
 			models.set(await getModels(localStorage.token));
-			banners.set(await getBanners(localStorage.token));
 			tools.set(await getTools(localStorage.token));
 
 			document.addEventListener('keydown', async function (event) {
@@ -281,7 +265,6 @@
 {/if}
 <SettingsModal bind:show={$showSettings} />
 <CompanySettingsModal bind:show={$showCompanySettings}/>
-<!-- <ChangelogModal bind:show={$showChangelog} /> -->
 
 <!-- {#if version && compareVersion(version.latest, version.current) && ($settings?.showUpdateToast ?? true)}
 	<div class=" absolute bottom-8 right-8 z-50" in:fade={{ duration: 100 }}>
@@ -318,7 +301,7 @@
 										"Saving chat logs directly to your browser's storage is no longer supported. Please take a moment to download and delete your chat logs by clicking the button below. Don't worry, you can easily re-import your chat logs to the backend through"
 									)}
 									<span class="font-semibold dark:text-white"
-										>{$i18n.t('Settings')} > {$i18n.t('Chats')} > {$i18n.t('Import Chats')}</span
+										>{$i18n.t('Settings')} > {$i18n.t('Chats')} > {$i18n.t('Import chats')}</span
 									>. {$i18n.t(
 										'This ensures that your valuable conversations are securely saved to your backend database. Thank you!'
 									)}

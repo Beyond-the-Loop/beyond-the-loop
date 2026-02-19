@@ -31,12 +31,20 @@
 	});
 
 	const onSubmit = async (modelInfo) => {
-		const res = await updateModelById(localStorage.token, modelInfo.id, modelInfo);
+		try {
+			const res = await updateModelById(
+					localStorage.token,
+					modelInfo.id,
+					modelInfo
+			);
 
-		if (res) {
 			await models.set(await getModels(localStorage.token));
 			toast.success($i18n.t('Model updated successfully'));
 			await goto('/workspace/models');
+		} catch (err) {
+			console.error(err);
+
+			toast.error(err.detail);
 		}
 	};
 </script>

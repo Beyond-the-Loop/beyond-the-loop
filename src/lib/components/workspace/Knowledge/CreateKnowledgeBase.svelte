@@ -206,7 +206,7 @@
 							<span
 								class="absolute top-6.5 w-45 text-right right-2.5 -translate-y-1/2 text-xs text-lightGray-100/50 dark:text-customGray-100/50 pointer-events-none select-none"
 							>
-								{$i18n.t('Describe your knowledge base and objectives')}
+								{$i18n.t('Describe your Knowledge Base and objectives')}
 							</span>
 						{/if}
 					</div>
@@ -214,7 +214,7 @@
 				<div>
 					<div class="w-full flex py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5">
 						<div class="w-[17.5rem] text-xs text-lightGray-100 dark:text-customGray-300">
-							{$i18n.t('Knowledge base')}
+							{$i18n.t('Knowledge Base')}
 						</div>
 						{#if files.length > 0}
 							<div class="w-20 text-xs text-lightGray-100 dark:text-customGray-300">{formatFileSize(totalFileSize)}</div>

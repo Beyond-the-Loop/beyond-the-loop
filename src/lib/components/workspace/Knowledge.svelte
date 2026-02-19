@@ -44,6 +44,8 @@
 	let selectedItem = null;
 	let showDeleteConfirm = false;
 
+	let linkedModelsWarningText;
+
 	let fuse = null;
 
 	let knowledgeBases = [];
@@ -153,7 +155,7 @@
 
 {#if loaded}
 	<DeleteConfirmDialog
-		bind:show={showDeleteConfirm}
+		bind:show={showDeleteConfirm} additionalMessage={linkedModelsWarningText}
 		on:confirm={() => {
 			deleteHandler(selectedItem);
 		}}
@@ -240,7 +242,7 @@
 						<input
 							class="w-[5rem] md:w-full text-xs outline-none bg-transparent leading-none pl-2 text-lightGray-100 dark:text-customGray-100"
 							bind:value={query}
-							placeholder={$i18n.t('Search Models')}
+							placeholder={$i18n.t('Search models')}
 							autofocus
 							on:blur={() => {
 								if (query.trim() === '') showInput = false;
@@ -347,6 +349,15 @@
 									<ItemMenu
 										{item}
 										on:delete={() => {
+											linkedModelsWarningText =
+												item.models && item.models.length > 0
+													? $i18n.t(
+															'This knowledge base is linked to the following models: {{models}}',
+															{
+																models: item.models.map(m => m.name).join(', ')
+															}
+														)
+													: '';
 											selectedItem = item;
 											showDeleteConfirm = true;
 										}}
@@ -381,10 +392,10 @@
 						<div class="flex justify-between mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700">
 							<div class="text-xs text-lightGray-1200 dark:text-customGray-100 flex items-center">
 								{#if item?.user?.profile_image_url}
-									<img class="w-3 h-3 rounded-full mr-1" src={item?.user?.profile_image_url} alt={item?.user?.first_name ?? item?.user?.email ?? $i18n.t('Deleted User')}/>
+									<img class="w-3 h-3 rounded-full mr-1" src={item?.user?.profile_image_url} alt={item?.user?.first_name ?? item?.user?.email ?? $i18n.t('Deleted user')}/>
 								{/if}
 								<Tooltip
-									content={item?.user?.email ?? $i18n.t('Deleted User')}
+									content={item?.user?.email ?? $i18n.t('Deleted user')}
 									className="flex shrink-0"
 									placement="top-start"
 								>
@@ -393,7 +404,7 @@
 								{:else if (item?.user?.email)}
 									{item?.user?.email}
 								{:else}
-									{$i18n.t('Deleted User')}
+									{$i18n.t('Deleted user')}
 								{/if}
 								</Tooltip>
 							</div>
@@ -406,77 +417,6 @@
 			</div>
 		</div>
 	</div>
-
-	<!-- 
-	<div class="mb-5 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
-		{#each filteredItems as item}
-			<button
-				class=" flex space-x-4 cursor-pointer text-left w-full px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-850 transition rounded-xl"
-				on:click={() => {
-					if (item?.meta?.document) {
-						toast.error(
-							$i18n.t(
-								'Only collections can be edited, create a new knowledge base to edit/add documents.'
-							)
-						);
-					} else {
-						goto(`/workspace/knowledge/${item.id}`);
-					}
-				}}
-			>
-				<div class=" w-full">
-					<div class="flex items-center justify-between -mt-1">
-						{#if item?.meta?.document}
-							<Badge type="muted" content={$i18n.t('Document')} />
-						{:else}
-							<Badge type="success" content={$i18n.t('Collection')} />
-						{/if}
-
-						<div class=" flex self-center -mr-1 translate-y-1">
-							<ItemMenu
-								on:delete={() => {
-									selectedItem = item;
-									showDeleteConfirm = true;
-								}}
-							/>
-						</div>
-					</div>
-
-					<div class=" self-center flex-1 px-1 mb-1">
-						<div class=" font-semibold line-clamp-1 h-fit">{item.name}</div>
-
-						<div class=" text-xs overflow-hidden text-ellipsis line-clamp-1">
-							{item.description}
-						</div>
-
-						<div class="mt-3 flex justify-between">
-							<div class="text-xs text-gray-500">
-								<Tooltip
-									content={item?.user?.email ?? $i18n.t('Deleted User')}
-									className="flex shrink-0"
-									placement="top-start"
-								>
-									{$i18n.t('By {{name}}', {
-										name: capitalizeFirstLetter(
-											item?.user?.name ?? item?.user?.email ?? $i18n.t('Deleted User')
-										)
-									})}
-								</Tooltip>
-							</div>
-							<div class=" text-xs text-gray-500 line-clamp-1">
-								{$i18n.t('Updated')}
-								{dayjs(item.updated_at * 1000).fromNow()}
-							</div>
-						</div>
-					</div>
-				</div>
-			</button>
-		{/each}
-	</div>
-
-	<div class=" text-gray-500 text-xs mt-1 mb-2">
-		ⓘ {$i18n.t("Use '#' in the prompt input to load and include your knowledge.")}
-	</div>-->
 {:else}
 	<div class="w-full h-full flex justify-center items-center">
 		<Spinner />

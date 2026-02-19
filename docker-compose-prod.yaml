@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   traefik:
     image: traefik:v2.11
@@ -14,7 +12,7 @@ services:
 
   litellm:
     container_name: litellm
-    image: ghcr.io/berriai/litellm:v1.79.0-stable
+    image: ghcr.io/berriai/litellm:v1.80.15.rc.1
     env_file:
       - .env
     restart: unless-stopped
@@ -26,25 +24,51 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+  redis:
+    container_name: redis-valkey
+    image: valkey/valkey:8.1-alpine
+    command: "valkey-server --save 30 1"
+    healthcheck:
+      test: "[ $$(valkey-cli ping) = 'PONG' ]"
+      start_period: 5s
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    volumes:
+      - redis:/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
   beyond-the-loop:
     image: ghcr.io/beyond-the-loop/beyond-the-loop:production
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.btl.rule=Host(`v2.beyondtheloop.ai`)"
+      - "traefik.http.routers.btl.rule=Host(`chat.beyondtheloop.ai`)"
       - "traefik.http.routers.btl.entrypoints=websecure"
       - "traefik.http.routers.btl.tls.certresolver=myresolver"
       - "traefik.http.services.btl.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.btl-redirect.redirectregex.regex=^https?://v2\\.beyondtheloop\\.ai/(.*)"
+      - "traefik.http.middlewares.btl-redirect.redirectregex.replacement=https://chat.beyondtheloop.ai/$${1}"
+      - "traefik.http.middlewares.btl-redirect.redirectregex.permanent=true"
+      - "traefik.http.routers.btl-staging.rule=Host(`v2.beyondtheloop.ai`)"
+      - "traefik.http.routers.btl-staging.entrypoints=websecure"
+      - "traefik.http.routers.btl-staging.middlewares=btl-redirect"
+      - "traefik.http.routers.btl-staging.tls.certresolver=myresolver"
     pull_policy: always
     container_name: beyond-the-loop
     env_file:
       - .env
-    environment:
-      - OPENAI_API_BASE_URL=http://litellm:4000/v1
-      - DATABASE_URL=sqlite:////app/backend/data/database.sqlite
-      - BACKEND_ADDRESS=https://v2.beyondtheloop.ai
     volumes:
       - ./backend/data:/app/backend/data
     depends_on:
+      - redis
       - litellm
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -53,3 +77,4 @@ services:
 volumes:
   beyond-the-loop: {}
   litellm: {}
+  redis: {}
