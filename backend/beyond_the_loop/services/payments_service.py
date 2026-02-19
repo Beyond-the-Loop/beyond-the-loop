@@ -177,9 +177,7 @@ class PaymentsService:
             if company.subscription_not_required:
                 return {
                     "plan": "unlimited",
-                    "flex_credits_remaining": company.flex_credit_balance,
-                    "seats": "unlimited",
-                    "auto_recharge": company.auto_recharge
+                    "seats": "unlimited"
                 }
 
             cached_active_subscriptions = STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.get(company_id)

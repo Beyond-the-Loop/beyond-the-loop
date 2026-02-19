@@ -252,7 +252,7 @@ async def generate_chat_completion(
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+    if has_chat_id or agent_or_task_prompt:
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     params = model.params.model_dump()

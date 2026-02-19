@@ -120,8 +120,7 @@ async def image_generations(
     try:
         subscription = payments_service.get_subscription(user.company_id)
 
-        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-            await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
         image_bytes_list = images_to_bytes(form_data.images) if form_data.images else []
 
