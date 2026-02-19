@@ -1,4 +1,5 @@
 import logging
+import math
 import stripe
 import os
 from datetime import datetime, timedelta
@@ -29,34 +30,55 @@ class AnalyticsService:
     @staticmethod
     def calculate_engagement_score_by_company(company_id: str):
         """
-        Returns the adoption rate: percentage of users for the user's company
-        that logged in in the last 30 days.
+        Returns a company-wide engagement score between 0 and 1.
+
+        Per-user score: mean of 30 daily scores, where each day's score is
+            log(1 + messages) / (1 + log(1 + messages))
+        Inactive days contribute 0. Company score is the mean across all users
+        (users with zero messages score 0).
         """
+        thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
 
-        try:
-            # Calculate timestamp for 30 days ago
-            thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
+        with get_db() as db:
+            company_users = db.query(User.id).filter_by(company_id=company_id).all()
+            company_user_ids = [u.id for u in company_users]
+            total_users = len(company_user_ids)
 
-            # Get total number of users in the company
-            total_users = len(get_users_by_company(company_id=company_id))
-            # Get number of active users in the last 30 days
-            active_users = len(
-                get_active_users_by_company(
-                    company_id=company_id, since_timestamp=thirty_days_ago
+            if total_users == 0:
+                return EngagementScoreResponse(engagement_score=0.0)
+
+            daily_counts = (
+                db.query(
+                    Completion.user_id,
+                    func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM-DD').label('day'),
+                    func.count(Completion.id).label('message_count'),
                 )
+                .filter(
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.created_at >= thirty_days_ago,
+                    Completion.from_agent == False,
+                )
+                .group_by(Completion.user_id, 'day')
+                .all()
             )
-            # Calculate adoption rate as a percentage
-            adoption_rate = (active_users / total_users * 100) if total_users > 0 else 0
 
-            data = {
-                "total_users": total_users,
-                "active_users": active_users,
-                "adoption_rate": round(adoption_rate, 2),
-            }
+        user_day_counts = {}
+        for row in daily_counts:
+            user_day_counts.setdefault(row.user_id, {})[row.day] = row.message_count
 
-            return EngagementScoreResponse.from_data(data)
-        except Exception as e:
-            log.error(f"Error calculating adoption rate: {e}")
+        def day_score(messages: int) -> float:
+            log_val = math.log(1 + messages)
+            return log_val / (1 + log_val)
+
+        user_scores = []
+        for user_id in company_user_ids:
+            active_days = user_day_counts.get(user_id, {})
+            total_day_score = sum(day_score(count) for count in active_days.values())
+            user_scores.append(total_day_score / 30)
+
+        engagement_score = sum(user_scores) / total_users
+
+        return EngagementScoreResponse(engagement_score=round(engagement_score, 4))
 
     @staticmethod
     def get_top_models_by_company(company_id: str, start_date: str, end_date: str):

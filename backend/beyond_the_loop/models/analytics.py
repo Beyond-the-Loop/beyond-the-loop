@@ -218,18 +218,4 @@ class TotalAssistantsResponse(BaseModel):
     total_assistants: int
 
 class EngagementScoreResponse(BaseModel):
-    total_users: int
-    active_users: int
-    adoption_rate: float
-
-    @classmethod
-    def from_data(cls, data: dict):
-        """
-        Create an EngagementScoreResponse from a raw dictionary.
-        Automatically rounds adoption_rate to 2 decimals.
-        """
-        return cls(
-            total_users=int(data.get("total_users", 0)),
-            active_users=int(data.get("active_users", 0)),
-            adoption_rate=round(float(data.get("adoption_rate", 0)), 2)
-        )
+    engagement_score: float
