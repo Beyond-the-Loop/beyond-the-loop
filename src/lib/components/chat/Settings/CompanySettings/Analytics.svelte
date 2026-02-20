@@ -14,7 +14,7 @@
 	import ArrowRight from '$lib/components/icons/ArrowRight.svelte';
 	import { subscription } from '$lib/stores';
 	import {
-		getAcceptanceRate,
+		getEngagementScore,
 		getPowerUsers,
 		getTopModels,
 		getTopUsers,
@@ -43,11 +43,12 @@
 	import LightningIcon from '$lib/components/icons/LightningIcon.svelte';
 	import AssistantsIcon from '$lib/components/icons/AssistantsIcon.svelte';
 	import TrendArrowIcon from '$lib/components/icons/TrendArrowIcon.svelte';
-	import { Tabs } from 'bits-ui';
+	import { Select, Pagination, Tabs } from 'bits-ui';
 	import Cube from '$lib/components/icons/Cube.svelte';
 	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
 	import ArrowUpCircle from '$lib/components/icons/ArrowUpCircle.svelte';
+	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
 
 	const i18n = getContext('i18n');
 	export let analyticsLoading = true;
@@ -88,7 +89,18 @@
 	let chartMessagesData = null;
 	let chartMessagesDataYearly = null;
 
+	let page = 1;
 	let rowsPerPage = 5;
+
+	$: totalCount = rows?.length;  
+	$: startRow = (page - 1) * rowsPerPage;  
+	$: endRow = startRow + rowsPerPage;  
+	$: pagedRows = rows?.slice(startRow, endRow);
+	$: totalCountModels = modelRows?.length;
+	$: pagedModelRows = modelRows?.slice(startRow, endRow);
+
+	$: totalCountAssistants = assistantRows?.length;
+	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
 
 	const token = localStorage.token;
 	const now = new Date();
@@ -101,7 +113,7 @@
 		topAssistants: TopAssistantsResponse | null;
 		totalUsers: TotalUsersResponse | null;
 		totalMessages: TotalMessagesResponse | null;
-		acceptanceRate: EngagementScoreResponse | null;
+		engagementRate: EngagementScoreResponse | null;
 		powerUsers: PowerUsersResponse | null;
 		topUsers: TopUsersResponse | null;
 		totalAssistants: TotalAssistantsResponse | null;
@@ -111,11 +123,42 @@
 		topAssistants: null,
 		totalUsers: null,
 		totalMessages: null,
-		acceptanceRate: null,
+		engagementRate: null,
 		powerUsers: null,
 		topUsers: null,
 		totalAssistants: null
 	};
+
+	let timeSpan = 28;
+
+	const options: { value: number; label: string }[] = [
+		{ value: 7, label: "Last 7 Days" },
+		{ value: 28, label: "Last 4 Weeks" },
+		{ value: 365, label: "Last Year" },
+		{ value: 10000, label: "All Time" },
+	];
+	let selectedTimeSpan = options.find((i) => i.value === 28);
+	function addDays(date: Date, days: number) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        return d;
+    }
+	function formatYYYYMMDD(d: Date) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    }
+	function handleTimeSpanChange(next) {    
+		selectedTimeSpan = next;   
+		analyticsLoading = true;
+		const end = new Date();                 // aktuelles Datum
+        const start = addDays(end, -((selectedTimeSpan?.value ?? 28) - 1)); // inkl. heute -> 28 Tage = heute + 27 Tage zurück
+        fetch_data(formatYYYYMMDD(start), formatYYYYMMDD(end));
+
+		page = 1;  
+	}
+
 
 	const sampleData = {
 		monthly_messages: [
@@ -147,8 +190,8 @@
 				topModels,
 				topAssistants,
 				totalUsers,
-				// totalMessages,
-				acceptanceRate,
+				totalMessages,
+				engagementRate,
 				powerUsers,
 				topUsers,
 				totalAssistants
@@ -156,8 +199,8 @@
 				getTopModels(token, start_date, end_date),
 				getTopAssistants(token, start_date, end_date),
 				getTotalUsers(token),
-				// getTotalMessages(token),
-				getAcceptanceRate(token),
+				getTotalMessages(token),
+				getEngagementScore(token),
 				getPowerUsers(token),
 				getTopUsers(token, start_date, end_date),
 				getTotalAssistants(token)
@@ -168,9 +211,9 @@
 					topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
 				topAssistants: topAssistants?.status === 'fulfilled' ? topAssistants?.value : {},
 				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
-				// totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-				totalMessages: sampleData,
-				acceptanceRate: acceptanceRate?.status === 'fulfilled' ? acceptanceRate?.value : {},
+				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
+				// totalMessages: sampleData,
+				engagementRate: engagementRate?.status === 'fulfilled' ? engagementRate?.value : {},
 				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
 				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
 				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {}
@@ -185,7 +228,7 @@
 
 	$: {
 		if (analytics?.topUsers != null) {
-			// rows = top_by_messages(analytics?.topUsers?.top_users);
+			rows = top_by_messages(analytics?.topUsers?.top_users);
 		}
 		if (analytics?.topModels != null) {
 			modelRows = top_by_messages(analytics?.topModels.items);
@@ -236,6 +279,9 @@
 	}
 
 	let activeTab = 'users';
+	$: if (activeTab) {
+		page = 1;
+	}
 	$: searchBarPlaceholder =
 		activeTab === 'users'
 			? 'Search users...'
@@ -298,7 +344,7 @@
 		message_count: 156,
 		assistant_count: 1
 	};
-	const usersList = [Max, Lisa, Anna, Tom, Sarah, Max, Lisa, Anna];
+	const usersList = [Max, Lisa, Anna, Tom, Sarah, Max, Lisa, Anna, Max, Lisa, Anna, Tom, Sarah, Max, Lisa, Anna, Max, Lisa, Anna, Tom, Sarah, Max, Lisa, Anna, Max, Lisa, Anna, Tom, Sarah, Max, Lisa, Anna];
 	let rows: User[] = usersList;
 	let assistantRows = null;
 	let modelRows = null;
@@ -383,8 +429,7 @@
 		};
 	}
 	function searchFor(search: string) {
-		console.log('bin da!');
-		rows = usersList.filter((u) => {
+		rows = analytics?.topUsers?.top_users.filter((u) => {
 			const q = search
 				.trim()
 				.toLowerCase()
@@ -487,7 +532,7 @@
 					<CheckCircle className="size-5 bg-blue-700 p-1 rounded-md text-white" />
 
 					<Tooltip
-						content={$i18n.t('The proportion of users who logged in during the last month.')}
+						content={$i18n.t('Measures the quality of user activity by evaluating daily interaction (logarithmically scaled) over 30 days and rewarding consistency.')}
 					>
 						<!-- zB offset={[0, -48]} mitgeben -->
 
@@ -501,11 +546,11 @@
 
 				<div class="pt-[6px]">
 					<div class="text-xl font-semibold text-lightGray-100 dark:text-customGray-100 mb-0">
-						{analytics?.acceptanceRate?.adoption_rate}%
+						{analytics?.engagementRate?.engagement_score?.toFixed(2)}%
 						<!-- 91.3% -->
 					</div>
 					<div class="text-xs dark:text-customGray-100/50 text-center">
-						{$i18n.t('Acceptance rate')}
+						{$i18n.t('Engagement')}
 					</div>
 				</div>
 			</div>
@@ -555,7 +600,7 @@
 						{analytics?.totalAssistants?.total_assistants}
 					</div>
 					<div class="text-xs dark:text-customGray-100/50 text-center">
-						{$i18n.t('Assistants created')}
+						{$i18n.t('Assistants')}
 					</div>
 				</div>
 			</div>
@@ -587,13 +632,33 @@
 			<div
 				class="w-full mt-4 ring-1 ring-gray-200 rounded-lg gap-3 p-3 bg-lightGray-300 text-2xs flex flex-row items-center"
 			>
-				<div
-					class="flex ring-1 gap-2 bg-white ring-gray-200 flex-row items-center px-2 py-[6px] rounded-md"
-				>
-					<CalendarIcon className="size-3 text-slate-500/90" />
-					<div>Last 4 Weeks</div>
-					<ChevronDown className="size-3" strokeWidth="2.5" />
-				</div>
+				<Select.Root onSelectedChange={handleTimeSpanChange} selected={selectedTimeSpan} items={options} portal={null}>
+					<Select.Trigger
+						class="flex items-center gap-2 rounded-md bg-white px-2 py-[6px] ring-1 ring-gray-200"
+						aria-label="Choose range..."
+					>
+						<CalendarIcon className="size-4 text-slate-500/90" />
+						<Select.Value placeholder="Choose range..." />
+						<ChevronDown className="ml-auto size-4 text-slate-600" strokeWidth="2.5" />
+					</Select.Trigger>
+
+					<Select.Content class="mt-1 rounded-md bg-white ring-1 ring-gray-200 shadow-sm z-50">
+						{#each options as opt (opt.value)}
+						<Select.Item
+							value={opt.value}
+							label={opt.label}
+							class="flex cursor-pointer items-center gap-2 p-2 text-xs outline-none data-[highlighted]:bg-slate-100"
+						>
+						{opt.label}
+							<Select.ItemIndicator class="w-4">
+							<CheckmarkIcon className="size-4"/>				
+							</Select.ItemIndicator>
+						</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				
+					
 				<div class="flex-1 bg-white ring-1 ring-gray-200 rounded-md flex flex-row items-center">
 					<div class="pl-2 pr-1 py-[6px]"><Search className="size-4 text-slate-500/90 " /></div>
 
@@ -665,7 +730,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each rows.slice(0, rowsPerPage) as row}
+						{#each pagedRows as row}
 							<tr class="hover:bg-gray-50">
 								<td class="w-8 border-t border-1 border-gray-200/60">
 									<div class="mx-2 text-slate-500/90">
@@ -708,36 +773,66 @@
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60">
 							<td colspan="4" class="p-2">
-								<div class="flex flex-row justify-between items-center">
-									<div class="flex flex-row items-center">
-										<div class="text-gray-600 pr-2 text-2xs">Rows per page</div>
-										<select
-											bind:value={rowsPerPage}
-											class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2"
-										>
-											<option value={5}>5</option> <option value={10}>10</option>
-											<option value={15}>15</option> <option value={20}>20</option>
-										</select>
-									</div>
-									<div class="flex flex-row items-center">
-										<button
-											class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
-											disabled><ChevronLeft /></button
-										>
-										<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
-											>1</button
-										>
-										<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button
-										>
-										<button
-											class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
-											><ChevronRight className="size-3" strokeWidth="2.5" /></button
-										>
-									</div>
+							<div class="flex flex-row justify-between items-center">
+								<div class="flex flex-row items-center">
+								<div class="text-gray-600 pr-2 text-2xs">Rows per page</div>
+								<select
+									bind:value={rowsPerPage}
+									on:change={() => (page = 1)}
+									class="w-12 bg-white ring-1 rounded-md ring-gray-200 py-1 px-2"
+								>
+									<option value={5}>5</option>
+									<option value={10}>10</option>
+									<option value={15}>15</option>
+									<option value={20}>20</option>
+								</select>
 								</div>
+
+								<Pagination.Root
+									count={totalCount}
+									perPage={rowsPerPage}
+									bind:page
+									siblingCount={1}
+									let:pages
+									let:range
+									>
+									<div class="flex flex-row items-center gap-2 text-gray-600">
+										<Pagination.PrevButton
+										class="inline-flex size-5 items-center justify-center rounded-md ring-1 ring-gray-200 bg-white text-xs disabled:opacity-50">
+										<ChevronLeft className="size-3" strokeWidth=2.5 />
+									</Pagination.PrevButton>
+									
+
+									<div class="flex items-center gap-2">
+										{#each pages as p (p.key)}
+										{#if p.type === "ellipsis"}
+											<span class="px-2 text-gray-500 select-none">…</span>
+										{:else}
+											<Pagination.Page
+											page={p}
+											class="page inline-flex text-gray-600 size-5 font-semibold items-center justify-center rounded-md text-xs
+													data-[selected]:bg-blue-500 data-selected:text-white"
+											>
+											<style>
+												.page[data-selected] {    background: #1d4ed8; /* blue-700 */    color: white;  }
+											</style>
+											{p.value}
+											</Pagination.Page>
+										{/if}
+										{/each}
+									</div>
+
+									<Pagination.NextButton
+										class="inline-flex size-5 items-center justify-center rounded-md ring-1 ring-gray-200 bg-white disabled:opacity-50"
+									>
+										<ChevronRight className="size-3 " strokeWidth=2.5/>
+									</Pagination.NextButton>
+									</div>
+									</Pagination.Root>
+							</div>
 							</td>
 						</tr>
-					</tfoot>
+						</tfoot>
 				</table>
 			</Tabs.Content>
 			<Tabs.Content value="models" class="select-none pt-3">
@@ -782,7 +877,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each modelRows.slice(0, rowsPerPage) as row}
+						{#each pagedModelRows as row}
 							<tr class="hover:bg-gray-50">
 								<td class="pl-5 border-t border-1 border-gray-200/60 p-2">
 									<div class="flex flex-row items-center">
@@ -823,21 +918,47 @@
 											<option value={15}>15</option> <option value={20}>20</option>
 										</select>
 									</div>
-									<div class="flex flex-row items-center">
-										<button
-											class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
-											disabled><ChevronLeft /></button
-										>
-										<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
-											>1</button
-										>
-										<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button
-										>
-										<button
-											class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
-											><ChevronRight className="size-3" strokeWidth="2.5" /></button
-										>
+									<Pagination.Root
+									count={totalCountModels}
+									perPage={rowsPerPage}
+									bind:page
+									siblingCount={1}
+									let:pages
+									let:range
+									>
+									<div class="flex flex-row items-center gap-2 text-gray-600">
+										<Pagination.PrevButton
+										class="inline-flex size-5 items-center justify-center rounded-md ring-1 ring-gray-200 bg-white text-xs disabled:opacity-50">
+										<ChevronLeft className="size-3" strokeWidth=2.5 />
+									</Pagination.PrevButton>
+									
+
+									<div class="flex items-center gap-2">
+										{#each pages as p (p.key)}
+										{#if p.type === "ellipsis"}
+											<span class="px-2 text-gray-500 select-none">…</span>
+										{:else}
+											<Pagination.Page
+											page={p}
+											class="page inline-flex text-gray-600 size-5 font-semibold items-center justify-center rounded-md text-xs
+													data-[selected]:bg-blue-500 data-selected:text-white"
+											>
+											<style>
+												.page[data-selected] {    background: #1d4ed8; /* blue-700 */    color: white;  }
+											</style>
+											{p.value}
+											</Pagination.Page>
+										{/if}
+										{/each}
 									</div>
+
+									<Pagination.NextButton
+										class="inline-flex size-5 items-center justify-center rounded-md ring-1 ring-gray-200 bg-white disabled:opacity-50"
+									>
+										<ChevronRight className="size-3 " strokeWidth=2.5/>
+									</Pagination.NextButton>
+									</div>
+									</Pagination.Root>
 								</div>
 							</td>
 						</tr>
@@ -856,7 +977,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each assistantRows as row, index}
+						{#each pagedAssistantRows as row, index}
 							<tr class="hover:bg-gray-50">
 								<td class="border-t border-1 p-2 border-gray-200/60 pl-5">
 									<!-- (row index) -->
@@ -912,21 +1033,48 @@
 											<option value="15">15</option> <option value="20">20</option>
 										</select>
 									</div>
-									<div class="flex flex-row items-center">
-										<button
-											class="bg-white text-gray-700 mx-[2px] flex justify-center items-center rounded-md font-semibold size-5 disabled:opacity-50"
-											disabled><ChevronLeft /></button
-										>
-										<button class="bg-blue-600 text-white mx-[2px] rounded-md font-semibold size-6"
-											>1</button
-										>
-										<button class="text-gray-600 mx-[2px] rounded-md font-semibold size-6">2</button
-										>
-										<button
-											class="bg-white text-gray-900 mx-[2px] rounded-md font-semibold size-5 disabled:opacity-50 flex justify-center items-center"
-											><ChevronRight className="size-3" strokeWidth="2.5" /></button
-										>
+									<Pagination.Root
+									count={totalCountAssistants}
+									perPage={rowsPerPage}
+									bind:page
+									siblingCount={1}
+									let:pages
+									let:range
+									>
+									<div class="flex flex-row items-center gap-2 text-gray-600">
+										<Pagination.PrevButton
+										class="inline-flex size-5 items-center justify-center rounded-md ring-1 ring-gray-200 bg-white text-xs disabled:opacity-50">
+										<ChevronLeft className="size-3" strokeWidth=2.5 />
+									</Pagination.PrevButton>
+									
+									{#if totalCountAssistants > 0}
+									<div class="flex items-center gap-2">
+										{#each pages as p (p.key)}
+										{#if p.type === "ellipsis"}
+											<span class="px-2 text-gray-500 select-none">…</span>
+										{:else}
+											<Pagination.Page
+											page={p}
+											class="page inline-flex text-gray-600 size-5 font-semibold items-center justify-center rounded-md text-xs
+													data-[selected]:bg-blue-500 data-selected:text-white"
+											>
+											<style>
+												.page[data-selected] {    background: #1d4ed8; /* blue-700 */    color: white;  }
+											</style>
+											{p.value}
+											</Pagination.Page>
+										{/if}
+										{/each}
 									</div>
+									{/if}
+
+									<Pagination.NextButton
+										class="inline-flex size-5 items-center justify-center rounded-md ring-1 ring-gray-200 bg-white disabled:opacity-50"
+									>
+										<ChevronRight className="size-3 " strokeWidth=2.5/>
+									</Pagination.NextButton>
+									</div>
+									</Pagination.Root>
 								</div>
 							</td>
 						</tr>
@@ -1036,206 +1184,6 @@
 				</div>
 			</Tabs.Content>
 		</Tabs.Root>
-		<!-- <div class="bg-lightGray-300 dark:bg-customGray-900 rounded-2xl p-4 pb-1 mt-5">
-			<div
-				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
-			>
-				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">
-						{$i18n.t('Top users')} ({$i18n.t('This month').toLowerCase()})
-					</div>
-				</div>
-				<div use:onClickOutside={() => (showUsersSortDropdown = false)}>
-					<div class="relative" bind:this={usersSortRef}>
-						<button
-							type="button"
-							class="flex items-center min-w-40 justify-end text-sm border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 dark:bg-customGray-900 cursor-pointer"
-							on:click={() => (showUsersSortDropdown = !showUsersSortDropdown)}
-						>
-							<div class="flex items-center">
-								<div
-									class="text-xs dark:text-customGray-200 max-w-[22rem] text-left whitespace-nowrap"
-								>
-									{$i18n.t(selectedSortOrder?.label)}
-								</div>
-								<ChevronDown className="size-3" strokeWidth="2.5" />
-							</div>
-						</button>
-
-						{#if showUsersSortDropdown}
-							<div
-								class="max-h-60 min-w-[14rem] overflow-y-auto absolute top-6 -right-2 z-50 bg-lightGray-300 dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 rounded-md shadow"
-							>
-								<div class="px-1 py-1">
-									{#each sortOptions?.filter?.((item) => item?.value !== selectedSortOrder?.value) as option}
-										<div
-											role="button"
-											tabindex="0"
-											on:click={() => {
-												selectedSortOrder = option;
-												if (option.value === 'credits') {
-													users = analytics?.topUsers?.top_by_credits;
-												} else if (option.value === 'messages') {
-													users = analytics?.topUsers?.top_by_messages;
-												} else {
-													users = analytics?.topUsers?.top_by_assistants;
-												}
-												showUsersSortDropdown = false;
-											}}
-											class="flex items-center justify-end w-full cursor-pointer text-xs text-lightGray-100 dark:text-customGray-100 px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md"
-										>
-											{$i18n.t(option?.label)}
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/if}
-					</div>
-				</div>
-			</div>
-
-			{#each users as user}
-				<div class="flex items-center justify-between mb-3">
-					<div class="flex items-center">
-						<img
-							class=" rounded-full w-3 h-3 object-cover mr-2.5"
-							src={user.profile_image_url.startsWith(WEBUI_BASE_URL) ||
-							user.profile_image_url.startsWith('https://www.gravatar.com/avatar/') ||
-							user.profile_image_url.startsWith('data:')
-								? user.profile_image_url
-								: `/user.png`}
-							alt="user"
-						/>
-
-						<div class="text-xs dark:text-customGray-100 mr-1 whitespace-nowrap">
-							{user.first_name}
-							{user.last_name}
-						</div>
-
-						<Tooltip content={user.email} className=" w-fit overflow-hidden" placement="top-end">
-							<div
-								class="text-xs dark:text-customGray-590 mr-1 truncate text-ellipsis whitespace-nowrap"
-							>
-								{user.email}
-							</div>
-						</Tooltip>
-					</div>
-					{#if selectedSortOrder.value === 'credits'}
-						<div class="text-xs dark:text-customGray-590">
-							€{(user?.total_credits_used).toFixed(2)}
-						</div>
-					{:else if selectedSortOrder.value === 'messages'}
-						<div class="text-xs dark:text-customGray-590">
-							{user?.message_count}
-							{$i18n.t('messages')}
-						</div>
-					{:else}
-						<div class="text-xs dark:text-customGray-590">
-							{user?.assistant_count}
-							{$i18n.t('assistants')}
-						</div>
-					{/if}
-				</div>
-			{/each}
-		</div>
-		<div class="bg-lightGray-300 dark:bg-customGray-900 rounded-2xl p-4 pb-1 mt-5">
-			<div
-				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
-			>
-				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">
-						{$i18n.t('Top 3 models used')}
-					</div>
-				</div>
-				<div use:onClickOutside={() => (showMonthsDropdown = false)}>
-					<div class="relative" bind:this={monthsRef}>
-						<button
-							type="button"
-							class="flex items-center min-w-40 justify-end text-sm border-lightGray-400 dark:border-customGray-700 rounded-md bg-lightGray-300 dark:bg-customGray-900 cursor-pointer"
-							on:click={() => (showMonthsDropdown = !showMonthsDropdown)}
-						>
-							<div class="flex items-center">
-								<div
-									class="text-xs text-lightGray-100 dark:text-customGray-200 max-w-[22rem] text-left"
-								>
-									{$i18n.t(selectedPeriod?.label)}
-								</div>
-								<ChevronDown className="size-3" strokeWidth="2.5" />
-							</div>
-						</button>
-
-						{#if showMonthsDropdown}
-							<div
-								class="max-h-60 min-w-44 overflow-y-auto absolute top-6 -right-2 z-50 bg-lightGray-300 dark:bg-customGray-900 border border-gray-300 dark:border-customGray-700 rounded-md shadow"
-							>
-								<div class="px-1 py-1">
-									{#each periodOptions as option}
-										<div
-											role="button"
-											tabindex="0"
-											on:click={async () => {
-												selectedPeriod = option;
-												const { start, end } = getPeriodRange(selectedPeriod.value);
-												const res = await getTopModels(localStorage.token, start, end);
-												analytics = {
-													...analytics,
-													topModels: res?.length > 0 ? res : []
-												};
-												showMonthsDropdown = false;
-											}}
-											class="flex items-center justify-end w-full cursor-pointer text-xs dark:text-customGray-100 px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md"
-										>
-											{$i18n.t(option?.label)}
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/if}
-					</div>
-				</div>
-			</div>
-			{#each analytics?.topModels as model}
-				<div class="flex items-center justify-between mb-3">
-					<div class="flex items-center">
-						<img
-							class=" rounded-full w-3 h-3 object-cover mr-2.5"
-							src={getModelIcon(model?.model)}
-							alt="user"
-						/>
-
-						<div class="text-xs dark:text-customGray-100 mr-1 whitespace-nowrap">
-							{model?.model}
-						</div>
-					</div>
-					<div class="text-xs dark:text-customGray-590">€{(model?.credits_used).toFixed(2)}</div>
-				</div>
-			{/each}
-		</div>
-		<div class="mt-5">
-			<div
-				class="flex w-full justify-between items-center pb-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2.5"
-			>
-				<div class="flex w-full justify-between items-center">
-					<div class="text-xs text-lightGray-100 dark:text-customGray-300 font-medium">
-						{$i18n.t('User activity insights')}
-					</div>
-				</div>
-			</div>
-			<div class="w-fit flex bg-lightGray-700 dark:bg-customGray-900 rounded-md mx-auto mb-2.5">
-				<button
-					on:click={() => (activeTab = 'messages')}
-					class="{activeTab === 'messages'
-						? 'text-lightGray-100 bg-lightGray-300 border-lightGray-400 dark:bg-customGray-900 rounded-md border dark:border-customGray-700'
-						: 'text-lightGray-100/70'} px-6 py-2 flex-shrink-0 text-xs font-medium leading-none dark:text-customGray-100"
-					>{$i18n.t('Messages')}</button
-				>
-			</div>
-			<div>
-				<div class="dark:bg-customGray-900 rounded-2xl p-4">
-					<Chart type="line" data={chartMessagesData} options={chartOptions} />
-				</div>
-			</div>
-		</div> -->
 	{:else}
 		<div class="h-[20rem] w-full flex justify-center items-center">
 			<Spinner />

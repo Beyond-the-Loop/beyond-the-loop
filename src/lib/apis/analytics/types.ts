@@ -88,9 +88,7 @@ export interface TotalAssistantsResponse {
 
 // --- /analytics/stats/engagement-score ---
 export interface EngagementScoreResponse {
-	total_users: number;
-	active_users: number;
-	adoption_rate: number; // im Backend weiterhin "adoption_rate"
+	engagement_score: number; // im Backend weiterhin "adoption_rate"
 }
 
 // --- /analytics/stats/power-users (aus AnalyticsService.get_power_users_by_company) ---

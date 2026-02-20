@@ -143,7 +143,7 @@ export const getTotalUsers = async (token: string) => {
 	return res;
 };
 
-export const getAcceptanceRate = async (token: string) => {
+export const getEngagementScore = async (token: string) => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/analytics/stats/engagement-score`, {
