@@ -217,6 +217,8 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
         # All invitations were successful
         return {"success": True, "message": "All users invited successfully"}
             
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=400,

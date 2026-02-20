@@ -670,6 +670,10 @@
 		chatFiles = [];
 		params = {};
 
+		webSearchEnabled = false;
+		imageGenerationEnabled = false;
+		codeInterpreterEnabled = false;
+
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
 				`https://www.youtube.com/watch?v=${$page.url.searchParams.get('youtube')}`
