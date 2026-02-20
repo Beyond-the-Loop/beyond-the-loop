@@ -199,7 +199,7 @@ jobs:
           # Post to Slack
           SHORT_SHA=$(git rev-parse --short HEAD)
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          DEPLOY_TIME=$(date '+%d.%m.%Y %H:%M UTC')
+          DEPLOY_TIME=$(TZ='Europe/Berlin' date '+%d.%m.%Y %H:%M %Z')
 
           SLACK_PAYLOAD=$(jq -n \
             --arg summary "$SUMMARY" \
