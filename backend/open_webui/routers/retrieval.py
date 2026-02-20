@@ -456,74 +456,74 @@ class ProcessFileForm(BaseModel):
     content: Optional[str] = None
     collection_name: Optional[str] = None
 
-def process_files(request: Request):
-    files = Files.get_files()
-    loader = Loader()
+def _run_chroma_to_pgvector_migration():
+    import time
+    from beyond_the_loop.retrieval.vector.dbs.chroma import ChromaClient
 
-    for index, file in enumerate(files):
-        print("Processing file", index, "of", len(files), "-", file.filename, "-")
+    migration_start = time.time()
+    log.info("Starting ChromaDB to PGVector migration...")
 
-        if not file.meta.get("collection_name"):
-            print("Skipping file as it does not have a collection name")
-            continue
+    t = time.time()
+    chroma = ChromaClient()
+    log.info(f"ChromaClient init: {time.time() - t:.2f}s")
 
-        if not file.path.startswith("/app"):
-            try:
-                file_path = Storage.get_file(file.path)
-            except Exception:
-                print("Skipping file as it was not found in GCP Storage", file.path)
+    t = time.time()
+    collections = chroma.client.list_collections()
+    total_collections = len(collections)
+    log.info(f"list_collections: {time.time() - t:.2f}s — found {total_collections} collections")
+
+    total_migrated = 0
+
+    for idx, name in enumerate(collections):
+        col_start = time.time()
+        try:
+            t = time.time()
+            if VECTOR_DB_CLIENT.has_collection(name):
+                log.info(f"[{idx + 1}/{total_collections}] Skipping '{name}' (already in pgvector) — has_collection: {time.time() - t:.2f}s")
                 continue
-        else:
-            file_path = file.path
+            log.info(f"[{idx + 1}/{total_collections}] has_collection: {time.time() - t:.2f}s")
 
-        try:
-            docs = loader.load(file.filename, file.meta.get("content_type"), file_path)
-        except Exception:
-            print("Skipping file as it could not be loaded or was not on the file path", file_path)
-            continue
+            t = time.time()
+            collection = chroma.client.get_collection(name)
+            log.info(f"[{idx + 1}/{total_collections}] get_collection('{name}'): {time.time() - t:.2f}s")
 
-        docs = [
-            Document(
-                page_content=doc.page_content,
-                metadata={
-                    **doc.metadata,
-                    "name": file.filename,
-                    "created_by": file.user_id,
-                    "file_id": file.id,
-                    "source": file.filename,
-                },
-            )
-            for doc in docs
-        ]
+            t = time.time()
+            result = collection.get(include=["embeddings", "documents", "metadatas"])
+            n = len(result["ids"])
+            log.info(f"[{idx + 1}/{total_collections}] '{name}' chroma.get: {time.time() - t:.2f}s — {n} items")
 
-        text_content = " ".join([doc.page_content for doc in docs])
-        hash = calculate_sha256_string(text_content)
+            if n == 0:
+                log.info(f"[{idx + 1}/{total_collections}] Skipping '{name}' (empty)")
+                continue
 
-        user = Users.get_user_by_id(file.user_id)
+            items = [
+                {
+                    "id": result["ids"][j],
+                    "text": result["documents"][j] or "",
+                    "vector": result["embeddings"][j],
+                    "metadata": result["metadatas"][j] or {},
+                }
+                for j in range(n)
+            ]
 
-        try:
-            save_docs_to_vector_db(
-                request,
-                docs=docs,
-                collection_name=file.meta.get("collection_name"),
-                metadata={
-                    "file_id": file.id,
-                    "name": file.filename,
-                    "hash": hash,
-                },
-                add=True,
-                user=user,
-            )
-            print("Successfully added file to PGVector")
+            t = time.time()
+            VECTOR_DB_CLIENT.insert(collection_name=name, items=items)
+            log.info(f"[{idx + 1}/{total_collections}] '{name}' pgvector.insert: {time.time() - t:.2f}s")
+
+            total_migrated += n
+            log.info(f"[{idx + 1}/{total_collections}] '{name}' done: {n} chunks in {time.time() - col_start:.2f}s")
+
         except Exception as e:
-            print("Skipping file because of a general error", e)
+            log.error(f"[{idx + 1}/{total_collections}] '{name}' failed after {time.time() - col_start:.2f}s: {e}")
             continue
+
+    log.info(f"Migration complete. {total_migrated} chunks migrated in {time.time() - migration_start:.2f}s")
+
 
 @router.post("/add-files-to-pgvector")
-def add_files_to_pgvector(request: Request, background_tasks: BackgroundTasks):
-    # Schedule the background task
-    background_tasks.add_task(process_files, request)
-    return {"status": "processing started"}
+def add_files_to_pgvector(background_tasks: BackgroundTasks):
+    background_tasks.add_task(_run_chroma_to_pgvector_migration)
+    return {"status": "migration started"}
 
 @router.post("/process/file")
 def process_file(
