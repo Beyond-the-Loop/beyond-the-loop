@@ -65,7 +65,7 @@ from pydub.utils import mediainfo
 def is_mp4_audio(file_path):
     """Check if the given file is an MP4 audio file."""
     if not os.path.isfile(file_path):
-        print(f"File not found: {file_path}")
+        log.warning(f"File not found: {file_path}")
         return False
 
     info = mediainfo(file_path)
@@ -82,7 +82,7 @@ def convert_mp4_to_wav(file_path, output_path):
     """Convert MP4 audio file to WAV format."""
     audio = AudioSegment.from_file(file_path, format="mp4")
     audio.export(output_path, format="wav")
-    print(f"Converted {file_path} to {output_path}")
+    log.info(f"Converted {file_path} to {output_path}")
 
 
 def set_faster_whisper_model(model: str, auto_update: bool = False):
@@ -416,7 +416,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
 
 def transcribe(request: Request, file_path):
-    print("transcribe", file_path)
+    log.debug(f"transcribe: {file_path}")
     filename = os.path.basename(file_path)
     file_dir = os.path.dirname(file_path)
     id = filename.split(".")[0]

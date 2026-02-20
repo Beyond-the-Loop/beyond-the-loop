@@ -500,7 +500,7 @@ def add_files_to_knowledge_batch(
     _validate_knowledge_write_access(knowledge, user)
 
     # Get files content
-    print(f"files/batch/add - {len(form_data)} files")
+    log.debug(f"files/batch/add - {len(form_data)} files")
     files: List[FileModel] = []
     for form in form_data:
         file = Files.get_file_by_id(form.file_id)

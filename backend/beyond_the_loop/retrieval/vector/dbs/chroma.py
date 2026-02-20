@@ -1,8 +1,11 @@
+import logging
 import chromadb
 from chromadb import Settings
 from chromadb.utils.batch_utils import create_batches
 
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from beyond_the_loop.retrieval.vector.main import VectorItem, SearchResult, GetResult
 from beyond_the_loop.config import (
@@ -103,7 +106,7 @@ class ChromaClient:
                 )
             return None
         except Exception as e:
-            print(e)
+            log.error(f"Error querying chroma collection: {e}")
             return None
 
     def get(self, collection_name: str) -> Optional[GetResult]:

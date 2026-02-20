@@ -48,7 +48,7 @@ def run_migrations():
 
         command.upgrade(alembic_cfg, "head")
     except Exception as e:
-        print(f"Error: {e}")
+        log.error(f"Migration error: {e}")
 
 
 run_migrations()

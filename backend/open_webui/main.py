@@ -149,7 +149,6 @@ from open_webui.env import (
     SAFE_MODE,
     SRC_LOG_LEVELS,
     VERSION,
-    WEBUI_BUILD_HASH,
     WEBUI_SECRET_KEY,
     WEBUI_SESSION_COOKIE_SAME_SITE,
     WEBUI_SESSION_COOKIE_SECURE,
@@ -187,11 +186,11 @@ from open_webui.utils.chat import (
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
-if SAFE_MODE:
-    print("SAFE MODE ENABLED")
-
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
+
+if SAFE_MODE:
+    log.info("SAFE MODE ENABLED")
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
@@ -206,21 +205,18 @@ class SPAStaticFiles(StaticFiles):
                 raise ex
 
 
-print(
-    rf"""
-  ___                    __        __   _     _   _ ___
- / _ \ _ __   ___ _ __   \ \      / /__| |__ | | | |_ _|
-| | | | '_ \ / _ \ '_ \   \ \ /\ / / _ \ '_ \| | | || |
-| |_| | |_) |  __/ | | |   \ V  V /  __/ |_) | |_| || |
- \___/| .__/ \___|_| |_|    \_/\_/ \___|_.__/ \___/|___|
-      |_|
+log.info(rf"""
 
 
-v{VERSION} - building the best open-source AI user interface.
-{f"Commit: {WEBUI_BUILD_HASH}" if WEBUI_BUILD_HASH != "dev-build" else ""}
-https://github.com/open-webui/open-webui
-"""
-)
+▀█████████▄     ▄████████ ▄██   ▄    ▄██████▄  ███▄▄▄▄   ████████▄           ███        ▄█    █▄       ▄████████       ▄█        ▄██████▄   ▄██████▄     ▄███████▄ 
+  ███    ███   ███    ███ ███   ██▄ ███    ███ ███▀▀▀██▄ ███   ▀███      ▀█████████▄   ███    ███     ███    ███      ███       ███    ███ ███    ███   ███    ███ 
+  ███    ███   ███    █▀  ███▄▄▄███ ███    ███ ███   ███ ███    ███         ▀███▀▀██   ███    ███     ███    █▀       ███       ███    ███ ███    ███   ███    ███ 
+ ▄███▄▄▄██▀   ▄███▄▄▄     ▀▀▀▀▀▀███ ███    ███ ███   ███ ███    ███          ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄          ███       ███    ███ ███    ███   ███    ███ 
+▀▀███▀▀▀██▄  ▀▀███▀▀▀     ▄██   ███ ███    ███ ███   ███ ███    ███          ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀          ███       ███    ███ ███    ███ ▀█████████▀  
+  ███    ██▄   ███    █▄  ███   ███ ███    ███ ███   ███ ███    ███          ███       ███    ███     ███    █▄       ███       ███    ███ ███    ███   ███        
+  ███    ███   ███    ███ ███   ███ ███    ███ ███   ███ ███   ▄███          ███       ███    ███     ███    ███      ███▌    ▄ ███    ███ ███    ███   ███        
+▄█████████▀    ██████████  ▀█████▀   ▀██████▀   ▀█   █▀  ████████▀          ▄████▀     ███    █▀      ██████████      █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀                                                                                                                    ▀                                             
+""")
 
 
 @asynccontextmanager
@@ -588,6 +584,7 @@ async def get_base_models(user=Depends(get_admin_user)):
 
     return {"data": base_models}
 
+
 # Public API
 @app.post("/api/openai/chat/completions")
 async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
@@ -639,7 +636,7 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
                 )
                 Completions.insert_new_completion(user.id, "OPENAI API", request.get("model"), credit_cost, 0)
             except Exception as err:
-                print("Error in chat completions public endpoint LiteLLM credit service", err)
+                log.error(f"Error in chat completions public endpoint LiteLLM credit service: {err}")
 
             return response
 
@@ -715,7 +712,7 @@ async def chat_completion(
         )
 
     except Exception as e:
-        print(e)
+        log.error(f"Error processing chat payload: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -728,7 +725,7 @@ async def chat_completion(
             request, response, form_data, user, events, metadata, tasks, model
         )
     except Exception as e:
-        print(e)
+        log.error(f"Error processing chat response: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

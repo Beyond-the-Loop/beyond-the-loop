@@ -1,10 +1,13 @@
 import hashlib
+import logging
 import re
 import time
 import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Callable, Optional
+
+log = logging.getLogger(__name__)
 
 
 import collections.abc
@@ -435,7 +438,7 @@ def parse_ollama_modelfile(model_text):
                 elif param_type is bool:
                     value = value.lower() == "true"
             except Exception as e:
-                print(e)
+                log.error(f"Error parsing parameter value: {e}")
                 continue
 
             data["params"][param] = value

@@ -301,7 +301,7 @@ async def generate_chat_completion(
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
-        print("Error trimming messages, continuing with the original messages...")
+        log.warning("Error trimming messages, continuing with the original messages...")
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -397,7 +397,7 @@ async def generate_chat_completion(
                                 Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
 
                         except json.JSONDecodeError:
-                            print(f"\n{chunk_str}")
+                            log.debug(f"JSON decode error for chunk: {chunk_str}")
 
                     yield chunk
 
@@ -413,13 +413,13 @@ async def generate_chat_completion(
             try:
                 response = await r.json()
             except Exception as e:
-                print(e)
+                log.error(f"Error parsing JSON response: {e}")
                 response = await r.text()
 
             try:
                 r.raise_for_status()
             except ClientResponseError as e:
-                print(e)
+                log.error(f"HTTP error from LLM backend: {e}")
                 if agent_or_task_prompt:
                     raise e
 
@@ -457,7 +457,7 @@ async def generate_chat_completion(
 
             return response
     except Exception as e:
-        print(e)
+        log.error(f"Error in generate_chat_completion: {e}")
 
         detail = None
         if isinstance(response, dict):

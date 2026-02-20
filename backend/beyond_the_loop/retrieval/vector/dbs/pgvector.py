@@ -1,4 +1,7 @@
+import logging
 from typing import Optional, List, Dict, Any
+
+log = logging.getLogger(__name__)
 from sqlalchemy import (
     cast,
     column,
@@ -86,10 +89,10 @@ class PgvectorClient:
                 )
             )
             self.session.commit()
-            print("Initialization complete.")
+            log.info("pgvector initialization complete.")
         except Exception as e:
             self.session.rollback()
-            print(f"Error during initialization: {e}")
+            log.error(f"Error during initialization: {e}")
             raise
 
     def check_vector_length(self) -> None:
@@ -154,12 +157,10 @@ class PgvectorClient:
                 new_items.append(new_chunk)
             self.session.bulk_save_objects(new_items)
             self.session.commit()
-            print(
-                f"Inserted {len(new_items)} items into collection '{collection_name}'."
-            )
+            log.debug(f"Inserted {len(new_items)} items into collection '{collection_name}'.")
         except Exception as e:
             self.session.rollback()
-            print(f"Error during insert: {e}")
+            log.error(f"Error during insert: {e}")
             raise
 
     def upsert(self, collection_name: str, items: List[VectorItem]) -> None:
@@ -188,10 +189,10 @@ class PgvectorClient:
                     )
                     self.session.add(new_chunk)
             self.session.commit()
-            print(f"Upserted {len(items)} items into collection '{collection_name}'.")
+            log.debug(f"Upserted {len(items)} items into collection '{collection_name}'.")
         except Exception as e:
             self.session.rollback()
-            print(f"Error during upsert: {e}")
+            log.error(f"Error during upsert: {e}")
             raise
 
     def search(
@@ -282,7 +283,7 @@ class PgvectorClient:
                 ids=ids, distances=distances, documents=documents, metadatas=metadatas
             )
         except Exception as e:
-            print(f"Error during search: {e}")
+            log.error(f"Error during search: {e}")
             return None
 
     def query(
@@ -314,7 +315,7 @@ class PgvectorClient:
                 metadatas=metadatas,
             )
         except Exception as e:
-            print(f"Error during query: {e}")
+            log.error(f"Error during query: {e}")
             return None
 
     def get(
@@ -338,7 +339,7 @@ class PgvectorClient:
 
             return GetResult(ids=ids, documents=documents, metadatas=metadatas)
         except Exception as e:
-            print(f"Error during get: {e}")
+            log.error(f"Error during get: {e}")
             return None
 
     def delete(
@@ -360,22 +361,20 @@ class PgvectorClient:
                     )
             deleted = query.delete(synchronize_session=False)
             self.session.commit()
-            print(f"Deleted {deleted} items from collection '{collection_name}'.")
+            log.debug(f"Deleted {deleted} items from collection '{collection_name}'.")
         except Exception as e:
             self.session.rollback()
-            print(f"Error during delete: {e}")
+            log.error(f"Error during delete: {e}")
             raise
 
     def reset(self) -> None:
         try:
             deleted = self.session.query(DocumentChunk).delete()
             self.session.commit()
-            print(
-                f"Reset complete. Deleted {deleted} items from 'document_chunk' table."
-            )
+            log.info(f"Reset complete. Deleted {deleted} items from 'document_chunk' table.")
         except Exception as e:
             self.session.rollback()
-            print(f"Error during reset: {e}")
+            log.error(f"Error during reset: {e}")
             raise
 
     def close(self) -> None:
@@ -391,9 +390,9 @@ class PgvectorClient:
             )
             return exists
         except Exception as e:
-            print(f"Error checking collection existence: {e}")
+            log.error(f"Error checking collection existence: {e}")
             return False
 
     def delete_collection(self, collection_name: str) -> None:
         self.delete(collection_name)
-        print(f"Collection '{collection_name}' deleted.")
+        log.info(f"Collection '{collection_name}' deleted.")
