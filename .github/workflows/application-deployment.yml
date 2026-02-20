@@ -148,6 +148,67 @@ jobs:
             docker-compose restart litellm
             docker image prune -f
 
+  notify-slack:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes and post to Slack
+        uses: anthropics/claude-code-action@v1
+        env:
+          SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL }}
+          DEPLOY_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowedTools "Bash"'
+          prompt: |
+            Du bist ein automatischer Release-Notifier. Führe folgende Bash-Schritte exakt aus:
+
+            1. Finde den letzten Prod-Tag:
+               LAST_TAG=$(git tag --sort=-version:refname --list "prod/*" | head -1)
+
+            2. Hole Commits seit dem letzten Tag (oder letzte 20 falls kein Tag vorhanden):
+               if [ -z "$LAST_TAG" ]; then
+                 COMMITS=$(git log --oneline -20 --pretty=format:"%s (%h)")
+               else
+                 COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s (%h)")
+               fi
+
+            3. Schreibe eine kurze deutsche Zusammenfassung der Commits mit Bullet Points (•),
+               maximal 5-7 Punkte, gruppiere ähnliche Änderungen. Nur die Zusammenfassung, keine Einleitung.
+
+            4. Poste die Zusammenfassung an die Slack Webhook URL in der Umgebungsvariable SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL.
+               Nutze jq um das JSON sicher zu bauen (damit Sonderzeichen korrekt escaped werden):
+               SHORT_SHA=$(git rev-parse --short HEAD)
+               SLACK_PAYLOAD=$(jq -n \
+                 --arg summary "$DEINE_ZUSAMMENFASSUNG" \
+                 --arg actor "$DEPLOY_ACTOR" \
+                 --arg sha "$SHORT_SHA" \
+                 --arg run_url "$RUN_URL" \
+                 '{blocks:[
+                   {type:"header",text:{type:"plain_text",text:"🚀 Production Deployment",emoji:true}},
+                   {type:"section",text:{type:"mrkdwn",text:$summary}},
+                   {type:"divider"},
+                   {type:"context",elements:[{type:"mrkdwn",text:("Deployed von *"+$actor+"* • SHA `"+$sha+"` • <"+$run_url+"|Details>")}]}
+                 ]}')
+               curl -s -X POST "SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL" -H "content-type: application/json" -d "$SLACK_PAYLOAD"
+
+            5. Erstelle und pushe einen neuen Prod-Tag für das nächste Deployment:
+               TAG="prod/$(date +%Y-%m-%d)-$(git rev-parse --short HEAD)"
+               git config user.name "github-actions[bot]"
+               git config user.email "github-actions[bot]@users.noreply.github.com"
+               git tag "$TAG"
+               git push origin "$TAG"
+
   deploy-staging:
     needs: build-and-push
     runs-on: ubuntu-latest
