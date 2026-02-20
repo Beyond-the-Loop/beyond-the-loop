@@ -12,6 +12,7 @@
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import ChevronUp from '$lib/components/icons/ChevronUp.svelte';
 	import ArrowRight from '$lib/components/icons/ArrowRight.svelte';
+	import { subscription } from '$lib/stores';
 	import {
 		getAcceptanceRate,
 		getPowerUsers,
@@ -44,10 +45,12 @@
 	import TrendArrowIcon from '$lib/components/icons/TrendArrowIcon.svelte';
 	import { Tabs } from 'bits-ui';
 	import Cube from '$lib/components/icons/Cube.svelte';
+	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte';
+	import Search from '$lib/components/icons/Search.svelte';
+	import ArrowUpCircle from '$lib/components/icons/ArrowUpCircle.svelte';
 
 	const i18n = getContext('i18n');
 	export let analyticsLoading = true;
-	let activeTab = 'messages';
 
 	let showUsersSortDropdown = false;
 	let usersSortRef;
@@ -114,6 +117,27 @@
 		totalAssistants: null
 	};
 
+	const sampleData = {
+		monthly_messages: [
+			{ period: '2026-01', message_count: 38 },
+			{ period: '2026-02', message_count: 121 },
+			{ period: '2026-03', message_count: 156 },
+			{ period: '2026-04', message_count: 189 },
+			{ period: '2026-05', message_count: 234 },
+			{ period: '2026-06', message_count: 287 }
+		],
+		monthly_percentage_changes: [
+			{ period: '2026-01', percentage_change: 0 },
+			{ period: '2026-02', percentage_change: 218.4 },
+			{ period: '2026-03', percentage_change: 28.9 },
+			{ period: '2026-04', percentage_change: 21.2 },
+			{ period: '2026-05', percentage_change: 23.8 },
+			{ period: '2026-06', percentage_change: 22.6 }
+		],
+		yearly_messages: [{ period: '2026', message_count: 985 }],
+		yearly_percentage_changes: [{ period: '2026', percentage_change: 0.0 }]
+	};
+
 	onMount(async () => {
 		fetch_data('2026-02-01', '2026-02-27');
 	});
@@ -123,7 +147,7 @@
 				topModels,
 				topAssistants,
 				totalUsers,
-				totalMessages,
+				// totalMessages,
 				acceptanceRate,
 				powerUsers,
 				topUsers,
@@ -132,7 +156,7 @@
 				getTopModels(token, start_date, end_date),
 				getTopAssistants(token, start_date, end_date),
 				getTotalUsers(token),
-				getTotalMessages(token),
+				// getTotalMessages(token),
 				getAcceptanceRate(token),
 				getPowerUsers(token),
 				getTopUsers(token, start_date, end_date),
@@ -144,7 +168,8 @@
 					topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
 				topAssistants: topAssistants?.status === 'fulfilled' ? topAssistants?.value : {},
 				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
-				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
+				// totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
+				totalMessages: sampleData,
 				acceptanceRate: acceptanceRate?.status === 'fulfilled' ? acceptanceRate?.value : {},
 				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
 				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
@@ -156,6 +181,7 @@
 			analyticsLoading = false;
 		}
 	}
+	let chartOptions = null;
 
 	$: {
 		if (analytics?.topUsers != null) {
@@ -171,80 +197,51 @@
 			chartMessagesData = chart_messages_by_month();
 			chartMessagesDataYearly = chart_messages_by_year();
 		}
+		chartOptions = {
+			scales: {
+				x: {
+					grid: {
+						drawOnChartArea: false
+					},
+					ticks: {
+						font: {
+							size: 8
+						}
+					}
+				},
+				y: {
+					grid: {
+						drawOnChartArea: false
+					},
+					ticks: {
+						font: {
+							size: 8
+						},
+						maxTicksLimit: 5
+					},
+					grace: '80%'
+				}
+			},
+			barPercentage: Math.min(1.0, 0.1 + 0.18 * analytics?.totalMessages?.monthly_messages?.length),
+			responsive: true,
+			plugins: {
+				legend: {
+					display: false,
+					font: {
+						size: 4
+					}
+				}
+			}
+		};
 	}
 
-	const chartOptions = {
-		scales: {
-			x: {
-				grid: {
-					drawOnChartArea: false
-				},
-				ticks: {
-					font: {
-						size: 8
-					}
-				}
-			},
-			y: {
-				grid: {
-					drawOnChartArea: false
-				},
-				ticks: {
-					font: {
-						size: 8
-					},
-					maxTicksLimit: 5
-				},
-				grace: '80%'
-			}
-		},
-		barPercentage: 1.0,
-		responsive: true,
-		plugins: {
-			legend: {
-				display: false,
-				font: {
-					size: 4
-				}
-			}
-		}
-	};
-	const chartOptionsYearly = {
-		scales: {
-			x: {
-				grid: {
-					drawOnChartArea: false
-				},
-				ticks: {
-					font: {
-						size: 8
-					}
-				}
-			},
-			y: {
-				grid: {
-					drawOnChartArea: false
-				},
-				ticks: {
-					font: {
-						size: 8
-					},
-					maxTicksLimit: 5
-				},
-				grace: '40%'
-			}
-		},
-		barPercentage: 0.5,
-		responsive: true,
-		plugins: {
-			legend: {
-				display: false,
-				font: {
-					size: 4
-				}
-			}
-		}
-	};
+	let activeTab = 'users';
+	$: searchBarPlaceholder =
+		activeTab === 'users'
+			? 'Search users...'
+			: activeTab === 'models'
+				? 'Search models...'
+				: 'Search assistants...';
 
 	type User = {
 		profile_image_url: string;
@@ -323,6 +320,9 @@
 		} else if (key === 'user') {
 			rows = top_alphabetically(rows);
 		}
+		if (sortDir === 'desc') {
+			rows.reverse();
+		}
 	}
 	function top_by_credits(rowsToSort) {
 		return [...rowsToSort].sort((a, b) => {
@@ -381,6 +381,54 @@
 				}
 			]
 		};
+	}
+	function searchFor(search: string) {
+		console.log('bin da!');
+		rows = usersList.filter((u) => {
+			const q = search
+				.trim()
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, ''); // entfernt z.B. ü -> u
+			if (!q) return true;
+			const first = u.first_name
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, '');
+			const last = u.last_name
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, '');
+			const full = `${first} ${last}`;
+			const fullRev = `${last} ${first}`;
+			return first.includes(q) || last.includes(q) || full.includes(q) || fullRev.includes(q);
+		});
+		modelRows = analytics?.topModels.items.filter((u) => {
+			const q = search
+				.trim()
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, '');
+			if (!q) return true;
+			const model = u.model
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, '');
+			return model.includes(q);
+		});
+		assistantRows = analytics?.topAssistants.top_assistants.filter((u) => {
+			const q = search
+				.trim()
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, '');
+			if (!q) return true;
+			const assistant = u.assistant
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/\p{Diacritic}/gu, '');
+			return assistant.includes(q);
+		});
 	}
 </script>
 
@@ -513,7 +561,7 @@
 			</div>
 		</div>
 
-		<Tabs.Root value="users" class="rounded-card border-muted w-full shadow-card mt-4 ">
+		<Tabs.Root bind:value={activeTab} class="rounded-card border-muted w-full shadow-card mt-4 ">
 			<Tabs.List
 				class="bg-gray-100 dark:bg-gray-800 rounded-lg flex flex-row p-[2px] text-xs w-fit"
 			>
@@ -536,8 +584,29 @@
 					Assistants</Tabs.Trigger
 				>
 			</Tabs.List>
+			<div
+				class="w-full mt-4 ring-1 ring-gray-200 rounded-lg gap-3 p-3 bg-lightGray-300 text-2xs flex flex-row items-center"
+			>
+				<div
+					class="flex ring-1 gap-2 bg-white ring-gray-200 flex-row items-center px-2 py-[6px] rounded-md"
+				>
+					<CalendarIcon className="size-3 text-slate-500/90" />
+					<div>Last 4 Weeks</div>
+					<ChevronDown className="size-3" strokeWidth="2.5" />
+				</div>
+				<div class="flex-1 bg-white ring-1 ring-gray-200 rounded-md flex flex-row items-center">
+					<div class="pl-2 pr-1 py-[6px]"><Search className="size-4 text-slate-500/90 " /></div>
+
+					<input
+						type="text"
+						class=" px-2 py-[6px] flex-1 placeholder-slate-500/90 rounded-md"
+						placeholder={searchBarPlaceholder}
+						on:input={(e) => searchFor(e.target.value)}
+					/>
+				</div>
+			</div>
 			<Tabs.Content value="users" class="select-none pt-3">
-				<table class="w-full ring-1 ring-gray-200 rounded-2xl bg-lightGray-300 text-xs table-auto">
+				<table class="w-full ring-1 ring-gray-200 rounded-lg bg-lightGray-300 text-xs table-auto">
 					<thead class="text-slate-500/90">
 						<tr>
 							<th class="w-4"></th>
@@ -558,23 +627,24 @@
 									{/if}
 								</div>
 							</th>
+							{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+								<th
+									class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer select-none"
+									on:click={() => toggleSort('credits')}
+								>
+									Credits used
 
-							<th
-								class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer select-none"
-								on:click={() => toggleSort('credits')}
-							>
-								Credits used
-
-								<div class="absolute -right-2 top-[12px]">
-									{#if sortKey === 'credits'}
-										{#if sortDir === 'asc'}
-											<ChevronDown className="size-3" strokeWidth="2.5" />
-										{:else}
-											<ChevronUp className="size-3" strokeWidth="2.5" />
+									<div class="absolute -right-2 top-[12px]">
+										{#if sortKey === 'credits'}
+											{#if sortDir === 'asc'}
+												<ChevronDown className="size-3" strokeWidth="2.5" />
+											{:else}
+												<ChevronUp className="size-3" strokeWidth="2.5" />
+											{/if}
 										{/if}
-									{/if}
-								</div>
-							</th>
+									</div>
+								</th>
+							{/if}
 
 							<th
 								class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer pr-5 select-none"
@@ -622,10 +692,12 @@
 										</div>
 									</div>
 								</td>
-								<td
-									class="border-t border-1 border-gray-200/60 p-2 text-right min-w-[100px] font-semibold"
-									>€{row.total_credits_used.toFixed(2)}</td
-								>
+								{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+									<td
+										class="border-t border-1 border-gray-200/60 p-2 text-right min-w-[100px] font-semibold"
+										>€{row.total_credits_used.toFixed(2)}</td
+									>
+								{/if}
 								<td
 									class="border-t border-1 border-gray-200/60 p-2 pr-5 text-right min-w-[150px] font-semibold"
 									>{row.message_count}</td
@@ -673,24 +745,24 @@
 					<thead class="text-slate-500/90">
 						<tr>
 							<th class="pl-5 p-2 text-left font-medium select-none"> Model </th>
+							{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+								<th
+									class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer select-none"
+									on:click={() => toggleSort('credits')}
+								>
+									Credits used
 
-							<th
-								class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer select-none"
-								on:click={() => toggleSort('credits')}
-							>
-								Credits used
-
-								<div class="absolute -right-2 top-[12px]">
-									{#if sortKey === 'credits'}
-										{#if sortDir === 'asc'}
-											<ChevronDown className="size-3" strokeWidth="2.5" />
-										{:else}
-											<ChevronUp className="size-3" strokeWidth="2.5" />
+									<div class="absolute -right-2 top-[12px]">
+										{#if sortKey === 'credits'}
+											{#if sortDir === 'asc'}
+												<ChevronDown className="size-3" strokeWidth="2.5" />
+											{:else}
+												<ChevronUp className="size-3" strokeWidth="2.5" />
+											{/if}
 										{/if}
-									{/if}
-								</div>
-							</th>
-
+									</div>
+								</th>
+							{/if}
 							<th
 								class="p-2 text-right font-medium relative hover:opacity-90 cursor-pointer pr-5 select-none"
 								on:click={() => toggleSort('messages')}
@@ -724,14 +796,16 @@
 										</div>
 									</div>
 								</td>
-								<td
-									class="border-t border-1 border-gray-200/60 p-2 text-right min-w-[100px] font-semibold"
-									>€{row.credits_used.toFixed(2)}</td
-								>
-								<td
-									class="border-t border-1 border-gray-200/60 p-2 pr-5 text-right min-w-[150px] font-semibold"
-									>{row.message_count}</td
-								>
+								{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+									<td
+										class="border-t border-1 border-gray-200/60 p-2 text-right min-w-[100px] font-semibold"
+										>€{row.credits_used.toFixed(2)}</td
+									>
+									<td
+										class="border-t border-1 border-gray-200/60 p-2 pr-5 text-right min-w-[150px] font-semibold"
+										>{row.message_count}</td
+									>
+								{/if}
 							</tr>
 						{/each}
 					</tbody>
@@ -896,7 +970,7 @@
 					</div>
 					<div class="text-slate-500/90">Messages sent</div>
 					<div class="absolute top-2 right-3 text-blue-700 gap-1 flex flex-row items-center">
-						{#if analytics?.totalMessages?.monthly_percentage_changes?.at(-1)?.percentage_change > 0}
+						{#if analytics?.totalMessages?.monthly_percentage_changes?.at(-1)?.percentage_change < 0}
 							<TrendArrowIcon flipped="true" className="text-red-500 size-4" />
 							<div class="text-red-500">
 								{analytics?.totalMessages?.monthly_percentage_changes?.at(-1)?.percentage_change}%
@@ -946,7 +1020,17 @@
 					<div>
 						<div class="text-2xs font-semibold pt-2 px-3">Messages over time</div>
 						<div class="dark:bg-customGray-900 rounded-2xl px-3">
-							<Chart type="bar" data={chartMessagesDataYearly} options={chartOptionsYearly} />
+							<Chart
+								type="bar"
+								data={chartMessagesDataYearly}
+								options={{
+									...chartOptions,
+									barPercentage: Math.min(
+										1.0,
+										0.1 + 0.18 * (analytics?.totalMessages?.yearly_messages?.length ?? 0)
+									)
+								}}
+							/>
 						</div>
 					</div>
 				</div>
