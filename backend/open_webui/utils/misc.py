@@ -269,6 +269,38 @@ def validate_email_format(email: str) -> bool:
     return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
 
 
+BLOCKED_EMAIL_DOMAINS = {
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "yahoo.de",
+    "hotmail.com",
+    "hotmail.de",
+    "outlook.com",
+    "outlook.de",
+    "live.com",
+    "live.de",
+    "aol.com",
+    "icloud.com",
+    "me.com",
+    "mac.com",
+    "gmx.de",
+    "gmx.net",
+    "web.de",
+    "t-online.de",
+    "freenet.de",
+    "mail.com",
+    "protonmail.com",
+    "proton.me",
+    "zoho.com",
+}
+
+
+def is_business_email(email: str) -> bool:
+    domain = email.split("@")[-1].lower() if "@" in email else ""
+    return bool(domain) and domain not in BLOCKED_EMAIL_DOMAINS
+
+
 def sanitize_filename(file_name):
     # Convert to lowercase
     lower_case_file_name = file_name.lower()
