@@ -194,26 +194,26 @@ class CreditService:
                     detail="No active subscription found. Please subscribe to a plan.",
                 )
 
-        # Proceed with credit balance check
-        current_balance = company.credit_balance + (company.flex_credit_balance or 0) if company else None
+            # Proceed with credit balance check
+            current_balance = company.credit_balance + (company.flex_credit_balance or 0) if company else None
 
-        # Check if company has sufficient credits
-        if current_balance == 0:
-            if not company.budget_mail_100_sent:
-                email_service = EmailService()
-                email_service.send_budget_mail_100(
-                    to_email=user.email,
-                    admin_name=user.first_name,
-                    company_name=company.name,
-                    billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing"
+            # Check if company has sufficient credits
+            if current_balance == 0:
+                if not company.budget_mail_100_sent:
+                    email_service = EmailService()
+                    email_service.send_budget_mail_100(
+                        to_email=user.email,
+                        admin_name=user.first_name,
+                        company_name=company.name,
+                        billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing"
+                    )
+
+                    Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})
+
+                raise HTTPException(
+                    status_code=402,  # 402 Payment Required
+                    detail=f"Insufficient credits. No credits left.",
                 )
-
-                Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})
-
-            raise HTTPException(
-                status_code=402,  # 402 Payment Required
-                detail=f"Insufficient credits. No credits left.",
-            )
 
     @staticmethod
     async def subtract_credit_cost_by_user_and_response_and_model(user: UserModel, response, model_name: str):
