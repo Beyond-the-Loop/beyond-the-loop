@@ -149,11 +149,10 @@ jobs:
             docker image prune -f
 
   notify-slack:
-    needs: deploy-staging
+    needs: deploy-production
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -162,52 +161,68 @@ jobs:
           fetch-depth: 0
 
       - name: Generate release notes and post to Slack
-        uses: anthropics/claude-code-action@v1
         env:
-          SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL }}
-          DEPLOY_ACTOR: ${{ github.actor }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--allowedTools "Bash"'
-          prompt: |
-            Du bist ein automatischer Release-Notifier. Führe folgende Bash-Schritte exakt aus:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL }}
+        run: |
+          # Get last prod tag
+          LAST_TAG=$(git tag --sort=-version:refname --list "prod/*" | head -1)
 
-            1. Finde den letzten Prod-Tag:
-               LAST_TAG=$(git tag --sort=-version:refname --list "prod/*" | head -1)
+          # Get commits since last tag (or last 20 if no tag exists yet)
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --oneline -20 --pretty=format:"%s (%h)")
+          else
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s (%h)")
+          fi
 
-            2. Hole Commits seit dem letzten Tag (oder letzte 20 falls kein Tag vorhanden):
-               if [ -z "$LAST_TAG" ]; then
-                 COMMITS=$(git log --oneline -20 --pretty=format:"%s (%h)")
-               else
-                 COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s (%h)")
-               fi
+          if [ -z "$COMMITS" ]; then
+            COMMITS="Keine neuen Commits seit letztem Deployment"
+          fi
 
-            3. Schreibe eine kurze deutsche Zusammenfassung der Commits mit Bullet Points (•),
-               maximal 5-7 Punkte, gruppiere ähnliche Änderungen. Nur die Zusammenfassung, keine Einleitung.
+          # Call Claude Haiku API to generate a German summary
+          PROMPT="Du bist ein technischer Redakteur. Erstelle eine kurze, klare Zusammenfassung der folgenden Git-Commits für ein Production-Deployment. Schreibe auf Deutsch. Gruppiere ähnliche Änderungen wenn sinnvoll. Maximal 5-7 Punkte. Nutze Bullet-Punkte mit •. Gib NUR die Zusammenfassung zurück, keine Einleitung.\n\nCommits:\n$COMMITS"
 
-            4. Poste die Zusammenfassung an die Slack Webhook URL in der Umgebungsvariable SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL.
-               Nutze jq um das JSON sicher zu bauen (damit Sonderzeichen korrekt escaped werden):
-               SHORT_SHA=$(git rev-parse --short HEAD)
-               SLACK_PAYLOAD=$(jq -n \
-                 --arg summary "$DEINE_ZUSAMMENFASSUNG" \
-                 --arg actor "$DEPLOY_ACTOR" \
-                 --arg sha "$SHORT_SHA" \
-                 --arg run_url "$RUN_URL" \
-                 '{blocks:[
-                   {type:"header",text:{type:"plain_text",text:"🚀 Production Deployment",emoji:true}},
-                   {type:"section",text:{type:"mrkdwn",text:$summary}},
-                   {type:"divider"},
-                   {type:"context",elements:[{type:"mrkdwn",text:("Deployed von *"+$actor+"* • SHA `"+$sha+"` • <"+$run_url+"|Details>")}]}
-                 ]}')
-               curl -s -X POST "SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL" -H "content-type: application/json" -d "$SLACK_PAYLOAD"
+          API_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 512,
+            messages: [{role: "user", content: $prompt}]
+          }')
 
-            5. Erstelle und pushe einen neuen Prod-Tag für das nächste Deployment:
-               TAG="prod/$(date +%Y-%m-%d)-$(git rev-parse --short HEAD)"
-               git config user.name "github-actions[bot]"
-               git config user.email "github-actions[bot]@users.noreply.github.com"
-               git tag "$TAG"
-               git push origin "$TAG"
+          RESPONSE=$(curl -s -X POST https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$API_PAYLOAD")
+
+          SUMMARY=$(echo "$RESPONSE" | jq -r '.content[0].text // "Zusammenfassung konnte nicht erstellt werden."')
+
+          # Post to Slack
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          SLACK_PAYLOAD=$(jq -n \
+            --arg summary "$SUMMARY" \
+            --arg actor "${{ github.actor }}" \
+            --arg sha "$SHORT_SHA" \
+            --arg run_url "$RUN_URL" \
+            '{blocks:[
+              {type:"header",text:{type:"plain_text",text:"🚀 Production Deployment",emoji:true}},
+              {type:"section",text:{type:"mrkdwn",text:$summary}},
+              {type:"divider"},
+              {type:"context",elements:[{type:"mrkdwn",text:("Deployed von *"+$actor+"* • SHA `"+$sha+"` • <"+$run_url+"|Details>")}]}
+            ]}')
+
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "content-type: application/json" \
+            -d "$SLACK_PAYLOAD"
+
+      - name: Create prod tag
+        run: |
+          TAG="prod/$(date +%Y-%m-%d)-$(git rev-parse --short HEAD)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
 
   deploy-staging:
     needs: build-and-push
