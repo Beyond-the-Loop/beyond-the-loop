@@ -4,6 +4,7 @@ import mimetypes
 import os
 import sys
 import time
+import uuid
 from contextlib import asynccontextmanager
 from urllib.parse import urlencode, parse_qs, urlparse
 
@@ -163,6 +164,7 @@ from open_webui.env import (
     ENABLE_WEBSOCKET_SUPPORT,
     RESET_CONFIG_ON_START,
     OFFLINE_MODE,
+    request_id_var,
 )
 from open_webui.internal.db import Session
 from open_webui.routers import (
@@ -192,12 +194,11 @@ from open_webui.utils.chat import (
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
-if SAFE_MODE:
-    print("SAFE MODE ENABLED")
-
-logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
+
+if SAFE_MODE:
+    log.warning("SAFE MODE ENABLED")
 
 
 class SPAStaticFiles(StaticFiles):
@@ -211,21 +212,7 @@ class SPAStaticFiles(StaticFiles):
                 raise ex
 
 
-print(
-    rf"""
-  ___                    __        __   _     _   _ ___
- / _ \ _ __   ___ _ __   \ \      / /__| |__ | | | |_ _|
-| | | | '_ \ / _ \ '_ \   \ \ /\ / / _ \ '_ \| | | || |
-| |_| | |_) |  __/ | | |   \ V  V /  __/ |_) | |_| || |
- \___/| .__/ \___|_| |_|    \_/\_/ \___|_.__/ \___/|___|
-      |_|
-
-
-v{VERSION} - building the best open-source AI user interface.
-{f"Commit: {WEBUI_BUILD_HASH}" if WEBUI_BUILD_HASH != "dev-build" else ""}
-https://github.com/open-webui/open-webui
-"""
-)
+log.info("Open WebUI v%s starting", VERSION)
 
 
 @asynccontextmanager
@@ -447,7 +434,27 @@ class RedirectMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Extracts or generates a request ID and injects it into the log context."""
+    async def dispatch(self, request: Request, call_next):
+        # GCP injects X-Cloud-Trace-Context as TRACE_ID/SPAN_ID;o=1
+        trace_header = request.headers.get("X-Cloud-Trace-Context", "")
+        if trace_header:
+            request_id = trace_header.split("/")[0]
+        else:
+            request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+
+        token = request_id_var.set(request_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            request_id_var.reset(token)
+
+
 # Add the middleware to the app
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RedirectMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -654,7 +661,7 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
                 )
                 Completions.insert_new_completion(user.id, "OPENAI API", request.get("model"), credit_cost, 0)
             except Exception as err:
-                print("Error in chat completions public endpoint LiteLLM credit service", err)
+                log.error("Error in chat completions public endpoint LiteLLM credit service: %s", err)
 
             return response
 
@@ -730,7 +737,7 @@ async def chat_completion(
         )
 
     except Exception as e:
-        print(e)
+        log.exception("Error processing chat request payload")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -743,7 +750,7 @@ async def chat_completion(
             request, response, form_data, user, events, metadata, tasks, model
         )
     except Exception as e:
-        print(e)
+        log.exception("Error in chat completion handler")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
