@@ -149,7 +149,7 @@ jobs:
             docker image prune -f
 
   notify-slack:
-    needs: deploy-production
+    needs: deploy-staging
     runs-on: ubuntu-latest
     permissions:
       contents: write
