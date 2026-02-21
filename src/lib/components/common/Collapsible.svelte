@@ -77,16 +77,18 @@
 							{$i18n.t('Thought for {{DURATION}}', {
 								DURATION: dayjs.duration(attributes.duration, 'seconds').humanize()
 							})}
-						{:else if attributes?.done === 'true'}
+						{:else if attributes?.done === 'true' && attributes?.cancelled === 'true'}
 							{$i18n.t('Thinking stopped')}
 						{:else}
 							{$i18n.t('Thinking...')}
 						{/if}
 					{:else if attributes?.type === 'code_interpreter'}
-						{#if attributes?.done === 'true'}
-							{$i18n.t('Analyzed')}
+						{#if attributes?.done === 'true' && attributes?.cancelled === 'true'}
+							{$i18n.t('Coding cancelled')}
+						{:else if attributes?.done === 'true'}
+							{$i18n.t('Code analyzed')}
 						{:else}
-							{$i18n.t('Analyzing...')}
+							{$i18n.t('Coding...')}
 						{/if}
 					{:else}
 						{title}

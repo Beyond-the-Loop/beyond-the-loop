@@ -1686,8 +1686,8 @@
 				const responseMessage = history.messages[history.currentId];
 				responseMessage.done = true;
 				responseMessage.content = responseMessage.content.replaceAll(
-					'<details type="reasoning" done="false">',
-					'<details type="reasoning" done="true">'
+					'done="false"',
+					'cancelled="true" done="true"'
 				);
 
 				history.messages[history.currentId] = responseMessage;
@@ -1695,6 +1695,12 @@
 				if (autoScroll) {
 					scrollToBottom();
 				}
+				const _chatId = JSON.parse(JSON.stringify($chatId));
+				(async () => {
+					await tick();
+
+					await saveChatHandler(_chatId, history);
+				})();
 			}
 		}
 		if (bufferedResponse) {
