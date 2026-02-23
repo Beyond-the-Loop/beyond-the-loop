@@ -1,3 +1,5 @@
+import time
+import logging
 from typing import Optional, List, Dict, Any
 from sqlalchemy import (
     cast,
@@ -14,6 +16,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import true
 from sqlalchemy.pool import NullPool
+
+log = logging.getLogger(__name__)
 
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB, array
@@ -204,6 +208,8 @@ class PgvectorClient:
             if not vectors:
                 return None
 
+            t0 = time.perf_counter()
+
             # Adjust query vectors to VECTOR_LENGTH
             vectors = [self.adjust_vector_length(vector) for vector in vectors]
             num_queries = len(vectors)
@@ -255,8 +261,11 @@ class PgvectorClient:
                 .order_by(query_vectors.c.qid, subq.c.distance)
             )
 
+            t1 = time.perf_counter()
             result_proxy = self.session.execute(stmt)
             results = result_proxy.all()
+            t2 = time.perf_counter()
+            log.info(f"[PERF] pgvector.search: query_build={((t1 - t0) * 1000):.1f}ms, db_execute={((t2 - t1) * 1000):.1f}ms, rows={len(results)}, collection={collection_name}, limit={limit}")
 
             ids = [[] for _ in range(num_queries)]
             distances = [[] for _ in range(num_queries)]
@@ -321,6 +330,7 @@ class PgvectorClient:
         self, collection_name: str, limit: Optional[int] = None
     ) -> Optional[GetResult]:
         try:
+            t0 = time.perf_counter()
             query = self.session.query(DocumentChunk).filter(
                 DocumentChunk.collection_name == collection_name
             )
@@ -328,6 +338,8 @@ class PgvectorClient:
                 query = query.limit(limit)
 
             results = query.all()
+            t1 = time.perf_counter()
+            log.info(f"[PERF] pgvector.get: db_execute={((t1 - t0) * 1000):.1f}ms, rows={len(results)}, collection={collection_name}, limit={limit}")
 
             if not results:
                 return None
