@@ -35,12 +35,9 @@ from firecrawl.v2.types import Document as Firecrawl_Document
 from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
     get_model_path,
-    query_collection,
-    query_collection_with_hybrid_search,
     query_doc,
     query_doc_with_hybrid_search,
 )
-from beyond_the_loop.models.users import Users
 
 from open_webui.utils.misc import (
     calculate_sha256_string,
@@ -456,75 +453,6 @@ class ProcessFileForm(BaseModel):
     content: Optional[str] = None
     collection_name: Optional[str] = None
 
-def _run_chroma_to_pgvector_migration():
-    import time
-    from beyond_the_loop.retrieval.vector.dbs.chroma import ChromaClient
-
-    migration_start = time.time()
-    log.info("Starting ChromaDB to PGVector migration...")
-
-    t = time.time()
-    chroma = ChromaClient()
-    log.info(f"ChromaClient init: {time.time() - t:.2f}s")
-
-    t = time.time()
-    collections = chroma.client.list_collections()
-    total_collections = len(collections)
-    log.info(f"list_collections: {time.time() - t:.2f}s — found {total_collections} collections")
-
-    total_migrated = 0
-
-    for idx, name in enumerate(collections):
-        col_start = time.time()
-        try:
-            t = time.time()
-            if VECTOR_DB_CLIENT.has_collection(name):
-                log.info(f"[{idx + 1}/{total_collections}] Skipping '{name}' (already in pgvector) — has_collection: {time.time() - t:.2f}s")
-                continue
-            log.info(f"[{idx + 1}/{total_collections}] has_collection: {time.time() - t:.2f}s")
-
-            t = time.time()
-            collection = chroma.client.get_collection(name)
-            log.info(f"[{idx + 1}/{total_collections}] get_collection('{name}'): {time.time() - t:.2f}s")
-
-            t = time.time()
-            result = collection.get(include=["embeddings", "documents", "metadatas"])
-            n = len(result["ids"])
-            log.info(f"[{idx + 1}/{total_collections}] '{name}' chroma.get: {time.time() - t:.2f}s — {n} items")
-
-            if n == 0:
-                log.info(f"[{idx + 1}/{total_collections}] Skipping '{name}' (empty)")
-                continue
-
-            items = [
-                {
-                    "id": result["ids"][j],
-                    "text": result["documents"][j] or "",
-                    "vector": result["embeddings"][j],
-                    "metadata": result["metadatas"][j] or {},
-                }
-                for j in range(n)
-            ]
-
-            t = time.time()
-            VECTOR_DB_CLIENT.insert(collection_name=name, items=items)
-            log.info(f"[{idx + 1}/{total_collections}] '{name}' pgvector.insert: {time.time() - t:.2f}s")
-
-            total_migrated += n
-            log.info(f"[{idx + 1}/{total_collections}] '{name}' done: {n} chunks in {time.time() - col_start:.2f}s")
-
-        except Exception as e:
-            log.error(f"[{idx + 1}/{total_collections}] '{name}' failed after {time.time() - col_start:.2f}s: {e}")
-            continue
-
-    log.info(f"Migration complete. {total_migrated} chunks migrated in {time.time() - migration_start:.2f}s")
-
-
-@router.post("/add-files-to-pgvector")
-def add_files_to_pgvector(background_tasks: BackgroundTasks):
-    background_tasks.add_task(_run_chroma_to_pgvector_migration)
-    return {"status": "migration started"}
-
 @router.post("/process/file")
 def process_file(
     request: Request,
@@ -778,12 +706,14 @@ def query_doc_handler(
 ):
     try:
         if request.app.state.config.ENABLE_RAG_HYBRID_SEARCH:
+            embedding_function = lambda text: request.app.state.EMBEDDING_FUNCTION(
+                text, user=user
+            )
             return query_doc_with_hybrid_search(
                 collection_name=form_data.collection_name,
                 query=form_data.query,
-                embedding_function=lambda query: request.app.state.EMBEDDING_FUNCTION(
-                    query, user=user
-                ),
+                query_embedding=embedding_function(form_data.query),
+                embedding_function=embedding_function,
                 k=form_data.k if form_data.k else request.app.state.config.TOP_K,
                 reranking_function=request.app.state.rf,
                 r=(
@@ -791,7 +721,6 @@ def query_doc_handler(
                     if form_data.r
                     else request.app.state.config.RELEVANCE_THRESHOLD
                 ),
-                user=user,
             )
         else:
             return query_doc(
@@ -816,46 +745,6 @@ class QueryCollectionsForm(BaseModel):
     k: Optional[int] = None
     r: Optional[float] = None
     hybrid: Optional[bool] = None
-
-
-@router.post("/query/collection")
-def query_collection_handler(
-    request: Request,
-    form_data: QueryCollectionsForm,
-    user=Depends(get_verified_user),
-):
-    try:
-        if request.app.state.config.ENABLE_RAG_HYBRID_SEARCH:
-            return query_collection_with_hybrid_search(
-                collection_names=form_data.collection_names,
-                queries=[form_data.query],
-                embedding_function=lambda query: request.app.state.EMBEDDING_FUNCTION(
-                    query, user=user
-                ),
-                k=form_data.k if form_data.k else request.app.state.config.TOP_K,
-                reranking_function=request.app.state.rf,
-                r=(
-                    form_data.r
-                    if form_data.r
-                    else request.app.state.config.RELEVANCE_THRESHOLD
-                ),
-            )
-        else:
-            return query_collection(
-                collection_names=form_data.collection_names,
-                queries=[form_data.query],
-                embedding_function=lambda query: request.app.state.EMBEDDING_FUNCTION(
-                    query, user=user
-                ),
-                k=form_data.k if form_data.k else request.app.state.config.TOP_K,
-            )
-
-    except Exception as e:
-        log.exception(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT(e),
-        )
 
 
 ####################################
