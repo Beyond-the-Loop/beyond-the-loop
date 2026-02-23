@@ -291,22 +291,9 @@ def get_sources_from_files(
         else:
             context = None
 
-            collection_names = []
-            if file.get("type") == "collection":
-                if file.get("legacy"):
-                    collection_names = file.get("collection_names", [])
-                else:
-                    collection_names.append(file["id"])
-            elif file.get("collection_name"):
-                collection_names.append(file["collection_name"])
-            elif file.get("id"):
-                if file.get("legacy"):
-                    collection_names.append(f"{file['id']}")
-                else:
-                    collection_names.append(f"file-{file['id']}")
+            print("FILEEEE", file)
 
-            collection_names = set(collection_names).difference(extracted_collections)
-            if not collection_names:
+            if file["collection_name"] in extracted_collections:
                 log.debug(f"skipping {file} as it has already been extracted")
                 continue
 
@@ -318,7 +305,7 @@ def get_sources_from_files(
                     if hybrid_search:
                         try:
                             context = query_collection_with_hybrid_search(
-                                collection_names=collection_names,
+                                collection_names=[file["collection_name"]],
                                 queries=queries,
                                 embedding_function=embedding_function,
                                 k=k,
@@ -333,7 +320,7 @@ def get_sources_from_files(
 
                     if (not hybrid_search) or (context is None):
                         context = query_collection(
-                            collection_names=collection_names,
+                            collection_names=[file["collection_name"]],
                             queries=queries,
                             embedding_function=embedding_function,
                             k=k,
@@ -341,7 +328,7 @@ def get_sources_from_files(
             except Exception as e:
                 log.exception(e)
 
-            extracted_collections.extend(collection_names)
+            extracted_collections.extend(file["collection_name"])
 
         if context:
             if "data" in file:
