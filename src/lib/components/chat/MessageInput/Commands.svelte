@@ -1,10 +1,10 @@
-<script>
+<script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	const dispatch = createEventDispatcher();
 
-	import { knowledge, prompts } from '$lib/stores';
+	import { knowledge, prompts, subscription } from '$lib/stores';
 
 	import { removeLastWordFromString } from '$lib/utils';
 	import { getPrompts } from '$lib/apis/prompts';
@@ -31,8 +31,12 @@
 	let command = '';
 	$: command = prompt?.split('\n').pop()?.split(' ')?.pop() ?? '';
 
+	$: isFreeUser = $subscription?.plan === 'free';
+
 	let show = false;
-	$: show = ['/', '#'].includes(command?.charAt(0)) || '\\#' === command.slice(0, 2);
+	$: show =
+		command?.charAt(0) === '/' ||
+		(!isFreeUser && (command?.charAt(0) === '#' || '\\#' === command.slice(0, 2)));
 
 	$: if (show) {
 		init();
@@ -40,14 +44,19 @@
 
 	const init = async () => {
 		loading = true;
-		await Promise.all([
+		const tasks: Promise<void>[] = [
 			(async () => {
 				prompts.set(await getPrompts(localStorage.token));
-			})(),
-			(async () => {
-				knowledge.set(await getKnowledgeBases(localStorage.token));
 			})()
-		]);
+		];
+		if (!isFreeUser) {
+			tasks.push(
+				(async () => {
+					knowledge.set(await getKnowledgeBases(localStorage.token));
+				})()
+			);
+		}
+		await Promise.all(tasks);
 		loading = false;
 	};
 </script>
