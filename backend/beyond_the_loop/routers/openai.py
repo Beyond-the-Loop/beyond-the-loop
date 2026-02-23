@@ -63,7 +63,11 @@ async def _get_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(
             trust_env=True,
             timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
-            connector=aiohttp.TCPConnector(limit=100)  # limits concurrent connections
+            connector=aiohttp.TCPConnector(
+                limit=200,
+                enable_cleanup_closed=True, # proactively detects stale connections
+                ttl_dns_cache=300,  # cache Docker DNS for 5 min
+            )
         )
     return session
 

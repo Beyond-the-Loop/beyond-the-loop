@@ -375,12 +375,12 @@ def save_docs_to_vector_db(
                 add_start_index=True,
             )
         else:
-            raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
+            raise ValueError(ERROR_MESSAGES.DEFAULT)
 
         docs = text_splitter.split_documents(docs)
 
     if len(docs) == 0:
-        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT())
+        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
 
     texts = [doc.page_content for doc in docs]
     metadatas = [

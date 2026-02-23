@@ -27,7 +27,7 @@ services:
   redis:
     container_name: redis-valkey
     image: valkey/valkey:8.1-alpine
-    command: "valkey-server --save 30 1"
+    command: "valkey-server --save 30 1 --client-output-buffer-limit pubsub 256mb 64mb 60"
     healthcheck:
       test: "[ $$(valkey-cli ping) = 'PONG' ]"
       start_period: 5s
