@@ -55,7 +55,7 @@ class CreditService:
                 try:
                     # Check if the company has a stripe customer ID and payment method before recharging
                     if not company.stripe_customer_id:
-                        print(f"Auto-recharge failed: No stripe customer ID for company {user.company_id}")
+                        log.warning(f"Auto-recharge failed: No stripe customer ID for company {user.company_id}")
                         # Don't attempt to recharge if there's no stripe customer ID
                     else:
                         # Check if the customer has any payment methods
@@ -66,7 +66,7 @@ class CreditService:
                             )
 
                             if not payment_methods or len(payment_methods.data) == 0:
-                                print(
+                                log.warning(
                                     f"Auto-recharge failed: No payment methods found for company {user.company_id}")
                                 # Don't attempt to recharge if there are no payment methods
                             else:
@@ -75,11 +75,11 @@ class CreditService:
                                 # Note: The webhook will handle adding the credits when payment succeeds
                                 should_send_budget_email_80 = False  # Don't send email if auto-recharge succeeded
                         except Exception as e:
-                            print(f"Error checking payment methods: {str(e)}")
+                            log.error(f"Error checking payment methods: {str(e)}")
                 except HTTPException as e:
-                    print(f"Auto-recharge failed: {str(e)}")
+                    log.error(f"Auto-recharge failed: {str(e)}")
                 except Exception as e:
-                    print(f"Unexpected error during auto-recharge: {str(e)}")
+                    log.error(f"Unexpected error during auto-recharge: {str(e)}")
 
             if should_send_budget_email_80 and not company.budget_mail_80_sent:
                 admins = Users.get_admin_users_by_company(company.id)
@@ -145,7 +145,7 @@ class CreditService:
 
         credit_cost = total_costs
 
-        print(f" Model: {model_name}", f"Reasoning tokens: {reasoning_tokens}", f"Search query cost: {search_query_cost}", f"Credit cost: {credit_cost}", f"Cost per input token: {costs_per_input_token}", f"Cost per output token: {cost_per_output_token}", f"Total costs: {total_costs}", f"Input tokens: {input_tokens}", f"Output tokens: {output_tokens}")
+        log.debug(f"Model: {model_name} | Reasoning tokens: {reasoning_tokens} | Search query cost: {search_query_cost} | Credit cost: {credit_cost} | Cost per input token: {costs_per_input_token} | Cost per output token: {cost_per_output_token} | Total costs: {total_costs} | Input tokens: {input_tokens} | Output tokens: {output_tokens}")
 
         return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 

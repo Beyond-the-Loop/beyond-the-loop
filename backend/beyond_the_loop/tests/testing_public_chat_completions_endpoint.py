@@ -4,7 +4,8 @@ import logging
 from openai.types.chat import ChatCompletionUserMessageParam
 from openai.types.shared_params import ResponseFormatJSONSchema
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 client = OpenAI(
     api_key="sk-e549954e642b403493ece2cf91597d02",
@@ -39,7 +40,7 @@ structured_output_response = client.chat.completions.create(
     )
 )
 
-print(structured_output_response)
+log.info(f"Structured output response: {structured_output_response}")
 
 file_rag_response = client.chat.completions.create(
     model="GPT-5 mini",
@@ -54,4 +55,4 @@ file_rag_response = client.chat.completions.create(
     }
 )
 
-print(file_rag_response)
+log.info(f"File RAG response: {file_rag_response}")

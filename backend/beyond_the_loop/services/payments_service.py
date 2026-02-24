@@ -1,3 +1,4 @@
+import logging
 from dateutil.relativedelta import relativedelta
 from fastapi import HTTPException
 
@@ -5,6 +6,8 @@ import stripe
 import os
 import time
 from datetime import datetime
+
+log = logging.getLogger(__name__)
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
@@ -16,7 +19,10 @@ from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE
 def _set_new_credit_recharge_check_date(company):
     try:
         # Convert the existing timestamp to datetime
-        last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
+        if company.next_credit_charge_check:
+            last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
+        else:
+            last_check_dt = datetime.now()
 
         # Add one month
         next_check_dt = last_check_dt + relativedelta(months=1)
@@ -30,7 +36,7 @@ def _set_new_credit_recharge_check_date(company):
         )
 
     except Exception as e:
-        print(
+        log.error(
             f"Failed to update next credit charge check date for company "
             f"{company.id}: {e}"
         )
@@ -277,7 +283,7 @@ class PaymentsService:
             }
 
         except Exception as e:
-            print(f"Error getting subscription: {e}")
+            log.error(f"Error getting subscription: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def run_credit_recharge_checks(self):
@@ -326,7 +332,7 @@ class PaymentsService:
             canceled_at = event_data.get("canceled_at")
 
             if canceled_at:
-                print("Subscription canceled, skipping credits update")
+                log.info("Subscription canceled, skipping credits update")
                 return None, None, None
 
             # Extract subscription details
@@ -335,7 +341,7 @@ class PaymentsService:
             stripe_customer_id = event_data.get('customer')
 
             if not subscription_id or not stripe_customer_id:
-                print("Missing subscription_id or customer_id in event data")
+                log.warning("Missing subscription_id or customer_id in event data")
                 return None, None, None
 
             # Get the company associated with this Stripe customer
@@ -348,13 +354,13 @@ class PaymentsService:
             items = event_data.get('items', {}).get('data', [])
 
             if not items:
-                print(f"No items found in subscription {subscription_id}")
+                log.warning(f"No items found in subscription {subscription_id}")
                 return None, None, None
 
             price_id = items[0].get('price', {}).get('id')
 
             if not price_id:
-                print(f"No price ID found in subscription {subscription_id}")
+                log.warning(f"No price ID found in subscription {subscription_id}")
                 return None, None, None
 
             # Find the plan associated with this price ID
@@ -369,14 +375,14 @@ class PaymentsService:
 
                 crm_service.update_company_plan(company.name, plan_name)
             except Exception as e:
-                print(f"Error updating Attio workspace plan for company {company.id}: {e}")
+                log.error(f"Error updating Attio workspace plan for company {company.id}: {e}")
 
             if plan_id == "premium":
-                print(f"No credits to add for subscription {subscription_id}: Premium plan")
+                log.info(f"No credits to add for subscription {subscription_id}: Premium plan")
                 return None, None, None
 
             if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
-                print(f"No plan found for price ID: {price_id}")
+                log.warning(f"No plan found for price ID: {price_id}")
                 return None, None, None
 
             # For subscription events, get metadata directly from event data
@@ -388,9 +394,9 @@ class PaymentsService:
             if custom_credit_amount:
                 try:
                     credits_per_month = int(custom_credit_amount)
-                    print(f"Using custom credit amount from metadata: {credits_per_month}")
+                    log.info(f"Using custom credit amount from metadata: {credits_per_month}")
                 except (ValueError, TypeError):
-                    print(
+                    log.warning(
                         f"Invalid custom_credit_amount in metadata: {custom_credit_amount}, falling back to plan default")
                     credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
             else:
@@ -410,12 +416,12 @@ class PaymentsService:
 
                 credit_source = "custom metadata" if custom_credit_amount else "plan default"
 
-                print(f"Added {credits_per_month} credits to company {company.id} for subscription {subscription_id} (source: {credit_source})")
+                log.info(f"Added {credits_per_month} credits to company {company.id} for subscription {subscription_id} (source: {credit_source})")
 
             return company, credits_per_month, plan_id
 
         except Exception as e:
-            print(f"Error on adding credits from subscription event: {e}")
+            log.error(f"Error on adding credits from subscription event: {e}")
             return None, None, None
 
 

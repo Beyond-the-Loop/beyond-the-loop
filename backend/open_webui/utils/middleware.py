@@ -1601,7 +1601,7 @@ async def process_chat_response(
 
                     results = []
                     for tool_call in response_tool_calls:
-                        print("\n\n" + str(tool_call) + "\n\n")
+                        log.debug(f"Tool call: {tool_call}")
                         tool_call_id = tool_call.get("id", "")
                         tool_name = tool_call.get("function", {}).get("name", "")
 
@@ -1765,14 +1765,14 @@ async def process_chat_response(
                                                         "content": b64
                                                     })
                                                 except Exception as file_err:
-                                                    print(f"Failed to stage file {file_id} for executor: {file_err}")
+                                                    log.error(f"Failed to stage file {file_id} for executor: {file_err}")
                                                     continue
                                             except Exception as file_meta_err:
-                                                print(f"Error accessing file metadata {file_id}: {file_meta_err}")
+                                                log.error(f"Error accessing file metadata {file_id}: {file_meta_err}")
                                                 continue
 
                                     except Exception as prep_err:
-                                        print(f"Error preparing files for python executor: {prep_err}")
+                                        log.error(f"Error preparing files for python executor: {prep_err}")
 
                                     async with httpx.AsyncClient(timeout=60) as client:
                                         payload = {"code": code_to_run}
@@ -1864,7 +1864,7 @@ async def process_chat_response(
                                                     chat.chat["code_interpreter_files"] = chat.chat.get("code_interpreter_files", []) + [chat_file_item]
                                                     Chats.update_chat_by_id(metadata.get("chat_id"), chat.chat)
                                                 except Exception as file_upload_err:
-                                                    print("Error on created file processing", file_upload_err)
+                                                    log.error(f"Error on created file processing: {file_upload_err}")
                                     else:
                                         output = str(data)
                                 except Exception as exec_err:
@@ -1953,7 +1953,7 @@ async def process_chat_response(
 
 
                         except Exception as follow_err:
-                            print(f"Follow-up LLM generation failed: {follow_err}")
+                            log.error(f"Follow-up LLM generation failed: {follow_err}")
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
@@ -2008,7 +2008,7 @@ async def process_chat_response(
 
                 await background_tasks_handler()
             except asyncio.CancelledError:
-                print("Task was cancelled!")
+                log.warning("Task was cancelled!")
                 await event_emitter({"type": "task-cancelled"})
 
                 if not ENABLE_REALTIME_CHAT_SAVE:

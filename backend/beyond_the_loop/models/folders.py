@@ -81,7 +81,7 @@ class FolderTable:
                 else:
                     return None
             except Exception as e:
-                print(e)
+                log.error(f"Error creating folder: {e}")
                 return None
 
     def get_folder_by_id_and_user_id(

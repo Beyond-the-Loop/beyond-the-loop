@@ -295,7 +295,7 @@ async def create_company(
         return company
 
     except Exception as e:
-        print(e)
+        log.error(f"Error creating company: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating company: {str(e)}"

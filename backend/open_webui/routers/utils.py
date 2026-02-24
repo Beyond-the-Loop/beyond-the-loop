@@ -1,7 +1,10 @@
+import logging
 import black
 import markdown
 
 from beyond_the_loop.models.chats import ChatTitleMessagesForm
+
+log = logging.getLogger(__name__)
 from beyond_the_loop.config import DATA_DIR
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -65,7 +68,7 @@ async def download_chat_as_pdf(
             headers={"Content-Disposition": "attachment;filename=chat.pdf"},
         )
     except Exception as e:
-        print(e)
+        log.error(f"Error generating PDF: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 

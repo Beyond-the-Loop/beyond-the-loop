@@ -550,18 +550,22 @@ export const compareVersion = (latest, current) => {
 		}) < 0;
 };
 
-export const findWordIndices = (text) => {
-	const regex = /\[([^\]]+)\]/g;
+export const findWordIndices = (text: string) => {
+	const patterns = [/\{\{([^}]+)\}\}/g, /\[([^\]]+)\]/g];
 	const matches = [];
-	let match;
 
-	while ((match = regex.exec(text)) !== null) {
-		matches.push({
-			word: match[1],
-			startIndex: match.index,
-			endIndex: regex.lastIndex - 1
-		});
+	for (const regex of patterns) {
+		let match;
+		while ((match = regex.exec(text)) !== null) {
+			matches.push({
+				word: match[1],
+				startIndex: match.index,
+				endIndex: regex.lastIndex - 1
+			});
+		}
 	}
+
+	matches.sort((a, b) => a.startIndex - b.startIndex);
 
 	return matches;
 };

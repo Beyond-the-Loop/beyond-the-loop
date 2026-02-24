@@ -1,8 +1,11 @@
+import logging
 from datetime import datetime
 import json
 
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import String, Column, Text, Boolean, Float, BigInteger, and_
@@ -132,7 +135,7 @@ class CompanyTable:
                 companies = db.query(Company).all()
                 return [CompanyModel.model_validate(company) for company in companies]
         except Exception as e:
-            print(f"Error getting companies: {e}")
+            log.error(f"Error getting companies: {e}")
             return None
 
     def get_company_by_id(self, company_id: str):
@@ -141,7 +144,7 @@ class CompanyTable:
                 company = db.query(Company).filter_by(id=company_id).first()
                 return CompanyModel.model_validate(company)
         except Exception as e:
-            print(f"Error getting company: {e}")
+            log.error(f"Error getting company: {e}")
             return None
 
 
@@ -155,7 +158,7 @@ class CompanyTable:
                 return CompanyModel.model_validate(company)
             
         except Exception as e:
-            print(f"Error updating company", e)
+            log.error(f"Error updating company: {e}")
             return None
 
     def get_companies_due_for_credit_recharge_check(self) -> list[CompanyModel]:
@@ -177,7 +180,7 @@ class CompanyTable:
                 return due_companies
 
         except Exception as e:
-            print("Error fetching companies due for credit recharge check:", e)
+            log.error(f"Error fetching companies due for credit recharge check: {e}")
             return []
 
     def update_auto_recharge(self, company_id: str, auto_recharge: bool) -> Optional[CompanyModel]:
@@ -186,7 +189,7 @@ class CompanyTable:
             with get_db() as db:
                 company = db.query(Company).filter_by(id=company_id).first()
                 if not company:
-                    print(f"Company with ID {company_id} not found.")
+                    log.warning(f"Company with ID {company_id} not found.")
                     return None
 
                 db.query(Company).filter_by(id=company_id).update({"auto_recharge": auto_recharge})
@@ -196,7 +199,7 @@ class CompanyTable:
                 return CompanyModel.model_validate(updated_company)
 
         except Exception as e:
-            print(f"Error updating auto_recharge for company {company_id}: {e}")
+            log.error(f"Error updating auto_recharge for company {company_id}: {e}")
             return None
 
 
@@ -205,13 +208,13 @@ class CompanyTable:
             with get_db() as db:
                 company = db.query(Company).filter_by(id=company_id).first()
                 if not company:
-                    print(f"Company with ID {company_id} not found.")
+                    log.warning(f"Company with ID {company_id} not found.")
                     return None
 
                 return company.auto_recharge
 
         except Exception as e:
-            print(f"Error retrieving auto_recharge for company {company_id}: {e}")
+            log.error(f"Error retrieving auto_recharge for company {company_id}: {e}")
             return None
         
         
@@ -220,7 +223,7 @@ class CompanyTable:
             with get_db() as db:
                 # Fetch the company by its ID
                 company = db.query(Company).filter_by(id=company_id).first()
-                print("Company: ", company.allowed_models)
+                log.debug(f"Company allowed_models: {company.allowed_models}")
                 # If company doesn't exist, return False
                 if not company:
                     return None
@@ -243,7 +246,7 @@ class CompanyTable:
                     return False
         except Exception as e:
             # Handle exceptions if any
-            print("ERRRO::: ", e)
+            log.error(f"Error adding model to company: {e}")
             return False
 
     def remove_model(self, company_id: str, model_id: str) -> bool:
@@ -334,7 +337,7 @@ class CompanyTable:
                 db.refresh(company)
                 return CompanyModel.model_validate(company)
         except Exception as e:
-            print(f"Error creating company: {e}")
+            log.error(f"Error creating company: {e}")
             return None
 
     def get_company_by_stripe_customer_id(self, stripe_customer_id: str) -> Optional[CompanyModel]:
@@ -345,7 +348,7 @@ class CompanyTable:
                     return CompanyModel.model_validate(company)
                 return None
         except Exception as e:
-            print(f"Error getting company by stripe_customer_id: {e}")
+            log.error(f"Error getting company by stripe_customer_id: {e}")
             return None
 
     def get_eighty_percent_credit_limit(self, company_id: str) -> float:
@@ -382,7 +385,7 @@ class CompanyTable:
                 return monthly_credits * 0.2
                 
         except Exception as e:
-            print(f"Error calculating credit limit for company {company_id}: {e}")
+            log.error(f"Error calculating credit limit for company {company_id}: {e}")
             return 1  # Default fallback value
 
 Companies = CompanyTable()

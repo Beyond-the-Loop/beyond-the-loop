@@ -69,7 +69,7 @@ def query_doc(
         )
         return result
     except Exception as e:
-        print(e)
+        log.error(f"Error querying doc: {e}")
         raise e
 
 

@@ -1,4 +1,5 @@
 import asyncio
+import anyio
 import logging
 import mimetypes
 import os
@@ -150,7 +151,6 @@ from open_webui.env import (
     SAFE_MODE,
     SRC_LOG_LEVELS,
     VERSION,
-    WEBUI_BUILD_HASH,
     WEBUI_SECRET_KEY,
     WEBUI_SESSION_COOKIE_SAME_SITE,
     WEBUI_SESSION_COOKIE_SECURE,
@@ -189,29 +189,52 @@ from open_webui.utils.chat import (
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
+logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
-log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 if SAFE_MODE:
-    log.warning("SAFE MODE ENABLED")
+    log.info("SAFE MODE ENABLED")
+log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except (HTTPException, StarletteHTTPException) as ex:
             if ex.status_code == 404:
-                return await super().get_response("index.html", scope)
+                response = await super().get_response("index.html", scope)
             else:
                 raise ex
 
+        # Vite fingerprints all files under /_app/immutable/ with content hashes,
+        # so they can be cached indefinitely by browsers and CDNs.
+        if "/_app/immutable/" in path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            # index.html and all other routes: always revalidate so users get
+            # fresh deploys immediately.
+            response.headers["Cache-Control"] = "no-cache"
 
-log.info("Open WebUI v%s starting", VERSION)
+        return response
 
+log.info(rf"""
+
+
+▀█████████▄     ▄████████ ▄██   ▄    ▄██████▄  ███▄▄▄▄   ████████▄           ███        ▄█    █▄       ▄████████       ▄█        ▄██████▄   ▄██████▄     ▄███████▄ 
+  ███    ███   ███    ███ ███   ██▄ ███    ███ ███▀▀▀██▄ ███   ▀███      ▀█████████▄   ███    ███     ███    ███      ███       ███    ███ ███    ███   ███    ███ 
+  ███    ███   ███    █▀  ███▄▄▄███ ███    ███ ███   ███ ███    ███         ▀███▀▀██   ███    ███     ███    █▀       ███       ███    ███ ███    ███   ███    ███ 
+ ▄███▄▄▄██▀   ▄███▄▄▄     ▀▀▀▀▀▀███ ███    ███ ███   ███ ███    ███          ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄          ███       ███    ███ ███    ███   ███    ███ 
+▀▀███▀▀▀██▄  ▀▀███▀▀▀     ▄██   ███ ███    ███ ███   ███ ███    ███          ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀          ███       ███    ███ ███    ███ ▀█████████▀  
+  ███    ██▄   ███    █▄  ███   ███ ███    ███ ███   ███ ███    ███          ███       ███    ███     ███    █▄       ███       ███    ███ ███    ███   ███        
+  ███    ███   ███    ███ ███   ███ ███    ███ ███   ███ ███   ▄███          ███       ███    ███     ███    ███      ███▌    ▄ ███    ███ ███    ███   ███        
+▄█████████▀    ██████████  ▀█████▀   ▀██████▀   ▀█   █▀  ████████▀          ▄████▀     ███    █▀      ██████████      █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀                                                                                                                    ▀                                             
+""")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 2000
+
     if RESET_CONFIG_ON_START:
         # Note: This won't actually save to the database since company_id is None
         # It will just reset the in-memory config to the default values
@@ -594,6 +617,7 @@ async def get_base_models(user=Depends(get_admin_user)):
                                               "Perplexity Sonar Reasoning Pro")]
 
     return {"data": base_models}
+
 
 # Public API
 @app.post("/api/openai/chat/completions")

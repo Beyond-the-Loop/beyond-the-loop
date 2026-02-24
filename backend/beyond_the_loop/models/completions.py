@@ -1,3 +1,4 @@
+import logging
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float
@@ -6,6 +7,8 @@ import uuid
 import time
 
 from open_webui.internal.db import get_db, Base
+
+log = logging.getLogger(__name__)
 
 ####################
 # Completion DB Schema
@@ -57,10 +60,10 @@ class CompletionTable:
                 if result:
                     return CompletionModel.model_validate(result)
                 else:
-                    print("insertion failed", result)
+                    log.error(f"Completion insertion failed: {result}")
                     return None
         except Exception as e:
-            print(f"Error creating completion: {e}")
+            log.error(f"Error creating completion: {e}")
             return None
 
     def get_completions_last_three_hours_by_user_and_model(
@@ -85,12 +88,12 @@ class CompletionTable:
 
                 return count
         except Exception as e:
-            print(f"Error fetching completions for usage count: {e}")
+            log.error(f"Error fetching completions for usage count: {e}")
             return 0
 
 
 def calculate_saved_time_in_seconds(last_message, response_message):
-    # print(last_message + " ----- " + response_message)
+    # log.debug(f"{last_message} ----- {response_message}")
 
     writing_speed_per_word = 600 / 500  # 500 words in 600 seconds = 1.2 sec per word
     reading_speed_per_word = 400 / 500  # 500 words in 400 seconds = 0.8 sec per word

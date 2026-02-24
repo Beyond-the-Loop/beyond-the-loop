@@ -74,8 +74,7 @@ def upload_file(
             process_file(request, ProcessFileForm(file_id=id), user=user)
             file_item = Files.get_file_by_id(id=id)
         except Exception as e:
-            log.exception(e)
-            log.error(f"Error processing file: {file_item.id}")
+            log.error(f"Error processing file {file_item.id}: {e.detail if hasattr(e, 'detail') else e}")
             file_item = FileModelResponse(
                 **{
                     **file_item.model_dump(),
@@ -270,7 +269,7 @@ async def get_html_file_content_by_id(id: str, user=Depends(get_verified_user)):
 
             # Check if the file already exists in the cache
             if file_path.is_file():
-                print(f"file_path: {file_path}")
+                log.debug(f"file_path: {file_path}")
                 return FileResponse(file_path)
             else:
                 raise HTTPException(
