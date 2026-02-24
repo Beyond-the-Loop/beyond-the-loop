@@ -1,7 +1,6 @@
+import time
 import logging
 from typing import Optional, List, Dict, Any
-
-log = logging.getLogger(__name__)
 from sqlalchemy import (
     cast,
     column,
@@ -17,6 +16,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import true
 from sqlalchemy.pool import NullPool
+
+log = logging.getLogger(__name__)
 
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB, array
