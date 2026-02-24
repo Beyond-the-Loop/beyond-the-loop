@@ -269,27 +269,11 @@ async def disconnect(sid):
 def get_event_emitter(request_info):
     async def __event_emitter__(event_data):
         user_id = request_info["user_id"]
-        requesting_sid = request_info["session_id"]
+        session_ids = list(
+            set(USER_POOL.get(user_id, []) + [request_info["session_id"]])
+        )
 
-        event_type = event_data.get("type")
-
-        if event_type == "chat:completion":
-            # The requesting session already receives streaming token data via the HTTP
-            # response body. Only push via Socket.IO to OTHER open sessions (e.g. other
-            # browser tabs) so we avoid routing every streaming token through Redis
-            # pub/sub when there is nothing to fan out to.
-            target_session_ids = [
-                sid for sid in USER_POOL.get(user_id, [])
-                if sid != requesting_sid
-            ]
-        else:
-            # Status, errors, and other control events must reach all sessions
-            # (including the requesting one) so the UI can react correctly.
-            target_session_ids = list(
-                set(USER_POOL.get(user_id, []) + [requesting_sid])
-            )
-
-        for session_id in target_session_ids:
+        for session_id in session_ids:
             await sio.emit(
                 "chat-events",
                 {
