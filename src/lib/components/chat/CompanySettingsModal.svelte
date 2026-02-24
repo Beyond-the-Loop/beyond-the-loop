@@ -47,7 +47,7 @@
 		window.history.replaceState({}, '', url); 
 	}
 
-	const searchData: SettingsTab[] = [
+	const settingsTabs: SettingsTab[] = [
 		{
 			id: 'general-settings',
 			title: 'General settings',
@@ -88,41 +88,17 @@
 		}
 		];
 
-	let search = '';
-
-	let visibleTabs = [];
-
-	$: if ($subscription) {
-		visibleTabs = searchData
-			.map(tab => tab.id)
-			.filter(tab =>
-				$subscription.plan === 'free'
-					? tab !== 'analytics'
-					: true
-			);
-	}
-
 	let searchDebounceTimeout;
 
 	const searchSettings = (query: string): string[] => {
 		const lowerCaseQuery = query.toLowerCase().trim();
-		return searchData
+		return settingsTabs
 			.filter(
 				(tab) =>
 					tab.title.toLowerCase().includes(lowerCaseQuery) ||
 					tab.keywords.some((keyword) => keyword.includes(lowerCaseQuery))
 			)
 			.map((tab) => tab.id);
-	};
-
-	const searchDebounceHandler = () => {
-		clearTimeout(searchDebounceTimeout);
-		searchDebounceTimeout = setTimeout(() => {
-			visibleTabs = searchSettings(search);
-			if (visibleTabs.length > 0 && !visibleTabs.includes(selectedTab)) {
-				selectedTab = visibleTabs[0];
-			}
-		}, 100);
 	};
 
 	const saveSettings = async (updated) => {
@@ -207,7 +183,7 @@
 				{#if selectedTab && $mobile}
 					<button class="capitalize flex items-center" on:click={() => selectedTab = null}>
 						<BackIcon className="mr-1 size-4 shrink-0"/>
-						<div class="shrink-0">{$i18n.t(searchData?.find(item => item?.id === selectedTab).title)}</div>
+						<div class="shrink-0">{$i18n.t(settingsTabs?.find(item => item?.id === selectedTab).title)}</div>
 					</button>
 				{:else}
 					<div class="self-center">{$i18n.t('Company settings')}</div>
@@ -241,9 +217,9 @@
 					id="settings-tabs-container"
 					class="rounded-bl-lg md:pl-4 md:pt-5 pr-2 tabs flex flex-col md:dark:bg-customGray-900 md:gap-1 w-full md:w-[252px] dark:text-gray-200 text-sm font-medium text-left mb-1 md:mb-0"
 				>
-					{#if visibleTabs.length > 0}
-						{#each visibleTabs as tabId (tabId)}
-						{#if tabId === 'general-settings'}
+					{#if settingsTabs.length > 0}
+						{#each settingsTabs as settingsTab}
+						{#if settingsTab.id === 'general-settings'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'general-settings'
@@ -261,7 +237,7 @@
 								<div class=" self-center">{$i18n.t('General settings')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'domain-settings'}
+						{:else if settingsTab.id === 'domain-settings'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'domain-settings'
@@ -279,7 +255,7 @@
 								<div class=" self-center">{$i18n.t('Domain settings')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'user-management'}
+						{:else if settingsTab.id === 'user-management'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'user-management'
@@ -297,7 +273,7 @@
 								<div class=" self-center">{$i18n.t('User management')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'model-control'}
+						{:else if settingsTab.id === 'model-control'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'model-control'
@@ -315,7 +291,7 @@
 								<div class=" self-center">{$i18n.t('Model control')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'analytics'}
+						{:else if settingsTab.id === 'analytics'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'analytics'
@@ -333,7 +309,7 @@
 								<div class=" self-center">{$i18n.t('Analytics')}</div>
 							</div>
 						</button>
-						{:else if tabId === 'billing'}
+						{:else if settingsTab.id === 'billing'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
 							'billing'

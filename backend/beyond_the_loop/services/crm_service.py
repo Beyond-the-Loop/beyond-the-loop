@@ -273,7 +273,6 @@ class CRMService:
                     return
 
                 log.warning(f"create_user failed for {user_email}, status code: {response.status_code}, and response: {response.text}")
-
             return
 
         except Exception as e:

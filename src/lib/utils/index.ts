@@ -1236,8 +1236,6 @@ export function getModelIcon(label: string): string {
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
-	console.log('LAGEB', label);
-
 	if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {
@@ -1263,29 +1261,13 @@ export function getModelIcon(label: string): string {
 	}
 }
 
-// const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-// export const getMonths = (data) => {
-// 	const values = [];
-// 	const keys = Object.keys(data);
-// 	const start = Number(keys?.[0]?.split('-')?.[1]) - 1;
-// 	const count = Object.keys(data)?.length + start;
-
-// 	for (let i = start; i < count; ++i) {
-// 		const value = MONTHS[Math.ceil(i) % 12];
-// 		values.push(value);
-// 	}
-// 	return values;
-// }
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const getMonths = (data) => {
-	// data is now an array of objects with period property
 	if (!data || !Array.isArray(data)) return [];
 
 	return data.map((item) => {
 		const [year, month] = item.period.split('-');
-		// Convert month number (01-12) to month name
 		return MONTHS[parseInt(month) - 1];
 	});
 };

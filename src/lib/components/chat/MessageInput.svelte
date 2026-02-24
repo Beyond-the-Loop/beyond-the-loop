@@ -1,39 +1,34 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { v4 as uuidv4 } from 'uuid';
-	import { createPicker, getAuthToken } from '$lib/utils/google-drive-picker';
+	import { createPicker } from '$lib/utils/google-drive-picker';
 
-	import { onMount, tick, getContext, createEventDispatcher, onDestroy } from 'svelte';
+	import { createEventDispatcher, getContext, onDestroy, onMount, tick } from 'svelte';
 	import ScrollToBottomIcon from '../icons/ScrollToBottomIcon.svelte';
-	const dispatch = createEventDispatcher();
-
 	import {
-		type Model,
-		mobile,
-		settings,
-		showSidebar,
-		models,
-		config,
-		showCallOverlay,
-		tools,
-		user as _user,
-		showControls,
 		companyConfig,
-		confirmPromptFn
+		config,
+		confirmPromptFn,
+		mobile,
+		type Model,
+		models,
+		settings,
+		showCallOverlay,
+		showControls,
+		tools,
+		user as _user
 	} from '$lib/stores';
 
 	import { blobToFile, compressImage, createMessagesList, findWordIndices } from '$lib/utils';
 	import { transcribeAudio } from '$lib/apis/audio';
-	import { uploadFile } from '$lib/apis/files';
+	import { deleteFileById, uploadFile } from '$lib/apis/files';
 	import { generateAutoCompletion } from '$lib/apis';
-	import { deleteFileById } from '$lib/apis/files';
 
-	import { WEBUI_BASE_URL, WEBUI_API_BASE_URL, PASTED_TEXT_CHARACTER_LIMIT } from '$lib/constants';
+	import { PASTED_TEXT_CHARACTER_LIMIT, WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
 	import FilesOverlay from './MessageInput/FilesOverlay.svelte';
-	import Commands from './MessageInput/Commands.svelte';
 
 	import RichTextInput from '../common/RichTextInput.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
@@ -41,11 +36,6 @@
 	import Image from '../common/Image.svelte';
 
 	import XMark from '../icons/XMark.svelte';
-	import Headphone from '../icons/Headphone.svelte';
-	import GlobeAlt from '../icons/GlobeAlt.svelte';
-	import PhotoSolid from '../icons/PhotoSolid.svelte';
-	import Photo from '../icons/Photo.svelte';
-	import CommandLine from '../icons/CommandLine.svelte';
 	import WebSearchIcon from '../icons/WebSearchIcon.svelte';
 	import CodeInterpreterIcon from '../icons/CodeInterpreterIcon.svelte';
 	import ImageGenerateIcon from '../icons/ImageGenerateIcon.svelte';
@@ -55,11 +45,14 @@
 	import MagicSearch from '../icons/MagicSearch.svelte';
 	import LoadingIcon from '../icons/LoadingIcon.svelte';
 
+	const dispatch = createEventDispatcher();
+
 	const i18n = getContext('i18n');
 
 	export let transparentBackground = false;
 
-	export let onChange: Function = () => {};
+	export let onChange: Function = () => {
+	};
 	export let createMessagePair: Function;
 	export let stopResponse: Function;
 
@@ -191,7 +184,6 @@
 			});
 
 			if (res) {
-				console.log(res);
 				const blob = new Blob([res.text], { type: 'text/plain' });
 				file = blobToFile(blob, `${file.name}.txt`);
 
@@ -316,12 +308,10 @@
 
 	const onDrop = async (e) => {
 		e.preventDefault();
-		console.log(e);
 
 		if (e.dataTransfer?.files) {
 			const inputFiles = Array.from(e.dataTransfer?.files);
 			if (inputFiles && inputFiles.length > 0) {
-				console.log(inputFiles);
 				inputFilesHandler(inputFiles);
 			}
 		}
@@ -389,7 +379,6 @@
 		}
 
 		if (command.content.includes('{{USER_NAME}}')) {
-			console.log($user);
 			const name = `${$user.first_name} ${$user.last_name}` || 'User';
 			text = text.replaceAll('{{USER_NAME}}', name);
 		}
@@ -445,16 +434,16 @@
 
 	onMount(() => {
 		confirmPromptFn.set(confirmPrompt);
-	})
+	});
 
-	onDestroy(() => confirmPromptFn.set(null))
+	onDestroy(() => confirmPromptFn.set(null));
 
 	onMount(() => {
 		const stored = localStorage.getItem('selectedPrompt');
 		if (stored) {
 			const prompt = JSON.parse(stored);
-			confirmPrompt(prompt);		
-			localStorage.removeItem('selectedPrompt'); 
+			confirmPrompt(prompt);
+			localStorage.removeItem('selectedPrompt');
 		}
 	});
 
@@ -472,10 +461,9 @@
 	});
 
 	let customModel = null;
-	$: console.log(customModel)
 
 	$: {
-		if(selectedModels.length === 1) {
+		if (selectedModels.length === 1) {
 			customModel = $models.find(model => model.id === selectedModels[0] && model.info?.base_model_id !== null);
 		}
 	}
@@ -503,7 +491,7 @@
 									scrollToBottom();
 								}}
 							>
-							<ScrollToBottomIcon className="size-6"/>	
+								<ScrollToBottomIcon className="size-6" />
 							</button>
 						</div>
 					{/if}
@@ -786,9 +774,6 @@
 														files.splice(fileIdx, 1);
 														files = files;
 													}}
-													on:click={() => {
-														console.log(file);
-													}}
 												/>
 											{/if}
 										{/each}
@@ -796,7 +781,7 @@
 								{/if}
 
 								<div class="px-2.5 min-h-[60px]">
-									{#if $settings?.richTextInput ?? true}
+									{#if $settings?.richTextInput ?? false}
 										<div
 											class="scrollbar-hidden text-left bg-transparent dark:text-gray-100 outline-none w-full pt-5 px-3 resize-none h-fit max-h-80 overflow-auto"
 										>
@@ -832,7 +817,6 @@
 														return null;
 													});
 
-													console.log(res);
 													return res;
 												}}
 												on:keydown={async (e) => {
@@ -957,7 +941,6 @@
 												}}
 												on:paste={async (e) => {
 													e = e.detail.event;
-													console.log(e);
 
 													const clipboardData = e.clipboardData || window.clipboardData;
 
@@ -1002,7 +985,7 @@
 										<textarea
 											id="chat-input"
 											bind:this={chatInputElement}
-											class="scrollbar-hidden bg-transparent dark:text-gray-100 outline-none w-full pt-3 px-1 resize-none"
+											class="scrollbar-hidden bg-transparent dark:text-gray-100 outline-none w-full pt-5 px-2 resize-none"
 											placeholder={placeholder ? placeholder : $i18n.t('Send a message')}
 											bind:value={prompt}
 											on:keypress={(e) => {
@@ -1061,8 +1044,6 @@
 													const editButton = [
 														...document.getElementsByClassName('edit-user-message-button')
 													]?.at(-1);
-
-													console.log(userMessageElement);
 
 													userMessageElement.scrollIntoView({ block: 'center' });
 													editButton?.click();
@@ -1258,7 +1239,7 @@
 															{#if webSearchEnabled || ($settings?.webSearch ?? false) === 'always'}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Web Search')}</span
+																>{$i18n.t('Web Search')}</span
 																>
 															{/if}
 														</button>
@@ -1282,7 +1263,7 @@
 															{#if imageGenerationEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Image')}</span
+																>{$i18n.t('Image')}</span
 																>
 															{/if}
 														</button>
@@ -1306,7 +1287,7 @@
 															{#if codeInterpreterEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Code Interpreter')}
+																>{$i18n.t('Code Interpreter')}
 																</span>
 																<span class="text-[0.5rem] leading-[11px] ml-[-5px] self-start">
 																	Beta
@@ -1334,8 +1315,8 @@
 												>
 													{#if isMagicLoading}
 														<span class="flex items-center"
-															><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
-															></span
+														><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
+														></span
 														>
 													{:else}
 														<MagicSearch />

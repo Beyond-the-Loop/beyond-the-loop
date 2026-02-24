@@ -487,13 +487,10 @@
 	}
 
 	onMount(async () => {
-		// console.log('ResponseMessage mounted');
-
 		await tick();
 	});
 
 	let modelIconUrl = '';
-	$: console.log(model, 'model---->')
 
 	$: {
 		if($companyConfig?.config?.ui?.hide_model_logo_in_chat){
@@ -652,6 +649,16 @@
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
 												{$i18n.t("Analyzing results")}
+											</div>
+										</div>
+									{:else if status?.action === 'generating_response'}
+										<div class="flex flex-col justify-center -space-y-0.5">
+											<div
+												class="{status?.done === false
+													? 'shimmer'
+													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+											>
+												{$i18n.t(status?.description)}
 											</div>
 										</div>
 									{:else}
