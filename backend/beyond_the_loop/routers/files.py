@@ -74,8 +74,7 @@ def upload_file(
             process_file(request, ProcessFileForm(file_id=id), user=user)
             file_item = Files.get_file_by_id(id=id)
         except Exception as e:
-            log.exception(e)
-            log.error(f"Error processing file: {file_item.id}")
+            log.error(f"Error processing file {file_item.id}: {e.detail if hasattr(e, 'detail') else e}")
             file_item = FileModelResponse(
                 **{
                     **file_item.model_dump(),
