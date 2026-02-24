@@ -86,37 +86,37 @@ async def get_knowledge(user=Depends(get_verified_user)):
 
     knowledge_bases = Knowledges.get_knowledge_bases_by_user_and_company(user.id, user.company_id, "read")
 
-    # Get files for each knowledge base
+    # Batch-fetch all files in one query instead of N separate queries
+    all_file_ids = []
+    for kb in knowledge_bases:
+        if kb.data:
+            all_file_ids.extend(kb.data.get("file_ids", []))
+    all_files_map = {f.id: f for f in Files.get_file_metadatas_by_ids(list(set(all_file_ids)))}
+
+    # Batch models lookup: one company query + Python filter instead of N JSONB queries
+    all_company_models = Models.get_all_models_by_company(user.company_id)
+    models_by_knowledge_id: dict = {}
+    for model in all_company_models:
+        if model.meta and model.meta.knowledge:
+            for k in model.meta.knowledge:
+                kid = k.get("id")
+                if kid:
+                    models_by_knowledge_id.setdefault(kid, []).append(model)
+
     knowledge_with_files = []
     for knowledge_base in knowledge_bases:
-        files = []
-        if knowledge_base.data:
-            files = Files.get_file_metadatas_by_ids(
-                knowledge_base.data.get("file_ids", [])
-            )
+        kb_file_ids = knowledge_base.data.get("file_ids", []) if knowledge_base.data else []
+        files = [all_files_map[fid] for fid in kb_file_ids if fid in all_files_map]
 
-            # Check if all files exist
-            if len(files) != len(knowledge_base.data.get("file_ids", [])):
-                missing_files = list(
-                    set(knowledge_base.data.get("file_ids", []))
-                    - set([file.id for file in files])
-                )
-                if missing_files:
-                    data = knowledge_base.data or {}
-                    file_ids = data.get("file_ids", [])
+        # Clean up stale file references in one pass
+        missing_ids = [fid for fid in kb_file_ids if fid not in all_files_map]
+        if missing_ids:
+            updated_ids = [fid for fid in kb_file_ids if fid in all_files_map]
+            data = knowledge_base.data or {}
+            data["file_ids"] = updated_ids
+            Knowledges.update_knowledge_data_by_id(id=knowledge_base.id, data=data)
 
-                    for missing_file in missing_files:
-                        file_ids.remove(missing_file)
-
-                    data["file_ids"] = file_ids
-
-                    Knowledges.update_knowledge_data_by_id(
-                        id=knowledge_base.id, data=data
-                    )
-
-                    files = Files.get_file_metadatas_by_ids(file_ids)
-
-        models = Models.get_models_by_knowledge_id(knowledge_base.id)
+        models = models_by_knowledge_id.get(knowledge_base.id, [])
 
         knowledge_with_files.append(
             KnowledgeUserResponse(
