@@ -998,8 +998,6 @@ MODEL_ORDER_LIST = PersistentConfig(
     [],
 )
 
-VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")
-
 # Chroma
 CHROMA_DATA_PATH = f"{DATA_DIR}/vector_db"
 CHROMA_TENANT = os.environ.get("CHROMA_TENANT", chromadb.DEFAULT_TENANT)
