@@ -579,6 +579,9 @@ def apply_params_to_form_data(form_data):
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
+    _payload_start = time.perf_counter()
+    log.info(f"performance_testing [middleware] process_chat_payload START")
+
     form_data = apply_params_to_form_data(form_data)
 
     # Remove variables and tool_ids from form_data. They're legacy
@@ -587,8 +590,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     log.debug(f"form_data: {form_data}")
 
+    _t = time.perf_counter()
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
+    log.info(f"performance_testing [middleware] get_event_emitter+get_event_call took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
     extra_params = {
         "__event_emitter__": event_emitter,
@@ -611,7 +616,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     user_message = get_last_user_message(form_data["messages"])
 
+    _t = time.perf_counter()
     model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
+    log.info(f"performance_testing [middleware] Knowledges.get_knowledge_by_ids took {(time.perf_counter() - _t) * 1000:.1f}ms (has_knowledge={bool(model_knowledge)})")
 
     model_files = model.meta.files
 
@@ -631,7 +638,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
 
+        _t = time.perf_counter()
         knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
+        log.info(f"performance_testing [middleware] Files.get_files_by_ids (knowledge) took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
@@ -657,7 +666,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             "temperature": 0.0
         }
 
+        _t = time.perf_counter()
         response = await generate_chat_completion(decision_form_data, user, model)
+        log.info(f"performance_testing [middleware] knowledge/file decision LLM call took {(time.perf_counter() - _t) * 1000:.1f}ms")
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
 
         use_model_knowledge_or_files = response_content == 'YES'
@@ -685,15 +696,19 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # Include web search files before deciding task intent and building RAG context
     if web_search_active:
+        _t = time.perf_counter()
         web_search_files, web_search_queries = await chat_web_search_handler(
             request, form_data, extra_params, user
         )
+        log.info(f"performance_testing [middleware] chat_web_search_handler took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         files.extend(web_search_files)
 
     # First, decide if this is a RAG task or content extraction task
     try:
+        _t = time.perf_counter()
         form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active else (form_data, True)
+        log.info(f"performance_testing [middleware] chat_file_intent_decision_handler took {(time.perf_counter() - _t) * 1000:.1f}ms (is_rag_task={is_rag_task})")
 
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
@@ -702,13 +717,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if is_rag_task:
         # Proceed with normal RAG processing
         try:
+            _t = time.perf_counter()
             form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params, web_search_queries)
+            log.info(f"performance_testing [middleware] chat_completion_files_handler (RAG) took {(time.perf_counter() - _t) * 1000:.1f}ms")
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
     else:
         # Handle non-RAG task: extract file content and append to user prompt
         try:
+            _t = time.perf_counter()
             file_contents = []
 
             for file_item in files:
@@ -718,15 +736,21 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                         # Skip image files and collections
                         if file_item.get("type") not in ["web_search_results", "collection"]:
                             try:
+                                _tf = time.perf_counter()
                                 file_record = Files.get_file_by_id(file_id)
+                                log.info(f"performance_testing [middleware] Files.get_file_by_id ({file_id}) took {(time.perf_counter() - _tf) * 1000:.1f}ms")
                                 if file_record and file_record.meta:
                                     content_type = file_record.meta.get("content_type", "")
                                     # Skip image files
                                     if not content_type.startswith("image/"):
+                                        _tf2 = time.perf_counter()
                                         content = extract_file_content_with_loader(file_id)
+                                        log.info(f"performance_testing [middleware] extract_file_content_with_loader ({file_id}) took {(time.perf_counter() - _tf2) * 1000:.1f}ms")
                                         file_contents.append(f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
                             except Exception as e:
                                 log.debug(f"Error processing file {file_id}: {e}")
+
+            log.info(f"performance_testing [middleware] full-content file extraction (non-RAG) took {(time.perf_counter() - _t) * 1000:.1f}ms for {len(files)} file(s)")
 
             # Append file contents to the last user message
             if file_contents:
@@ -847,19 +871,25 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                         message["content"] = ""
 
         if "image_generation" in features and features["image_generation"]:
+            _t = time.perf_counter()
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
             )
+            log.info(f"performance_testing [middleware] chat_image_generation_handler took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         if "code_interpreter" in features and features["code_interpreter"]:
             form_data["messages"] = add_or_update_system_message(
                 CODE_INTERPRETER_PROMPT, form_data["messages"]
             )
 
+            _t = time.perf_counter()
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
+            log.info(f"performance_testing [middleware] get_model_by_name_and_company (code_interpreter) took {(time.perf_counter() - _t) * 1000:.1f}ms")
             form_data["model"] = model.id
 
+            _t = time.perf_counter()
             code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
+            log.info(f"performance_testing [middleware] Chats.get_chat_by_id (code_interpreter) took {(time.perf_counter() - _t) * 1000:.1f}ms")
             form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
 
             non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
@@ -875,6 +905,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 form_data["messages"] = add_or_update_user_message(
                     code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
+    log.info(f"performance_testing [middleware] process_chat_payload DONE, total took {(time.perf_counter() - _payload_start) * 1000:.1f}ms")
     return form_data, metadata, events
 
 

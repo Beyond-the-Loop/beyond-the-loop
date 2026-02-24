@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -211,14 +212,18 @@ async def generate_chat_completion(
         user,
         model
 ):
+    _fn_start = time.perf_counter()
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
-    event_emitter = get_event_emitter(metadata)
-
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
+    _t = time.perf_counter()
+    event_emitter = get_event_emitter(metadata)
+    log.info(f"performance_testing [openai] get_event_emitter took {(time.perf_counter() - _t) * 1000:.1f}ms (agent_or_task={agent_or_task_prompt})")
+
     if not agent_or_task_prompt:
+        _t = time.perf_counter()
         await event_emitter(
             {
                 "type": "status",
@@ -229,6 +234,7 @@ async def generate_chat_completion(
                 },
             }
         )
+        log.info(f"performance_testing [openai] emit 'Preparing model request' took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
     if model is None:
         raise HTTPException(
@@ -238,10 +244,12 @@ async def generate_chat_completion(
 
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
+    _t = time.perf_counter()
     if model.base_model_id:
         model_name = model.base_model_id if model.user_id == "system" else Models.get_model_by_id(model.base_model_id).name
     else:
         model_name = model.name
+    log.info(f"performance_testing [openai] model_name resolution took {(time.perf_counter() - _t) * 1000:.1f}ms (model_name={model_name})")
 
     payload["model"] = model_name
 
@@ -254,10 +262,14 @@ async def generate_chat_completion(
                     if c.get("type") != "image_url"
                 ]
 
+    _t = time.perf_counter()
     subscription = payments_service.get_subscription(user.company_id)
+    log.info(f"performance_testing [openai] payments_service.get_subscription took {(time.perf_counter() - _t) * 1000:.1f}ms (plan={subscription.get('plan')})")
 
     if has_chat_id or agent_or_task_prompt:
+        _t = time.perf_counter()
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+        log.info(f"performance_testing [openai] credit_service.check_for_subscription_and_sufficient_balance_and_seats took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
     params = model.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
@@ -276,7 +288,9 @@ async def generate_chat_completion(
 
     # Check model fair usage
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
+        _t = time.perf_counter()
         fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
+        log.info(f"performance_testing [openai] fair_model_usage_service.check_for_fair_model_usage took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
@@ -302,16 +316,20 @@ async def generate_chat_completion(
         "GPT-5.1 thinking": "azure/gpt-5.1",
     }
 
+    _t = time.perf_counter()
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
         log.warning("Error trimming messages, continuing with the original messages...")
+    log.info(f"performance_testing [openai] trim_messages took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
     # Extract last user message before serializing
     last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
 
     # Convert the modified body back to JSON
+    _t = time.perf_counter()
     payload = json.dumps(payload)
+    log.info(f"performance_testing [openai] json.dumps(payload) took {(time.perf_counter() - _t) * 1000:.1f}ms (payload_size={len(payload)} bytes)")
 
     r = None
     streaming = False
@@ -319,6 +337,7 @@ async def generate_chat_completion(
 
     try:
         if not agent_or_task_prompt:
+            _t = time.perf_counter()
             await event_emitter(
                 {
                     "type": "status",
@@ -329,10 +348,14 @@ async def generate_chat_completion(
                     },
                 }
             )
+            log.info(f"performance_testing [openai] emit 'Creating session' took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
+        _t = time.perf_counter()
         s = await _get_session()
+        log.info(f"performance_testing [openai] _get_session() took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         if not agent_or_task_prompt:
+            _t = time.perf_counter()
             await event_emitter(
                 {
                     "type": "status",
@@ -343,7 +366,10 @@ async def generate_chat_completion(
                     },
                 }
             )
+            log.info(f"performance_testing [openai] emit 'Waiting for model response' took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
+        log.info(f"performance_testing [openai] TOTAL time before LiteLLM request: {(time.perf_counter() - _fn_start) * 1000:.1f}ms")
+        _t_litellm = time.perf_counter()
         r = await s.request(
             method="POST",
             url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
@@ -363,6 +389,7 @@ async def generate_chat_completion(
                 ),
             },
         )
+        log.info(f"performance_testing [openai] LiteLLM s.request() (first byte/response headers) took {(time.perf_counter() - _t_litellm) * 1000:.1f}ms")
 
         if not agent_or_task_prompt:
             await event_emitter(

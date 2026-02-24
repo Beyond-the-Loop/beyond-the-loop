@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 import jwt
 
@@ -15,6 +16,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 
 logging.getLogger("passlib").setLevel(logging.ERROR)
+
+log = logging.getLogger(__name__)
 
 
 SESSION_SECRET = WEBUI_SECRET_KEY
@@ -100,6 +103,7 @@ def get_current_user(
     request: Request,
     auth_token: HTTPAuthorizationCredentials = Depends(bearer_security),
 ):
+    _req_start = time.perf_counter()
     token = None
 
     if auth_token is not None:
@@ -113,7 +117,9 @@ def get_current_user(
 
     # auth by jwt token
     try:
+        _t_jwt = time.perf_counter()
         data = decode_token(token)
+        log.info(f"performance_testing [auth] decode_token took {(time.perf_counter() - _t_jwt) * 1000:.1f}ms")
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -121,14 +127,18 @@ def get_current_user(
         )
 
     if data is not None and "id" in data:
+        _t0 = time.perf_counter()
         user = Users.get_user_by_id(data["id"])
+        log.info(f"performance_testing [auth] get_user_by_id took {(time.perf_counter() - _t0) * 1000:.1f}ms")
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=ERROR_MESSAGES.INVALID_TOKEN,
             )
         else:
+            _t1 = time.perf_counter()
             Users.update_user_last_active_by_id(user.id)
+            log.info(f"performance_testing [auth] update_user_last_active_by_id took {(time.perf_counter() - _t1) * 1000:.1f}ms")
         return user
     else:
         raise HTTPException(

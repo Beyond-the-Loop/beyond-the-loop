@@ -473,7 +473,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 async def commit_session_after_request(request: Request, call_next):
     response = await call_next(request)
     # log.debug("Commit session after request")
-    Session.commit()
+    await asyncio.to_thread(Session.commit)
     return response
 
 
@@ -724,12 +724,17 @@ async def chat_completion(
         form_data: dict,
         user=Depends(get_verified_user),
 ):
+    _req_start = time.perf_counter()
+    log.info(f"performance_testing [completions] request received for user={user.id} model={form_data.get('model')}")
+
     tasks = form_data.pop("background_tasks", None)
 
     try:
         model_id = form_data.get("model", None)
 
+        _t = time.perf_counter()
         model = Models.get_model_by_id(model_id)
+        log.info(f"performance_testing [completions] Models.get_model_by_id took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         metadata = {
             "user_id": user.id,
@@ -742,9 +747,11 @@ async def chat_completion(
 
         form_data["metadata"] = metadata
 
+        _t = time.perf_counter()
         form_data, metadata, events = await process_chat_payload(
             request, form_data, metadata, user, model
         )
+        log.info(f"performance_testing [completions] process_chat_payload TOTAL took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
     except Exception as e:
         log.error(f"Error processing chat payload: {e}")
@@ -754,11 +761,17 @@ async def chat_completion(
         )
 
     try:
+        _t = time.perf_counter()
         response = await chat_completion_handler(form_data, user, model)
+        log.info(f"performance_testing [completions] chat_completion_handler returned after {(time.perf_counter() - _t) * 1000:.1f}ms (streaming response not yet consumed)")
 
-        return await process_chat_response(
+        _t = time.perf_counter()
+        result = await process_chat_response(
             request, response, form_data, user, events, metadata, tasks, model
         )
+        log.info(f"performance_testing [completions] process_chat_response took {(time.perf_counter() - _t) * 1000:.1f}ms")
+        log.info(f"performance_testing [completions] TOTAL time until response handed to client: {(time.perf_counter() - _req_start) * 1000:.1f}ms")
+        return result
     except Exception as e:
         log.error(f"Error processing chat response: {e}")
         raise HTTPException(

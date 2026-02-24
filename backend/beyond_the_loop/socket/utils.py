@@ -9,7 +9,12 @@ class RedisLock:
         self.lock_id = str(uuid.uuid4())
         self.timeout_secs = timeout_secs
         self.lock_obtained = False
-        self.redis = redis.Redis.from_url(redis_url, decode_responses=True)
+        self.redis = redis.Redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
 
     def aquire_lock(self):
         # nx=True will only set this key if it _hasn't_ already been set
@@ -33,7 +38,12 @@ class RedisLock:
 class RedisDict:
     def __init__(self, name, redis_url):
         self.name = name
-        self.redis = redis.Redis.from_url(redis_url, decode_responses=True)
+        self.redis = redis.Redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
 
     def __setitem__(self, key, value):
         serialized_value = json.dumps(value)

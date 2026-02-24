@@ -268,12 +268,17 @@ async def disconnect(sid):
 
 def get_event_emitter(request_info):
     async def __event_emitter__(event_data):
+        _emit_start = time.perf_counter()
+        event_type = event_data.get("type", "unknown")
+        event_action = event_data.get("data", {}).get("action", "") if isinstance(event_data.get("data"), dict) else ""
+
         user_id = request_info["user_id"]
         session_ids = list(
             set(USER_POOL.get(user_id, []) + [request_info["session_id"]])
         )
 
         for session_id in session_ids:
+            _t = time.perf_counter()
             await sio.emit(
                 "chat-events",
                 {
@@ -283,23 +288,29 @@ def get_event_emitter(request_info):
                 },
                 to=session_id,
             )
+            log.info(f"performance_testing [socket] sio.emit type={event_type} action={event_action} to={session_id} took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         if "type" in event_data and event_data["type"] == "status":
+            _t = time.perf_counter()
             Chats.add_message_status_to_chat_by_id_and_message_id(
                 request_info["chat_id"],
                 request_info["message_id"],
                 event_data.get("data", {}),
             )
+            log.info(f"performance_testing [socket] Chats.add_message_status_to_chat_by_id_and_message_id action={event_action} took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         if "type" in event_data and event_data["type"] == "message":
+            _t = time.perf_counter()
             message = Chats.get_message_by_id_and_message_id(
                 request_info["chat_id"],
                 request_info["message_id"],
             )
+            log.info(f"performance_testing [socket] Chats.get_message_by_id_and_message_id took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
             content = message.get("content", "")
             content += event_data.get("data", {}).get("content", "")
 
+            _t = time.perf_counter()
             Chats.upsert_message_to_chat_by_id_and_message_id(
                 request_info["chat_id"],
                 request_info["message_id"],
@@ -307,10 +318,12 @@ def get_event_emitter(request_info):
                     "content": content,
                 },
             )
+            log.info(f"performance_testing [socket] Chats.upsert_message_to_chat_by_id_and_message_id (message) took {(time.perf_counter() - _t) * 1000:.1f}ms")
 
         if "type" in event_data and event_data["type"] == "replace":
             content = event_data.get("data", {}).get("content", "")
 
+            _t = time.perf_counter()
             Chats.upsert_message_to_chat_by_id_and_message_id(
                 request_info["chat_id"],
                 request_info["message_id"],
@@ -318,6 +331,9 @@ def get_event_emitter(request_info):
                     "content": content,
                 },
             )
+            log.info(f"performance_testing [socket] Chats.upsert_message_to_chat_by_id_and_message_id (replace) took {(time.perf_counter() - _t) * 1000:.1f}ms")
+
+        log.info(f"performance_testing [socket] __event_emitter__ TOTAL type={event_type} action={event_action} took {(time.perf_counter() - _emit_start) * 1000:.1f}ms")
 
     return __event_emitter__
 
