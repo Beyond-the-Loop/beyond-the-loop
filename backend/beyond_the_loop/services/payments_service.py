@@ -19,7 +19,10 @@ from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE
 def _set_new_credit_recharge_check_date(company):
     try:
         # Convert the existing timestamp to datetime
-        last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
+        if company.next_credit_charge_check:
+            last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
+        else:
+            last_check_dt = datetime.now()
 
         # Add one month
         next_check_dt = last_check_dt + relativedelta(months=1)
