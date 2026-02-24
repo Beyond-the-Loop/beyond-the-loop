@@ -252,6 +252,8 @@ ENABLE_REALTIME_CHAT_SAVE = (
     os.environ.get("ENABLE_REALTIME_CHAT_SAVE", "False").lower() == "true"
 )
 
+THREAD_POOL_SIZE = int(os.environ.get("THREAD_POOL_SIZE", "120"))
+
 ####################################
 # REDIS
 ####################################
