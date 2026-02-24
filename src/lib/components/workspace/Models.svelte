@@ -21,6 +21,7 @@
 	import {
 		bookmarkModel,
 		deleteModelById,
+		getModelById,
 		getModels as getWorkspaceModels,
 		updateModelById
 	} from '$lib/apis/models';
@@ -118,8 +119,9 @@
 	};
 
 	const cloneModelHandler = async (model) => {
+		const fullModel = await getModelById(localStorage.token, model.id).catch(() => model);
 		sessionStorage.model = JSON.stringify({
-			...model,
+			...fullModel,
 			id: `${model.id}-clone`,
 			name: `${model.name} (Clone)`
 		});
@@ -295,6 +297,7 @@
 	} 
 	let showMore = false;
 	let showAssistant = null;
+	let loadingShowMore = false;
 	let baseModel = null;
 	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
 
@@ -333,6 +336,9 @@
 						<CloseIcon />
 					</button>
 				</div>
+			{#if loadingShowMore}
+				<div class="flex justify-center py-6"><Spinner /></div>
+			{:else}
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
 				{#if showAssistant?.meta?.description}
@@ -399,6 +405,7 @@
 				</div>
 			{/if}
 		</div>
+		{/if}
 	</Modal>
 
 	<div
@@ -755,12 +762,15 @@
 											{/if}
 										{/if}
 										</div>
-										<button 
-											class="text-xs shrink-0 ml-2 hover:underline font-medium" 
-											on:click={(e) => {
+										<button
+											class="text-xs shrink-0 ml-2 hover:underline font-medium"
+											on:click={async (e) => {
 												e.stopPropagation();
-												showMore = !showMore;
-												showAssistant = model;
+												showMore = true;
+												showAssistant = null;
+												loadingShowMore = true;
+												showAssistant = await getModelById(localStorage.token, model.id).catch(() => model);
+												loadingShowMore = false;
 											}}>{$i18n.t('Show more')}
 										</button>
 									</div>	
