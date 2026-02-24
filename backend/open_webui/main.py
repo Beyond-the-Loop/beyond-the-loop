@@ -197,12 +197,23 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except (HTTPException, StarletteHTTPException) as ex:
             if ex.status_code == 404:
-                return await super().get_response("index.html", scope)
+                response = await super().get_response("index.html", scope)
             else:
                 raise ex
+
+        # Vite fingerprints all files under /_app/immutable/ with content hashes,
+        # so they can be cached indefinitely by browsers and CDNs.
+        if "/_app/immutable/" in path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            # index.html and all other routes: always revalidate so users get
+            # fresh deploys immediately.
+            response.headers["Cache-Control"] = "no-cache"
+
+        return response
 
 
 log.info(rf"""
