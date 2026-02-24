@@ -249,8 +249,8 @@ export const compressImage = async (imageUrl, maxWidth, maxHeight) => {
 			const context = canvas.getContext('2d');
 			context.drawImage(img, 0, 0, width, height);
 
-			// Get compressed image URL
-			const compressedUrl = canvas.toDataURL();
+			// Get compressed image URL as JPEG with quality reduction
+			const compressedUrl = canvas.toDataURL('image/jpeg', 0.75);
 			resolve(compressedUrl);
 		};
 		img.onerror = (error) => reject(error);

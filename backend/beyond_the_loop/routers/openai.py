@@ -307,16 +307,15 @@ async def generate_chat_completion(
     except Exception:
         log.warning("Error trimming messages, continuing with the original messages...")
 
+    # Extract last user message before serializing
+    last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
+
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
 
     r = None
     streaming = False
     response = None
-
-    # Parse payload once for both streaming and non-streaming cases
-    payload_dict = json.loads(payload)
-    last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
         if not agent_or_task_prompt:
