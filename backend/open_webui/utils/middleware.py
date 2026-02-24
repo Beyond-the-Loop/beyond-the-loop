@@ -830,6 +830,22 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                 "content": url
                             })
 
+        use_images_as_tool_input = (
+            features.get("image_generation") or features.get("code_interpreter")
+        )
+        if use_images_as_tool_input and form_data["metadata"]["images"]:
+            # Strip image_url blocks from messages — images are forwarded via metadata
+            # to the respective tool handler, so the LLM doesn't need them inline
+            for message in form_data["messages"]:
+                if "content" in message and isinstance(message["content"], list):
+                    text_items = [c for c in message["content"] if c.get("type") != "image_url"]
+                    if len(text_items) == 1 and text_items[0].get("type") == "text":
+                        message["content"] = text_items[0]["text"]
+                    elif text_items:
+                        message["content"] = text_items
+                    else:
+                        message["content"] = ""
+
         if "image_generation" in features and features["image_generation"]:
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
