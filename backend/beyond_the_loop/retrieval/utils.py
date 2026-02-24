@@ -265,10 +265,9 @@ def get_sources_from_files(
     r,
     hybrid_search,
 ):
-    # ── Phase 1: Build task list (sequential, determines deduplication) ──────
     extracted_collections = set()
-    full_context_results = []   # (context_dict, file) — no search needed
-    search_tasks = []           # (file, collection_names) — need vector/hybrid search
+    full_context_results = []
+    search_tasks = []
 
     for file in files:
         if file.get("context") == "full":
@@ -297,6 +296,7 @@ def get_sources_from_files(
                     collection_names.append(f"file-{file['id']}")
 
             collection_names = set(collection_names).difference(extracted_collections)
+
             if not collection_names:
                 log.debug(f"skipping {file} as it has already been extracted")
                 continue
@@ -304,11 +304,12 @@ def get_sources_from_files(
             extracted_collections.update(collection_names)
             search_tasks.append((file, collection_names))
 
-    # ── Phase 2: Batch-compute all query embeddings in one API call ───────────
+    # Batch-compute all query embeddings in one API call.
+    # embedding_function accepts a list and returns a list of vectors.
     query_embeddings = embedding_function(queries) if queries else []
 
-    # ── Phase 3: Execute searches in parallel ────────────────────────────────
     def search_one(file, collection_names):
+        """Worker function executed in a thread for each file."""
         if collection_names is None:
             return file.get("content")
 
@@ -324,7 +325,7 @@ def get_sources_from_files(
                     r=r,
                 )
             except Exception as e:
-                log.debug("Hybrid search failed, falling back to vector-only search.")
+                log.debug("Hybrid search failed, falling back to vector-only search.", e)
 
         return query_collection(
             collection_names=collection_names,
@@ -333,6 +334,8 @@ def get_sources_from_files(
         )
 
     max_workers = min(len(search_tasks), 10)
+
+    # Preserve original order so results stay deterministic
     ordered_results = [None] * len(search_tasks)
 
     if search_tasks:
@@ -341,6 +344,7 @@ def get_sources_from_files(
                 executor.submit(search_one, file, coll): i
                 for i, (file, coll) in enumerate(search_tasks)
             }
+
             for future in as_completed(future_to_idx):
                 idx = future_to_idx[future]
                 try:
@@ -348,7 +352,6 @@ def get_sources_from_files(
                 except Exception as e:
                     log.exception(f"Search task {idx} failed: {e}")
 
-    # ── Phase 4: Assemble results ─────────────────────────────────────────────
     relevant_contexts = []
 
     for context, file in full_context_results:
@@ -364,6 +367,7 @@ def get_sources_from_files(
             relevant_contexts.append({**context, "file": file})
 
     sources = []
+
     for context in relevant_contexts:
         try:
             if "documents" in context:

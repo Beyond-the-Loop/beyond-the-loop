@@ -193,8 +193,7 @@ logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 
 if SAFE_MODE:
-    log.info("SAFE MODE ENABLED")
-log.setLevel(SRC_LOG_LEVELS["MAIN"])
+    log.warning("SAFE MODE ENABLED")
 
 
 class SPAStaticFiles(StaticFiles):

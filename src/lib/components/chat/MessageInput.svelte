@@ -270,14 +270,9 @@
 				reader.onload = async (event) => {
 					let imageUrl = event.target.result;
 
-					if ($settings?.imageCompression ?? false) {
-						const width = $settings?.imageCompressionSize?.width ?? null;
-						const height = $settings?.imageCompressionSize?.height ?? null;
-
-						if (width || height) {
-							imageUrl = await compressImage(imageUrl, width, height);
-						}
-					}
+					const maxWidth = 1568;
+					const maxHeight = 1568;
+					imageUrl = await compressImage(imageUrl, maxWidth, maxHeight);
 
 					files = [
 						...files,
