@@ -87,6 +87,7 @@
 	let controlPaneComponent;
 
 	let autoScroll = true;
+	let isAtTop = false;
 	let processing = '';
 	let messagesContainerElement: HTMLDivElement;
 
@@ -216,7 +217,7 @@
 			await tick();
 			let message = history.messages[event.message_id];
 
-			console.log("NEW CHAT EVENT AND MESSAGE LOADED", event, message);
+			console.log('NEW CHAT EVENT AND MESSAGE LOADED', event, message);
 
 			if (message) {
 				const type = event?.data?.type ?? null;
@@ -256,8 +257,8 @@
 					}
 				} else if (type === 'chat:completion') {
 					message.statusHistory.push({
-						action: "generating_response",
-						done: true,
+						action: 'generating_response',
+						done: true
 					});
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
@@ -328,7 +329,7 @@
 					console.log('Unknown message type', data);
 				}
 
-				console.log("CHAT EVENT HANDLER MESSAGE RESULT", message);
+				console.log('CHAT EVENT HANDLER MESSAGE RESULT', message);
 
 				history.messages[event.message_id] = message;
 			}
@@ -668,6 +669,10 @@
 
 		chatFiles = [];
 		params = {};
+
+		webSearchEnabled = false;
+		imageGenerationEnabled = false;
+		codeInterpreterEnabled = false;
 
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
@@ -1159,14 +1164,14 @@
 		history.messages[message.id] = message;
 
 		if (done) {
-			console.log("DONE MESSAGE", message);
+			console.log('DONE MESSAGE', message);
 			bufferedResponse?.stop();
 			bufferedResponse = null;
 
 			message.done = true;
 			message.content = content;
 
-			console.log("DONE MESSAGE AFTER FINAL CONTENT UPDATE", message);
+			console.log('DONE MESSAGE AFTER FINAL CONTENT UPDATE', message);
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1620,10 +1625,6 @@
 				history.messages[responseMessageId] = responseMessage;
 				history.currentId = responseMessageId;
 				return null;
-			})
-			.finally(() => {
-				webSearchEnabled = false;
-				imageGenerationEnabled = false;
 			});
 
 		if (res) {
@@ -1944,6 +1945,7 @@
 								autoScroll =
 									messagesContainerElement.scrollHeight - messagesContainerElement.scrollTop <=
 									messagesContainerElement.clientHeight + 5;
+								isAtTop = messagesContainerElement.scrollTop <= 5;
 							}}
 						>
 							<div class=" h-full w-full flex flex-col">
@@ -1987,6 +1989,7 @@
 									bind:files
 									bind:prompt
 									bind:autoScroll
+									bind:isAtTop
 									bind:selectedToolIds
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled

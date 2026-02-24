@@ -5,6 +5,7 @@
 
 	import { createEventDispatcher, getContext, onDestroy, onMount, tick } from 'svelte';
 	import ScrollToBottomIcon from '../icons/ScrollToBottomIcon.svelte';
+	import ScrollToTopIcon from '../icons/ScrollToTopIcon.svelte';
 	import {
 		companyConfig,
 		config,
@@ -51,12 +52,12 @@
 
 	export let transparentBackground = false;
 
-	export let onChange: Function = () => {
-	};
+	export let onChange: Function = () => {};
 	export let createMessagePair: Function;
 	export let stopResponse: Function;
 
 	export let autoScroll = false;
+	export let isAtTop = false;
 
 	export let atSelectedModel: Model | undefined = undefined;
 	export let selectedModels: [''];
@@ -108,6 +109,14 @@
 		const element = document.getElementById('messages-container');
 		element.scrollTo({
 			top: element.scrollHeight,
+			behavior: 'smooth'
+		});
+	};
+
+	const scrollToTop = () => {
+		const element = document.getElementById('messages-container');
+		element.scrollTo({
+			top: 0,
 			behavior: 'smooth'
 		});
 	};
@@ -464,7 +473,9 @@
 
 	$: {
 		if (selectedModels.length === 1) {
-			customModel = $models.find(model => model.id === selectedModels[0] && model.info?.base_model_id !== null);
+			customModel = $models.find(
+				(model) => model.id === selectedModels[0] && model.info?.base_model_id !== null
+			);
 		}
 	}
 </script>
@@ -482,7 +493,7 @@
 				<div class="relative">
 					{#if autoScroll === false && history?.currentId}
 						<div
-							class=" absolute -top-12 left-0 right-0 flex justify-center z-30 pointer-events-none"
+							class=" absolute -top-12 left-0 right-0 flex flex-row justify-center z-30 pointer-events-none"
 						>
 							<button
 								class="border-none p-1.5 rounded-full pointer-events-auto text-white dark:text-[#7C7A7A]"
@@ -493,6 +504,17 @@
 							>
 								<ScrollToBottomIcon className="size-6" />
 							</button>
+							{#if !isAtTop}
+								<button
+									class="border-none p-1.5 rounded-full pointer-events-auto text-white dark:text-[#7C7A7A]"
+									on:click={() => {
+										autoScroll = false;
+										scrollToTop();
+									}}
+								>
+									<ScrollToTopIcon className="size-6" />
+								</button>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -634,7 +656,11 @@
 			</div>
 		</div>
 
-		<div class="{transparentBackground ? 'bg-transparent' : 'bg-lightGray-300 dark:bg-customGray-900'} ">
+		<div
+			class="{transparentBackground
+				? 'bg-transparent'
+				: 'bg-lightGray-300 dark:bg-customGray-900'} "
+		>
 			<div
 				class="{($settings?.widescreenMode ?? null)
 					? 'max-w-full'
@@ -1129,8 +1155,10 @@
 												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 											}}
 											on:focus={async (e) => {
-												e.target.style.height = '';
-												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+												if (e.target.value) {
+													e.target.style.height = '';
+													e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+												}
 											}}
 											on:paste={async (e) => {
 												const clipboardData = e.clipboardData || window.clipboardData;
@@ -1239,7 +1267,7 @@
 															{#if webSearchEnabled || ($settings?.webSearch ?? false) === 'always'}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																>{$i18n.t('Web Search')}</span
+																	>{$i18n.t('Web Search')}</span
 																>
 															{/if}
 														</button>
@@ -1263,7 +1291,7 @@
 															{#if imageGenerationEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																>{$i18n.t('Image')}</span
+																	>{$i18n.t('Image')}</span
 																>
 															{/if}
 														</button>
@@ -1287,7 +1315,7 @@
 															{#if codeInterpreterEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																>{$i18n.t('Code Interpreter')}
+																	>{$i18n.t('Code Interpreter')}
 																</span>
 																<span class="text-[0.5rem] leading-[11px] ml-[-5px] self-start">
 																	Beta
@@ -1305,7 +1333,7 @@
 											<Tooltip content={$i18n.t('Magic prompt')}>
 												<button
 													id="magic-search-button"
-													class={`${isMagicLoading ? 'dark:bg-customBlue-700/60' : ''} text-customGray-900 dark:text-customGray-100 text-xs leading-none hover:text-gray-700 dark:hover:text-white ${!isMagicLoading? 'dark:hover:bg-customGray-900' : ''}  transition rounded-md py-[3px] px-[5px] mr-0.5 self-center`}
+													class={`${isMagicLoading ? 'dark:bg-customBlue-700/60' : ''} text-customGray-900 dark:text-customGray-100 text-xs leading-none hover:text-gray-700 dark:hover:text-white ${!isMagicLoading ? 'dark:hover:bg-customGray-900' : ''}  transition rounded-md py-[3px] px-[5px] mr-0.5 self-center`}
 													type="button"
 													aria-label="Magic Prompt"
 													disabled={prompt === '' || isMagicLoading}
@@ -1315,8 +1343,8 @@
 												>
 													{#if isMagicLoading}
 														<span class="flex items-center"
-														><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
-														></span
+															><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
+															></span
 														>
 													{:else}
 														<MagicSearch />

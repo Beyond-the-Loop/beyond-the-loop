@@ -373,12 +373,12 @@ def save_docs_to_vector_db(
                 add_start_index=True,
             )
         else:
-            raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
+            raise ValueError(ERROR_MESSAGES.DEFAULT)
 
         docs = text_splitter.split_documents(docs)
 
     if len(docs) == 0:
-        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT())
+        raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
 
     texts = [doc.page_content for doc in docs]
     metadatas = [
@@ -601,7 +601,6 @@ def process_file(
         except Exception as e:
             raise e
     except Exception as e:
-        log.exception(e)
         if "No pandoc was found" in str(e):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -793,11 +792,11 @@ def reset_upload_dir(user=Depends(get_admin_user)) -> bool:
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)  # Remove the directory
                 except Exception as e:
-                    print(f"Failed to delete {file_path}. Reason: {e}")
+                    log.error(f"Failed to delete {file_path}. Reason: {e}")
         else:
-            print(f"The directory {folder} does not exist")
+            log.warning(f"The directory {folder} does not exist")
     except Exception as e:
-        print(f"Failed to process the directory {folder}. Reason: {e}")
+        log.error(f"Failed to process the directory {folder}. Reason: {e}")
     return True
 
 

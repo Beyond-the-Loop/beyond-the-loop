@@ -37,7 +37,7 @@ from beyond_the_loop.config import (
 )
 from open_webui.constants import WEBHOOK_MESSAGES
 from open_webui.env import WEBUI_AUTH_COOKIE_SAME_SITE, WEBUI_AUTH_COOKIE_SECURE
-from open_webui.utils.misc import parse_duration
+from open_webui.utils.misc import parse_duration, is_business_email
 from open_webui.utils.auth import get_password_hash, create_token
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
@@ -71,6 +71,7 @@ class OAUTH_ERROR_CODES:
     INCOMPLETE_INVITATION = "incomplete_invitation"
     NO_SEATS_AVAILABLE = "no_seats_available"
     INVALID_COMPANY_STRUCTURE = "invalid_company_structure"
+    PERSONAL_EMAIL_PROHIBITED = "personal_email_prohibited"
 
 def redirect_with_error(request, error_code: str):
     redirect_url = f"{os.getenv('FRONTEND_BASE_URL') + '/' if os.getenv('FRONTEND_BASE_URL') else request.base_url}login#error={error_code}"
@@ -244,6 +245,10 @@ class OAuthManager:
         if not email:
             log.warning(f"OAuth callback failed, email is missing: {user_data}")
             return redirect_with_error(request, OAUTH_ERROR_CODES.INVALID_CREDENTIALS)
+
+        if not is_business_email(email):
+            log.warning(f"OAuth callback failed, personal email domain not allowed: {email}")
+            return redirect_with_error(request, OAUTH_ERROR_CODES.PERSONAL_EMAIL_PROHIBITED)
 
         if (
             "*" not in auth_manager_config.OAUTH_ALLOWED_DOMAINS

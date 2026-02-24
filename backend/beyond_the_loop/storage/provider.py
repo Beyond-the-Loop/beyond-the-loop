@@ -1,8 +1,11 @@
+import logging
 import os
 import shutil
 import json
 from abc import ABC, abstractmethod
 from typing import BinaryIO, Tuple
+
+log = logging.getLogger(__name__)
 
 import boto3
 from botocore.exceptions import ClientError
@@ -64,7 +67,7 @@ class LocalStorageProvider(StorageProvider):
         if os.path.isfile(file_path):
             os.remove(file_path)
         else:
-            print(f"File {file_path} not found in local storage.")
+            log.warning(f"File {file_path} not found in local storage.")
 
     @staticmethod
     def delete_all_files() -> None:
@@ -78,9 +81,9 @@ class LocalStorageProvider(StorageProvider):
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)  # Remove the directory
                 except Exception as e:
-                    print(f"Failed to delete {file_path}. Reason: {e}")
+                    log.error(f"Failed to delete {file_path}. Reason: {e}")
         else:
-            print(f"Directory {UPLOAD_DIR} not found in local storage.")
+            log.warning(f"Directory {UPLOAD_DIR} not found in local storage.")
 
 
 class S3StorageProvider(StorageProvider):

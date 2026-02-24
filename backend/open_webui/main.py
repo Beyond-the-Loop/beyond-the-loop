@@ -1,4 +1,5 @@
 import asyncio
+import anyio
 import logging
 import mimetypes
 import os
@@ -30,13 +31,8 @@ from starlette.responses import Response
 
 from beyond_the_loop.config import (
     # Image
-    BLACK_FOREST_LABS_API_KEY,
     ENABLE_IMAGE_GENERATION,
-    ENABLE_IMAGE_PROMPT_GENERATION,
-    IMAGE_GENERATION_ENGINE,
-    IMAGE_GENERATION_MODEL,
-    IMAGE_SIZE,
-    IMAGE_STEPS,
+
     # Audio
     AUDIO_STT_ENGINE,
     AUDIO_STT_MODEL,
@@ -155,7 +151,6 @@ from open_webui.env import (
     SAFE_MODE,
     SRC_LOG_LEVELS,
     VERSION,
-    WEBUI_BUILD_HASH,
     WEBUI_SECRET_KEY,
     WEBUI_SESSION_COOKIE_SAME_SITE,
     WEBUI_SESSION_COOKIE_SECURE,
@@ -194,8 +189,8 @@ from open_webui.utils.chat import (
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
+logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
-log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 if SAFE_MODE:
     log.warning("SAFE MODE ENABLED")
@@ -204,19 +199,43 @@ if SAFE_MODE:
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except (HTTPException, StarletteHTTPException) as ex:
             if ex.status_code == 404:
-                return await super().get_response("index.html", scope)
+                response = await super().get_response("index.html", scope)
             else:
                 raise ex
 
+        # Vite fingerprints all files under /_app/immutable/ with content hashes,
+        # so they can be cached indefinitely by browsers and CDNs.
+        if "/_app/immutable/" in path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            # index.html and all other routes: always revalidate so users get
+            # fresh deploys immediately.
+            response.headers["Cache-Control"] = "no-cache"
 
-log.info("Open WebUI v%s starting", VERSION)
+        return response
+
+
+log.info(rf"""
+
+
+▀█████████▄     ▄████████ ▄██   ▄    ▄██████▄  ███▄▄▄▄   ████████▄           ███        ▄█    █▄       ▄████████       ▄█        ▄██████▄   ▄██████▄     ▄███████▄ 
+  ███    ███   ███    ███ ███   ██▄ ███    ███ ███▀▀▀██▄ ███   ▀███      ▀█████████▄   ███    ███     ███    ███      ███       ███    ███ ███    ███   ███    ███ 
+  ███    ███   ███    █▀  ███▄▄▄███ ███    ███ ███   ███ ███    ███         ▀███▀▀██   ███    ███     ███    █▀       ███       ███    ███ ███    ███   ███    ███ 
+ ▄███▄▄▄██▀   ▄███▄▄▄     ▀▀▀▀▀▀███ ███    ███ ███   ███ ███    ███          ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄          ███       ███    ███ ███    ███   ███    ███ 
+▀▀███▀▀▀██▄  ▀▀███▀▀▀     ▄██   ███ ███    ███ ███   ███ ███    ███          ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀          ███       ███    ███ ███    ███ ▀█████████▀  
+  ███    ██▄   ███    █▄  ███   ███ ███    ███ ███   ███ ███    ███          ███       ███    ███     ███    █▄       ███       ███    ███ ███    ███   ███        
+  ███    ███   ███    ███ ███   ███ ███    ███ ███   ███ ███   ▄███          ███       ███    ███     ███    ███      ███▌    ▄ ███    ███ ███    ███   ███        
+▄█████████▀    ██████████  ▀█████▀   ▀██████▀   ▀█   █▀  ████████▀          ▄████▀     ███    █▀      ██████████      █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀                                                                                                                    ▀                                             
+""")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 2000
+
     if RESET_CONFIG_ON_START:
         # Note: This won't actually save to the database since company_id is None
         # It will just reset the in-memory config to the default values
@@ -356,16 +375,7 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
 #
 ########################################
 
-app.state.config.IMAGE_GENERATION_ENGINE = IMAGE_GENERATION_ENGINE
 app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
-app.state.config.ENABLE_IMAGE_PROMPT_GENERATION = ENABLE_IMAGE_PROMPT_GENERATION
-
-app.state.config.IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODEL
-
-app.state.config.BLACK_FOREST_LABS_API_KEY = BLACK_FOREST_LABS_API_KEY
-
-app.state.config.IMAGE_SIZE = IMAGE_SIZE
-app.state.config.IMAGE_STEPS = IMAGE_STEPS
 
 ########################################
 #
@@ -737,7 +747,7 @@ async def chat_completion(
         )
 
     except Exception as e:
-        log.exception("Error processing chat request payload")
+        log.error(f"Error processing chat payload: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -750,7 +760,7 @@ async def chat_completion(
             request, response, form_data, user, events, metadata, tasks, model
         )
     except Exception as e:
-        log.exception("Error in chat completion handler")
+        log.error(f"Error processing chat response: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

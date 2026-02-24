@@ -1,7 +1,10 @@
+import logging
 import time
 from typing import Optional
 
 from open_webui.internal.db import Base, JSONField, get_db
+
+log = logging.getLogger(__name__)
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.groups import Groups
 
@@ -156,7 +159,7 @@ class UsersTable:
                 users = db.query(User).all()
                 return [UserModel.model_validate(user) for user in users]
         except Exception as e:
-            print(f"Error getting all users: {e}")
+            log.error(f"Error getting all users: {e}")
             return []
 
     def insert_new_user(
@@ -541,7 +544,7 @@ class UsersTable:
                 users = db.query(User).filter(User.company_id == company_id, User.role == "admin").all()
                 return [UserModel.model_validate(user) for user in users]
         except Exception as e:
-            print(f"Error getting admin users by company: {e}")
+            log.error(f"Error getting admin users by company: {e}")
             return []
 
     def count_users_by_company_id(self, company_id: str) -> int:
@@ -552,7 +555,7 @@ class UsersTable:
             with get_db() as db:
                 return db.query(User).filter(User.company_id == company_id).count()
         except Exception as e:
-            print(f"Error counting users by company: {e}")
+            log.error(f"Error counting users by company: {e}")
             return 0
 
 
@@ -565,7 +568,7 @@ def get_users_by_company(company_id: str) -> list[UserModel]:
             users = db.query(User).filter(User.company_id == company_id).all()
             return [UserModel.model_validate(user) for user in users]
     except Exception as e:
-        print(f"Error getting users by company: {e}")
+        log.error(f"Error getting users by company: {e}")
         return []
 
 
@@ -588,7 +591,7 @@ def get_active_users_by_company(company_id: str, since_timestamp: int) -> list[U
             ).all()
             return [UserModel.model_validate(user) for user in active_users]
     except Exception as e:
-        print(f"Error getting active users by company: {e}")
+        log.error(f"Error getting active users by company: {e}")
         return []
 
 

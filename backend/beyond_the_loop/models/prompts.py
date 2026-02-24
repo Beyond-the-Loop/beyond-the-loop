@@ -1,7 +1,10 @@
+import logging
 import time
 from typing import Optional
 
 from open_webui.internal.db import Base, get_db, JSONField
+
+log = logging.getLogger(__name__)
 from beyond_the_loop.models.users import Users, UserResponse
 
 from pydantic import BaseModel, ConfigDict
@@ -133,7 +136,7 @@ class PromptsTable:
                 else:
                     return None
         except Exception as e:
-            print(e)
+            log.error(f"Error creating prompt: {e}")
             return None
 
     def get_prompt_by_command_and_company(self, command: str, company_id: str) -> Optional[PromptModel]:
@@ -301,6 +304,6 @@ class PromptsTable:
                                 tag_map[name]["is_system"] = True
                 return list(tag_map.values())
         except Exception as e:
-            print("Error in get_system_and_user_tags:", e)
+            log.error(f"Error in get_system_and_user_tags: {e}")
             return []
 Prompts = PromptsTable()

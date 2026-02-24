@@ -196,7 +196,7 @@ class ModelsTable:
                 else:
                     return None
         except Exception as e:
-            print(e)
+            log.error(f"Error inserting model: {e}")
             return None
 
     def get_all_models_by_company(self, company_id: str) -> list[ModelModel]:
@@ -328,8 +328,7 @@ class ModelsTable:
                 db.refresh(model)
                 return ModelModel.model_validate(model)
         except Exception as e:
-            print(e)
-
+            log.error(f"Error updating model: {e}")
             return None
 
 
@@ -421,7 +420,7 @@ class ModelsTable:
                             tag_map[name] = {"name": name, "is_system": False}
                 return list(tag_map.values())
         except Exception as e:
-            print("Error in get_system_and_user_tags:", e)
+            log.error(f"Error in get_system_and_user_tags: {e}")
             return []
 
     def get_models_by_knowledge_id(self, knowledge_id: str):

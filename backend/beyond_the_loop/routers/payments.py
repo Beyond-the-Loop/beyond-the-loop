@@ -1,8 +1,11 @@
+import logging
 import stripe
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, Header, APIRouter
 import os
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
@@ -55,7 +58,7 @@ async def create_billing_portal_session(user=Depends(get_verified_user)):
 
         return {"url": session.url}
     except Exception as e:
-        print(f"Error creating billing portal session: {e}")
+        log.error(f"Error creating billing portal session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -139,14 +142,14 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         elif event_type == "customer.subscription.deleted":
             handle_subscription_deleted(event_data)
         else:
-            print(f"Unhandled Stripe event type: {event_type}")
+            log.warning(f"Unhandled Stripe event type: {event_type}")
 
         return {"message": "Webhook processed successfully"}
 
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid Stripe signature")
     except Exception as e:
-        print(f"Webhook processing error: {e}")
+        log.error(f"Webhook processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Legacy subscription created
@@ -161,7 +164,7 @@ def handle_subscription_created(event_data):
     try:
         payments_service.handle_company_subscription_update(event_data)
     except Exception as e:
-        print(f"Error handling subscription created event: {e}")
+        log.error(f"Error handling subscription created event: {e}")
 
 
 # Legacy subscription updated
@@ -176,7 +179,7 @@ def handle_subscription_updated(event_data):
     try:
         payments_service.handle_company_subscription_update(event_data)
     except Exception as e:
-        print(f"Error handling subscription updated event: {e}")
+        log.error(f"Error handling subscription updated event: {e}")
 
 
 def handle_subscription_deleted(event_data):
@@ -187,7 +190,7 @@ def handle_subscription_deleted(event_data):
         stripe_customer_id = event_data.get('customer')
 
         if not subscription_id or not stripe_customer_id:
-            print("Missing subscription_id or customer_id in event data")
+            log.warning("Missing subscription_id or customer_id in event data")
             return
 
         # Get the company associated with this Stripe customer
@@ -195,7 +198,7 @@ def handle_subscription_deleted(event_data):
 
         crm_service.update_company_plan(company.name, "Free")
     except Exception as e:
-        print(f"Error handling subscription deleted event: {e}")
+        log.error(f"Error handling subscription deleted event: {e}")
 
 
 # Legacy flex credits recharge
@@ -209,7 +212,7 @@ def handle_charge_succeeded(event_data):
 
             Companies.add_flex_credit_balance(company_id, float(amount) / 100) # Convert cents into Euros
     except Exception as e:
-        print(f"Error processing charge succeeded event: {e}")
+        log.error(f"Error processing charge succeeded event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -230,7 +233,7 @@ async def update_auto_recharge(request: UpdateAutoRechargeRequest, user=Depends(
         else:
             raise HTTPException(status_code=400, detail="Failed to update auto-recharge setting")
     except Exception as e:
-        print(f"Error updating auto-recharge: {e}")
+        log.error(f"Error updating auto-recharge: {e}")
         raise HTTPException(status_code=500, detail="Failed to update auto-recharge setting")
 
 @router.post("/recharge-flex-credits/")
@@ -291,8 +294,8 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
 
     except stripe.error.CardError as e:
         # Card declined
-        print(f"Error recharging credits: {e}")
+        log.error(f"Card error recharging credits: {e}")
         raise HTTPException(status_code=400, detail=f"Card declined: {e.error.message}")
     except Exception as e:
-        print(f"Error recharging credits: {e}")
+        log.error(f"Error recharging credits: {e}")
         raise HTTPException(status_code=500, detail="Failed to recharge credits")

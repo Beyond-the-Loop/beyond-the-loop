@@ -63,7 +63,11 @@ async def _get_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(
             trust_env=True,
             timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
-            connector=aiohttp.TCPConnector(limit=100)  # limits concurrent connections
+            connector=aiohttp.TCPConnector(
+                limit=200,
+                enable_cleanup_closed=True, # proactively detects stale connections
+                ttl_dns_cache=300,  # cache Docker DNS for 5 min
+            )
         )
     return session
 
@@ -252,7 +256,7 @@ async def generate_chat_completion(
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+    if has_chat_id or agent_or_task_prompt:
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     params = model.params.model_dump()
@@ -301,7 +305,7 @@ async def generate_chat_completion(
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
-        print("Error trimming messages, continuing with the original messages...")
+        log.warning("Error trimming messages, continuing with the original messages...")
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -397,7 +401,7 @@ async def generate_chat_completion(
                                 Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
 
                         except json.JSONDecodeError:
-                            print(f"\n{chunk_str}")
+                            log.debug(f"JSON decode error for chunk: {chunk_str}")
 
                     yield chunk
 
@@ -413,13 +417,13 @@ async def generate_chat_completion(
             try:
                 response = await r.json()
             except Exception as e:
-                print(e)
+                log.error(f"Error parsing JSON response: {e}")
                 response = await r.text()
 
             try:
                 r.raise_for_status()
             except ClientResponseError as e:
-                print(e)
+                log.error(f"HTTP error from LLM backend: {e}")
                 if agent_or_task_prompt:
                     raise e
 
@@ -457,7 +461,7 @@ async def generate_chat_completion(
 
             return response
     except Exception as e:
-        print(e)
+        log.error(f"Error in generate_chat_completion: {e}")
 
         detail = None
         if isinstance(response, dict):
