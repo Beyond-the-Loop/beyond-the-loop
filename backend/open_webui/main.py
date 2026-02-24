@@ -158,7 +158,6 @@ from open_webui.env import (
     ENABLE_WEBSOCKET_SUPPORT,
     RESET_CONFIG_ON_START,
     OFFLINE_MODE,
-    THREAD_POOL_SIZE,
 )
 from open_webui.internal.db import Session
 from open_webui.routers import (
@@ -234,7 +233,7 @@ log.info(rf"""
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    anyio.to_thread.current_default_thread_limiter().total_tokens = THREAD_POOL_SIZE
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 2000
 
     if RESET_CONFIG_ON_START:
         # Note: This won't actually save to the database since company_id is None
