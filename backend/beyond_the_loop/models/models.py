@@ -129,7 +129,7 @@ class ModelModel(BaseModel):
     base_model_id: Optional[str] = None
 
     name: str
-    params: ModelParams
+    params: Optional[ModelParams] = None
     meta: ModelMeta
 
     access_control: Optional[dict] = None
@@ -205,13 +205,17 @@ class ModelsTable:
 
     def get_assistants(self) -> list[ModelUserResponse]:
         with get_db() as db:
+            model_rows = db.query(Model).filter(
+                or_(Model.base_model_id != None, Model.user_id == "system")
+            ).all()
+
+            # Batch-fetch all users in one query instead of N+1 individual queries
+            user_ids = list({m.user_id for m in model_rows if m.user_id != "system"})
+            users_map = {u.id: u for u in Users.get_users_by_user_ids(user_ids)} if user_ids else {}
+
             models = []
-
-            for model in db.query(Model).filter(or_(Model.base_model_id != None, Model.user_id == "system")).all():
-                user = None
-                if model.user_id != "system":
-                    user = Users.get_user_by_id(model.user_id)
-
+            for model in model_rows:
+                user = users_map.get(model.user_id) if model.user_id != "system" else None
                 models.append(
                     ModelUserResponse.model_validate(
                         {
@@ -248,35 +252,49 @@ class ModelsTable:
             result = db.execute(
                 select(user_model_bookmark.c.model_id).where(user_model_bookmark.c.user_id == user_id)
             )
-
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-            assistants = self.get_assistants()
+        assistants = self.get_assistants()
 
-            filtered_models = []
+        # Pre-fetch all company models by name to resolve system model base_model IDs in one query
+        company_models_by_name = {m.name: m.id for m in self.get_all_models_by_company(company_id)}
 
-            for model in assistants:
-                if (
-                    model.user_id == "system"
-                    or model.user_id == user_id
-                    or (model.company_id == company_id and has_access(user_id, permission, model.access_control))
-                ):
-                    # if it is a system model, add the base model id manually by looking for the name and searching for it in the user models
-                    if model.user_id == "system":
-                        base_model = self.get_model_by_name_and_company(model.base_model_id, company_id)
-                        if base_model:
-                            model.base_model_id = base_model.id
+        filtered_models = []
 
-                    model_dict = model.model_dump()
-                    model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
-                    filtered_models.append(ModelUserResponse(**model_dict))
+        for model in assistants:
+            if (
+                model.user_id == "system"
+                or model.user_id == user_id
+                or (model.company_id == company_id and has_access(user_id, permission, model.access_control))
+            ):
+                # Resolve system model base_model_id from name to actual ID using the pre-fetched map
+                if model.user_id == "system":
+                    resolved_id = company_models_by_name.get(model.base_model_id)
+                    if resolved_id:
+                        model.base_model_id = resolved_id
 
-            filtered_models.sort(
-                key=lambda m: (m.bookmarked_by_user, m.created_at),
-                reverse=True
-            )
+                model_dict = model.model_dump()
+                model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
+                filtered_models.append(ModelUserResponse(**model_dict))
 
-            return filtered_models
+        filtered_models.sort(
+            key=lambda m: (m.bookmarked_by_user, m.created_at),
+            reverse=True
+        )
+
+        return filtered_models
+
+    def get_assistants_lite_by_user_and_company(
+        self, user_id: str, company_id: str, permission: str = "read"
+    ) -> list[ModelUserResponse]:
+        """Returns assistants for list views — strips heavy params and meta.knowledge/files fields."""
+        assistants = self.get_assistants_by_user_and_company(user_id, company_id, permission)
+        for model in assistants:
+            model.params = None
+            if model.meta:
+                model.meta.knowledge = None
+                model.meta.files = None
+        return assistants
 
     def get_model_by_id(self, id: str) -> Optional[ModelModel]:
         try:

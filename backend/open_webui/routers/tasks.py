@@ -268,10 +268,4 @@ async def generate_queries(query_type: str, messages: list[dict], chat_id: str|N
         }
     }
 
-    try:
-        return await generate_chat_completion(form_data=payload, user=user, model=task_model)
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": str(e)},
-        )
+    return await generate_chat_completion(form_data=payload, user=user, model=task_model)

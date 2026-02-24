@@ -181,35 +181,45 @@ class PromptsTable:
 
     def get_prompts_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "write"
+    ) -> list[PromptModel]:
+        """Returns PromptModel list without user data (avoids N+1 user queries)."""
+        with get_db() as db:
+            prompt_rows = db.query(Prompt).order_by(Prompt.timestamp.desc()).all()
+            return [
+                PromptModel.model_validate(prompt)
+                for prompt in prompt_rows
+                if (
+                    prompt.user_id == user_id
+                    or prompt.prebuilt
+                    or (prompt.company_id == company_id and has_access(user_id, permission, prompt.access_control))
+                )
+            ]
+
+    def get_prompt_list_by_user_and_company(
+        self, user_id: str, company_id: str, permission: str = "read"
     ) -> list[PromptUserResponse]:
+        """Returns PromptUserResponse list with bookmark state but no user object (avoids N+1 user queries)."""
         with get_db() as db:
             result = db.execute(
                 select(user_prompt_bookmark.c.prompt_command).where(user_prompt_bookmark.c.user_id == user_id)
             )
-            bookmarked_prompts_commands = {row.prompt_command for row in result.fetchall()}
-            prompts = self.get_prompts()
+            bookmarked_commands = {row.prompt_command for row in result.fetchall()}
+
+            prompt_rows = db.query(Prompt).order_by(Prompt.timestamp.desc()).all()
 
             filtered_prompts = []
-
-            for prompt in prompts:
+            for prompt in prompt_rows:
                 if (
                     prompt.user_id == user_id
                     or prompt.prebuilt
                     or (prompt.company_id == company_id and has_access(user_id, permission, prompt.access_control))
                 ):
-                    prompt_dict = prompt.model_dump()
-                    prompt_dict["bookmarked_by_user"] = prompt.command in bookmarked_prompts_commands
+                    prompt_model = PromptModel.model_validate(prompt)
+                    prompt_dict = prompt_model.model_dump()
+                    prompt_dict["bookmarked_by_user"] = prompt.command in bookmarked_commands
                     filtered_prompts.append(PromptUserResponse(**prompt_dict))
 
             return filtered_prompts
-
-            # return [
-            #     prompt
-            #     for prompt in prompts
-            #     if prompt.user_id == user_id
-            #     or prompt.prebuilt
-            #     or (prompt.company_id == company_id and has_access(user_id, permission, prompt.access_control))
-            # ]
 
 
     def update_prompt_by_command_and_company(
