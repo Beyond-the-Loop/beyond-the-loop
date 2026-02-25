@@ -33,7 +33,7 @@ from open_webui.routers.tasks import (
     generate_title,
     generate_image_prompt
 )
-from open_webui.routers.retrieval import process_web_search
+from open_webui.routers.retrieval import process_web_search, process_web_url_scrape
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
@@ -97,6 +97,11 @@ async def chat_web_search_handler(
     messages = form_data["messages"]
     user_message = get_last_user_message(messages)
 
+    # Extract URLs from the user message reliably via regex (never delegate to LLM)
+    _url_re = re.compile(r'https?://[^\s<>"{}|\\^`\[\]\']+')
+    extracted_urls = [u.rstrip('.,;:)!?\'\"') for u in _url_re.findall(user_message or "")]
+
+    # Generate keyword search queries via LLM; filter out any accidental URL queries
     try:
         res = await generate_queries(
             "web_search",
@@ -108,48 +113,113 @@ async def chat_web_search_handler(
         content = res["choices"][0]["message"]["content"]
 
         try:
-            search_queries = json.loads(content).get("queries", [])
+            all_queries = json.loads(content).get("queries", [])
+            search_queries = [
+                q for q in all_queries
+                if not q.get("query", "").startswith(("http://", "https://"))
+            ]
         except json.JSONDecodeError:
-            return []
+            search_queries = []
     except Exception as e:
         log.exception(e)
-        search_queries = [{"query": user_message, "result_limit": 3}]
+        # Only fall back to the raw message if there are no URLs to scrape either
+        search_queries = [] if extracted_urls else [{"query": user_message, "result_limit": 3}]
 
-    for search_query in search_queries:
+    all_processed_queries = []
+
+    # --- Scrape explicitly mentioned URLs directly ---
+    for url in extracted_urls:
         await event_emitter(
             {
                 "type": "status",
                 "data": {
                     "action": "web_search",
-                    "description": 'Searching "{{searchQuery}}"',
-                    "query": search_query.get("query", ""),
+                    "description": 'Scraping "{{searchQuery}}"',
+                    "query": url,
                     "done": False,
                 },
             }
         )
 
         try:
-            # Offload process_web_search to a separate thread
             loop = asyncio.get_running_loop()
-
             with ThreadPoolExecutor() as executor:
                 results = await loop.run_in_executor(
                     executor,
-                    lambda: process_web_search(
-                        request,
-                        search_query.get("query", ""),
-                        search_query.get("result_limit", 3),
-                        user
+                    lambda u=url: process_web_url_scrape(request, u, user),
+                )
+
+            if results:
+                all_processed_queries.append({"query": url, "filenames": results["filenames"]})
+                web_search_files.append(
+                    {
+                        "collection_name": results["collection_name"],
+                        "name": url,
+                        "type": "web_search_results",
+                        "urls": results["filenames"],
+                    }
+                )
+            else:
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "web_search",
+                            "description": "No content found at URL",
+                            "query": url,
+                            "done": True,
+                            "error": True,
+                        },
+                    }
+                )
+        except Exception as e:
+            log.exception(e)
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "web_search",
+                        "description": 'Error scraping "{{searchQuery}}"',
+                        "query": url,
+                        "done": True,
+                        "error": True,
+                    },
+                }
+            )
+
+    # --- Run LLM-generated keyword search queries ---
+    for search_query in search_queries:
+        query_str = search_query.get("query", "")
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "web_search",
+                    "description": 'Searching "{{searchQuery}}"',
+                    "query": query_str,
+                    "done": False,
+                },
+            }
+        )
+
+        try:
+            loop = asyncio.get_running_loop()
+            with ThreadPoolExecutor() as executor:
+                results = await loop.run_in_executor(
+                    executor,
+                    lambda q=query_str, rl=search_query.get("result_limit", 3): process_web_search(
+                        request, q, rl, user
                     ),
                 )
 
             if results:
                 search_query["filenames"] = results["filenames"]
-
+                all_processed_queries.append(search_query)
                 web_search_files.append(
                     {
                         "collection_name": results["collection_name"],
-                        "name": search_query.get("query", ""),
+                        "name": query_str,
                         "type": "web_search_results",
                         "urls": results["filenames"],
                     }
@@ -161,7 +231,7 @@ async def chat_web_search_handler(
                         "data": {
                             "action": "web_search",
                             "description": "No search results found",
-                            "query": search_query.get("query", ""),
+                            "query": query_str,
                             "done": True,
                             "error": True,
                         },
@@ -175,7 +245,7 @@ async def chat_web_search_handler(
                     "data": {
                         "action": "web_search",
                         "description": 'Error searching "{{searchQuery}}"',
-                        "query": search_query.get("query", ""),
+                        "query": query_str,
                         "done": True,
                         "error": True,
                     },
@@ -191,7 +261,7 @@ async def chat_web_search_handler(
         system_message_content, form_data["messages"]
     )
 
-    return web_search_files, search_queries
+    return web_search_files, all_processed_queries
 
 
 async def chat_image_generation_handler(
