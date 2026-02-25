@@ -37,8 +37,6 @@ class AnalyticsService:
         Inactive days contribute 0. Company score is the mean across all users
         (users with zero messages score 0).
         """
-        thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
-
         with get_db() as db:
             company_users = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_users]
@@ -47,37 +45,9 @@ class AnalyticsService:
             if total_users == 0:
                 return EngagementScoreResponse(engagement_score=0.0)
 
-            daily_counts = (
-                db.query(
-                    Completion.user_id,
-                    func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM-DD').label('day'),
-                    func.count(Completion.id).label('message_count'),
-                )
-                .filter(
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.created_at >= thirty_days_ago,
-                    Completion.from_agent == False,
-                )
-                .group_by(Completion.user_id, 'day')
-                .all()
-            )
+            user_scores = AnalyticsService._calculate_user_engagement_scores(company_user_ids, db)
 
-        user_day_counts = {}
-        for row in daily_counts:
-            user_day_counts.setdefault(row.user_id, {})[row.day] = row.message_count
-
-        def day_score(messages: int) -> float:
-            log_val = math.log(1 + messages)
-            return log_val / (1 + log_val)
-
-        user_scores = []
-        for user_id in company_user_ids:
-            active_days = user_day_counts.get(user_id, {})
-            total_day_score = sum(day_score(count) for count in active_days.values())
-            user_scores.append(total_day_score / 30)
-
-        engagement_score = sum(user_scores) / total_users
-
+        engagement_score = sum(user_scores.values()) / total_users
         return EngagementScoreResponse(engagement_score=round(engagement_score, 4))
 
     @staticmethod
@@ -112,9 +82,6 @@ class AnalyticsService:
                 )
                 .all()
             )
-
-        if not top_models:
-            return {"message": "No data found for the given parameters."}
 
         return TopModelsResponse.from_query_result(top_models)
 
@@ -230,7 +197,10 @@ class AnalyticsService:
                 .all()
             )
 
-            return TopUsersResponse.from_query_result(top_users)
+            top_user_ids = [row.user_id for row in top_users]
+            engagement_scores = AnalyticsService._calculate_user_engagement_scores(top_user_ids, db)
+
+            return TopUsersResponse.from_query_result(top_users, engagement_scores=engagement_scores)
 
     @staticmethod
     def get_top_assistants_by_company(company_id: str, start_date: str, end_date: str):
@@ -288,6 +258,7 @@ class AnalyticsService:
                     func.count(Completion.id).label("total_messages")
                 )
                 .filter(
+                    Completion.from_agent == False,
                     Completion.user_id.in_(company_user_ids),
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt
@@ -305,6 +276,7 @@ class AnalyticsService:
                     func.count(Completion.id).label("total_messages")
                 )
                 .filter(
+                    Completion.from_agent == False,
                     Completion.user_id.in_(company_user_ids)
                 )
                 .group_by("year")
@@ -557,6 +529,49 @@ class AnalyticsService:
         except Exception as e:
             log.error(f"Error getting subscription date range for company {company_id}: {e}")
             return None, None
+
+    @staticmethod
+    def _calculate_user_engagement_scores(user_ids: list, db) -> dict:
+        """
+        Computes per-user engagement scores over the last 30 days.
+
+        Each day's score: log(1 + messages) / (1 + log(1 + messages))
+        User score: sum of daily scores / 30 (inactive days contribute 0).
+
+        Returns a dict mapping user_id -> score in [0, 1].
+        """
+        if not user_ids:
+            return {}
+
+        thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
+
+        daily_counts = (
+            db.query(
+                Completion.user_id,
+                func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM-DD').label('day'),
+                func.count(Completion.id).label('message_count'),
+            )
+            .filter(
+                Completion.user_id.in_(user_ids),
+                Completion.created_at >= thirty_days_ago,
+                Completion.from_agent == False,
+            )
+            .group_by(Completion.user_id, 'day')
+            .all()
+        )
+
+        user_day_counts = {}
+        for row in daily_counts:
+            user_day_counts.setdefault(row.user_id, {})[row.day] = row.message_count
+
+        def day_score(messages: int) -> float:
+            log_val = math.log(1 + messages)
+            return log_val / (1 + log_val)
+
+        return {
+            user_id: sum(day_score(c) for c in user_day_counts.get(user_id, {}).values()) / 30
+            for user_id in user_ids
+        }
 
     @staticmethod
     def _parse_date_range(start_date: str, end_date: str):
