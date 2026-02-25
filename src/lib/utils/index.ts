@@ -1394,10 +1394,7 @@ export function normalizeUrl(url) {
 		const u = new URL(url);
 		// Normalize: lower host, strip default ports & trailing slash
 		u.host = u.host.toLowerCase();
-		if (
-			(u.protocol === 'http:' && u.port === '80') ||
-			(u.protocol === 'https:' && u.port === '443')
-		) {
+		if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
 			u.port = '';
 		}
 		// Remove trailing slash except root
@@ -1425,10 +1422,7 @@ export function remapCitations(content, messageSources, urlToGlobalIndex, global
 
 		const url = normalizeUrl(urlRaw);
 		if (!urlToGlobalIndex.has(url)) {
-			globalList.push({
-				url,
-				title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null
-			});
+			globalList.push({ url, title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null });
 			urlToGlobalIndex.set(url, globalList.length); // 1-based index
 		}
 		const idx = urlToGlobalIndex.get(url);

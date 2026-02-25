@@ -78,39 +78,42 @@ else:
     aquire_func = release_func = renew_func = lambda: True
 
 
+def _sync_usage_pool_cleanup():
+    """Run in a thread — keeps the event loop free during Redis I/O."""
+    now = int(time.time())
+    for model_id, connections in list(USAGE_POOL.items()):
+        expired_sids = [
+            sid
+            for sid, details in connections.items()
+            if now - details["updated_at"] > TIMEOUT_DURATION
+        ]
+
+        for sid in expired_sids:
+            del connections[sid]
+
+        if not connections:
+            log.debug(f"Cleaning up model {model_id} from usage pool")
+            del USAGE_POOL[model_id]
+        else:
+            USAGE_POOL[model_id] = connections
+
+
 async def periodic_usage_pool_cleanup():
-    if not aquire_func():
+    if not await asyncio.to_thread(aquire_func):
         log.debug("Usage pool cleanup lock already exists. Not running it.")
         return
     log.debug("Running periodic_usage_pool_cleanup")
     try:
         while True:
-            if not renew_func():
+            if not await asyncio.to_thread(renew_func):
                 log.error(f"Unable to renew cleanup lock. Exiting usage pool cleanup.")
                 raise Exception("Unable to renew usage pool cleanup lock.")
 
-            now = int(time.time())
-
-            for model_id, connections in list(USAGE_POOL.items()):
-                # Creating a list of sids to remove if they have timed out
-                expired_sids = [
-                    sid
-                    for sid, details in connections.items()
-                    if now - details["updated_at"] > TIMEOUT_DURATION
-                ]
-
-                for sid in expired_sids:
-                    del connections[sid]
-
-                if not connections:
-                    log.debug(f"Cleaning up model {model_id} from usage pool")
-                    del USAGE_POOL[model_id]
-                else:
-                    USAGE_POOL[model_id] = connections
+            await asyncio.to_thread(_sync_usage_pool_cleanup)
 
             await asyncio.sleep(TIMEOUT_DURATION)
     finally:
-        release_func()
+        await asyncio.to_thread(release_func)
 
 
 app = socketio.ASGIApp(
@@ -128,17 +131,17 @@ def get_models_in_use():
 @sio.on("usage")
 async def usage(sid, data):
     model_id = data["model"]
-    # Record the timestamp for the last update
     current_time = int(time.time())
 
-    # Store the new usage data and task
-    USAGE_POOL[model_id] = {
-        **(USAGE_POOL[model_id] if model_id in USAGE_POOL else {}),
-        sid: {"updated_at": current_time},
-    }
+    def _update_usage():
+        USAGE_POOL[model_id] = {
+            **(USAGE_POOL[model_id] if model_id in USAGE_POOL else {}),
+            sid: {"updated_at": current_time},
+        }
+        return list(USAGE_POOL.keys())
 
-    # Broadcast the usage data to all clients
-    await sio.emit("usage", {"models": get_models_in_use()})
+    models_in_use = await asyncio.to_thread(_update_usage)
+    await sio.emit("usage", {"models": models_in_use})
 
 
 @sio.event
@@ -148,18 +151,25 @@ async def connect(sid, environ, auth):
         data = decode_token(auth["token"])
 
         if data is not None and "id" in data:
-            user = Users.get_user_by_id(data["id"])
+            user = await asyncio.to_thread(Users.get_user_by_id, data["id"])
 
         if user:
-            SESSION_POOL[sid] = user.model_dump()
-            if user.id in USER_POOL:
-                USER_POOL[user.id] = USER_POOL[user.id] + [sid]
-            else:
-                USER_POOL[user.id] = [sid]
+            user_dump = user.model_dump()
+
+            def _register_session():
+                SESSION_POOL[sid] = user_dump
+                if user.id in USER_POOL:
+                    USER_POOL[user.id] = USER_POOL[user.id] + [sid]
+                else:
+                    USER_POOL[user.id] = [sid]
+                return list(USER_POOL.keys())
+
+            user_ids = await asyncio.to_thread(_register_session)
+            models_in_use = await asyncio.to_thread(get_models_in_use)
 
             log.debug(f"user {user.id} connected with session ID {sid}")
-            await sio.emit("user-list", {"user_ids": list(USER_POOL.keys())})
-            await sio.emit("usage", {"models": get_models_in_use()})
+            await sio.emit("user-list", {"user_ids": user_ids})
+            await sio.emit("usage", {"models": models_in_use})
 
 
 @sio.on("user-join")
@@ -173,25 +183,30 @@ async def user_join(sid, data):
     if data is None or "id" not in data:
         return
 
-    user = Users.get_user_by_id(data["id"])
+    user = await asyncio.to_thread(Users.get_user_by_id, data["id"])
     if not user:
         return
 
-    SESSION_POOL[sid] = user.model_dump()
-    if user.id in USER_POOL:
-        USER_POOL[user.id] = USER_POOL[user.id] + [sid]
-    else:
-        USER_POOL[user.id] = [sid]
+    user_dump = user.model_dump()
 
-    # Join all the channels
-    channels = Channels.get_channels_by_user_id(user.id)
+    def _register_session():
+        SESSION_POOL[sid] = user_dump
+        if user.id in USER_POOL:
+            USER_POOL[user.id] = USER_POOL[user.id] + [sid]
+        else:
+            USER_POOL[user.id] = [sid]
+        return list(USER_POOL.keys())
+
+    channels = await asyncio.to_thread(Channels.get_channels_by_user_id, user.id)
+    user_ids = await asyncio.to_thread(_register_session)
+
     log.debug(f"{channels=}")
     for channel in channels:
         await sio.enter_room(sid, f"channel:{channel.id}")
 
     log.debug(f"user {user.email}({user.id}) connected with session ID {sid}")
 
-    await sio.emit("user-list", {"user_ids": list(USER_POOL.keys())})
+    await sio.emit("user-list", {"user_ids": user_ids})
     return {"id": user.id, "first_name": user.first_name, "last_name": user.last_name}
 
 
@@ -205,12 +220,11 @@ async def join_channel(sid, data):
     if data is None or "id" not in data:
         return
 
-    user = Users.get_user_by_id(data["id"])
+    user = await asyncio.to_thread(Users.get_user_by_id, data["id"])
     if not user:
         return
 
-    # Join all the channels
-    channels = Channels.get_channels_by_user_id(user.id)
+    channels = await asyncio.to_thread(Channels.get_channels_by_user_id, user.id)
     log.debug(f"{channels=}")
     for channel in channels:
         await sio.enter_room(sid, f"channel:{channel.id}")
@@ -232,13 +246,16 @@ async def channel_events(sid, data):
     event_type = event_data["type"]
 
     if event_type == "typing":
+        session_user = await asyncio.to_thread(SESSION_POOL.get, sid)
+        if session_user is None:
+            return
         await sio.emit(
             "channel-events",
             {
                 "channel_id": data["channel_id"],
                 "message_id": data.get("message_id", None),
                 "data": event_data,
-                "user": UserNameResponse(**SESSION_POOL[sid]).model_dump(),
+                "user": UserNameResponse(**session_user).model_dump(),
             },
             room=room,
         )
@@ -246,22 +263,26 @@ async def channel_events(sid, data):
 
 @sio.on("user-list")
 async def user_list(sid):
-    await sio.emit("user-list", {"user_ids": list(USER_POOL.keys())})
+    user_ids = await asyncio.to_thread(lambda: list(USER_POOL.keys()))
+    await sio.emit("user-list", {"user_ids": user_ids})
 
 
 @sio.event
 async def disconnect(sid):
-    if sid in SESSION_POOL:
+    def _unregister_session():
+        if sid not in SESSION_POOL:
+            return None
         user = SESSION_POOL[sid]
         del SESSION_POOL[sid]
-
         user_id = user["id"]
         USER_POOL[user_id] = [_sid for _sid in USER_POOL[user_id] if _sid != sid]
-
         if len(USER_POOL[user_id]) == 0:
             del USER_POOL[user_id]
+        return list(USER_POOL.keys())
 
-        await sio.emit("user-list", {"user_ids": list(USER_POOL.keys())})
+    user_ids = await asyncio.to_thread(_unregister_session)
+    if user_ids is not None:
+        await sio.emit("user-list", {"user_ids": user_ids})
     else:
         log.debug(f"Unknown session ID {sid} disconnected")
 
@@ -269,8 +290,9 @@ async def disconnect(sid):
 def get_event_emitter(request_info):
     async def __event_emitter__(event_data):
         user_id = request_info["user_id"]
+        session_ids_from_pool = await asyncio.to_thread(USER_POOL.get, user_id, [])
         session_ids = list(
-            set(USER_POOL.get(user_id, []) + [request_info["session_id"]])
+            set(session_ids_from_pool + [request_info["session_id"]])
         )
 
         for session_id in session_ids:
@@ -285,14 +307,16 @@ def get_event_emitter(request_info):
             )
 
         if "type" in event_data and event_data["type"] == "status":
-            Chats.add_message_status_to_chat_by_id_and_message_id(
+            await asyncio.to_thread(
+                Chats.add_message_status_to_chat_by_id_and_message_id,
                 request_info["chat_id"],
                 request_info["message_id"],
                 event_data.get("data", {}),
             )
 
         if "type" in event_data and event_data["type"] == "message":
-            message = Chats.get_message_by_id_and_message_id(
+            message = await asyncio.to_thread(
+                Chats.get_message_by_id_and_message_id,
                 request_info["chat_id"],
                 request_info["message_id"],
             )
@@ -300,23 +324,21 @@ def get_event_emitter(request_info):
             content = message.get("content", "")
             content += event_data.get("data", {}).get("content", "")
 
-            Chats.upsert_message_to_chat_by_id_and_message_id(
+            await asyncio.to_thread(
+                Chats.upsert_message_to_chat_by_id_and_message_id,
                 request_info["chat_id"],
                 request_info["message_id"],
-                {
-                    "content": content,
-                },
+                {"content": content},
             )
 
         if "type" in event_data and event_data["type"] == "replace":
             content = event_data.get("data", {}).get("content", "")
 
-            Chats.upsert_message_to_chat_by_id_and_message_id(
+            await asyncio.to_thread(
+                Chats.upsert_message_to_chat_by_id_and_message_id,
                 request_info["chat_id"],
                 request_info["message_id"],
-                {
-                    "content": content,
-                },
+                {"content": content},
             )
 
     return __event_emitter__

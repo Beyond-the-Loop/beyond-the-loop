@@ -396,7 +396,7 @@ async def generate_chat_completion(
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                                     credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
 
-                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model_info.name if model_info.base_model_id else None, agent_or_task_prompt)
+                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
                         except json.JSONDecodeError:
                             log.debug(f"JSON decode error for chunk: {chunk_str}")
 
@@ -454,7 +454,7 @@ async def generate_chat_completion(
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
 
-            Completions.insert_new_completion(user.id, model_name, credit_cost, model_info.name if model_info.base_model_id else None, agent_or_task_prompt)
+            Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 
             return response
     except Exception as e:
