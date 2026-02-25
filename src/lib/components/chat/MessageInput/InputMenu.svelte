@@ -38,9 +38,11 @@
 	let tools = {};
 	let show = false;
 	let knowledgeLoading = false;
+	let knowledgeSearch = '';
 
 	$: if (show) {
 		init();
+		loadKnowledge();
 	}
 
 	let fileUploadEnabled = true;
@@ -71,20 +73,17 @@
 		}
 	};
 
+	$: filteredKnowledgeItems = knowledgeSearch.trim()
+		? knowledgeItems.filter((item) =>
+				item.name?.toLowerCase().includes(knowledgeSearch.toLowerCase())
+			)
+		: knowledgeItems;
+
 	$: knowledgeItems = ($knowledge ?? [])
 		.reduce(
 			(acc, item) => {
 				if (!item?.meta?.document) {
 					acc.push({ ...item, type: 'collection' });
-				}
-				for (const file of item?.files ?? []) {
-					acc.push({
-						...file,
-						name: file?.meta?.name,
-						description: `${item.name} - ${item.description}`,
-						collection: { name: item.name, description: item.description },
-						type: 'file'
-					});
 				}
 				return acc;
 			},
@@ -230,7 +229,7 @@
 			<DropdownMenu.Sub>
 				<DropdownMenu.SubTrigger
 					class="flex w-full gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
-					on:mouseenter={loadKnowledge}
+					on:mouseenter={() => { loadKnowledge(); knowledgeSearch = ''; }}
 				>
 					<KnowledgeIcon />
 					<div class="line-clamp-1 flex-1">{$i18n.t('Knowledge')}</div>
@@ -291,31 +290,33 @@
 							{$i18n.t('No knowledge available')}
 						</div>
 					{:else}
-						<div class="max-h-52 overflow-y-auto scrollbar-hidden">
-							{#each knowledgeItems as item}
-								<DropdownMenu.Item
-									class="flex gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
-									on:click={() => {
-										onSelectKnowledge(item);
-									}}
-								>
-									{#if item.type === 'collection'}
-										<span
-											class="bg-green-500/20 text-green-700 dark:text-green-200 rounded uppercase text-xs font-bold px-1 flex-shrink-0"
-										>
-											{$i18n.t('Collection')}
-										</span>
-									{:else}
-										<span
-											class="bg-gray-500/20 text-gray-700 dark:text-gray-200 rounded uppercase text-xs font-bold px-1 flex-shrink-0"
-										>
-											{$i18n.t('File')}
-										</span>
-									{/if}
-									<div class="line-clamp-1 flex-1">{item.name}</div>
-								</DropdownMenu.Item>
-							{/each}
+						<div class="px-1 pb-1">
+							<input
+								type="text"
+								bind:value={knowledgeSearch}
+								placeholder={$i18n.t('Search')}
+								class="w-full px-2 py-1.5 text-xs bg-gray-50 dark:bg-customGray-800 border border-gray-200 dark:border-customGray-700 rounded-md outline-none placeholder-gray-400 dark:placeholder-customGray-500 dark:text-white"
+								on:click|stopPropagation
+							/>
 						</div>
+						{#if filteredKnowledgeItems.length === 0}
+							<div class="px-3 py-2 text-xs text-gray-400 dark:text-customGray-500">
+								{$i18n.t('No results found')}
+							</div>
+						{:else}
+							<div class="max-h-48 overflow-y-auto scrollbar-hidden">
+								{#each filteredKnowledgeItems as item}
+									<DropdownMenu.Item
+										class="flex gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
+										on:click={() => {
+											onSelectKnowledge(item);
+										}}
+									>
+										<div class="line-clamp-1 flex-1">{item.name}</div>
+									</DropdownMenu.Item>
+								{/each}
+							</div>
+						{/if}
 					{/if}
 				</DropdownMenu.SubContent>
 			</DropdownMenu.Sub>
