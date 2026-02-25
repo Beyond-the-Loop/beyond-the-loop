@@ -37,6 +37,7 @@
 
 	let tools = {};
 	let show = false;
+	let knowledgeLoading = false;
 
 	$: if (show) {
 		init();
@@ -58,8 +59,16 @@
 			};
 			return a;
 		}, {});
+	};
 
-		knowledge.set(await getKnowledgeBases(localStorage.token));
+	const loadKnowledge = async () => {
+		if ($knowledge !== null || knowledgeLoading) return;
+		knowledgeLoading = true;
+		try {
+			knowledge.set(await getKnowledgeBases(localStorage.token));
+		} finally {
+			knowledgeLoading = false;
+		}
 	};
 
 	$: knowledgeItems = ($knowledge ?? [])
@@ -218,32 +227,70 @@
 				</DropdownMenu.Item>
 			</Tooltip>
 
-			{#if knowledgeItems.length > 0}
-				<DropdownMenu.Sub>
-					<DropdownMenu.SubTrigger
-						class="flex w-full gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
+			<DropdownMenu.Sub>
+				<DropdownMenu.SubTrigger
+					class="flex w-full gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
+					on:mouseenter={loadKnowledge}
+				>
+					<KnowledgeIcon />
+					<div class="line-clamp-1 flex-1">{$i18n.t('Knowledge')}</div>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="w-3 h-3 flex-shrink-0 opacity-60"
 					>
-						<KnowledgeIcon />
-						<div class="line-clamp-1 flex-1">{$i18n.t('Knowledge')}</div>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="w-3 h-3 flex-shrink-0 opacity-60"
-						>
-							<polyline points="9 18 15 12 9 6" />
-						</svg>
-					</DropdownMenu.SubTrigger>
+						<polyline points="9 18 15 12 9 6" />
+					</svg>
+				</DropdownMenu.SubTrigger>
 
-					<DropdownMenu.SubContent
-						class="w-full max-w-[240px] rounded-lg px-1 py-1 border-gray-300/30 border dark:border-customGray-700 z-50 bg-white dark:bg-customGray-900 dark:text-white shadow"
-						sideOffset={4}
-						alignOffset={-4}
-					>
+				<DropdownMenu.SubContent
+					class="w-full max-w-[240px] rounded-lg px-1 py-1 border-gray-300/30 border dark:border-customGray-700 z-50 bg-white dark:bg-customGray-900 dark:text-white shadow"
+					sideOffset={4}
+					alignOffset={-4}
+				>
+					{#if knowledgeLoading}
+						<div class="flex items-center justify-center py-3">
+							<svg
+								class="w-4 h-4 text-gray-400 dark:text-customGray-500"
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+							>
+								<style>
+									.knowledge-spin {
+										animation: knowledge-spin 0.75s linear infinite;
+										transform-origin: center;
+									}
+									@keyframes knowledge-spin {
+										from { transform: rotate(0deg); }
+										to { transform: rotate(360deg); }
+									}
+								</style>
+								<circle
+									class="opacity-25"
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									stroke-width="3"
+								/>
+								<path
+									class="knowledge-spin opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+								/>
+							</svg>
+						</div>
+					{:else if knowledgeItems.length === 0}
+						<div class="px-3 py-2 text-xs text-gray-400 dark:text-customGray-500">
+							{$i18n.t('No knowledge available')}
+						</div>
+					{:else}
 						<div class="max-h-52 overflow-y-auto scrollbar-hidden">
 							{#each knowledgeItems as item}
 								<DropdownMenu.Item
@@ -269,9 +316,9 @@
 								</DropdownMenu.Item>
 							{/each}
 						</div>
-					</DropdownMenu.SubContent>
-				</DropdownMenu.Sub>
-			{/if}
+					{/if}
+				</DropdownMenu.SubContent>
+			</DropdownMenu.Sub>
 
 			{#if $config?.features?.enable_google_drive_integration}
 				<DropdownMenu.Item
