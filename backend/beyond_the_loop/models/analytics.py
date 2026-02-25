@@ -31,7 +31,7 @@ class TopUserItem(BaseModel):
     email: Optional[str]
     profile_image_url: Optional[str]
 
-    total_credits_used: float
+    credits_used: float
     message_count: int
     assistant_message_percentage: float
 
@@ -51,7 +51,7 @@ class TopUsersResponse(BaseModel):
                     last_name=last_name,
                     email=email,
                     profile_image_url=profile_image_url,
-                    total_credits_used=total_credits_used,
+                    credits_used=credits_used,
                     message_count=message_count,
                     assistant_message_percentage=float(
                         round(assistant_message_percentage or 0, 2)
@@ -61,7 +61,7 @@ class TopUsersResponse(BaseModel):
                 )
                 for (
                     user_id,
-                    total_credits_used,
+                    credits_used,
                     message_count,
                     assistant_message_percentage,
                     first_name,
@@ -76,7 +76,7 @@ class TopUsersResponse(BaseModel):
 
 class TopAssistantItem(BaseModel):
     assistant: str
-    total_credits_used: float
+    credits_used: float
     message_count: int
     profile_image_url: Optional[str] = None
 
@@ -89,13 +89,13 @@ class TopAssistantsResponse(BaseModel):
             top_assistants=[
                 TopAssistantItem(
                     assistant=assistant,
-                    total_credits_used=total_credits_used,
+                    credits_used=credits_used,
                     message_count=message_count,
                     profile_image_url=meta.get('profile_image_url') if isinstance(meta, dict) else None,
                 )
                 for (
                     assistant,
-                    total_credits_used,
+                    credits_used,
                     message_count,
                     meta,
                 ) in top_assistants
@@ -187,7 +187,7 @@ class PowerUserItem(BaseModel):
     last_name: str
     email: str
     profile_image_url: str | None = None
-    total_credits_used: float
+    credits_used: float
     message_count: int
 
 class PowerUsersResponse(BaseModel):
