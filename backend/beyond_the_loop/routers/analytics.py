@@ -166,14 +166,6 @@ async def get_total_users(user=Depends(get_verified_user)):
 
 @router.get("/stats/engagement-score")
 async def get_engagement_score(user=Depends(get_verified_user)):
-    is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
-
-    if is_free_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
     try:
         return AnalyticsService.calculate_engagement_score_by_company(user.company_id)
     except Exception as e:
