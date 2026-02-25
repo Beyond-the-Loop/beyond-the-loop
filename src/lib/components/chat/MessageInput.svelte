@@ -1196,6 +1196,7 @@
 									<div class="ml-1 self-end gap-0.5 flex items-center flex-1 max-w-[80%]">
 										<InputMenu
 											bind:selectedToolIds
+											{files}
 											{screenCaptureHandler}
 											{inputFilesHandler}
 											uploadFilesHandler={() => {
@@ -1220,6 +1221,20 @@
 														})
 													);
 												}
+											}}
+											onSelectKnowledge={(item) => {
+												if (files.find((f) => f.id === item.id)) {
+													return;
+												}
+												files = [
+													...files,
+													{
+														...item,
+														status: 'processed'
+													}
+												];
+												const chatInput = document.getElementById('chat-input');
+												chatInput?.focus();
 											}}
 											onClose={async () => {
 												await tick();
