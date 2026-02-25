@@ -2,7 +2,6 @@ import asyncio
 import socketio
 import logging
 import sys
-import time
 
 from beyond_the_loop.models.users import Users, UserNameResponse
 from open_webui.env import REDIS_URL
@@ -14,7 +13,7 @@ from open_webui.env import (
     WEBSOCKET_MANAGER,
 )
 from open_webui.utils.auth import decode_token
-from beyond_the_loop.socket.utils import RedisDict, RedisLock
+from beyond_the_loop.socket.utils import RedisDict
 
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
@@ -52,96 +51,21 @@ STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE = RedisDict(":stripe_company_active_sub
 STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE = RedisDict(":stripe_company_trial_subscription_cache", redis_url=REDIS_URL)
 STRIPE_PRODUCT_CACHE = RedisDict(":stripe_product_cache", redis_url=REDIS_URL)
 
-# Timeout duration in seconds
-TIMEOUT_DURATION = 3
-
 # Dictionary to maintain the user pool
 
 if WEBSOCKET_MANAGER == "redis":
     log.debug("Using Redis to manage websockets.")
     SESSION_POOL = RedisDict("open-webui:session_pool", redis_url=REDIS_URL)
     USER_POOL = RedisDict("open-webui:user_pool", redis_url=REDIS_URL)
-    USAGE_POOL = RedisDict("open-webui:usage_pool", redis_url=REDIS_URL)
-
-    clean_up_lock = RedisLock(
-        redis_url=REDIS_URL,
-        lock_name="usage_cleanup_lock",
-        timeout_secs=TIMEOUT_DURATION * 2,
-    )
-    aquire_func = clean_up_lock.aquire_lock
-    renew_func = clean_up_lock.renew_lock
-    release_func = clean_up_lock.release_lock
 else:
     SESSION_POOL = {}
     USER_POOL = {}
-    USAGE_POOL = {}
-    aquire_func = release_func = renew_func = lambda: True
-
-
-def _sync_usage_pool_cleanup():
-    """Run in a thread — keeps the event loop free during Redis I/O."""
-    now = int(time.time())
-    for model_id, connections in list(USAGE_POOL.items()):
-        expired_sids = [
-            sid
-            for sid, details in connections.items()
-            if now - details["updated_at"] > TIMEOUT_DURATION
-        ]
-
-        for sid in expired_sids:
-            del connections[sid]
-
-        if not connections:
-            log.debug(f"Cleaning up model {model_id} from usage pool")
-            del USAGE_POOL[model_id]
-        else:
-            USAGE_POOL[model_id] = connections
-
-
-async def periodic_usage_pool_cleanup():
-    if not await asyncio.to_thread(aquire_func):
-        log.debug("Usage pool cleanup lock already exists. Not running it.")
-        return
-    log.debug("Running periodic_usage_pool_cleanup")
-    try:
-        while True:
-            if not await asyncio.to_thread(renew_func):
-                log.error(f"Unable to renew cleanup lock. Exiting usage pool cleanup.")
-                raise Exception("Unable to renew usage pool cleanup lock.")
-
-            await asyncio.to_thread(_sync_usage_pool_cleanup)
-
-            await asyncio.sleep(TIMEOUT_DURATION)
-    finally:
-        await asyncio.to_thread(release_func)
 
 
 app = socketio.ASGIApp(
     sio,
     socketio_path="/ws/socket.io",
 )
-
-
-def get_models_in_use():
-    # List models that are currently in use
-    models_in_use = list(USAGE_POOL.keys())
-    return models_in_use
-
-
-@sio.on("usage")
-async def usage(sid, data):
-    model_id = data["model"]
-    current_time = int(time.time())
-
-    def _update_usage():
-        USAGE_POOL[model_id] = {
-            **(USAGE_POOL[model_id] if model_id in USAGE_POOL else {}),
-            sid: {"updated_at": current_time},
-        }
-        return list(USAGE_POOL.keys())
-
-    models_in_use = await asyncio.to_thread(_update_usage)
-    await sio.emit("usage", {"models": models_in_use})
 
 
 @sio.event
@@ -162,14 +86,9 @@ async def connect(sid, environ, auth):
                     USER_POOL[user.id] = USER_POOL[user.id] + [sid]
                 else:
                     USER_POOL[user.id] = [sid]
-                return list(USER_POOL.keys())
 
-            user_ids = await asyncio.to_thread(_register_session)
-            models_in_use = await asyncio.to_thread(get_models_in_use)
-
+            await asyncio.to_thread(_register_session)
             log.debug(f"user {user.id} connected with session ID {sid}")
-            await sio.emit("user-list", {"user_ids": user_ids})
-            await sio.emit("usage", {"models": models_in_use})
 
 
 @sio.on("user-join")
@@ -195,18 +114,15 @@ async def user_join(sid, data):
             USER_POOL[user.id] = USER_POOL[user.id] + [sid]
         else:
             USER_POOL[user.id] = [sid]
-        return list(USER_POOL.keys())
 
     channels = await asyncio.to_thread(Channels.get_channels_by_user_id, user.id)
-    user_ids = await asyncio.to_thread(_register_session)
+    await asyncio.to_thread(_register_session)
 
     log.debug(f"{channels=}")
     for channel in channels:
         await sio.enter_room(sid, f"channel:{channel.id}")
 
     log.debug(f"user {user.email}({user.id}) connected with session ID {sid}")
-
-    await sio.emit("user-list", {"user_ids": user_ids})
     return {"id": user.id, "first_name": user.first_name, "last_name": user.last_name}
 
 
@@ -261,29 +177,21 @@ async def channel_events(sid, data):
         )
 
 
-@sio.on("user-list")
-async def user_list(sid):
-    user_ids = await asyncio.to_thread(lambda: list(USER_POOL.keys()))
-    await sio.emit("user-list", {"user_ids": user_ids})
-
-
 @sio.event
 async def disconnect(sid):
     def _unregister_session():
         if sid not in SESSION_POOL:
-            return None
+            return False
         user = SESSION_POOL[sid]
         del SESSION_POOL[sid]
         user_id = user["id"]
         USER_POOL[user_id] = [_sid for _sid in USER_POOL[user_id] if _sid != sid]
         if len(USER_POOL[user_id]) == 0:
             del USER_POOL[user_id]
-        return list(USER_POOL.keys())
+        return True
 
-    user_ids = await asyncio.to_thread(_unregister_session)
-    if user_ids is not None:
-        await sio.emit("user-list", {"user_ids": user_ids})
-    else:
+    unregistered = await asyncio.to_thread(_unregister_session)
+    if not unregistered:
         log.debug(f"Unknown session ID {sid} disconnected")
 
 

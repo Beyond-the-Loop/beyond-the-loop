@@ -4,7 +4,6 @@
 
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { WEBUI_BASE_URL } from '$lib/constants';
-	import { activeUserIds } from '$lib/stores';
 
 	export let side = 'right';
 	export let align = 'top';
@@ -51,32 +50,6 @@
 							<span class="font-medium text-sm line-clamp-1"> {user.first_name} {user.last_name}</span>
 						</div>
 
-						<div class=" flex items-center gap-2">
-							{#if $activeUserIds.includes(user.id)}
-								<div>
-									<span class="relative flex size-2">
-										<span
-											class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
-										/>
-										<span class="relative inline-flex rounded-full size-2 bg-green-500" />
-									</span>
-								</div>
-
-								<div class=" -translate-y-[1px]">
-									<span class="text-xs"> Active </span>
-								</div>
-							{:else}
-								<div>
-									<span class="relative flex size-2">
-										<span class="relative inline-flex rounded-full size-2 bg-gray-500" />
-									</span>
-								</div>
-
-								<div class=" -translate-y-[1px]">
-									<span class="text-xs"> Away </span>
-								</div>
-							{/if}
-						</div>
 					</div>
 				</div>
 			{/if}

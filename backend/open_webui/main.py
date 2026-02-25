@@ -142,7 +142,6 @@ from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.socket.main import (
     app as socket_app,
-    periodic_usage_pool_cleanup,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
@@ -244,7 +243,6 @@ async def lifespan(app: FastAPI):
     # Start the task scheduler for automated processes
     start_scheduler()
 
-    asyncio.create_task(periodic_usage_pool_cleanup())
     yield
 
     # Shutdown the scheduler gracefully
