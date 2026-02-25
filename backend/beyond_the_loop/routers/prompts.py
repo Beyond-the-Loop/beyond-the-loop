@@ -79,7 +79,7 @@ async def get_prompt_list(user=Depends(get_verified_user)):
             detail=ERROR_MESSAGES.UNAUTHORIZED,
         )
 
-    prompts = Prompts.get_prompts_by_user_and_company(user.id, user.company_id, "read")
+    prompts = Prompts.get_prompt_list_by_user_and_company(user.id, user.company_id, "read")
     sorted_prompts = sorted(prompts, key=lambda m: not m.bookmarked_by_user)
     return sorted_prompts
 
@@ -124,7 +124,7 @@ async def create_new_prompt(
 
 @router.get("/command/{command}", response_model=Optional[PromptModel])
 async def get_prompt_by_command(command: str, user=Depends(get_verified_user)):
-    prompt = Prompts.get_prompt_by_command_and_company(f"/{command}", user.company_id)
+    prompt = Prompts.get_prompt_by_command_and_company_or_system(f"/{command}", user.company_id)
 
     _validate_prompt_read_access(prompt, user)
 

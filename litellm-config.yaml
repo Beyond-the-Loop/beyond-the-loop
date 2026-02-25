@@ -132,6 +132,11 @@ model_list:
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
+  - model_name: "Nano Banana"
+    litellm_params:
+      model: "vertex_ai/gemini-3-pro-image-preview"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
 
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body

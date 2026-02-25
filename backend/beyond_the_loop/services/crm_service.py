@@ -276,7 +276,7 @@ class CRMService:
             return
 
         except Exception as e:
-            print(f"create_user exception for {user_email}: {e}")
+            log.error(f"create_user exception for {user_email}: {e}")
             return
 
     def update_user_access_level(self, user_email: str, access_level: str):

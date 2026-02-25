@@ -102,7 +102,6 @@
 		image_generation: false,
 		code_interpreter: false,
 		vision: true,
-		// usage: undefined,
 		citations: true
 	};
 
@@ -120,17 +119,17 @@
 		info.name = name;
 
 		if (id === '') {
-			toast.error('Model ID is required.');
+			toast.error($i18n.t('Model ID is required.'));
 		}
 
 		if (name === '') {
-			toast.error('Model name is required.');
+			toast.error($i18n.t('Model name is required.'));
 			loading = false;
 			return;
 		}
 
 		if (!info.base_model_id) {
-			toast.error('Base Model is required.');
+			toast.error($i18n.t('Base Model is required.'));
 			loading = false;
 			return;
 		}

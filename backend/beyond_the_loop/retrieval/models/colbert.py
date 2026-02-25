@@ -1,12 +1,15 @@
+import logging
 import os
 import numpy as np
 from colbert.infra import ColBERTConfig
 from colbert.modeling.checkpoint import Checkpoint
 
+log = logging.getLogger(__name__)
+
 
 class ColBERT:
     def __init__(self, name, **kwargs) -> None:
-        print("ColBERT: Loading model", name)
+        log.info(f"ColBERT: Loading model {name}")
         self.device = "cpu"
 
         DOCKER = kwargs.get("env") == "docker"

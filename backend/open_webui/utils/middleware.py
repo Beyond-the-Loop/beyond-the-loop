@@ -77,8 +77,7 @@ async def chat_web_search_handler(
 ):
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
     event_emitter = extra_params["__event_emitter__"]
 
@@ -244,13 +243,13 @@ async def chat_image_generation_handler(
 
         edit_last_image = response_message.lower().strip() == 'yes'
 
-    if not edit_last_image and request.app.state.config.ENABLE_IMAGE_PROMPT_GENERATION:
+    if not edit_last_image:
         try:
             res = await generate_image_prompt(
                 request,
                 {
                     "model": form_data["model"],
-                    "messages": messages,
+                    "messages": messages
                 },
                 user,
             )
@@ -274,26 +273,19 @@ async def chat_image_generation_handler(
             log.exception(e)
             prompt = user_message
 
-    input_image_data = None
+    input_image_path = None
 
     if edit_last_image:
-        try:
-            last_image_path = already_generated_images[-1]
-            full_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
-            if not full_image_path.startswith(CACHE_DIR):
-                raise Exception("Access to the specified path is not allowed.")
-            with open(full_image_path, 'rb') as image_file:
-                image_data = image_file.read()
-                mime_type = mimetypes.guess_type(full_image_path)[0] or 'image/jpeg'
-                base64_data = base64.b64encode(image_data).decode('utf-8')
-                input_image_data = f"data:{mime_type};base64,{base64_data}"
-        except Exception:
-            pass # input_image_data will remain None
+        last_image_path = already_generated_images[-1]
+        input_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
 
     try:
         images = await image_generations(
-            request=request,
-            form_data=GenerateImageForm(**{"prompt": prompt, "input_image_data": input_image_data}),
+            form_data=GenerateImageForm(**{
+                "prompt": prompt,
+                "input_image_path": input_image_path,
+                "images": form_data["metadata"]["images"]
+            }),
             user=user,
         )
 
@@ -813,10 +805,47 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    # Avoid running web search twice; check if already added
-    did_add_web_search = any(isinstance(f, dict) and f.get("type") == "web_search_results" for f in files)
-
     if features:
+        form_data["metadata"]["images"] = []
+
+        # Add images to form_data metadata
+        for message in form_data["messages"]:
+            if "content" in message and isinstance(message["content"], list):
+                for c in message["content"]:
+                    if c.get("type") == "image_url":
+                        url = c.get("image_url", {}).get("url")
+
+                        if url:
+                            ext = get_extension_from_base64(url)
+                            filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                            parts = url.split(',')
+                            if len(parts) > 1:
+                                url = parts[1]
+                            else:
+                                url = parts[0]
+
+                            form_data["metadata"]["images"].append({
+                                "name": filename,
+                                "content": url
+                            })
+
+        use_images_as_tool_input = (
+            features.get("image_generation") or features.get("code_interpreter")
+        )
+        if use_images_as_tool_input and form_data["metadata"]["images"]:
+            # Strip image_url blocks from messages — images are forwarded via metadata
+            # to the respective tool handler, so the LLM doesn't need them inline
+            for message in form_data["messages"]:
+                if "content" in message and isinstance(message["content"], list):
+                    text_items = [c for c in message["content"] if c.get("type") != "image_url"]
+                    if len(text_items) == 1 and text_items[0].get("type") == "text":
+                        message["content"] = text_items[0]["text"]
+                    elif text_items:
+                        message["content"] = text_items
+                    else:
+                        message["content"] = ""
+
         if "image_generation" in features and features["image_generation"]:
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
@@ -829,29 +858,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
             form_data["model"] = model.id
-
-            form_data["metadata"]["images"] = []
-
-            for message in form_data["messages"]:
-                if "content" in message and isinstance(message["content"], list):
-                    for c in message["content"]:
-                        if c.get("type") == "image_url":
-                            url = c.get("image_url", {}).get("url")
-
-                            if url:
-                                ext = get_extension_from_base64(url)
-                                filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                                parts = url.split(',')
-                                if len(parts) > 1:
-                                    url = parts[1]
-                                else:
-                                    url = parts[0]
-
-                                form_data["metadata"]["images"].append({
-                                    "name": filename,
-                                    "content": url
-                                })
 
             code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
             form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
@@ -1601,7 +1607,7 @@ async def process_chat_response(
 
                     results = []
                     for tool_call in response_tool_calls:
-                        print("\n\n" + str(tool_call) + "\n\n")
+                        log.debug(f"Tool call: {tool_call}")
                         tool_call_id = tool_call.get("id", "")
                         tool_name = tool_call.get("function", {}).get("name", "")
 
@@ -1765,14 +1771,14 @@ async def process_chat_response(
                                                         "content": b64
                                                     })
                                                 except Exception as file_err:
-                                                    print(f"Failed to stage file {file_id} for executor: {file_err}")
+                                                    log.error(f"Failed to stage file {file_id} for executor: {file_err}")
                                                     continue
                                             except Exception as file_meta_err:
-                                                print(f"Error accessing file metadata {file_id}: {file_meta_err}")
+                                                log.error(f"Error accessing file metadata {file_id}: {file_meta_err}")
                                                 continue
 
                                     except Exception as prep_err:
-                                        print(f"Error preparing files for python executor: {prep_err}")
+                                        log.error(f"Error preparing files for python executor: {prep_err}")
 
                                     async with httpx.AsyncClient(timeout=60) as client:
                                         payload = {"code": code_to_run}
@@ -1864,7 +1870,7 @@ async def process_chat_response(
                                                     chat.chat["code_interpreter_files"] = chat.chat.get("code_interpreter_files", []) + [chat_file_item]
                                                     Chats.update_chat_by_id(metadata.get("chat_id"), chat.chat)
                                                 except Exception as file_upload_err:
-                                                    print("Error on created file processing", file_upload_err)
+                                                    log.error(f"Error on created file processing: {file_upload_err}")
                                     else:
                                         output = str(data)
                                 except Exception as exec_err:
@@ -1953,7 +1959,7 @@ async def process_chat_response(
 
 
                         except Exception as follow_err:
-                            print(f"Follow-up LLM generation failed: {follow_err}")
+                            log.error(f"Follow-up LLM generation failed: {follow_err}")
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
@@ -2008,7 +2014,7 @@ async def process_chat_response(
 
                 await background_tasks_handler()
             except asyncio.CancelledError:
-                print("Task was cancelled!")
+                log.warning("Task was cancelled!")
                 await event_emitter({"type": "task-cancelled"})
 
                 if not ENABLE_REALTIME_CHAT_SAVE:

@@ -134,11 +134,15 @@ class KnowledgeTable:
 
     def get_knowledge_bases(self) -> list[KnowledgeUserModel]:
         with get_db() as db:
+            knowledge_rows = db.query(Knowledge).order_by(Knowledge.updated_at.desc()).all()
+
+            # Batch-fetch all users in one query instead of N+1 individual queries
+            user_ids = list({k.user_id for k in knowledge_rows})
+            users_map = {u.id: u for u in Users.get_users_by_user_ids(user_ids)} if user_ids else {}
+
             knowledge_bases = []
-            for knowledge in (
-                db.query(Knowledge).order_by(Knowledge.updated_at.desc()).all()
-            ):
-                user = Users.get_user_by_id(knowledge.user_id)
+            for knowledge in knowledge_rows:
+                user = users_map.get(knowledge.user_id)
                 knowledge_bases.append(
                     KnowledgeUserModel.model_validate(
                         {

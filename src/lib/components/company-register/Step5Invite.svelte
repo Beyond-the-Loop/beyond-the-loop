@@ -79,7 +79,22 @@
 
 	async function inviteHandler() {
 		const invitees = invitedEmails.map((item) => ({ email: item, role: 'user' }));
-		await inviteUsers(localStorage.token, invitees).catch((error) => showToast('error', error));
+		await inviteUsers(localStorage.token, invitees).catch((error) => {
+			if (typeof error === 'string') {
+				const translated = error
+					.replace('No invitees provided', $i18n.t('No invitees provided'))
+					.replace(
+						'No users were invited. The following emails have issues:',
+						$i18n.t('No users were invited. The following emails have issues:')
+					)
+					.replace(/ is invalid\. /g, ` ${$i18n.t('is invalid.')} `)
+					.replace(/ is already associated with another company\./g, ` ${$i18n.t('is already associated with another company.')}`)
+					.replace(/Please use your business email address\./g, $i18n.t('Please use your business email address.'));
+				showToast('error', translated);
+			} else {
+				showToast('error', error);
+			}
+		});
 		goto('/');
 	}
 

@@ -38,7 +38,8 @@
 		"not_found": "We could not find what you're looking for :/",
 		"incomplete_invitation": "Your invitation is incomplete. Please complete the invitation process before signing in with OAuth.",
 		"no_seats_available": "No seats available for your company. Please contact your administrator to resolve this issue.",
-		"invalid_company_structure": "The company structure is invalid. Please contact support for assistance."
+		"invalid_company_structure": "The company structure is invalid. Please contact support for assistance.",
+		"personal_email_prohibited": "Please use your business email address to sign in."
 	};
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {

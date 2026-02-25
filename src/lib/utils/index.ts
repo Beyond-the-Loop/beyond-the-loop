@@ -249,8 +249,8 @@ export const compressImage = async (imageUrl, maxWidth, maxHeight) => {
 			const context = canvas.getContext('2d');
 			context.drawImage(img, 0, 0, width, height);
 
-			// Get compressed image URL
-			const compressedUrl = canvas.toDataURL();
+			// Get compressed image URL as JPEG with quality reduction
+			const compressedUrl = canvas.toDataURL('image/jpeg', 0.75);
 			resolve(compressedUrl);
 		};
 		img.onerror = (error) => reject(error);
@@ -282,9 +282,9 @@ export const generateInitialsImage = (name) => {
 	const initials =
 		sanitizedName.length > 0
 			? sanitizedName[0] +
-				(sanitizedName.split(' ').length > 1
-					? sanitizedName[sanitizedName.lastIndexOf(' ') + 1]
-					: '')
+			(sanitizedName.split(' ').length > 1
+				? sanitizedName[sanitizedName.lastIndexOf(' ') + 1]
+				: '')
 			: '';
 
 	ctx.fillText(initials.toUpperCase(), canvas.width / 2, canvas.height / 2);
@@ -361,18 +361,45 @@ export const copyToClipboard = async (text) => {
 	return result;
 };
 
-export const copyToClipboardResponse = async (text, sources) => {
+function stripDetailsBlocks(input: string): string {
+	const openRe = /<details(\s+[^>]*)?>/gi;
+	const closeRe = /<\/details>/gi;
+	let out = '';
+	let i = 0; let depth = 0;
+	while (i < input.length) {
+		openRe.lastIndex = i;
+		closeRe.lastIndex = i;
+		const openM = openRe.exec(input);
+		const closeM = closeRe.exec(input);
+		const nextOpen = openM ? { idx: openM.index, len: openM[0].length } : null;
+		const nextClose = closeM ? { idx: closeM.index, len: closeM[0].length } : null;
+		if (!nextOpen && !nextClose) {
+			if (depth === 0) out += input.slice(i);
+			break;
+		}
+		const next = nextOpen && nextClose ? (nextOpen.idx < nextClose.idx ? {
+			type: 'open', ...nextOpen
+		} : { type: 'close', ...nextClose }) : (nextOpen ? { type: 'open', ...nextOpen } : { type: 'close', ...nextClose! });        // Text vor dem nächsten Tag nur anhängen, wenn wir außerhalb sind
+		if (depth === 0) out += input.slice(i, next.idx);
+		if (next.type === 'open') depth++;
+		else depth = Math.max(0, depth - 1);
+		i = next.idx + next.len;
+	}
+	return out;
+}
+
+export const copyToClipboardResponse = async (text: string, sources) => {
 	let result = false;
-	console.log(text);
 
-	const processedText = sources ? linkifyCitations(text, sources) : text;
+	const textWithoutDetails = stripDetailsBlocks(text);
 
+	const processedText = sources ? linkifyCitations(textWithoutDetails, sources) : textWithoutDetails;
 	let html = marked.parse(processedText);
 	html = html.replace(/<table>/g, '<table border="1" style="border-collapse: collapse;">');
 
 	if (navigator.clipboard && window.ClipboardItem) {
 		try {
-			const blobPlain = new Blob([text], { type: 'text/plain' });
+			const blobPlain = new Blob([textWithoutDetails], { type: 'text/plain' });
 			const blobHtml = new Blob([html], { type: 'text/html' });
 
 			const clipboardItem = new ClipboardItem({
@@ -389,7 +416,7 @@ export const copyToClipboardResponse = async (text, sources) => {
 	} else {
 		// Fallback: text-only copy
 		const textArea = document.createElement('textarea');
-		textArea.value = text;
+		textArea.value = textWithoutDetails;
 		textArea.style.top = '0';
 		textArea.style.left = '0';
 		textArea.style.position = 'fixed';
@@ -519,24 +546,28 @@ export const compareVersion = (latest, current) => {
 	return current === '0.0.0'
 		? false
 		: current.localeCompare(latest, undefined, {
-				numeric: true,
-				sensitivity: 'case',
-				caseFirst: 'upper'
-			}) < 0;
+			numeric: true,
+			sensitivity: 'case',
+			caseFirst: 'upper'
+		}) < 0;
 };
 
-export const findWordIndices = (text) => {
-	const regex = /\[([^\]]+)\]/g;
+export const findWordIndices = (text: string) => {
+	const patterns = [/\{\{([^}]+)\}\}/g, /\[([^\]]+)\]/g];
 	const matches = [];
-	let match;
 
-	while ((match = regex.exec(text)) !== null) {
-		matches.push({
-			word: match[1],
-			startIndex: match.index,
-			endIndex: regex.lastIndex - 1
-		});
+	for (const regex of patterns) {
+		let match;
+		while ((match = regex.exec(text)) !== null) {
+			matches.push({
+				word: match[1],
+				startIndex: match.index,
+				endIndex: regex.lastIndex - 1
+			});
+		}
 	}
+
+	matches.sort((a, b) => a.startIndex - b.startIndex);
 
 	return matches;
 };
@@ -1363,10 +1394,7 @@ export function normalizeUrl(url) {
 		const u = new URL(url);
 		// Normalize: lower host, strip default ports & trailing slash
 		u.host = u.host.toLowerCase();
-		if (
-			(u.protocol === 'http:' && u.port === '80') ||
-			(u.protocol === 'https:' && u.port === '443')
-		) {
+		if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
 			u.port = '';
 		}
 		// Remove trailing slash except root
@@ -1394,10 +1422,7 @@ export function remapCitations(content, messageSources, urlToGlobalIndex, global
 
 		const url = normalizeUrl(urlRaw);
 		if (!urlToGlobalIndex.has(url)) {
-			globalList.push({
-				url,
-				title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null
-			});
+			globalList.push({ url, title: srcObj?.source?.name && srcObj.source.name !== urlRaw ? srcObj.source.name : null });
 			urlToGlobalIndex.set(url, globalList.length); // 1-based index
 		}
 		const idx = urlToGlobalIndex.get(url);

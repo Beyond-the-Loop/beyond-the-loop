@@ -65,7 +65,7 @@ math {
 }
 
 /* Remove underline for citation links */
-.markdown-prose a[title="citation"] {
+.markdown-prose a[title='citation'] {
 	@apply no-underline;
 }
 
@@ -97,21 +97,20 @@ li p {
 
 ::-webkit-scrollbar-thumb {
 	--tw-border-opacity: 1;
-	background-color: rgba(236, 236, 236, 0.8);
+	@apply bg-customGray-600;
 	border-color: rgba(255, 255, 255, var(--tw-border-opacity));
 	border-radius: 9999px;
-	border-width: 1px;
+	background-clip: content-box;
+	border: 3px solid transparent;
 }
 
 /* Dark theme scrollbar styles */
 .dark ::-webkit-scrollbar-thumb {
-	background-color: rgba(33, 33, 33, 0.8); /* Darker color for dark theme */
-	border-color: rgba(0, 0, 0, var(--tw-border-opacity));
+	@apply bg-customGray-600;
 }
 
 ::-webkit-scrollbar {
-	height: 0.4rem;
-	width: 0.4rem;
+	width: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -232,7 +231,7 @@ input[type='number'] {
 }
 
 html.light .cm-gutter {
-	background-color: #F1F1F1;
+	background-color: #f1f1f1;
 }
 
 html.light .tippy-box {
@@ -242,7 +241,6 @@ html.light .tippy-box {
 html.dark .tippy-box {
 	@apply rounded-md bg-customGray-900 text-xs text-customGray-100 shadow-md;
 }
-
 
 .password {
 	-webkit-text-security: disc;
@@ -285,7 +283,7 @@ html.dark .tippy-box {
 .ProseMirror p.is-editor-empty:first-child::before {
 	content: attr(data-placeholder);
 	float: left;
-	color: #929AA1;
+	color: #929aa1;
 	opacity: 50%;
 	pointer-events: none;
 	font-size: 16px;
@@ -294,7 +292,7 @@ html.dark .tippy-box {
 }
 
 html.dark .ProseMirror p.is-editor-empty:first-child::before {
-	color: #B3B3B3;
+	color: #b3b3b3;
 }
 
 .ai-autocompletion::after {
@@ -385,7 +383,7 @@ html.dark .ProseMirror p.is-editor-empty:first-child::before {
 input:-webkit-autofill {
 	background-color: transparent !important;
 	-webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
-	-webkit-text-fill-color: #232529  !important;
+	-webkit-text-fill-color: #232529 !important;
 	transition: background-color 9999s ease-in-out 0s;
 }
 
@@ -414,14 +412,12 @@ html.light .markdown-prose li::marker {
 	font-weight: 500;
 }
 .markdown-prose h3,
-.markdown-prose h4
-.markdown-prose h5
-.markdown-prose h6 {
+.markdown-prose h4 .markdown-prose h5 .markdown-prose h6 {
 	font-size: 1rem;
 	font-weight: 500;
 }
 
-.markdown-prose li{
+.markdown-prose li {
 	margin-top: 0.5rem;
 	margin-bottom: 0.5rem;
 }
@@ -429,22 +425,22 @@ html.light .markdown-prose li::marker {
 .custom-scrollbar::-webkit-scrollbar {
 	width: 6px;
 }
-  
+
 .custom-scrollbar::-webkit-scrollbar-track {
-	background: transparent; 
+	background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-	background-color: #E8E8E8; 
+	background-color: #e8e8e8;
 	border-radius: 6px;
 }
 
 html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-	background-color: #1E1E1E; 
+	background-color: #1e1e1e;
 }
 
 html.dark .custom-scrollbar::-webkit-scrollbar-track {
-	background: #181818; 
+	background: #181818;
 }
 
 html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -456,16 +452,16 @@ html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
 }
 
 html.dark .assistants-scrollbar::-webkit-scrollbar-track {
-	background: #313337; 
+	background: #313337;
 }
 .assistants-scrollbar::-webkit-scrollbar-track {
-	background: #EDEDED; 
+	background: #ededed;
 }
 html.dark .assistants-scrollbar::-webkit-scrollbar-thumb {
 	background-color: #494949;
 }
 .assistants-scrollbar::-webkit-scrollbar-thumb {
-	background-color: #D8D8D8;
+	background-color: #d8d8d8;
 }
 
 .prompt-scrollbar::-webkit-scrollbar {
@@ -473,17 +469,17 @@ html.dark .assistants-scrollbar::-webkit-scrollbar-thumb {
 }
 
 html.dark .prompt-scrollbar::-webkit-scrollbar-track {
-	background: #313337; 
+	background: #313337;
 }
 .prompt-scrollbar::-webkit-scrollbar-track {
-	background: #EDEDED; 
+	background: #ededed;
 }
 
 html.dark .prompt-scrollbar::-webkit-scrollbar-thumb {
 	background-color: #494949;
 }
 .prompt-scrollbar::-webkit-scrollbar-thumb {
-	background-color: #D8D8D8;
+	background-color: #d8d8d8;
 }
 
 .user-notice a {
@@ -496,10 +492,9 @@ html.dark .prompt-scrollbar::-webkit-scrollbar-thumb {
 	margin-top: 6px;
 }
 html.dark #editor .ProseMirror a {
-	color: #D0CECE;	
+	color: #d0cece;
 	text-decoration: underline;
 }
-
 
 @media (max-width: 990px) {
 	.intercom-app {
@@ -508,12 +503,12 @@ html.dark #editor .ProseMirror a {
 	.intercom-lightweight-app-launcher {
 		display: none !important;
 	}
-	
+
 	/*localhost*/
 	.intercom-dfosxs {
 		display: none !important;
 	}
-	
+
 	iframe[name='intercom-notifications-frame'] {
 		display: none !important;
 	}

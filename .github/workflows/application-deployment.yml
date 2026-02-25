@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -64,10 +64,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Create directory on EC2 if it doesn't exist
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -87,7 +87,7 @@ jobs:
           strip_components: 0
 
       - name: Rename file on remote
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -106,7 +106,7 @@ jobs:
           overwrite: true
 
       - name: Ensure traefik folder exists on remote
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -115,7 +115,7 @@ jobs:
             mkdir -p ~/beyond-the-loop/traefik
 
       - name: Create empty acme.json if not exists
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -137,7 +137,7 @@ jobs:
           overwrite: true
 
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -148,6 +148,85 @@ jobs:
             docker-compose restart litellm
             docker image prune -f
 
+  notify-slack:
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes and post to Slack
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL }}
+        run: |
+          # Get last prod tag
+          LAST_TAG=$(git tag --sort=-version:refname --list "prod/*" | head -1)
+
+          # Get commits since last tag (or last 20 if no tag exists yet)
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --oneline -20 --pretty=format:"%s (%h)")
+          else
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s (%h)")
+          fi
+
+          if [ -z "$COMMITS" ]; then
+            COMMITS="Keine neuen Commits seit letztem Deployment"
+          fi
+
+          # Call Claude Haiku API to generate a German summary
+          PROMPT="Du bist ein technischer Redakteur. Erstelle eine kurze, klare Zusammenfassung der folgenden Git-Commits für ein Production-Deployment. Schreibe auf Deutsch. Gruppiere ähnliche Änderungen wenn sinnvoll. Maximal 5-7 Punkte. Nutze Bullet-Punkte mit •. Verwende KEIN Markdown (keine **fett**, keine _kursiv_). Nur Plain Text. Gib NUR die Zusammenfassung zurück, keine Einleitung.\n\nCommits:\n$COMMITS"
+
+          API_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 512,
+            messages: [{role: "user", content: $prompt}]
+          }')
+
+          RESPONSE=$(curl -s -X POST https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$API_PAYLOAD")
+
+          SUMMARY=$(echo "$RESPONSE" | jq -r '.content[0].text // "Zusammenfassung konnte nicht erstellt werden."')
+
+          # Post to Slack
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          DEPLOY_TIME=$(TZ='Europe/Berlin' date '+%d.%m.%Y %H:%M %Z')
+
+          SLACK_PAYLOAD=$(jq -n \
+            --arg summary "$SUMMARY" \
+            --arg actor "${{ github.actor }}" \
+            --arg sha "$SHORT_SHA" \
+            --arg run_url "$RUN_URL" \
+            --arg deploy_time "$DEPLOY_TIME" \
+            '{blocks:[
+              {type:"header",text:{type:"plain_text",text:"🚀 Production Deployment",emoji:true}},
+              {type:"context",elements:[{type:"mrkdwn",text:$deploy_time}]},
+              {type:"section",text:{type:"mrkdwn",text:$summary}},
+              {type:"divider"},
+              {type:"context",elements:[{type:"mrkdwn",text:("Deployed von *"+$actor+"* • SHA `"+$sha+"` • <"+$run_url+"|Details>")}]}
+            ]}')
+
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "content-type: application/json" \
+            -d "$SLACK_PAYLOAD"
+
+      - name: Create prod tag
+        run: |
+          TAG="prod/$(date +%Y-%m-%d)-$(git rev-parse --short HEAD)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+
   deploy-staging:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -156,10 +235,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Create directory on EC2 if it doesn't exist
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -179,7 +258,7 @@ jobs:
           strip_components: 0
 
       - name: Rename file on remote
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -198,7 +277,7 @@ jobs:
           overwrite: true
 
       - name: Ensure traefik folder exists on remote
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -207,7 +286,7 @@ jobs:
             mkdir -p ~/beyond-the-loop/traefik
 
       - name: Create empty acme.json if not exists
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -229,7 +308,7 @@ jobs:
           overwrite: true
 
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}

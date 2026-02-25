@@ -1,3 +1,4 @@
+import logging
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
@@ -7,6 +8,8 @@ import uuid
 import time
 
 from open_webui.internal.db import get_db, Base
+
+log = logging.getLogger(__name__)
 
 ####################
 # Completion DB Schema
@@ -58,10 +61,10 @@ class CompletionTable:
                 if result:
                     return CompletionModel.model_validate(result)
                 else:
-                    print("insertion failed", result)
+                    log.error(f"Completion insertion failed: {result}")
                     return None
         except Exception as e:
-            print(f"Error creating completion: {e}")
+            log.error(f"Error creating completion: {e}")
             return None
 
     def get_completions_last_three_hours_by_user_and_model(
@@ -86,8 +89,30 @@ class CompletionTable:
 
                 return count
         except Exception as e:
-            print(f"Error fetching completions for usage count: {e}")
+            log.error(f"Error fetching completions for usage count: {e}")
             return 0
 
+
+def calculate_saved_time_in_seconds(last_message, response_message):
+    # log.debug(f"{last_message} ----- {response_message}")
+
+    writing_speed_per_word = 600 / 500  # 500 words in 600 seconds = 1.2 sec per word
+    reading_speed_per_word = 400 / 500  # 500 words in 400 seconds = 0.8 sec per word
+
+    try:
+        # Now prompt is a string (the last message), not a list of messages
+        num_words_prompt = len(last_message.split())
+        num_words_output = len(response_message.split())
+
+        prompt_time = num_words_prompt * writing_speed_per_word
+        writing_time = num_words_output * writing_speed_per_word
+        reading_time = num_words_output * reading_speed_per_word
+
+        total_time = writing_time - (prompt_time + reading_time)
+        total_time = 0 if total_time < 0 else total_time
+
+        return total_time
+    except:
+        return 0
 
 Completions = CompletionTable()
