@@ -3,9 +3,10 @@
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { getContext, onMount, tick } from 'svelte';
 
-	import { config, user, tools as _tools, mobile } from '$lib/stores';
+	import { config, user, tools as _tools, mobile, knowledge } from '$lib/stores';
 	import { createPicker } from '$lib/utils/google-drive-picker';
 	import { getTools } from '$lib/apis/tools';
+	import { getKnowledgeBases } from '$lib/apis/knowledge';
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
@@ -18,6 +19,7 @@
 	import CommandLineSolid from '$lib/components/icons/CommandLineSolid.svelte';
 	import UploadFile from '$lib/components/icons/UploadFile.svelte';
 	import TakeAScreenshot from '$lib/components/icons/TakeAScreenshot.svelte';
+	import KnowledgeIcon from '$lib/components/icons/Knowledge.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -28,6 +30,8 @@
 	export let uploadGoogleDriveHandler: Function;
 
 	export let selectedToolIds: string[] = [];
+	export let files: any[] = [];
+	export let onSelectKnowledge: Function = () => {};
 
 	export let onClose: Function;
 
@@ -46,7 +50,7 @@
 			await _tools.set(await getTools(localStorage.token));
 		}
 
-		tools = $_tools.reduce((a, tool, i, arr) => {
+		tools = ($_tools ?? []).reduce((a, tool, i, arr) => {
 			a[tool.id] = {
 				name: tool.name,
 				description: tool.meta.description,
@@ -54,7 +58,30 @@
 			};
 			return a;
 		}, {});
+
+		knowledge.set(await getKnowledgeBases(localStorage.token));
 	};
+
+	$: knowledgeItems = ($knowledge ?? [])
+		.reduce(
+			(acc, item) => {
+				if (!item?.meta?.document) {
+					acc.push({ ...item, type: 'collection' });
+				}
+				for (const file of item?.files ?? []) {
+					acc.push({
+						...file,
+						name: file?.meta?.name,
+						description: `${item.name} - ${item.description}`,
+						collection: { name: item.name, description: item.description },
+						type: 'file'
+					});
+				}
+				return acc;
+			},
+			[] as any[]
+		)
+		.filter((item) => !files.find((f) => f.id === item.id));
 
 	const detectMobile = () => {
 		const userAgent = navigator.userAgent || navigator.vendor || window.opera;
@@ -185,11 +212,66 @@
 							uploadFilesHandler();
 						}
 					}}
-				>	
-						<UploadFile/>
+				>
+					<UploadFile/>
 					<div class="line-clamp-1">{$i18n.t('Upload files')}</div>
 				</DropdownMenu.Item>
 			</Tooltip>
+
+			{#if knowledgeItems.length > 0}
+				<DropdownMenu.Sub>
+					<DropdownMenu.SubTrigger
+						class="flex w-full gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
+					>
+						<KnowledgeIcon />
+						<div class="line-clamp-1 flex-1">{$i18n.t('Knowledge')}</div>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="w-3 h-3 flex-shrink-0 opacity-60"
+						>
+							<polyline points="9 18 15 12 9 6" />
+						</svg>
+					</DropdownMenu.SubTrigger>
+
+					<DropdownMenu.SubContent
+						class="w-full max-w-[240px] rounded-lg px-1 py-1 border-gray-300/30 border dark:border-customGray-700 z-50 bg-white dark:bg-customGray-900 dark:text-white shadow"
+						sideOffset={4}
+						alignOffset={-4}
+					>
+						<div class="max-h-52 overflow-y-auto scrollbar-hidden">
+							{#each knowledgeItems as item}
+								<DropdownMenu.Item
+									class="flex gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-customGray-950 rounded-lg"
+									on:click={() => {
+										onSelectKnowledge(item);
+									}}
+								>
+									{#if item.type === 'collection'}
+										<span
+											class="bg-green-500/20 text-green-700 dark:text-green-200 rounded uppercase text-xs font-bold px-1 flex-shrink-0"
+										>
+											{$i18n.t('Collection')}
+										</span>
+									{:else}
+										<span
+											class="bg-gray-500/20 text-gray-700 dark:text-gray-200 rounded uppercase text-xs font-bold px-1 flex-shrink-0"
+										>
+											{$i18n.t('File')}
+										</span>
+									{/if}
+									<div class="line-clamp-1 flex-1">{item.name}</div>
+								</DropdownMenu.Item>
+							{/each}
+						</div>
+					</DropdownMenu.SubContent>
+				</DropdownMenu.Sub>
+			{/if}
 
 			{#if $config?.features?.enable_google_drive_integration}
 				<DropdownMenu.Item
