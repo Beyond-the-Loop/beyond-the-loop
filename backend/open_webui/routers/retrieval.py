@@ -689,6 +689,48 @@ def process_web_search(request: Request, query: str, limit: int, user, collectio
         )
 
 
+def process_web_url_scrape(request: Request, url: str, user, collection_name: str = None):
+    try:
+        logging.info(f"Scraping URL directly with firecrawl: {url}")
+
+        result = firecrawl.scrape(
+            url,
+            formats=["markdown"],
+            only_main_content=True,
+        )
+
+        if not result or not result.markdown:
+            return None
+
+        metadata = result.metadata
+        doc = Document(
+            page_content=result.markdown,
+            metadata={
+                "source": (metadata.url if metadata and metadata.url else url),
+                "title": (metadata.title or "") if metadata else "",
+                "description": (metadata.description or "") if metadata else "",
+                "language": (metadata.language or "") if metadata else "",
+            },
+        )
+
+        if collection_name == "" or collection_name is None:
+            collection_name = f"web-search-{calculate_sha256_string(url)}"[:63]
+
+        save_docs_to_vector_db(request, [doc], collection_name, overwrite=True, user=user)
+
+        return {
+            "status": True,
+            "collection_name": collection_name,
+            "filenames": [doc.metadata["source"]],
+        }
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT,
+        )
+
+
 class QueryDocForm(BaseModel):
     collection_name: str
     query: str

@@ -855,18 +855,17 @@ WEBHOOK_URL = PersistentConfig(
 )
 
 WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Please generate 1-3 web search queries for me that help me to answer the user's question.
-For each of the web search queries I want you to tell me a result_limit that determines how many web pages are scraped for the query.
+Decide whether additional keyword web search queries are needed to answer the user's question, and generate them if so (1–3 max).
+For each query also provide a result_limit (minimum 1) that determines how many web pages to scrape.
 
 ### Guidelines:
 - Use the language given in the user's prompt; default to English if unclear.
 - Today's date is: {{CURRENT_DATE}}.
-- Do **not** wrap URLs in phrases like “search for” or “analyze”.
-- IMPORTANT: Generate at least one query and result_limit should also always be at least one! In general be very conservative so only create more than one web search query if you really think it is necessary to answer the question.
-
-### URL Extraction Rules:
-- Scan messages for URLs (http:// or https://)
-- If found, insert the URL (unaltered) as the **first element** your response
+- Do NOT include raw URLs as queries — URLs are already scraped separately and do not need to be re-queried.
+- **If the user's message contains one or more URLs and the intent is clearly to read, fetch, summarize, compare, or analyze those specific pages, return `{"queries": []}` — no additional keyword queries are needed.**
+- Only generate keyword queries if there is a genuine need for additional web research beyond what the provided URLs cover — for example, if the user asks a general question that is not answered by the URLs alone, or asks to compare against external sources.
+- If there are no URLs in the message, always generate at least one keyword query.
+- Be conservative: fewer queries are better. Only generate more than one if clearly necessary.
 
 ### Chat History:
 <chat_history>
