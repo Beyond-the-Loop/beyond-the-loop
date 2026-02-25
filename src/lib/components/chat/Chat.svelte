@@ -670,6 +670,10 @@
 		chatFiles = [];
 		params = {};
 
+		webSearchEnabled = false;
+		imageGenerationEnabled = false;
+		codeInterpreterEnabled = false;
+
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
 				`https://www.youtube.com/watch?v=${$page.url.searchParams.get('youtube')}`
@@ -1389,6 +1393,13 @@
 		await tick();
 
 		_history = JSON.parse(JSON.stringify(history));
+
+		// Guard: user clicked "New Chat" while we were awaiting initChatHandler/tick
+		// history was cleared by initNewChat(), so there's nothing to send
+		if (!_history.currentId) {
+			return;
+		}
+
 		// Save chat after all messages have been created
 		await saveChatHandler(_chatId, _history);
 
@@ -1575,7 +1586,7 @@
 				},
 
 				session_id: $socket?.id,
-				chat_id: $chatId,
+				chat_id: _chatId,
 				id: responseMessageId,
 
 				...(!$temporaryChatEnabled &&
@@ -1621,10 +1632,6 @@
 				history.messages[responseMessageId] = responseMessage;
 				history.currentId = responseMessageId;
 				return null;
-			})
-			.finally(() => {
-				webSearchEnabled = false;
-				imageGenerationEnabled = false;
 			});
 
 		if (res) {

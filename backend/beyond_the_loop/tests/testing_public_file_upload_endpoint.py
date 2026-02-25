@@ -1,6 +1,10 @@
+import logging
 import openai
 from openai import OpenAI
 import os
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 # Path to the file in Downloads folder
 downloads_folder = os.path.expanduser("~/Downloads")
@@ -20,4 +24,4 @@ with open(file_path, "rb") as f:
         purpose="user_data"  # or "fine-tune" if needed
     )
 
-print(response)
+log.info(f"Response: {response}")

@@ -61,7 +61,7 @@ class TagTable:
                 else:
                     return None
             except Exception as e:
-                print(e)
+                log.error(f"Error creating tag: {e}")
                 return None
 
     def get_tag_by_name_and_user_id(

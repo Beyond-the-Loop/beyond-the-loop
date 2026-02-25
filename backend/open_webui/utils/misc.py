@@ -1,10 +1,13 @@
 import hashlib
+import logging
 import re
 import time
 import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Callable, Optional
+
+log = logging.getLogger(__name__)
 
 
 import collections.abc
@@ -269,6 +272,38 @@ def validate_email_format(email: str) -> bool:
     return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
 
 
+BLOCKED_EMAIL_DOMAINS = {
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "yahoo.de",
+    "hotmail.com",
+    "hotmail.de",
+    "outlook.com",
+    "outlook.de",
+    "live.com",
+    "live.de",
+    "aol.com",
+    "icloud.com",
+    "me.com",
+    "mac.com",
+    "gmx.de",
+    "gmx.net",
+    "web.de",
+    "t-online.de",
+    "freenet.de",
+    "mail.com",
+    "protonmail.com",
+    "proton.me",
+    "zoho.com",
+}
+
+
+def is_business_email(email: str) -> bool:
+    domain = email.split("@")[-1].lower() if "@" in email else ""
+    return bool(domain) and domain not in BLOCKED_EMAIL_DOMAINS
+
+
 def sanitize_filename(file_name):
     # Convert to lowercase
     lower_case_file_name = file_name.lower()
@@ -403,7 +438,7 @@ def parse_ollama_modelfile(model_text):
                 elif param_type is bool:
                     value = value.lower() == "true"
             except Exception as e:
-                print(e)
+                log.error(f"Error parsing parameter value: {e}")
                 continue
 
             data["params"][param] = value

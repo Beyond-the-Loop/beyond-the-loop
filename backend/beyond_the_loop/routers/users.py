@@ -26,7 +26,7 @@ from open_webui.env import SRC_LOG_LEVELS
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
-from open_webui.utils.misc import validate_email_format
+from open_webui.utils.misc import validate_email_format, is_business_email
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 from beyond_the_loop.services.crm_service import crm_service
@@ -85,6 +85,11 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
             # Validate email format
             if not validate_email_format(email):
                 validation_errors.append({"reason": f"{email} is invalid. {ERROR_MESSAGES.INVALID_EMAIL_FORMAT}"})
+                continue
+
+            # Reject personal/consumer email domains
+            if not is_business_email(email):
+                validation_errors.append({"reason": f"{email} is invalid. {ERROR_MESSAGES.NOT_BUSINESS_EMAIL}"})
                 continue
 
             # Check if user already exists
@@ -212,6 +217,8 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
         # All invitations were successful
         return {"success": True, "message": "All users invited successfully"}
             
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -230,6 +237,11 @@ async def create_user(form_data: UserCreateForm):
     if not validate_email_format(form_data.email.lower()):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.INVALID_EMAIL_FORMAT
+        )
+
+    if not is_business_email(form_data.email.lower()):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.NOT_BUSINESS_EMAIL
         )
 
     user = Users.get_user_by_email(form_data.email.lower())
@@ -568,6 +580,11 @@ async def reinvite_user(form_data: UserReinviteForm, user=Depends(get_admin_user
     if not validate_email_format(form_data.email.lower()):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.INVALID_EMAIL_FORMAT
+        )
+
+    if not is_business_email(form_data.email.lower()):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.NOT_BUSINESS_EMAIL
         )
 
     existing_user = Users.get_user_by_email(form_data.email.lower())

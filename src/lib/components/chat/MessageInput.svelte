@@ -270,14 +270,9 @@
 				reader.onload = async (event) => {
 					let imageUrl = event.target.result;
 
-					if ($settings?.imageCompression ?? false) {
-						const width = $settings?.imageCompressionSize?.width ?? null;
-						const height = $settings?.imageCompressionSize?.height ?? null;
-
-						if (width || height) {
-							imageUrl = await compressImage(imageUrl, width, height);
-						}
-					}
+					const maxWidth = 1568;
+					const maxHeight = 1568;
+					imageUrl = await compressImage(imageUrl, maxWidth, maxHeight);
 
 					files = [
 						...files,
@@ -1150,8 +1145,10 @@
 												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 											}}
 											on:focus={async (e) => {
-												e.target.style.height = '';
-												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+												if (e.target.value) {
+													e.target.style.height = '';
+													e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+												}
 											}}
 											on:paste={async (e) => {
 												const clipboardData = e.clipboardData || window.clipboardData;

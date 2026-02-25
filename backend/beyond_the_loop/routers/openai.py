@@ -63,7 +63,11 @@ async def _get_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(
             trust_env=True,
             timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
-            connector=aiohttp.TCPConnector(limit=100)  # limits concurrent connections
+            connector=aiohttp.TCPConnector(
+                limit=200,
+                enable_cleanup_closed=True, # proactively detects stale connections
+                ttl_dns_cache=300,  # cache Docker DNS for 5 min
+            )
         )
     return session
 
@@ -301,7 +305,10 @@ async def generate_chat_completion(
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
-        print("Error trimming messages, continuing with the original messages...")
+        log.warning("Error trimming messages, continuing with the original messages...")
+
+    # Extract last user message before serializing
+    last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -309,10 +316,6 @@ async def generate_chat_completion(
     r = None
     streaming = False
     response = None
-
-    # Parse payload once for both streaming and non-streaming cases
-    payload_dict = json.loads(payload)
-    last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
 
     try:
         if not agent_or_task_prompt:
@@ -397,7 +400,7 @@ async def generate_chat_completion(
                                 Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
 
                         except json.JSONDecodeError:
-                            print(f"\n{chunk_str}")
+                            log.debug(f"JSON decode error for chunk: {chunk_str}")
 
                     yield chunk
 
@@ -413,13 +416,13 @@ async def generate_chat_completion(
             try:
                 response = await r.json()
             except Exception as e:
-                print(e)
+                log.error(f"Error parsing JSON response: {e}")
                 response = await r.text()
 
             try:
                 r.raise_for_status()
             except ClientResponseError as e:
-                print(e)
+                log.error(f"HTTP error from LLM backend: {e}")
                 if agent_or_task_prompt:
                     raise e
 
@@ -457,7 +460,7 @@ async def generate_chat_completion(
 
             return response
     except Exception as e:
-        print(e)
+        log.error(f"Error in generate_chat_completion: {e}")
 
         detail = None
         if isinstance(response, dict):

@@ -116,7 +116,17 @@
 			invitees,
 			existingGroupsIds,
 			newGroupNames
-		).catch((error) => toast.error(`${error}`));
+		).catch((error) => {
+			const translated = typeof error === 'string'
+				? error
+					.replace('No invitees provided', $i18n.t('No invitees provided'))
+					.replace('No users were invited. The following emails have issues:', $i18n.t('No users were invited. The following emails have issues:'))
+					.replace(/ is invalid\. /g, ` ${$i18n.t('is invalid.')} `)
+					.replace(/ is already associated with another company\./g, ` ${$i18n.t('is already associated with another company.')}`)
+					.replace(/Please use your business email address\./g, $i18n.t('Please use your business email address.'))
+				: error;
+			toast.error(`${translated}`);
+		});
 		if (res?.success) {
 			toast.success($i18n.t('Invited successfuly'));
 			getUsersHandler();
