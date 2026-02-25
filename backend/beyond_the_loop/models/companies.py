@@ -26,8 +26,6 @@ class Company(Base):
     id = Column(String, primary_key=True, unique=True)
     name = Column(String, nullable=False)
     profile_image_url = Column(Text, nullable=True)
-    default_model = Column(String, nullable=True)
-    allowed_models = Column(Text, nullable=True)
     credit_balance = Column(Float, default=0)
     flex_credit_balance = Column(Float, nullable=True)
     auto_recharge = Column(Boolean, default=False)
@@ -47,8 +45,6 @@ class CompanyModel(BaseModel):
     id: str
     name: str
     profile_image_url: Optional[str] = None
-    default_model: Optional[str] = None
-    allowed_models: Optional[str] = None
     credit_balance: Optional[float] = 0
     flex_credit_balance: Optional[float] = None
     auto_recharge: Optional[bool] = False
