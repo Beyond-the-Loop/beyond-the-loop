@@ -8,12 +8,12 @@ class TopModelItem(BaseModel):
     profile_image_url: Optional[str] = None
 
 class TopModelsResponse(BaseModel):
-    items: List[TopModelItem]
+    top_models: List[TopModelItem]
 
     @classmethod
     def from_query_result(cls, top_models):
         return cls(
-            items=[
+            top_models=[
                 TopModelItem(
                     model=model,
                     credits_used=credits_used,
@@ -34,6 +34,7 @@ class TopUserItem(BaseModel):
     credits_used: float
     message_count: int
     assistant_message_percentage: float
+    engagement_score: float = 0.0
 
     top_model: Optional[str]
     top_assistant: Optional[str]
@@ -42,7 +43,8 @@ class TopUsersResponse(BaseModel):
     top_users: List[TopUserItem]
 
     @classmethod
-    def from_query_result(cls, top_users):
+    def from_query_result(cls, top_users, engagement_scores: dict = None):
+        scores = engagement_scores or {}
         return cls(
             top_users=[
                 TopUserItem(
@@ -56,6 +58,7 @@ class TopUsersResponse(BaseModel):
                     assistant_message_percentage=float(
                         round(assistant_message_percentage or 0, 2)
                     ),
+                    engagement_score=scores.get(user_id, 0.0),
                     top_model=top_model,
                     top_assistant=top_assistant,
                 )

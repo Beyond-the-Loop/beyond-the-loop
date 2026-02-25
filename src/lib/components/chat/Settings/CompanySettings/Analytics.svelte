@@ -96,18 +96,8 @@
 		topUsers: TopUsersResponse | null;
 		totalAssistants: TotalAssistantsResponse | null;
 	};
-	let analytics: AnalyticsState = {
-		topModels: null,
-		topAssistants: null,
-		totalUsers: null,
-		totalMessages: null,
-		engagementRate: null,
-		powerUsers: null,
-		topUsers: null,
-		totalAssistants: null
-	};
 
-	let timeSpan = 28;
+	let analytics: AnalyticsState;
 
 	const options: { value: number; label: string }[] = [
 		{ value: 7, label: 'Last 7 days' },
@@ -202,19 +192,20 @@
 			analyticsLoading = false;
 		}
 	}
+
 	let chartOptions = null;
 
 	$: {
 		if (analytics?.topUsers != null) {
-			rows = top_by_messages(analytics?.topUsers?.top_users);
+			rows = top_by_messages(analytics.topUsers.top_users);
 		}
 		if (analytics?.topModels != null) {
-			modelRows = top_by_messages(analytics?.topModels.items);
+			modelRows = top_by_messages(analytics.topModels.top_models);
 		}
 		if (analytics?.topAssistants != null) {
-			assistantRows = top_by_messages(analytics?.topAssistants.top_assistants);
+			assistantRows = top_by_messages(analytics.topAssistants.top_assistants);
 		}
-		if (analytics?.totalMessages?.monthly_messages != null) {
+		if (analytics?.totalMessages.monthly_messages != null) {
 			chartMessagesData = chart_messages_by_month();
 			chartMessagesDataYearly = chart_messages_by_year();
 		}
@@ -243,7 +234,7 @@
 					grace: '80%'
 				}
 			},
-			barPercentage: Math.min(1.0, 0.1 + 0.18 * analytics?.totalMessages?.monthly_messages?.length),
+			barPercentage: Math.min(1.0, 0.1 + 0.18 * analytics?.totalMessages.monthly_messages.length),
 			responsive: true,
 			plugins: {
 				legend: {
@@ -344,14 +335,12 @@
 
 	function chart_messages_by_month() {
 		return {
-			labels: analytics?.totalMessages?.monthly_messages
-				? getMonths(analytics?.totalMessages?.monthly_messages)
-				: [],
+			labels: getMonths(analytics.totalMessages.monthly_messages),
 			datasets: [
 				{
 					label: 'Total Messages',
 					data: Object.values(
-						analytics?.totalMessages?.monthly_messages?.map((item) => item.message_count) || []
+						analytics.totalMessages.monthly_messages.map((item) => item.message_count) || []
 					),
 					backgroundColor: ['#305BE4'],
 					borderColor: ['#305BE4']
@@ -396,7 +385,7 @@
 			const fullRev = `${last} ${first}`;
 			return first.includes(q) || last.includes(q) || full.includes(q) || fullRev.includes(q);
 		});
-		modelRows = analytics?.topModels.items.filter((u) => {
+		modelRows = analytics?.topModels.top_models.filter((u) => {
 			const q = search
 				.trim()
 				.toLowerCase()
@@ -776,7 +765,7 @@
 													<div class="text-lightGray-100/75 font-medium dark:text-white/60 mb-1">
 														{$i18n.t('Engagement Score')}
 													</div>
-													<div class="text-sm font-semibold flex-grow flex items-center">{row.engagement_score ?? '0'} %</div>
+													<div class="text-sm font-semibold flex-grow flex items-center">{(row.engagement_score ?? 0).toFixed(2)} %</div>
 												</div>
 
 												<div

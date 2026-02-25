@@ -13,7 +13,7 @@ export interface TopModelItem {
 }
 
 export interface TopModelsResponse {
-	items: TopModelItem[];
+	top_models: TopModelItem[];
 }
 
 // --- /analytics/top-users ---
@@ -28,6 +28,7 @@ export interface TopUserItem {
 	credits_used: number;
 	message_count: number;
 	assistant_message_percentage: number;
+	engagement_score: number;
 
 	top_model: string | null;
 	top_assistant: string | null;
