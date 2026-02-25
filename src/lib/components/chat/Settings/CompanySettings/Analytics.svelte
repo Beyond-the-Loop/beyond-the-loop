@@ -65,6 +65,14 @@
 	$: totalCountAssistants = assistantRows?.length;
 	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
 
+	const assistantKey = (r) => r.assistant;
+	$: assistantRankByKey = new Map(  
+		(analytics?.topAssistants?.top_assistants ?? [])    
+			.slice()    
+			.sort((a, b) => b.message_count - a.message_count)  
+			.map((r, i) => [assistantKey(r), i + 1])
+		);
+
 	let expanded = new Set<string>();
 
 	function toggleRow(key: string) {
@@ -112,7 +120,6 @@
 	}
 	function handleTimeSpanChange(next) {
 		selectedTimeSpan = next;
-		analyticsLoading = true;
 		const end = new Date(); // aktuelles Datum
 		const start = addDays(end, -((selectedTimeSpan?.value ?? 28) - 1)); // inkl. heute -> 28 Tage = heute + 27 Tage zurück
 		fetch_data(formatYYYYMMDD(start), formatYYYYMMDD(end));
@@ -276,9 +283,37 @@
 			rows.reverse();
 		}
 	}
+	function toggleModelSort(key: SortKey) {
+		if (sortKey === key) {
+			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortKey = key;
+			sortDir = 'asc';
+		}
+		if (key === 'credits') {
+			modelRows = top_by_credits(modelRows);
+		} else if (key === 'messages') {
+			modelRows = top_by_messages(modelRows);
+		}
+		if (sortDir === 'desc') {
+			modelRows.reverse();
+		}
+	}
+	function toggleAssistantSort(key: SortKey) {
+		if (sortKey === key) {
+			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortKey = key;
+			sortDir = 'asc';
+		}
+		assistantRows = top_by_messages(assistantRows);
+		if (sortDir === 'desc') {
+			assistantRows.reverse();
+		}
+	}
 	function top_by_credits(rowsToSort) {
 		return [...rowsToSort].sort((a, b) => {
-			return b.total_credits_used - a.total_credits_used;
+			return b.credits_used - a.credits_used;
 		});
 	}
 
@@ -391,14 +426,14 @@
 		>
 			<div class="flex flex-col w-full">
 				<div class="text-lg font-semibold">{$i18n.t('Analytics')}</div>
-				<div class="text-xs text-lightGray-100">
+				<div class="text-xs text-lightGray-100 dark:text-customGray-100">
 					{$i18n.t('Understand AI adoption in your organization')}
 				</div>
 			</div>
 		</div>
 		<div class="pb-1">
 			<div class="flex w-full justify-between items-center">
-				<div class="text-2xs text-lightGray-100 dark:text-white font-semibold">
+				<div class="text-2xs text-lightGray-100 dark:text-customGray-100 font-semibold">
 					{$i18n.t('Company overview')}
 				</div>
 			</div>
@@ -575,14 +610,14 @@
 			</div>
 			<Tabs.Content value="users" class="select-none pt-3">
 				<table
-					class="w-full ring-1 ring-lightGray-400 dark:ring-transparent rounded-md bg-lightGray-300 dark:bg-customGray-900 text-xs table-auto"
+					class="w-full ring-1 ring-lightGray-400 dark:ring-transparent rounded-md bg-lightGray-300 dark:bg-customGray-900 text-xs table-fixed"
 				>
 					<thead class="text-lightGray-100/60 dark:text-white/60">
 						<tr>
 							<th class="w-4"></th>
 
 							<th
-								class="p-2 justify-left flex font-medium relative hover:opacity-80 cursor-pointer select-none {sortKey ===
+								class="p-2 font-medium relative hover:opacity-80 cursor-pointer select-none {sortKey ===
 								'user'
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
@@ -595,7 +630,7 @@
 											{#if sortDir === 'asc'}
 												<ChevronDown className="size-3 mt-[2px]" strokeWidth="2.5" />
 											{:else}
-												<ChevronUp className="size-3" strokeWidth="2.5" />
+												<ChevronUp className="size-3 mt-[1px]" strokeWidth="2.5" />
 											{/if}
 										{/if}
 									</div>
@@ -606,43 +641,56 @@
 							</th>
 							{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
 								<th
-									class="p-2 text-right font-medium relative hover:opacity-80 cursor-pointer select-none {sortKey ===
+									class="p-2 w-[100px] md:w-[120px] font-medium hover:opacity-80 cursor-pointer select-none {sortKey ===
 									'credits'
 										? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 										: ''}"
 									on:click={() => toggleSort('credits')}
 								>
-									{$i18n.t('Credits used')}
-
-									<div class="absolute -right-2 top-[10px]">
-										{#if sortKey === 'credits'}
-											{#if sortDir === 'asc'}
-												<ChevronDown className="size-3 mt-[1px]" strokeWidth="2.5" />
-											{:else}
-												<ChevronUp className="size-3" strokeWidth="2.5" />
-											{/if}
-										{/if}
+									<div class="flex flex-col items-end {sortKey ===
+									'credits'
+										? '-mr-2'
+										: ''}">
+										<div class="flex flex-row items-center  gap-1 w-fit">
+										{$i18n.t('Credits used')}
+											<div class="">
+												{#if sortKey === 'credits'}
+													{#if sortDir === 'asc'}
+														<ChevronDown className="size-3 mt-[2px]" strokeWidth="2.5" />
+													{:else}
+														<ChevronUp className="size-3 mt-[1px]" strokeWidth="2.5" />
+													{/if}
+												{/if}
+											</div>
+										</div>
 									</div>
+									
 								</th>
 							{/if}
 
 							<th
-								class="p-2 text-right font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
+								class="p-2 w-[100px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
 								'messages'
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
 								on:click={() => toggleSort('messages')}
 							>
-								{$i18n.t('Messages sent')}
-
-								<div class="absolute right-1 top-[10px]">
-									{#if sortKey === 'messages'}
-										{#if sortDir === 'asc'}
-												<ChevronDown className="size-3 mt-[1px]" strokeWidth="2.5" />
-											{:else}
-												<ChevronUp className="size-3" strokeWidth="2.5" />
+								<div class="flex flex-col items-end {sortKey ===
+									'messages'
+										? '-mr-2'
+										: ''}">
+									<div class="flex flex-row items-center gap-1 w-fit">
+										{$i18n.t('Messages sent')}
+										<div class="">
+											{#if sortKey === 'messages'}
+												{#if sortDir === 'asc'}
+													<ChevronDown className="size-3 mt-[2px]" strokeWidth="2.5" />
+												{:else}
+													<ChevronUp className="size-3 mt-[1px]" strokeWidth="2.5" />
+												{/if}
 											{/if}
-									{/if}
+										</div>
+									</div>
 								</div>
 							</th>
 						</tr>
@@ -689,7 +737,7 @@
 								{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
-										>€{row.total_credits_used.toFixed(2)}</td
+										>€{Math.max(row.credits_used.toFixed(2), 0.01)}</td
 									>
 								{/if}
 								<td
@@ -843,15 +891,63 @@
 			</Tabs.Content>
 			<Tabs.Content value="models" class="select-none pt-3">
 				<table
-					class="w-full ring-1 ring-lightGray-400 dark:ring-transparent rounded-md bg-lightGray-300 dark:bg-customGray-900 text-xs table-auto"
+					class="w-full ring-1 ring-lightGray-400 dark:ring-transparent rounded-md bg-lightGray-300 dark:bg-customGray-900 text-xs table-fixed"
 				>
 					<thead class="text-lightGray-100/60 dark:text-white/60">
 						<tr>
 							<th class="pl-5 p-2 text-left font-medium select-none"> {$i18n.t('Model')} </th>
 							{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
-								<th class="p-2 text-right font-medium relative select-none"> {$i18n.t('Credits used')} </th>
+								<th
+									class="p-2 w-[100px] md:w-[120px] font-medium hover:opacity-80 cursor-pointer select-none {sortKey ===
+									'credits'
+										? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
+										: ''}"
+									on:click={() => toggleModelSort('credits')}
+								>
+									<div class="flex flex-col items-end {sortKey ===
+									'credits'
+										? '-mr-2'
+										: ''}">
+										<div class="flex flex-row items-center  gap-1 w-fit">
+										{$i18n.t('Credits used')}
+											<div class="">
+												{#if sortKey === 'credits'}
+													{#if sortDir === 'asc'}
+														<ChevronDown className="size-3 mt-[2px]" strokeWidth="2.5" />
+													{:else}
+														<ChevronUp className="size-3 mt-[1px]" strokeWidth="2.5" />
+													{/if}
+												{/if}
+											</div>
+										</div>
+									</div>
+								</th>
 							{/if}
-							<th class="p-2 text-right font-medium relative pr-5 select-none"> {$i18n.t('Messages sent')} </th>
+							<th
+								class="p-2 w-[100px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
+								'messages'
+									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
+									: ''}"
+								on:click={() => toggleModelSort('messages')}
+							>
+								<div class="flex flex-col items-end {sortKey ===
+									'messages'
+										? '-mr-2'
+										: ''}">
+									<div class="flex flex-row items-center gap-1 w-fit">
+										{$i18n.t('Messages sent')}
+										<div class="">
+											{#if sortKey === 'messages'}
+												{#if sortDir === 'asc'}
+													<ChevronDown className="size-3 mt-[2px]" strokeWidth="2.5" />
+												{:else}
+													<ChevronUp className="size-3 mt-[1px]" strokeWidth="2.5" />
+												{/if}
+											{/if}
+										</div>
+									</div>
+								</div>
+							</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -874,7 +970,7 @@
 								{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
-										>€{row.credits_used.toFixed(2)}</td
+										>€{Math.max(row.credits_used.toFixed(2), 0.01)}</td
 									>
 								{/if}
 								<td
@@ -966,17 +1062,41 @@
 
 							<th class="p-2 text-left font-medium select-none"> {$i18n.t('Assistant')} </th>
 
-							<th class="p-2 text-right font-medium select-none pr-5"> {$i18n.t('Messages sent')} </th>
+							<th
+								class="p-2 w-[100px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
+								'messages'
+									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
+									: ''}"
+								on:click={() => toggleAssistantSort('messages')}
+							>
+								<div class="flex flex-col items-end {sortKey ===
+									'messages'
+										? '-mr-2'
+										: ''}">
+									<div class="flex flex-row items-center gap-1 w-fit">
+										{$i18n.t('Messages sent')}
+										<div class="">
+											{#if sortKey === 'messages'}
+												{#if sortDir === 'asc'}
+													<ChevronDown className="size-3 mt-[2px]" strokeWidth="2.5" />
+												{:else}
+													<ChevronUp className="size-3 mt-[1px]" strokeWidth="2.5" />
+												{/if}
+											{/if}
+										</div>
+									</div>
+								</div>
+							</th>
 						</tr>
 					</thead>
 					<tbody>
 						{#each pagedAssistantRows as row, index}
+							{@const rank = assistantRankByKey.get(row.assistant) ?? null}
 							<tr class="hover:bg-lightGray-200 dark:hover:bg-customGray-800">
 								<td
 									class="border-t border-1 p-2 border-gray-200/60 dark:border-customGray-700 pl-5"
 								>
-									<!-- (row index) -->
-									{#if index + 1 == 1}
+									{#if rank == 1}
 										<div
 											class="rounded-full bg-blue-700 size-6 font-semibold flex items-center justify-center text-white"
 										>
@@ -986,7 +1106,7 @@
 										<div
 											class="rounded-full bg-lightGray-300 dark:bg-customGray-900 size-6 font-semibold flex items-center justify-center text-lightGray-100/60 dark:text-white/60"
 										>
-											{index + 1}
+											{rank}
 										</div>
 									{/if}
 								</td>
@@ -1093,7 +1213,7 @@
 
 		<div class="border-t-[1px] border-lightGray-400 dark:border-customGray-700 mt-6 pt-1">
 			<div class="flex w-full justify-between items-center">
-				<div class="text-2xs text-lightGray-100 dark:text-white font-semibold">
+				<div class="text-2xs text-lightGray-100 dark:text-customGray-100 font-semibold">
 					{$i18n.t('Usage history')}
 				</div>
 			</div>
@@ -1143,7 +1263,7 @@
 					class="mt-5 bg-lightGray-300 dark:bg-customGray-900 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md"
 				>
 					<div>
-						<div class="text-2xs font-semibold pt-2 px-3">Messages over time</div>
+						<div class="text-2xs font-semibold pt-2 px-3">{$i18n.t('Messages over time')}</div>
 						<div class=" rounded-md px-3">
 							<Chart type="bar" data={chartMessagesData} options={chartOptions} />
 						</div>
@@ -1178,8 +1298,8 @@
 					class="mt-5 bg-lightGray-300 dark:bg-customGray-900 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md"
 				>
 					<div>
-						<div class="text-2xs font-semibold pt-2 px-3">Messages over time</div>
-						<div class=" rounded-md px-3">
+						<div class="text-2xs font-semibold pt-2 px-3">{$i18n.t('Messages over time')}</div>
+						<div class="rounded-md px-3">
 							<Chart
 								type="bar"
 								data={chartMessagesDataYearly}
@@ -1188,7 +1308,8 @@
 									barPercentage: Math.min(
 										1.0,
 										0.1 + 0.18 * (analytics?.totalMessages?.yearly_messages?.length ?? 0)
-									)
+									),
+									transitions: false
 								}}
 							/>
 						</div>

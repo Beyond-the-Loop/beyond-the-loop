@@ -168,7 +168,7 @@ class AnalyticsService:
             top_users = (
                 base_query.with_entities(
                     Completion.user_id,
-                    func.sum(Completion.credits_used).label("total_credits_used"),
+                    func.sum(Completion.credits_used).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
                     (
                             func.sum(case((Completion.assistant.isnot(None), 1), else_=0))
@@ -213,7 +213,7 @@ class AnalyticsService:
             top_assistants = (
                 db.query(
                     Completion.assistant,
-                    func.sum(Completion.credits_used).label("total_credits_used"),
+                    func.sum(Completion.credits_used).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )

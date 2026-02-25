@@ -25,7 +25,7 @@ export interface TopUserItem {
 	email: string | null;
 	profile_image_url: string | null;
 
-	total_credits_used: number;
+	credits_used: number;
 	message_count: number;
 	assistant_message_percentage: number;
 	engagement_score: number;
@@ -41,7 +41,7 @@ export interface TopUsersResponse {
 // --- /analytics/top-assistants ---
 export interface TopAssistantItem {
 	assistant: string;
-	total_credits_used: number;
+	credits_used: number;
 	message_count: number;
 }
 
@@ -100,7 +100,7 @@ export interface PowerUserItem {
 	email: string;
 	profile_image_url: string | null;
 
-	total_credits_used: number; // Backend: float
+	credits_used: number; // Backend: float
 	message_count: number;
 }
 
