@@ -77,7 +77,7 @@ class AnalyticsService:
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                 )
                 .group_by(
                     Completion.model,
@@ -95,17 +95,10 @@ class AnalyticsService:
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                 )
                 .scalar()
             )
-            print(real_count)
-
-        if not top_models:            
-            raise ValueError(                
-                f"No top models found for company {company_id} in the given date range "                
-                f"({start_date} to {end_date})."            
-                )
 
         return TopModelsResponse.from_query_result(top_models)
 
@@ -118,7 +111,7 @@ class AnalyticsService:
                 db.query(Completion)
                 .join(User, User.id == Completion.user_id)
                 .filter(
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     User.company_id == company_id,
@@ -224,12 +217,6 @@ class AnalyticsService:
             top_user_ids = [row.user_id for row in top_users]
             engagement_scores = AnalyticsService._calculate_user_engagement_scores(top_user_ids, db)
 
-            if not top_users:            
-                raise ValueError(                
-                    f"No top users found for company {company_id} in the given date range "                
-                    f"({start_date} to {end_date})."            
-                    )
-
             return TopUsersResponse.from_query_result(top_users, engagement_scores=engagement_scores)
 
     @staticmethod
@@ -253,7 +240,7 @@ class AnalyticsService:
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                 )
                 .group_by(
                     Completion.assistant,
@@ -262,12 +249,6 @@ class AnalyticsService:
                 .order_by(func.sum(Completion.credits_used).desc())
                 .all()
             )
-            if not top_assistants:            
-                raise ValueError(                
-                    f"No top assistants found for company {company_id} in the given date range "                
-                    f"({start_date} to {end_date})."            
-                    )
-
             return TopAssistantsResponse.from_query_result(top_assistants)
 
     @staticmethod
@@ -293,7 +274,7 @@ class AnalyticsService:
                     func.count(Completion.id).label("total_messages")
                 )
                 .filter(
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                     Completion.user_id.in_(company_user_ids),
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt
@@ -311,7 +292,7 @@ class AnalyticsService:
                     func.count(Completion.id).label("total_messages")
                 )
                 .filter(
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                     Completion.user_id.in_(company_user_ids)
                 )
                 .group_by("year")
@@ -368,7 +349,7 @@ class AnalyticsService:
             ).filter(
                 User.company_id == company_id,
                 Completion.created_at >= thirty_days_ago,
-                Completion.from_agent == False,
+                Completion.from_agent.isnot(True),
             ).group_by(
                 User.id, User.first_name, User.last_name, User.email, User.profile_image_url
             ).having(
@@ -462,7 +443,7 @@ class AnalyticsService:
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt,
                     Completion.user_id == user_id,
-                    Completion.from_agent == False,
+                    Completion.from_agent.isnot(True),
                 )
 
                 # Execute the query and fetch results
@@ -589,7 +570,7 @@ class AnalyticsService:
             .filter(
                 Completion.user_id.in_(user_ids),
                 Completion.created_at >= thirty_days_ago,
-                Completion.from_agent == False,
+                Completion.from_agent.isnot(True),
             )
             .group_by(Completion.user_id, 'day')
             .all()
