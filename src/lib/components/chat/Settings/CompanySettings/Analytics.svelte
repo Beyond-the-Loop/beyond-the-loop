@@ -31,6 +31,16 @@
 		TotalAssistantsResponse,
 		TopUserItem
 	} from '$lib/apis/analytics/types';
+	import {
+		EMPTY_TOP_MODELS,
+		EMPTY_TOP_USERS,
+		EMPTY_TOP_ASSISTANTS,
+		EMPTY_TOTAL_USERS,
+		EMPTY_TOTAL_ASSISTANTS,
+		EMPTY_ENGAGEMENT_SCORE,
+		EMPTY_TOTAL_MESSAGES,
+		EMPTY_POWER_USERS
+	} from '$lib/apis/analytics/default';
 	import { getMonthRange } from '$lib/utils';
 	import { onMount } from 'svelte';
 	import ChevronRight from '$lib/components/icons/ChevronRight.svelte';
@@ -59,25 +69,64 @@
 	const { start, end } = getMonthRange(year, month);
 
 	type AnalyticsState = {
-		topModels: TopModelsResponse | null;
+		topModels: TopModelsResponse;
 		topAssistants: TopAssistantsResponse;
-		totalUsers: TotalUsersResponse | null;
+		totalUsers: TotalUsersResponse;
 		totalMessages: TotalMessagesResponse;
-		engagementRate: EngagementScoreResponse | null;
-		powerUsers: PowerUsersResponse | null;
+		engagementRate: EngagementScoreResponse;
+		powerUsers: PowerUsersResponse;
 		topUsers: TopUsersResponse;
-		totalAssistants: TotalAssistantsResponse | null;
+		totalAssistants: TotalAssistantsResponse;
 	};
 
-	let analytics: AnalyticsState;
+	let analytics: AnalyticsState = {
+		topModels: EMPTY_TOP_MODELS,
+		topAssistants: EMPTY_TOP_ASSISTANTS,
+		totalUsers: EMPTY_TOTAL_USERS,
+		totalMessages: EMPTY_TOTAL_MESSAGES,
+		engagementRate: EMPTY_ENGAGEMENT_SCORE,
+		powerUsers: EMPTY_POWER_USERS,
+		topUsers: EMPTY_TOP_USERS,
+		totalAssistants: EMPTY_TOTAL_ASSISTANTS
+	};
 
+	onMount(async () => {
+		handleTimeSpanChange(selectedTimeSpan);
+	});
+	function orDefault<T>(r: PromiseSettledResult<T>, def: T): T {
+		return r.status === 'fulfilled' ? r.value : def;
+	}
+	async function fetch_data(start_date: string, end_date: string) {
+		const res = await Promise.allSettled([
+			getTopModels(token, start, end),
+			getTopAssistants(token, start, end),
+			getTotalUsers(token),
+			getTotalMessages(token),
+			getEngagementScore(token),
+			getPowerUsers(token),
+			getTopUsers(token, start, end),
+			getTotalAssistants(token)
+		]);
+
+		analytics = {
+			topModels: orDefault(res[0], EMPTY_TOP_MODELS),
+			topAssistants: orDefault(res[1], EMPTY_TOP_ASSISTANTS),
+			totalUsers: orDefault(res[2], EMPTY_TOTAL_USERS),
+			totalMessages: orDefault(res[3], EMPTY_TOTAL_MESSAGES),
+			engagementRate: orDefault(res[4], EMPTY_ENGAGEMENT_SCORE),
+			powerUsers: orDefault(res[5], EMPTY_POWER_USERS),
+			topUsers: orDefault(res[6], EMPTY_TOP_USERS),
+			totalAssistants: orDefault(res[7], EMPTY_TOTAL_ASSISTANTS)
+		};
+		analyticsLoading = false;
+	}
 	const options: { value: number; label: string }[] = [
 		{ value: 7, label: 'Last 7 days' },
 		{ value: 28, label: 'Last 4 weeks' },
 		{ value: 365, label: 'Last year' },
 		{ value: 10000, label: 'All time' }
 	];
-	$: localizedOptions = options.map(opt => ({    ...opt,    label: $i18n.t(opt.label),  }));
+	$: localizedOptions = options.map((opt) => ({ ...opt, label: $i18n.t(opt.label) }));
 	$: selectedTimeSpan = localizedOptions.find((i) => i.value === 28);
 	function addDays(date: Date, days: number) {
 		const d = new Date(date);
@@ -92,68 +141,14 @@
 	}
 	function handleTimeSpanChange(next) {
 		selectedTimeSpan = next;
-		const end = new Date(); // aktuelles Datum
-		const start = addDays(end, -((selectedTimeSpan?.value ?? 28) - 1)); // inkl. heute -> 28 Tage = heute + 27 Tage zurück
+		const end = new Date();
+		const start = addDays(end, -((selectedTimeSpan?.value ?? 28) - 1)); 
 		fetch_data(formatYYYYMMDD(start), formatYYYYMMDD(end));
 
 		page = 1;
 	}
 
-	onMount(async () => {
-		// fetch_data('2026-02-01', '2026-02-27');
-		handleTimeSpanChange(selectedTimeSpan);
-	});
-	async function fetch_data(start_date: string, end_date: string) {
-		try {
-			const [
-				topModels,
-				topAssistants,
-				totalUsers,
-				totalMessages,
-				engagementRate,
-				powerUsers,
-				topUsers,
-				totalAssistants
-			] = await Promise.allSettled([
-				getTopModels(token, start_date, end_date),
-				getTopAssistants(token, start_date, end_date),
-				getTotalUsers(token),
-				getTotalMessages(token),
-				getEngagementScore(token),
-				getPowerUsers(token),
-				getTopUsers(token, start_date, end_date),
-				getTotalAssistants(token)
-			]);
-
-			analytics = {
-				topModels:
-					topModels?.status === 'fulfilled' && !topModels?.value?.message ? topModels?.value : [],
-				topAssistants: topAssistants?.status === 'fulfilled' ? topAssistants?.value : {},
-				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
-				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-				engagementRate: engagementRate?.status === 'fulfilled' ? engagementRate?.value : {},
-				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
-				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
-				totalAssistants: totalAssistants?.status === 'fulfilled' ? totalAssistants?.value : {}
-			};
-		} catch (error) {
-			console.error('Error fetching analytics:', error);
-		} finally {
-			analyticsLoading = false;
-		}
-	}
-
-	let chartOptions = null;
-
-	$: {
-		if(analytics != null)
-		{
-			rows = top_by_messages(analytics.topUsers.top_users);
-			modelRows = top_by_messages(analytics.topModels.top_models);
-			assistantRows = top_by_messages(analytics.topAssistants.top_assistants);
-			chartMessagesData = chart_messages_by_month();
-			chartMessagesDataYearly = chart_messages_by_year();
-			chartOptions = {
+	let chartOptions = {
 				scales: {
 					x: {
 						grid: {
@@ -178,7 +173,6 @@
 						grace: '80%'
 					}
 				},
-				barPercentage: Math.min(1.0, 0.1 + 0.18 * analytics.totalMessages.monthly_messages.length),
 				responsive: true,
 				plugins: {
 					legend: {
@@ -189,6 +183,15 @@
 					}
 				}
 			};
+
+	$: {
+		if (analytics != null) {
+			rows = top_by_messages(analytics.topUsers.top_users);
+			modelRows = top_by_messages(analytics.topModels.top_models);
+			assistantRows = top_by_messages(analytics.topAssistants.top_assistants);
+			chartMessagesData = chart_messages_by_month();
+			chartMessagesDataYearly = chart_messages_by_year();
+								
 		}
 	}
 
@@ -209,12 +212,12 @@
 	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
 
 	const assistantKey = (r) => r.assistant;
-	$: assistantRankByKey = new Map(  
-		(analytics?.topAssistants.top_assistants ?? [])    
-			.slice()    
-			.sort((a, b) => b.message_count - a.message_count)  
+	$: assistantRankByKey = new Map(
+		(analytics?.topAssistants.top_assistants ?? [])
+			.slice()
+			.sort((a, b) => b.message_count - a.message_count)
 			.map((r, i) => [assistantKey(r), i + 1])
-		);
+	);
 
 	let expandedRows = new Set<string>();
 
@@ -227,7 +230,6 @@
 	$: if (activeTab) {
 		page = 1; // Reset Pagination after Tab switch
 	}
-	
 
 	type SortKey = 'user' | 'credits' | 'messages';
 	type SortDir = 'asc' | 'desc';
@@ -413,7 +415,7 @@
 				<div class="flex flex-row w-full justify-between">
 					<UsersIcon className="size-5 text-white p-1 rounded-md bg-blue-700" />
 					<Tooltip content={$i18n.t('The total number of users.')}>
-						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100">
+						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100 dark:text-customGray-100">
 							<Info className="size-3" />
 						</div>
 					</Tooltip>
@@ -436,10 +438,10 @@
 
 					<Tooltip
 						content={$i18n.t(
-							'Measures the quality of user activity by evaluating daily interaction (logarithmically scaled) over 30 days and rewarding consistency.'
+							'Average daily user activity over the past 30 days (logarithmically scaled).'
 						)}
 					>
-						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100">
+						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100 dark:text-customGray-100">
 							<Info className="size-3" />
 						</div>
 					</Tooltip>
@@ -460,7 +462,7 @@
 				<div class="flex flex-row w-full justify-between">
 					<LightningIcon className="bg-blue-700 size-5 rounded-md text-white p-1" />
 					<Tooltip content={$i18n.t('Users who sent 400 or more messages in the last month.')}>
-						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100">
+						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100 dark:text-customGray-100">
 							<Info className="size-3" />
 						</div>
 					</Tooltip>
@@ -482,7 +484,7 @@
 					<AssistantsIcon className="bg-blue-700 size-5 rounded-md text-white p-1" />
 					<Tooltip content={$i18n.t('The number of assistants created within the company.')}>
 						<!-- zB offset={[0, -48]} mitgeben -->
-						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100">
+						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100 dark:text-customGray-100">
 							<Info className="size-3" />
 						</div>
 					</Tooltip>
@@ -571,7 +573,7 @@
 					<input
 						type="text"
 						class=" px-2 pl-8 py-[6px] flex-1 placeholder-lightGray-100/75 dark:placeholder-white/75 rounded-md dark:bg-transparent"
-						placeholder={$i18n.t('Search ' + activeTab + '...' )}
+						placeholder={$i18n.t('Search ' + activeTab + '...')}
 						on:input={(e) => searchFor(e.target.value)}
 					/>
 				</div>
@@ -590,7 +592,7 @@
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
 								on:click={() => toggleUserSort('user')}
-							>	
+							>
 								<div class="flex flex-row items-center gap-1 w-fit">
 									{$i18n.t('User')}
 									<div class="">
@@ -603,9 +605,6 @@
 										{/if}
 									</div>
 								</div>
-								
-
-								
 							</th>
 							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
 								<th
@@ -615,12 +614,9 @@
 										: ''}"
 									on:click={() => toggleUserSort('credits')}
 								>
-									<div class="flex flex-col items-end {sortKey ===
-									'credits'
-										? '-mr-2'
-										: ''}">
-										<div class="flex flex-row items-center  gap-1 w-fit">
-										{$i18n.t('Credits used')}
+									<div class="flex flex-col items-end {sortKey === 'credits' ? '-mr-2' : ''}">
+										<div class="flex flex-row items-center gap-1 w-fit">
+											{$i18n.t('Credits used')}
 											<div class="">
 												{#if sortKey === 'credits'}
 													{#if sortDir === 'asc'}
@@ -632,7 +628,6 @@
 											</div>
 										</div>
 									</div>
-									
 								</th>
 							{/if}
 
@@ -643,10 +638,7 @@
 									: ''}"
 								on:click={() => toggleUserSort('messages')}
 							>
-								<div class="flex flex-col items-end {sortKey ===
-									'messages'
-										? '-mr-2'
-										: ''}">
+								<div class="flex flex-col items-end {sortKey === 'messages' ? '-mr-2' : ''}">
 									<div class="flex flex-row items-center gap-1 w-fit">
 										{$i18n.t('Messages sent')}
 										<div class="">
@@ -721,24 +713,20 @@
 											: 3}
 										class="pr-2"
 									>
-										<div
-											class="rounded-md  overflow-hidden ml-auto w-[90%]"
-										>
-											<div
-												class="grid grid-cols-1 md:grid-cols-3 text-xs dark:bg-transparent"
-											>
+										<div class="rounded-md overflow-hidden ml-auto w-[90%]">
+											<div class="grid grid-cols-1 md:grid-cols-3 text-xs dark:bg-transparent">
 												<div
-													class="p-3 dark:bg-gray-950/20 flex flex-col  border-lightGray-400 dark:border-customGray-700"
+													class="p-3 dark:bg-gray-950/20 flex flex-col border-lightGray-400 dark:border-customGray-700"
 												>
 													<div class="text-lightGray-100/75 font-medium dark:text-white/60 mb-1">
 														{$i18n.t('Engagement Score')}
 													</div>
-													<div class="text-sm font-semibold flex-grow flex items-center">{(row.engagement_score ?? 0).toFixed(2)} %</div>
+													<div class="text-sm font-semibold flex-grow flex items-center">
+														{(row.engagement_score ?? 0).toFixed(2)} %
+													</div>
 												</div>
 
-												<div
-													class="p-3  border-lightGray-400 dark:border-customGray-700"
-												>
+												<div class="p-3 border-lightGray-400 dark:border-customGray-700">
 													<div class="text-lightGray-100/75 font-medium dark:text-white/60 mb-2">
 														{$i18n.t('Top assistant')}
 													</div>
@@ -761,7 +749,9 @@
 												</div>
 
 												<div class="p-3 flex flex-col">
-													<div class="text-lightGray-100/75 font-medium dark:text-white/60 mb-2">{$i18n.t('Top model')}</div>
+													<div class="text-lightGray-100/75 font-medium dark:text-white/60 mb-2">
+														{$i18n.t('Top model')}
+													</div>
 													<div class="flex items-center gap-2 flex-grow">
 														{#if row.top_model}
 															<img
@@ -782,10 +772,10 @@
 					</tbody>
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60 dark:border-customGray-700">
-							<td colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium'
-											? 4
-											: 3} class="p-2 pl-5">
-							
+							<td
+								colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' ? 4 : 3}
+								class="p-2 pl-5"
+							>
 								<div class="flex flex-row justify-between items-center">
 									<div class="flex flex-row items-center">
 										<div class="text-lightGray-100/75 dark:text-white/75 pr-2 text-2xs">
@@ -872,12 +862,9 @@
 										: ''}"
 									on:click={() => toggleModelSort('credits')}
 								>
-									<div class="flex flex-col items-end {sortKey ===
-									'credits'
-										? '-mr-2'
-										: ''}">
-										<div class="flex flex-row items-center  gap-1 w-fit">
-										{$i18n.t('Credits used')}
+									<div class="flex flex-col items-end {sortKey === 'credits' ? '-mr-2' : ''}">
+										<div class="flex flex-row items-center gap-1 w-fit">
+											{$i18n.t('Credits used')}
 											<div class="">
 												{#if sortKey === 'credits'}
 													{#if sortDir === 'asc'}
@@ -898,10 +885,7 @@
 									: ''}"
 								on:click={() => toggleModelSort('messages')}
 							>
-								<div class="flex flex-col items-end {sortKey ===
-									'messages'
-										? '-mr-2'
-										: ''}">
+								<div class="flex flex-col items-end {sortKey === 'messages' ? '-mr-2' : ''}">
 									<div class="flex flex-row items-center gap-1 w-fit">
 										{$i18n.t('Messages sent')}
 										<div class="">
@@ -950,9 +934,10 @@
 					</tbody>
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60 dark:border-customGray-700">
-							<td colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium'
-											? 3
-											: 2} class="p-2 pl-5">
+							<td
+								colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' ? 3 : 2}
+								class="p-2 pl-5"
+							>
 								<div class="flex flex-row justify-between items-center">
 									<div class="flex flex-row items-center">
 										<div class="text-lightGray-100/75 dark:text-white/75 pr-2 text-2xs">
@@ -1037,10 +1022,7 @@
 									: ''}"
 								on:click={() => toggleAssistantSort('messages')}
 							>
-								<div class="flex flex-col items-end {sortKey ===
-									'messages'
-										? '-mr-2'
-										: ''}">
+								<div class="flex flex-col items-end {sortKey === 'messages' ? '-mr-2' : ''}">
 									<div class="flex flex-row items-center gap-1 w-fit">
 										{$i18n.t('Messages sent')}
 										<div class="">
@@ -1207,7 +1189,8 @@
 				<div
 					class=" relative w-full bg-lightGray-300 dark:bg-customGray-900 flex flex-col justify-start gap-1 p-2 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md"
 				>
-					{$i18n.t('This month')} {#if analytics.totalMessages.monthly_messages.length > 1}
+					{$i18n.t('This month')}
+					{#if analytics.totalMessages.monthly_messages.length > 1}
 						vs. {$i18n.t('last month')}{/if}
 					<div class="text-lg font-semibold">
 						{analytics.totalMessages.monthly_messages.at(-1).message_count || 0}
@@ -1233,7 +1216,14 @@
 					<div>
 						<div class="text-2xs font-semibold pt-2 px-3">{$i18n.t('Messages over time')}</div>
 						<div class=" rounded-md px-3">
-							<Chart type="bar" data={chartMessagesData} options={chartOptions} />
+							<Chart type="bar" data={chartMessagesData} options={{
+									...chartOptions,
+									barPercentage: Math.min(
+										1.0,
+										0.1 + 0.18 * (analytics.totalMessages.monthly_messages?.length ?? 0)
+									),
+									transitions: false
+								}} />
 						</div>
 					</div>
 				</div>
@@ -1242,7 +1232,8 @@
 				<div
 					class=" relative w-full bg-lightGray-300 dark:bg-customGray-900 flex flex-col justify-start gap-1 p-2 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md"
 				>
-					{$i18n.t('This year')} {#if analytics.totalMessages.yearly_messages.length > 1}
+					{$i18n.t('This year')}
+					{#if analytics.totalMessages.yearly_messages.length > 1}
 						vs. {$i18n.t('last year')}{/if}
 					<div class="text-lg font-semibold">
 						{analytics.totalMessages.yearly_messages.at(-1).message_count || 0}
