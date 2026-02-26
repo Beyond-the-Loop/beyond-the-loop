@@ -330,7 +330,7 @@
 				</div>
 			{/if}
 
-			<div class="px-[3px] my-2 max-h-[234px] overflow-y-auto custom-scrollbar">
+			<div class="px-[3px] my-2 max-h-[234px] overflow-y-auto">
 				{#each filteredItems as item, index}
 					<button
 						aria-label="model-item"
