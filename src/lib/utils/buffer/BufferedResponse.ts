@@ -45,11 +45,11 @@ export class BufferedResponse {
             return;
         }
 
-        const charPerUpdate = Math.max(0.5, 0.5 + 8*0.015 * (this.buffer.length));
-        const rate = charPerUpdate / 8;
+        const charPerUpdate = Math.max(0.5, 0.5 + 4*0.015 * (this.buffer.length));
+        const rate = charPerUpdate / 32;
         const n = Math.round(charPerUpdate + 0.49);
         const t = n / rate;
-        const msUntilUpdate = Math.max(64, Math.min(128, Math.round(t)));
+        const msUntilUpdate = Math.max(32, Math.min(64, Math.round(t)));
 
         for (let i = 0; i < charPerUpdate && this.buffer.length > 0; i++) {
             this.message.content += this.buffer[0];
