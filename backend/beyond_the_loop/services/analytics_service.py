@@ -65,12 +65,12 @@ class AnalyticsService:
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
-                .outerjoin(    
-                    Model,    
-                    and_(        
-                        Completion.model == Model.name,        
-                        Model.company_id == company_id,    
-                    ),
+                .outerjoin(        
+                    Model,        
+                    and_(            
+                        Completion.model == Model.name,            
+                        Model.company_id == company_id,   
+                    ),    
                 )
                 .filter(
                     Completion.assistant == None,
@@ -88,6 +88,24 @@ class AnalyticsService:
                 )
                 .all()
             )
+            real_count = (
+                db.query(func.count(Completion.id))
+                .filter(
+                    Completion.assistant == None,
+                    Completion.created_at >= int(start_date_dt.timestamp()),
+                    Completion.created_at <= int(end_date_dt.timestamp()),
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.from_agent == False,
+                )
+                .scalar()
+            )
+            print(real_count)
+
+        if not top_models:            
+            raise ValueError(                
+                f"No top models found for company {company_id} in the given date range "                
+                f"({start_date} to {end_date})."            
+                )
 
         return TopModelsResponse.from_query_result(top_models)
 
@@ -206,6 +224,12 @@ class AnalyticsService:
             top_user_ids = [row.user_id for row in top_users]
             engagement_scores = AnalyticsService._calculate_user_engagement_scores(top_user_ids, db)
 
+            if not top_users:            
+                raise ValueError(                
+                    f"No top users found for company {company_id} in the given date range "                
+                    f"({start_date} to {end_date})."            
+                    )
+
             return TopUsersResponse.from_query_result(top_users, engagement_scores=engagement_scores)
 
     @staticmethod
@@ -238,6 +262,11 @@ class AnalyticsService:
                 .order_by(func.sum(Completion.credits_used).desc())
                 .all()
             )
+            if not top_assistants:            
+                raise ValueError(                
+                    f"No top assistants found for company {company_id} in the given date range "                
+                    f"({start_date} to {end_date})."            
+                    )
 
             return TopAssistantsResponse.from_query_result(top_assistants)
 

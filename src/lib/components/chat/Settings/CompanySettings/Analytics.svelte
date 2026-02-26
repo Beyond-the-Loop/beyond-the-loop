@@ -103,28 +103,35 @@
 		return r.status === 'fulfilled' ? r.value : def;
 	}
 	async function fetch_data(start_date: string, end_date: string) {
-		const res = await Promise.allSettled([
-			getTopModels(token, start, end),
-			getTopAssistants(token, start, end),
+		try{
+			const res = await Promise.allSettled([
+			getTopModels(token, start_date, end),
+			getTopAssistants(token, start_date, end),
 			getTotalUsers(token),
 			getTotalMessages(token),
 			getEngagementScore(token),
 			getPowerUsers(token),
-			getTopUsers(token, start, end),
+			getTopUsers(token, start_date, end_date),
 			getTotalAssistants(token)
-		]);
+			]);
 
-		analytics = {
-			topModels: orDefault(res[0], EMPTY_TOP_MODELS),
-			topAssistants: orDefault(res[1], EMPTY_TOP_ASSISTANTS),
-			totalUsers: orDefault(res[2], EMPTY_TOTAL_USERS),
-			totalMessages: orDefault(res[3], EMPTY_TOTAL_MESSAGES),
-			engagementRate: orDefault(res[4], EMPTY_ENGAGEMENT_SCORE),
-			powerUsers: orDefault(res[5], EMPTY_POWER_USERS),
-			topUsers: orDefault(res[6], EMPTY_TOP_USERS),
-			totalAssistants: orDefault(res[7], EMPTY_TOTAL_ASSISTANTS)
-		};
-		analyticsLoading = false;
+			analytics = {
+				topModels: orDefault(res[0], EMPTY_TOP_MODELS),
+				topAssistants: orDefault(res[1], EMPTY_TOP_ASSISTANTS),
+				totalUsers: orDefault(res[2], EMPTY_TOTAL_USERS),
+				totalMessages: orDefault(res[3], EMPTY_TOTAL_MESSAGES),
+				engagementRate: orDefault(res[4], EMPTY_ENGAGEMENT_SCORE),
+				powerUsers: orDefault(res[5], EMPTY_POWER_USERS),
+				topUsers: orDefault(res[6], EMPTY_TOP_USERS),
+				totalAssistants: orDefault(res[7], EMPTY_TOTAL_ASSISTANTS)
+			};
+			analyticsLoading = false;
+		} catch(error)
+		{
+			console.error("Failed to fetch analytics:", error);
+		}
+		
+		
 	}
 	const options: { value: number; label: string }[] = [
 		{ value: 7, label: 'Last 7 days' },
@@ -814,30 +821,31 @@
 											>
 												<ChevronLeft className="size-3" strokeWidth="2.5" />
 											</Pagination.PrevButton>
-
-											<div class="flex items-center gap-2">
-												{#each pages as p (p.key)}
-													{#if p.type === 'ellipsis'}
-														<span class="px-2 text-lightGray-100/75 dark:text-white/75 select-none"
-															>…</span
-														>
-													{:else}
-														<Pagination.Page
-															page={p}
-															class="page inline-flex text-lightGray-100/75 dark:text-white/75 size-6 font-semibold items-center justify-center rounded-md text-xs
-													data-[selected]:bg-blue-500 data-selected:text-white"
-														>
-															<style>
-																.page[data-selected] {
-																	background: #1d4ed8; /* blue-700 */
-																	color: white;
-																}
-															</style>
-															{p.value}
-														</Pagination.Page>
-													{/if}
-												{/each}
-											</div>
+											{#if totalCount > 0}
+												<div class="flex items-center gap-2">
+													{#each pages as p (p.key)}
+														{#if p.type === 'ellipsis'}
+															<span class="px-2 text-lightGray-100/75 dark:text-white/75 select-none"
+																>…</span
+															>
+														{:else}
+															<Pagination.Page
+																page={p}
+																class="page inline-flex text-lightGray-100/75 dark:text-white/75 size-6 font-semibold items-center justify-center rounded-md text-xs
+														data-[selected]:bg-blue-500 data-selected:text-white"
+															>
+																<style>
+																	.page[data-selected] {
+																		background: #1d4ed8; /* blue-700 */
+																		color: white;
+																	}
+																</style>
+																{p.value}
+															</Pagination.Page>
+														{/if}
+													{/each}
+												</div>
+											{/if}
 
 											<Pagination.NextButton
 												class="inline-flex size-6 items-center justify-center rounded-md ring-1 ring-lightGray-400 dark:ring-transparent  bg-white dark:bg-gray-900 disabled:opacity-50"
@@ -972,30 +980,31 @@
 											>
 												<ChevronLeft className="size-3" strokeWidth="2.5" />
 											</Pagination.PrevButton>
-
-											<div class="flex items-center gap-2">
-												{#each pages as p (p.key)}
-													{#if p.type === 'ellipsis'}
-														<span class="px-2 text-lightGray-100/75 dark:text-white/75 select-none"
-															>…</span
-														>
-													{:else}
-														<Pagination.Page
-															page={p}
-															class="page inline-flex text-lightGray-100/75 dark:text-white/75 size-6 font-semibold items-center justify-center rounded-md text-xs
-													data-[selected]:bg-blue-500 data-selected:text-white"
-														>
-															<style>
-																.page[data-selected] {
-																	background: #1d4ed8; /* blue-700 */
-																	color: white;
-																}
-															</style>
-															{p.value}
-														</Pagination.Page>
-													{/if}
-												{/each}
-											</div>
+											{#if totalCountModels > 0}
+												<div class="flex items-center gap-2">
+													{#each pages as p (p.key)}
+														{#if p.type === 'ellipsis'}
+															<span class="px-2 text-lightGray-100/75 dark:text-white/75 select-none"
+																>…</span
+															>
+														{:else}
+															<Pagination.Page
+																page={p}
+																class="page inline-flex text-lightGray-100/75 dark:text-white/75 size-6 font-semibold items-center justify-center rounded-md text-xs
+														data-[selected]:bg-blue-500 data-selected:text-white"
+															>
+																<style>
+																	.page[data-selected] {
+																		background: #1d4ed8; /* blue-700 */
+																		color: white;
+																	}
+																</style>
+																{p.value}
+															</Pagination.Page>
+														{/if}
+													{/each}
+												</div>
+											{/if}
 
 											<Pagination.NextButton
 												class="inline-flex size-6 items-center justify-center rounded-md ring-1 ring-lightGray-400 dark:ring-transparent  bg-white dark:bg-gray-900 disabled:opacity-50"
