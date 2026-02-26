@@ -74,7 +74,7 @@
 		},
 		{
 			id: 'analytics',
-			title: 'Analitics',
+			title: 'Analytics',
 			keywords: [
 
 			]

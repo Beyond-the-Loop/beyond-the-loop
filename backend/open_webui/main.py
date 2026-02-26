@@ -667,7 +667,7 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
                     user, response, request.get("model")
                 )
-                Completions.insert_new_completion(user.id, "OPENAI API", request.get("model"), credit_cost, 0)
+                Completions.insert_new_completion(user.id, request.get("model"), credit_cost, None, False)
             except Exception as err:
                 log.error("Error in chat completions public endpoint LiteLLM credit service: %s", err)
 

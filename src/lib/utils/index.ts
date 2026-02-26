@@ -379,7 +379,7 @@ function stripDetailsBlocks(input: string): string {
 		}
 		const next = nextOpen && nextClose ? (nextOpen.idx < nextClose.idx ? {
 			type: 'open', ...nextOpen
-		} : { type: 'close', ...nextClose }) : (nextOpen ? { type: 'open', ...nextOpen } : { type: 'close', ...nextClose! });        // Text vor dem nächsten Tag nur anhängen, wenn wir außerhalb sind        
+		} : { type: 'close', ...nextClose }) : (nextOpen ? { type: 'open', ...nextOpen } : { type: 'close', ...nextClose! });        // Text vor dem nächsten Tag nur anhängen, wenn wir außerhalb sind
 		if (depth === 0) out += input.slice(i, next.idx);
 		if (next.type === 'open') depth++;
 		else depth = Math.max(0, depth - 1);
@@ -403,8 +403,8 @@ export const copyToClipboardResponse = async (text: string, sources) => {
 			const blobHtml = new Blob([html], { type: 'text/html' });
 
 			const clipboardItem = new ClipboardItem({
-				"text/plain": blobPlain,
-				"text/html": blobHtml,
+				'text/plain': blobPlain,
+				'text/html': blobHtml
 			});
 
 			await navigator.clipboard.write([clipboardItem]);
@@ -438,9 +438,11 @@ export const copyToClipboardResponse = async (text: string, sources) => {
 	return result;
 };
 
-
 function getTextFromTokens(tokens) {
-	return tokens.map(t => t.raw ?? t.text ?? '').join(' ').trim();
+	return tokens
+		.map((t) => t.raw ?? t.text ?? '')
+		.join(' ')
+		.trim();
 }
 
 function generateMarkdownTable(token) {
@@ -1290,20 +1292,16 @@ export function getModelIcon(label: string): string {
 	}
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const getMonths = (data) => {
-	const values = [];
-	const keys = Object.keys(data);
-	const start = Number(keys?.[0]?.split('-')?.[1]) - 1;
-	const count = Object.keys(data)?.length + start;
+	if (!data || !Array.isArray(data)) return [];
 
-	for (let i = start; i < count; ++i) {
-		const value = MONTHS[Math.ceil(i) % 12];
-		values.push(value);
-	}
-	return values;
-}
+	return data.map((item) => {
+		const [year, month] = item.period.split('-');
+		return MONTHS[parseInt(month) - 1];
+	});
+};
 
 export function getMonthRange(year: number, month: number) {
 	const start = dayjs(`${year}-${month.toString().padStart(2, '0')}-01`);
@@ -1311,9 +1309,7 @@ export function getMonthRange(year: number, month: number) {
 
 	const isCurrentMonth = now.year() === year && now.month() === month - 1;
 
-	const end = isCurrentMonth
-		? now
-		: start.endOf('month');
+	const end = isCurrentMonth ? now : start.endOf('month');
 
 	return {
 		start: start.format('YYYY-MM-DD'),
@@ -1352,16 +1348,41 @@ export const emojiToBase64 = (emoji) => {
 	return emoji;
 };
 
-export const tagColorsLight = ['#D6F1D9', '#DCFFCA', '#D1FCE4', '#FDF2C8', '#FDE3C8', '#F5FDC8', '#E4ECFD', '#CFF6F2', '#CFEBF6', '#E4CFF6', '#F6CFEB', '#F6CFD8'];
-export const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14', '#556111', '#112550', '#12595A', '#114558', '#340E56', '#4D123D', '#591626'];
-
+export const tagColorsLight = [
+	'#D6F1D9',
+	'#DCFFCA',
+	'#D1FCE4',
+	'#FDF2C8',
+	'#FDE3C8',
+	'#F5FDC8',
+	'#E4ECFD',
+	'#CFF6F2',
+	'#CFEBF6',
+	'#E4CFF6',
+	'#F6CFEB',
+	'#F6CFD8'
+];
+export const tagColors = [
+	'#115A1A',
+	'#32472D',
+	'#476956',
+	'#5D4D0D',
+	'#633B14',
+	'#556111',
+	'#112550',
+	'#12595A',
+	'#114558',
+	'#340E56',
+	'#4D123D',
+	'#591626'
+];
 
 export function extractUrlFromSourceObj(obj) {
 	// Try priority order: source.name (if URL), first document, metadata[0].source
 	const candidates = [
 		obj?.source?.name,
 		Array.isArray(obj?.document) ? obj.document[0] : null,
-		Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null,
+		Array.isArray(obj?.metadata) ? obj.metadata[0]?.source : null
 	].filter(Boolean);
 
 	const first = candidates.find((v) => typeof v === 'string');

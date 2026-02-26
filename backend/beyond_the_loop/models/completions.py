@@ -1,7 +1,8 @@
 import logging
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
-from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float
+
+from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float, Boolean
 
 import uuid
 import time
@@ -19,35 +20,35 @@ class Completion(Base):
 
     id = Column(String, primary_key=True, unique=True)
     user_id = Column(String, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    chat_id = Column(String, nullable=True)
     model = Column(Text)
     credits_used = Column(Float)
     created_at = Column(BigInteger)
-    time_saved_in_seconds = Column(Float)
+    assistant = Column(Text)
+    from_agent = Column(Boolean, default=False)
 
 class CompletionModel(BaseModel):
     id: str
-    user_id: Optional[str]
-    chat_id: Optional[str]
+    user_id: str
     model: str
     credits_used: float
     created_at: int  # timestamp in epoch
-    time_saved_in_seconds: float
+    assistant: Optional[str]
+    from_agent: Optional[bool]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, chat_id: str, model: str, credits_used: float, time_saved_in_seconds: float) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent) -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
-                "chat_id": chat_id,
                 "created_at": int(time.time()),
                 "model": model,
                 "credits_used": credits_used,
-                "time_saved_in_seconds": time_saved_in_seconds
+                "assistant": assistant,
+                "from_agent": from_agent
             }
         )
 
