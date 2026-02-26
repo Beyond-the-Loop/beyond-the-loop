@@ -797,19 +797,14 @@
 								{/if}
 
 								{#if message?.error}
-									<!-- {#if message?.error?.content?.includes('402: Insufficient credits')}
-										
-										<CustomChatError content={message?.error?.content ?? message.content}/>
-									{:else} -->
 										<Error content={message?.error?.content ?? message.content} />
-									<!-- {/if}	 -->
 								{/if}
 
 								{#if (message?.sources || message?.citations) && (model?.info?.meta?.capabilities?.citations ?? true)}
 									<Citations sources={message?.sources ?? message?.citations} />
 								{/if}
 
-								{#if message.code_executions}
+								{#if message.code_executions}+
 									<CodeExecutions codeExecutions={message.code_executions} />
 								{/if}
 							</div>

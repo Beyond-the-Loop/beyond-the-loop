@@ -1402,6 +1402,8 @@ async def process_chat_response(
 
                     response_tool_calls = []
 
+                    generating_response = True
+
                     async for line in response.body_iterator:
                         line = line.decode("utf-8") if isinstance(line, bytes) else line
                         data = line
@@ -1419,6 +1421,19 @@ async def process_chat_response(
 
                         try:
                             data = json.loads(data)
+
+                            if data.get("id") and generating_response:
+                                await event_emitter(
+                                    {
+                                        "type": "status",
+                                        "data": {
+                                            "action": "generating_response",
+                                            "done": True,
+                                        },
+                                    }
+                                )
+
+                                generating_response = False
 
                             if "citations" in data:
                                 nonlocal sources

@@ -217,8 +217,6 @@
 			await tick();
 			let message = history.messages[event.message_id];
 
-			console.log('NEW CHAT EVENT AND MESSAGE LOADED', event, message);
-
 			if (message) {
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
@@ -256,10 +254,6 @@
 						}
 					}
 				} else if (type === 'chat:completion') {
-					message.statusHistory.push({
-						action: 'generating_response',
-						done: true
-					});
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
@@ -329,9 +323,11 @@
 					console.log('Unknown message type', data);
 				}
 
-				console.log('CHAT EVENT HANDLER MESSAGE RESULT', message);
-
 				history.messages[event.message_id] = message;
+
+				if (autoScroll && type !== 'chat:completion') {
+					scrollToBottom();
+				}
 			}
 		}
 	};
@@ -1154,14 +1150,11 @@
 		history.messages[message.id] = message;
 
 		if (done) {
-			console.log('DONE MESSAGE', message);
 			bufferedResponse?.stop();
 			bufferedResponse = null;
 
 			message.done = true;
 			message.content = content;
-
-			console.log('DONE MESSAGE AFTER FINAL CONTENT UPDATE', message);
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);

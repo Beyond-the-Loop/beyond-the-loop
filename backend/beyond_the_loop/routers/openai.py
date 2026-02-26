@@ -364,17 +364,6 @@ async def generate_chat_completion(
             },
         )
 
-        if not agent_or_task_prompt:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "generating_response",
-                        "done": True,
-                    },
-                }
-            )
-
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
