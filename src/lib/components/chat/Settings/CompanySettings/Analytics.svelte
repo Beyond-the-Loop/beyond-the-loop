@@ -29,7 +29,13 @@
 		PowerUsersResponse,
 		TopUsersResponse,
 		TotalAssistantsResponse,
-		TopUserItem
+		TopUserItem,
+
+		TopAssistantItem,
+
+		TopModelItem
+
+
 	} from '$lib/apis/analytics/types';
 	import {
 		EMPTY_TOP_MODELS,
@@ -197,9 +203,9 @@
 
 	let page = 1;
 	let rowsPerPage = 5;
-	let rows = null;
-	let assistantRows = null;
-	let modelRows = null;
+	let rows: TopUserItem[] = analytics.topModels.top_models;
+	let assistantRows: TopAssistantItem[] = analytics.topAssistants.top_assistants;
+	let modelRows: TopModelItem[] = analytics.topModels.top_models;
 
 	$: totalCount = rows?.length;
 	$: startRow = (page - 1) * rowsPerPage;
@@ -294,7 +300,7 @@
 		});
 	}
 
-	function top_alphabetically(rowsToSort) {
+	function top_alphabetically(rowsToSort: TopUserItem[]) {
 		return [...rowsToSort].sort((a, b) => {
 			const lastNameCompare = a.last_name.localeCompare(b.last_name);
 			if (lastNameCompare !== 0) {
@@ -483,7 +489,6 @@
 				<div class="flex flex-row w-full justify-between">
 					<AssistantsIcon className="bg-blue-700 size-5 rounded-md text-white p-1" />
 					<Tooltip content={$i18n.t('The number of assistants created within the company.')}>
-						<!-- zB offset={[0, -48]} mitgeben -->
 						<div class="cursor-pointer w-[12px] h-[12px] rounded-full text-lightGray-100 dark:text-customGray-100">
 							<Info className="size-3" />
 						</div>
@@ -661,7 +666,7 @@
 							<tr
 								class="hover:bg-lightGray-200 dark:hover:bg-customGray-800 cursor-pointer"
 								on:click={() => toggleRow(key)}
-								aria-expandedRows={expandedRows.has(key)}
+								aria-expanded={expandedRows.has(key)}
 							>
 								<td class="w-8 border-t border-1 border-gray-200/60 dark:border-customGray-700">
 									<div class="mx-2 text-lightGray-100/60 dark:text-white/60">
@@ -697,7 +702,7 @@
 								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
-										>€{Math.max(row.credits_used.toFixed(2), 0.01)}</td
+										>€{Math.max(row.credits_used, 0.01).toFixed(2)}</td
 									>
 								{/if}
 								<td
@@ -1108,7 +1113,6 @@
 										bind:page
 										siblingCount={1}
 										let:pages
-										let:range
 									>
 										<div
 											class="flex flex-row items-center gap-2 text-lightGray-100/75 dark:text-white/75"

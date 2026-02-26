@@ -20,10 +20,10 @@ export interface TopModelsResponse {
 export interface TopUserItem {
 	user_id: string;
 
-	first_name: string | null;
-	last_name: string | null;
-	email: string | null;
-	profile_image_url: string | null;
+	first_name: string;
+	last_name: string;
+	email: string;
+	profile_image_url: string;
 
 	credits_used: number;
 	message_count: number;
@@ -43,6 +43,7 @@ export interface TopAssistantItem {
 	assistant: string;
 	credits_used: number;
 	message_count: number;
+	profile_image_url: string;
 }
 
 export interface TopAssistantsResponse {

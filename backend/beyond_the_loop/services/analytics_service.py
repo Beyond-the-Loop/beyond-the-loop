@@ -15,7 +15,7 @@ from beyond_the_loop.models.users import (
     get_active_users_by_company,
 )
 from beyond_the_loop.models.companies import Companies, Company
-from sqlalchemy import func, case
+from sqlalchemy import and_, func, case
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +65,13 @@ class AnalyticsService:
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
-                .outerjoin(Model, Completion.model == Model.name)
+                .outerjoin(    
+                    Model,    
+                    and_(        
+                        Completion.model == Model.name,        
+                        Model.company_id == company_id,    
+                    ),
+                )
                 .filter(
                     Completion.assistant == None,
                     Completion.created_at >= int(start_date_dt.timestamp()),
