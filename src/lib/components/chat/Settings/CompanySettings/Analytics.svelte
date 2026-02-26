@@ -52,34 +52,6 @@
 	let chartMessagesData = null;
 	let chartMessagesDataYearly = null;
 
-	let page = 1;
-	let rowsPerPage = 5;
-
-	$: totalCount = rows?.length;
-	$: startRow = (page - 1) * rowsPerPage;
-	$: endRow = startRow + rowsPerPage;
-	$: pagedRows = rows?.slice(startRow, endRow);
-	$: totalCountModels = modelRows?.length;
-	$: pagedModelRows = modelRows?.slice(startRow, endRow);
-
-	$: totalCountAssistants = assistantRows?.length;
-	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
-
-	const assistantKey = (r) => r.assistant;
-	$: assistantRankByKey = new Map(  
-		(analytics?.topAssistants?.top_assistants ?? [])    
-			.slice()    
-			.sort((a, b) => b.message_count - a.message_count)  
-			.map((r, i) => [assistantKey(r), i + 1])
-		);
-
-	let expanded = new Set<string>();
-
-	function toggleRow(key: string) {
-		expanded.has(key) ? expanded.delete(key) : expanded.add(key);
-		expanded = new Set(expanded);
-	}
-
 	const token = localStorage.token;
 	const now = new Date();
 	const year = now.getFullYear();
@@ -88,12 +60,12 @@
 
 	type AnalyticsState = {
 		topModels: TopModelsResponse | null;
-		topAssistants: TopAssistantsResponse | null;
+		topAssistants: TopAssistantsResponse;
 		totalUsers: TotalUsersResponse | null;
-		totalMessages: TotalMessagesResponse | null;
+		totalMessages: TotalMessagesResponse;
 		engagementRate: EngagementScoreResponse | null;
 		powerUsers: PowerUsersResponse | null;
-		topUsers: TopUsersResponse | null;
+		topUsers: TopUsersResponse;
 		totalAssistants: TotalAssistantsResponse | null;
 	};
 
@@ -127,27 +99,6 @@
 		page = 1;
 	}
 
-	const sampleData = {
-		monthly_messages: [
-			{ period: '2026-01', message_count: 38 },
-			{ period: '2026-02', message_count: 121 },
-			{ period: '2026-03', message_count: 156 },
-			{ period: '2026-04', message_count: 189 },
-			{ period: '2026-05', message_count: 234 },
-			{ period: '2026-06', message_count: 287 }
-		],
-		monthly_percentage_changes: [
-			{ period: '2026-01', percentage_change: 0 },
-			{ period: '2026-02', percentage_change: 218.4 },
-			{ period: '2026-03', percentage_change: 28.9 },
-			{ period: '2026-04', percentage_change: 21.2 },
-			{ period: '2026-05', percentage_change: 23.8 },
-			{ period: '2026-06', percentage_change: 22.6 }
-		],
-		yearly_messages: [{ period: '2026', message_count: 985 }],
-		yearly_percentage_changes: [{ period: '2026', percentage_change: 0.0 }]
-	};
-
 	onMount(async () => {
 		// fetch_data('2026-02-01', '2026-02-27');
 		handleTimeSpanChange(selectedTimeSpan);
@@ -180,7 +131,6 @@
 				topAssistants: topAssistants?.status === 'fulfilled' ? topAssistants?.value : {},
 				totalUsers: totalUsers?.status === 'fulfilled' ? totalUsers?.value : {},
 				totalMessages: totalMessages?.status === 'fulfilled' ? totalMessages?.value : {},
-				// totalMessages: sampleData,
 				engagementRate: engagementRate?.status === 'fulfilled' ? engagementRate?.value : {},
 				powerUsers: powerUsers?.status === 'fulfilled' ? powerUsers?.value : {},
 				topUsers: topUsers?.status === 'fulfilled' ? topUsers?.value : {},
@@ -196,76 +146,95 @@
 	let chartOptions = null;
 
 	$: {
-		if (analytics?.topUsers != null) {
+		if(analytics != null)
+		{
 			rows = top_by_messages(analytics.topUsers.top_users);
-		}
-		if (analytics?.topModels != null) {
 			modelRows = top_by_messages(analytics.topModels.top_models);
-		}
-		if (analytics?.topAssistants != null) {
 			assistantRows = top_by_messages(analytics.topAssistants.top_assistants);
-		}
-		if (analytics?.totalMessages.monthly_messages != null) {
 			chartMessagesData = chart_messages_by_month();
 			chartMessagesDataYearly = chart_messages_by_year();
-		}
-		chartOptions = {
-			scales: {
-				x: {
-					grid: {
-						drawOnChartArea: false
-					},
-					ticks: {
-						font: {
-							size: 8
+			chartOptions = {
+				scales: {
+					x: {
+						grid: {
+							drawOnChartArea: false
+						},
+						ticks: {
+							font: {
+								size: 8
+							}
 						}
+					},
+					y: {
+						grid: {
+							drawOnChartArea: false
+						},
+						ticks: {
+							font: {
+								size: 8
+							},
+							maxTicksLimit: 5
+						},
+						grace: '80%'
 					}
 				},
-				y: {
-					grid: {
-						drawOnChartArea: false
-					},
-					ticks: {
+				barPercentage: Math.min(1.0, 0.1 + 0.18 * analytics.totalMessages.monthly_messages.length),
+				responsive: true,
+				plugins: {
+					legend: {
+						display: false,
 						font: {
-							size: 8
-						},
-						maxTicksLimit: 5
-					},
-					grace: '80%'
-				}
-			},
-			barPercentage: Math.min(1.0, 0.1 + 0.18 * analytics?.totalMessages.monthly_messages.length),
-			responsive: true,
-			plugins: {
-				legend: {
-					display: false,
-					font: {
-						size: 4
+							size: 4
+						}
 					}
 				}
-			}
-		};
+			};
+		}
+	}
+
+	let page = 1;
+	let rowsPerPage = 5;
+	let rows = null;
+	let assistantRows = null;
+	let modelRows = null;
+
+	$: totalCount = rows?.length;
+	$: startRow = (page - 1) * rowsPerPage;
+	$: endRow = startRow + rowsPerPage;
+	$: pagedRows = rows?.slice(startRow, endRow);
+	$: totalCountModels = modelRows?.length;
+	$: pagedModelRows = modelRows?.slice(startRow, endRow);
+
+	$: totalCountAssistants = assistantRows?.length;
+	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
+
+	const assistantKey = (r) => r.assistant;
+	$: assistantRankByKey = new Map(  
+		(analytics?.topAssistants.top_assistants ?? [])    
+			.slice()    
+			.sort((a, b) => b.message_count - a.message_count)  
+			.map((r, i) => [assistantKey(r), i + 1])
+		);
+
+	let expandedRows = new Set<string>();
+
+	function toggleRow(key: string) {
+		expandedRows.has(key) ? expandedRows.delete(key) : expandedRows.add(key);
+		expandedRows = new Set(expandedRows);
 	}
 
 	let activeTab = 'users';
 	$: if (activeTab) {
-		page = 1;
+		page = 1; // Reset Pagination after Tab switch
 	}
-	$: searchBarPlaceholder =
-		activeTab === 'users'
-			? 'Search users...'
-			: activeTab === 'models'
-				? 'Search models...'
-				: 'Search assistants...';
+	
 
-	let rows = null;
-	let assistantRows = null;
-	let modelRows = null;
 	type SortKey = 'user' | 'credits' | 'messages';
 	type SortDir = 'asc' | 'desc';
 	let sortKey: SortKey | null = null;
 	let sortDir: SortDir = 'asc';
-	function toggleSort(key: SortKey) {
+
+	function toggleUserSort(key: SortKey) {
 		if (sortKey === key) {
 			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -350,14 +319,12 @@
 	}
 	function chart_messages_by_year() {
 		return {
-			labels: analytics?.totalMessages?.yearly_messages
-				? analytics?.totalMessages?.yearly_messages?.map((item) => item.period)
-				: [],
+			labels: analytics.totalMessages.yearly_messages.map((item) => item.period),
 			datasets: [
 				{
 					label: 'Total Messages',
 					data: Object.values(
-						analytics?.totalMessages?.yearly_messages?.map((item) => item.message_count) || []
+						analytics.totalMessages.yearly_messages.map((item) => item.message_count) || []
 					),
 					backgroundColor: ['#305BE4'],
 					borderColor: ['#305BE4']
@@ -366,7 +333,7 @@
 		};
 	}
 	function searchFor(search: string) {
-		rows = analytics?.topUsers?.top_users.filter((u) => {
+		rows = analytics.topUsers.top_users.filter((u) => {
 			const q = search
 				.trim()
 				.toLowerCase()
@@ -412,7 +379,8 @@
 			return assistant.includes(q);
 		});
 	}
-	function getAssistantIcon(assistantName?: string) {
+
+	function getAssistantIcon(assistantName: string) {
 		if (!assistantName) return null;
 		const a = assistantRows.find((r) => r.assistant === assistantName);
 		return a?.profile_image_url ?? null;
@@ -453,7 +421,7 @@
 
 				<div class="pt-[6px]">
 					<div class="text-xl font-semibold text-lightGray-100 dark:text-white mb-0">
-						{analytics?.totalUsers?.total_users}
+						{analytics.totalUsers.total_users}
 					</div>
 					<div class="text-xs text-center">
 						{$i18n.t('Total users')}
@@ -479,7 +447,7 @@
 
 				<div class="pt-[6px]">
 					<div class="text-xl font-semibold text-lightGray-100 dark:text-white mb-0">
-						{analytics?.engagementRate?.engagement_score?.toFixed(2)}%
+						{analytics.engagementRate.engagement_score.toFixed(2)}%
 					</div>
 					<div class="text-xs text-center">
 						{$i18n.t('Engagement')}
@@ -500,7 +468,7 @@
 
 				<div class="pt-[6px]">
 					<div class="text-xl font-semibold text-lightGray-100 dark:text-white mb-0">
-						{analytics?.powerUsers?.power_users_count}
+						{analytics.powerUsers.power_users_count}
 					</div>
 					<div class="text-xs text-center">
 						{$i18n.t('Power users')}
@@ -522,7 +490,7 @@
 
 				<div class="pt-[6px]">
 					<div class="text-xl font-semibold text-lightGray-100 dark:text-white mb-0">
-						{analytics?.totalAssistants?.total_assistants}
+						{analytics.totalAssistants.total_assistants}
 					</div>
 					<div class="text-xs text-center">
 						{$i18n.t('Assistants')}
@@ -603,7 +571,7 @@
 					<input
 						type="text"
 						class=" px-2 pl-8 py-[6px] flex-1 placeholder-lightGray-100/75 dark:placeholder-white/75 rounded-md dark:bg-transparent"
-						placeholder={$i18n.t(searchBarPlaceholder)}
+						placeholder={$i18n.t('Search ' + activeTab + '...' )}
 						on:input={(e) => searchFor(e.target.value)}
 					/>
 				</div>
@@ -621,7 +589,7 @@
 								'user'
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
-								on:click={() => toggleSort('user')}
+								on:click={() => toggleUserSort('user')}
 							>	
 								<div class="flex flex-row items-center gap-1 w-fit">
 									{$i18n.t('User')}
@@ -639,13 +607,13 @@
 
 								
 							</th>
-							{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
 								<th
 									class="p-2 w-[100px] md:w-[120px] font-medium hover:opacity-80 cursor-pointer select-none {sortKey ===
 									'credits'
 										? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 										: ''}"
-									on:click={() => toggleSort('credits')}
+									on:click={() => toggleUserSort('credits')}
 								>
 									<div class="flex flex-col items-end {sortKey ===
 									'credits'
@@ -669,11 +637,11 @@
 							{/if}
 
 							<th
-								class="p-2 w-[100px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
+								class="p-2 w-[108px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
 								'messages'
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
-								on:click={() => toggleSort('messages')}
+								on:click={() => toggleUserSort('messages')}
 							>
 								<div class="flex flex-col items-end {sortKey ===
 									'messages'
@@ -701,11 +669,11 @@
 							<tr
 								class="hover:bg-lightGray-200 dark:hover:bg-customGray-800 cursor-pointer"
 								on:click={() => toggleRow(key)}
-								aria-expanded={expanded.has(key)}
+								aria-expandedRows={expandedRows.has(key)}
 							>
 								<td class="w-8 border-t border-1 border-gray-200/60 dark:border-customGray-700">
 									<div class="mx-2 text-lightGray-100/60 dark:text-white/60">
-										{#if expanded.has(key)}
+										{#if expandedRows.has(key)}
 											<ChevronDown className="size-3" strokeWidth="2.5" />
 										{:else}
 											<ChevronRight className="size-3" strokeWidth="2.5" />
@@ -716,9 +684,9 @@
 									<div class="flex flex-row items-center">
 										<img
 											class="rounded-full size-6 object-cover mr-2.5"
-											src={row.profile_image_url?.startsWith(WEBUI_BASE_URL) ||
-											row.profile_image_url?.startsWith('https://www.gravatar.com/avatar/') ||
-											row.profile_image_url?.startsWith('data:')
+											src={row.profile_image_url.startsWith(WEBUI_BASE_URL) ||
+											row.profile_image_url.startsWith('https://www.gravatar.com/avatar/') ||
+											row.profile_image_url.startsWith('data:')
 												? row.profile_image_url
 												: `/user.png`}
 											alt="user"
@@ -734,7 +702,7 @@
 										</div>
 									</div>
 								</td>
-								{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
 										>€{Math.max(row.credits_used.toFixed(2), 0.01)}</td
@@ -745,10 +713,10 @@
 									>{row.message_count}</td
 								>
 							</tr>
-							{#if expanded.has(key)}
+							{#if expandedRows.has(key)}
 								<tr class="bg-lightGray-300 dark:bg-customGray-900">
 									<td
-										colspan={$subscription.plan != 'free' && $subscription.plan != 'premium'
+										colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium'
 											? 4
 											: 3}
 										class="pr-2"
@@ -814,7 +782,7 @@
 					</tbody>
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60 dark:border-customGray-700">
-							<td colspan={$subscription.plan != 'free' && $subscription.plan != 'premium'
+							<td colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium'
 											? 4
 											: 3} class="p-2 pl-5">
 							
@@ -896,7 +864,7 @@
 					<thead class="text-lightGray-100/60 dark:text-white/60">
 						<tr>
 							<th class="pl-5 p-2 text-left font-medium select-none"> {$i18n.t('Model')} </th>
-							{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
 								<th
 									class="p-2 w-[100px] md:w-[120px] font-medium hover:opacity-80 cursor-pointer select-none {sortKey ===
 									'credits'
@@ -924,7 +892,7 @@
 								</th>
 							{/if}
 							<th
-								class="p-2 w-[100px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
+								class="p-2 w-[108px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
 								'messages'
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
@@ -967,7 +935,7 @@
 										</div>
 									</div>
 								</td>
-								{#if $subscription.plan != 'free' && $subscription.plan != 'premium'}
+								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
 										>€{Math.max(row.credits_used.toFixed(2), 0.01)}</td
@@ -982,7 +950,7 @@
 					</tbody>
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60 dark:border-customGray-700">
-							<td colspan={$subscription.plan != 'free' && $subscription.plan != 'premium'
+							<td colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium'
 											? 3
 											: 2} class="p-2 pl-5">
 								<div class="flex flex-row justify-between items-center">
@@ -1058,12 +1026,12 @@
 				>
 					<thead class="text-lightGray-100/60 dark:text-white/60">
 						<tr>
-							<th class="p-2 text-left font-medium select-none pl-5">{$i18n.t('Rank')}</th>
+							<th class="p-2 w-[60px] text-left font-medium select-none pl-5">{$i18n.t('Rank')}</th>
 
 							<th class="p-2 text-left font-medium select-none"> {$i18n.t('Assistant')} </th>
 
 							<th
-								class="p-2 w-[100px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
+								class="p-2 w-[108px] md:w-[140px] font-medium relative hover:opacity-80 cursor-pointer pr-5 select-none {sortKey ===
 								'messages'
 									? 'text-lightGray-100/75 dark:text-white/75 hover:opacity-100'
 									: ''}"
@@ -1239,22 +1207,22 @@
 				<div
 					class=" relative w-full bg-lightGray-300 dark:bg-customGray-900 flex flex-col justify-start gap-1 p-2 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md"
 				>
-					{$i18n.t('This month')} {#if analytics?.totalMessages?.monthly_messages?.length > 1}
+					{$i18n.t('This month')} {#if analytics.totalMessages.monthly_messages.length > 1}
 						vs. {$i18n.t('last month')}{/if}
 					<div class="text-lg font-semibold">
-						{analytics?.totalMessages?.monthly_messages?.at(-1)?.message_count || 0}
+						{analytics.totalMessages.monthly_messages.at(-1).message_count || 0}
 					</div>
 					<div class="text-lightGray-100/60 dark:text-white/60">{$i18n.t('Messages sent')}</div>
 					<div class="absolute top-2 right-3 text-blue-700 gap-1 flex flex-row items-center">
-						{#if analytics?.totalMessages?.monthly_percentage_changes?.at(-1)?.percentage_change < 0}
+						{#if analytics.totalMessages.monthly_percentage_changes.at(-1).percentage_change < 0}
 							<TrendArrowIcon flipped="true" className="text-red-500 size-4" />
 							<div class="text-red-500">
-								{analytics?.totalMessages?.monthly_percentage_changes?.at(-1)?.percentage_change}%
+								{analytics.totalMessages.monthly_percentage_changes.at(-1).percentage_change}%
 							</div>
-						{:else if analytics?.totalMessages?.monthly_messages?.length <= 1}{:else}
+						{:else if analytics.totalMessages.monthly_messages.length <= 1}{:else}
 							<TrendArrowIcon className="mt-[2px] text-blue-700 size-4" />
 							<div>
-								+{analytics?.totalMessages?.monthly_percentage_changes?.at(-1)?.percentage_change}%
+								+{analytics.totalMessages.monthly_percentage_changes.at(-1).percentage_change}%
 							</div>
 						{/if}
 					</div>
@@ -1274,22 +1242,22 @@
 				<div
 					class=" relative w-full bg-lightGray-300 dark:bg-customGray-900 flex flex-col justify-start gap-1 p-2 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md"
 				>
-					{$i18n.t('This year')} {#if analytics?.totalMessages?.yearly_messages?.length > 1}
+					{$i18n.t('This year')} {#if analytics.totalMessages.yearly_messages.length > 1}
 						vs. {$i18n.t('last year')}{/if}
 					<div class="text-lg font-semibold">
-						{analytics?.totalMessages?.yearly_messages?.at(-1)?.message_count || 0}
+						{analytics.totalMessages.yearly_messages.at(-1).message_count || 0}
 					</div>
 					<div class="text-lightGray-100/60 dark:text-white/60">{$i18n.t('Messages sent')}</div>
 					<div class="absolute top-2 right-3 text-blue-700 gap-1 flex flex-row items-center">
-						{#if analytics?.totalMessages?.yearly_percentage_changes?.at(-1)?.percentage_change > 0}
+						{#if analytics.totalMessages.yearly_percentage_changes.at(-1).percentage_change > 0}
 							<TrendArrowIcon flipped="true" className="text-red-500 size-4" />
 							<div class="text-red-500">
-								{analytics?.totalMessages?.yearly_percentage_changes?.at(-1)?.percentage_change}%
+								{analytics.totalMessages.yearly_percentage_changes.at(-1).percentage_change}%
 							</div>
-						{:else if analytics?.totalMessages?.yearly_messages?.length <= 1}{:else}
+						{:else if analytics.totalMessages.yearly_messages.length <= 1}{:else}
 							<TrendArrowIcon className="mt-[2px] text-blue-700 size-4" />
 							<div>
-								+{analytics?.totalMessages?.yearly_percentage_changes?.at(-1)?.percentage_change}%
+								+{analytics.totalMessages.yearly_percentage_changes.at(-1).percentage_change}%
 							</div>
 						{/if}
 					</div>
@@ -1307,7 +1275,7 @@
 									...chartOptions,
 									barPercentage: Math.min(
 										1.0,
-										0.1 + 0.18 * (analytics?.totalMessages?.yearly_messages?.length ?? 0)
+										0.1 + 0.18 * (analytics.totalMessages.yearly_messages?.length ?? 0)
 									),
 									transitions: false
 								}}

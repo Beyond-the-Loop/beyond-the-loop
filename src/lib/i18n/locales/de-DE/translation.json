@@ -717,7 +717,7 @@
 	"Max upload size": "Maximale Uploadgröße",
 	"Maximum of 3 models can be downloaded simultaneously. Please try again later.": "Es können maximal 3 Modelle gleichzeitig heruntergeladen werden. Bitte versuchen Sie es später erneut.",
 	"May": "Mai",
-	"Measures the quality of user activity by evaluating daily interaction (logarithmically scaled) over 30 days and rewarding consistency.": "Misst die Qualität der Nutzeraktivität, indem er die tägliche Interaktion (logarithmisch skaliert) über 30 Tage bewertet und Konsistenz belohnt.",
+	"Measures the quality of user activity by evaluating daily interaction (logarithmically scaled) over 30 days and rewarding consistency.": "Tägliche Nutzeraktivität der letzten 30 Tage (logarithmisch skaliert).",
 	"Member management": "Mitgliederverwaltung",
 	"Memories accessible by LLMs will be shown here.": "Erinnerungen, die für Modelle zugänglich sind, werden hier angezeigt.",
 	"Memory": "Erinnerungen",
