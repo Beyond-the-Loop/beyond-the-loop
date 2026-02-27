@@ -91,7 +91,7 @@
 				{:else if type === 'doc'}
 					{$i18n.t('Document')}
 				{:else if type === 'collection'}
-					{$i18n.t('Collection')}
+					{$i18n.t('Knowledge')}
 				{:else}
 					<span class=" capitalize line-clamp-1">{type}</span>
 				{/if}

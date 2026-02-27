@@ -282,19 +282,7 @@ def get_sources_from_files(
                 search_tasks.append((file, None))
                 continue
 
-            collection_names = []
-            if file.get("type") == "collection":
-                if file.get("legacy"):
-                    collection_names = file.get("collection_names", [])
-                else:
-                    collection_names.append(file["id"])
-            elif file.get("collection_name"):
-                collection_names.append(file["collection_name"])
-            elif file.get("id"):
-                if file.get("legacy"):
-                    collection_names.append(f"{file['id']}")
-                else:
-                    collection_names.append(f"file-{file['id']}")
+            print("FILEEEE", file)
 
             collection_names = set(collection_names).difference(extracted_collections)
 

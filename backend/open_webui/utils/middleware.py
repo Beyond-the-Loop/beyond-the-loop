@@ -399,17 +399,17 @@ async def chat_image_generation_handler(
 
 
 async def chat_file_intent_decision_handler(
-        body: dict, user: UserModel
+        form_data: dict, user: UserModel
 ) -> tuple[dict, bool]:
     """
     Decide if the user's intent is RAG (search/query) or translation/content extraction.
     Returns (modified_body, is_rag_task)
     """
 
-    files = body.get("metadata", {}).get("files", [])
+    files = form_data.get("metadata", {}).get("files", [])
 
     if not files:
-        return body, True  # No files, proceed normally
+        return form_data, True  # No files, proceed normally
 
     # Filter out image files - only process non-image files
     non_image_files = []
@@ -436,18 +436,18 @@ async def chat_file_intent_decision_handler(
                 non_image_files.append(file_item)
     
     if not non_image_files:
-        return body, True  # No non-image files, proceed with normal RAG
+        return form_data, True  # No non-image files, proceed with normal RAG
     
     # Use DEFAULT_AGENT_MODEL to decide intent
-    user_message = get_last_user_message(body["messages"])
+    user_message = get_last_user_message(form_data["messages"])
     if not user_message:
-        return body, True  # No user message, proceed with RAG
+        return form_data, True  # No user message, proceed with RAG
     
     try:
         model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
         if not model:
             log.warning(f"DEFAULT_AGENT_MODEL {DEFAULT_AGENT_MODEL.value} not found for company {user.company_id}")
-            return body, True  # Fallback to RAG
+            return form_data, True  # Fallback to RAG
         
         # Create decision prompt
         decision_messages = [
@@ -477,11 +477,11 @@ async def chat_file_intent_decision_handler(
         is_rag_task = response_content == 'RAG'
         log.debug(f"File intent decision: {response_content} -> is_rag_task: {is_rag_task}")
 
-        return body, is_rag_task
+        return form_data, is_rag_task
         
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
-        return body, True  # Fallback to RAG on error
+        return form_data, True  # Fallback to RAG on error
 
 
 def extract_file_content_with_loader(file_id: str) -> str:
@@ -525,11 +525,11 @@ def extract_file_content_with_loader(file_id: str) -> str:
 
 
 async def chat_completion_files_handler(
-    request: Request, body: dict, user: UserModel, extra_params: dict, web_search_queries
+    request: Request, form_data: dict, user: UserModel, extra_params: dict, web_search_queries
 ) -> tuple[dict, dict[str, list]]:
     sources = []
 
-    if files := body.get("metadata", {}).get("files", None):
+    if files := form_data.get("metadata", {}).get("files", None):
         event_emitter = extra_params["__event_emitter__"]
 
         await event_emitter(
@@ -545,8 +545,8 @@ async def chat_completion_files_handler(
         try:
             queries_response = await generate_queries(
                 "retrieval",
-                body["messages"],
-                body.get("chat_id", None),
+                form_data["messages"],
+                form_data.get("chat_id", None),
                 user
             )
 
@@ -569,7 +569,7 @@ async def chat_completion_files_handler(
             queries = []
 
         if len(queries) == 0:
-            queries = [get_last_user_message(body["messages"])]
+            queries = [get_last_user_message(form_data["messages"])]
 
         try:
             # Offload get_sources_from_files to a separate thread
@@ -618,7 +618,7 @@ async def chat_completion_files_handler(
 
         log.debug(f"rag_contexts:sources: {sources}")
 
-    return body, {"sources": sources}
+    return form_data, {"sources": sources}
 
 
 def apply_params_to_form_data(form_data):
@@ -687,7 +687,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # Remove file duplicates and remove files from form_data, add it to metadata
     files = form_data.pop("files", [])
-    files = list({json.dumps(f, sort_keys=True): f for f in files}.values())
+
+    flattened_files = []
+
+    for f in files:
+        if f.get("type") == "collection" and isinstance(f.get("files"), list):
+            flattened_files.extend(f["files"])
+        else:
+            flattened_files.append(f)
+
+    files = list({json.dumps(f, sort_keys=True): f for f in flattened_files}.values())
 
     metadata = {
         **metadata,
@@ -763,8 +772,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # First, decide if this is a RAG task or content extraction task
     try:
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active else (form_data, True)
+        has_user_collections = any(f.get("type") == "collection" for f in files)
 
+        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active and not has_user_collections else (form_data, True)
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG

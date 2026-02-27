@@ -30,6 +30,7 @@
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
 	import FilesOverlay from './MessageInput/FilesOverlay.svelte';
+	import Commands from './MessageInput/Commands.svelte';
 
 	import RichTextInput from '../common/RichTextInput.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
@@ -629,7 +630,7 @@
 						</div>
 					{/if}
 
-					<!-- <Commands
+					<Commands
 						bind:this={commandsElement}
 						bind:prompt
 						bind:files
@@ -637,16 +638,10 @@
 							dispatch('upload', e.detail);
 						}}
 						on:select={(e) => {
-							const data = e.detail;
-
-							if (data?.type === 'model') {
-								atSelectedModel = data.data;
-							}
-
 							const chatInputElement = document.getElementById('chat-input');
 							chatInputElement?.focus();
 						}}
-					/> -->
+					/>
 				</div>
 			</div>
 		</div>
@@ -1201,6 +1196,7 @@
 									<div class="ml-1 self-end gap-0.5 flex items-center flex-1 max-w-[80%]">
 										<InputMenu
 											bind:selectedToolIds
+											{files}
 											{screenCaptureHandler}
 											{inputFilesHandler}
 											uploadFilesHandler={() => {
@@ -1225,6 +1221,20 @@
 														})
 													);
 												}
+											}}
+											onSelectKnowledge={(item) => {
+												if (files.find((f) => f.id === item.id)) {
+													return;
+												}
+												files = [
+													...files,
+													{
+														...item,
+														status: 'processed'
+													}
+												];
+												const chatInput = document.getElementById('chat-input');
+												chatInput?.focus();
 											}}
 											onClose={async () => {
 												await tick();
