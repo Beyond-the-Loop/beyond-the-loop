@@ -36,13 +36,10 @@ class LoopsService:
             try:
                 subscription_details = payments_service.get_subscription(user.company_id)
                 plan = subscription_details.get("plan")
-                subscribed = plan == "unlimited" or subscription_details.get("status") == "active" and not subscription_details.get("cancel_at_period_end")
             except Exception:
                 plan = "None"
-                subscribed = False
         else:
-            plan = next(iter(payments_service.SUBSCRIPTION_PLANS.keys()))
-            subscribed = False
+            plan = "free"
 
         payload = {
             "id": existing_contact.json()[0].get("id") if existing_contact.json() else None,
@@ -50,7 +47,6 @@ class LoopsService:
             "firstName": user.first_name,
             "lastName": user.last_name,
             "userGroup": user.role.capitalize(),
-            "subscribed": subscribed,
             "userId": user.id,
             "plan": plan
         }
