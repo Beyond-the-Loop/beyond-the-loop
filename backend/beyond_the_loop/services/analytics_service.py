@@ -47,8 +47,8 @@ class AnalyticsService:
 
             user_scores = AnalyticsService._calculate_user_engagement_scores(company_user_ids, db)
 
-        engagement_score = sum(user_scores.values()) / total_users
-        return EngagementScoreResponse(engagement_score=round(engagement_score, 4))
+        engagement_score = 100 * (sum(user_scores.values()) / total_users)
+        return EngagementScoreResponse(engagement_score=round(engagement_score, 2))
 
     @staticmethod
     def get_top_models_by_company(company_id: str, start_date: str, end_date: str):
