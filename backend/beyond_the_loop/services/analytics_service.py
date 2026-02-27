@@ -22,6 +22,9 @@ log = logging.getLogger(__name__)
 # Initialize Stripe API key
 stripe.api_key = os.environ.get('STRIPE_API_KEY')
 
+# Minimum Unix timestamp — no analytics data before this point is returned to the frontend
+MIN_ANALYTICS_TIMESTAMP = 1772150428
+
 
 class AnalyticsService:
     def __init__(self):
@@ -261,10 +264,13 @@ class AnalyticsService:
             company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_user_ids]
 
-            # Find the first usage timestamp for this company
+            # Find the first usage timestamp for this company (respects global minimum)
             first_usage_ts = (
                 db.query(func.min(Completion.created_at))
-                .filter(Completion.user_id.in_(company_user_ids))
+                .filter(
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.created_at >= MIN_ANALYTICS_TIMESTAMP,
+                )
                 .scalar()
             )
 
@@ -293,7 +299,8 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.from_agent.isnot(True),
-                    Completion.user_id.in_(company_user_ids)
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.created_at >= MIN_ANALYTICS_TIMESTAMP,
                 )
                 .group_by("year")
                 .order_by("year")
@@ -348,7 +355,7 @@ class AnalyticsService:
                 Completion, User.id == Completion.user_id
             ).filter(
                 User.company_id == company_id,
-                Completion.created_at >= thirty_days_ago,
+                Completion.created_at >= max(thirty_days_ago, MIN_ANALYTICS_TIMESTAMP),
                 Completion.from_agent.isnot(True),
             ).group_by(
                 User.id, User.first_name, User.last_name, User.email, User.profile_image_url
@@ -569,7 +576,7 @@ class AnalyticsService:
             )
             .filter(
                 Completion.user_id.in_(user_ids),
-                Completion.created_at >= thirty_days_ago,
+                Completion.created_at >= max(thirty_days_ago, MIN_ANALYTICS_TIMESTAMP),
                 Completion.from_agent.isnot(True),
             )
             .group_by(Completion.user_id, 'day')
@@ -619,6 +626,11 @@ class AnalyticsService:
             start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
         else:
             start_date_dt = twelve_months_start  # Default to 12 months ago
+
+        # Never return data before the global minimum analytics timestamp
+        min_dt = datetime.fromtimestamp(MIN_ANALYTICS_TIMESTAMP)
+        if start_date_dt < min_dt:
+            start_date_dt = min_dt
 
         # Parse end_date
         if end_date:
