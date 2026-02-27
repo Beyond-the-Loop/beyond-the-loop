@@ -1,8 +1,8 @@
-import asyncio
 import base64
-import json
+import io
 import logging
 import mimetypes
+import os
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -11,6 +11,7 @@ import requests
 
 
 from fastapi import Depends, HTTPException, Request, APIRouter
+from openai import OpenAI
 from pydantic import BaseModel
 
 from beyond_the_loop.config import CACHE_DIR
@@ -32,12 +33,9 @@ router = APIRouter()
 
 
 class GenerateImageForm(BaseModel):
-    model: Optional[str] = None
     prompt: str
-    size: Optional[str] = None
-    n: int = 1
-    negative_prompt: Optional[str] = None
-    input_image_data: Optional[str] = None
+    input_image_path: Optional[str] = None
+    images: Optional[list] = None
 
 
 def save_b64_image(b64_str):
@@ -103,113 +101,68 @@ def save_url_image(url, headers=None):
         log.exception(f"Error saving image: {e}")
         return None
 
+def images_to_bytes(images_list):
+    if not images_list:
+        return []
 
-@router.post("/generations")
+    bytes_list = []
+    for img in images_list:
+        b64_data = img["content"]
+        if "," in b64_data:
+            b64_data = b64_data.split(",")[1]
+        bytes_list.append(base64.b64decode(b64_data))
+    return bytes_list
+
 async def image_generations(
-    request: Request,
     form_data: GenerateImageForm,
     user=Depends(get_verified_user),
 ):
-    width, height = tuple(map(int, request.app.state.config.IMAGE_SIZE.split("x")))
-
     try:
         subscription = payments_service.get_subscription(user.company_id)
 
-        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-            await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
+        await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
-        if request.app.state.config.IMAGE_GENERATION_ENGINE == "flux":
-            # Black Forest Labs Flux Kontext Pro
-            headers = {
-                "Content-Type": "application/json",
-                "x-key": request.app.state.config.BLACK_FOREST_LABS_API_KEY,
-            }
+        image_bytes_list = images_to_bytes(form_data.images) if form_data.images else []
 
-            # Prepare the request data
+        client = OpenAI(
+            base_url=os.getenv("OPENAI_API_BASE_URL"),
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
 
-            # Calculate aspect ratio from width and height
-            def calculate_aspect_ratio(w, h):
-                from math import gcd
-                ratio_gcd = gcd(w, h)
-                return f"{w // ratio_gcd}:{h // ratio_gcd}"
-
-            data = {
-                "prompt": form_data.prompt,
-                "aspect_ratio": calculate_aspect_ratio(width, height),
-                "output_format": "jpeg",
-                "safety_tolerance": 2,
-                "input_image": form_data.input_image_data,
-            }
-
-            # Add optional parameters if provided
-            if form_data.negative_prompt:
-                # Note: Flux Kontext Pro doesn't have explicit negative prompt support
-                # We could potentially incorporate it into the main prompt
-                data["prompt"] = f"{form_data.prompt}. Avoid: {form_data.negative_prompt}"
-
-            # Make the initial request to start generation
-            r = await asyncio.to_thread(
-                requests.post,
-                url="https://api.eu.bfl.ai/v1/flux-kontext-max",
-                json=data,
-                headers=headers,
+        if form_data.input_image_path:
+            with open(form_data.input_image_path, "rb") as f:
+                image_bytes_list.insert(0, f)
+                response = client.images.edit(
+                    model="Nano Banana",
+                    prompt=form_data.prompt,
+                    image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
+                )
+        elif image_bytes_list:
+            response = client.images.edit(
+                model="Nano Banana",
+                prompt=form_data.prompt,
+                image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
+            )
+        else:
+            response = client.images.generate(
+                model="Nano Banana",
+                prompt=form_data.prompt,
             )
 
-            r.raise_for_status()
-            initial_response = r.json()
-            
-            task_id = initial_response["id"]
-            polling_url = initial_response["polling_url"]
-            
-            log.debug(f"Flux task started with ID: {task_id}")
+        image_base64 = response.data[0].b64_json
 
-            # Poll for completion
-            max_attempts = 120  # 2 minutes with 1-second intervals
-            attempt = 0
-            
-            while attempt < max_attempts:
-                await asyncio.sleep(1)  # Wait 1 second between polls
-                
-                # Poll the result
-                poll_response = await asyncio.to_thread(
-                    requests.get,
-                    url=polling_url,
-                    headers={"x-key": request.app.state.config.BLACK_FOREST_LABS_API_KEY},
-                )
-                
-                poll_response.raise_for_status()
-                result = poll_response.json()
-                
-                status = result.get("status")
-                log.debug(f"Flux generation status: {status}")
-                
-                if status == "Ready":
-                    # Generation completed successfully
-                    image_url = result["result"]["sample"]
-                    
-                    # Download and save the image
-                    image_filename = save_url_image(image_url)
+        image_bytes = base64.b64decode(image_base64)
 
-                    # Save metadata
-                    file_body_path = IMAGE_CACHE_DIR.joinpath(f"{image_filename}.json")
-                    with open(file_body_path, "w") as f:
-                        json.dump({**data, "task_id": task_id, "status": status}, f)
+        image_filename = f"{uuid.uuid4()}.png"
+        image_path = IMAGE_CACHE_DIR / image_filename
 
-                    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                        # Subtract credits for image generation
-                        await credit_service.subtract_credits_by_user_for_image(user, "flux-kontext-max")
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
 
-                    return [{"url": f"/cache/image/generations/{image_filename}"}]
+        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+            # Subtract credits for image generation
+            await credit_service.subtract_credits_by_user_for_image(user)
 
-                elif status in ["Error", "Failed"]:
-                    error_msg = result.get("details", {}).get("error", "Generation failed")
-                    raise HTTPException(status_code=400, detail=f"Flux generation failed: {error_msg}")
-                
-                attempt += 1
-            
-            # If we get here, the generation timed out
-            raise HTTPException(status_code=408, detail="Flux generation timed out")
-        else:
-            raise HTTPException(status_code=400, detail="Unknown image generation engine")
+        return [{"url": f"/cache/image/generations/{image_filename}"}]
     except Exception:
         raise HTTPException(status_code=400, detail=ERROR_MESSAGES.DEFAULT)

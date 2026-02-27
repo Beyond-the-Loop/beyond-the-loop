@@ -1,5 +1,8 @@
+import logging
 import os
 from beyond_the_loop.services.loops_service import loops_service
+
+log = logging.getLogger(__name__)
 
 
 class EmailService:
@@ -13,7 +16,7 @@ class EmailService:
                 "invitation_link": f"{os.getenv('FRONTEND_BASE_URL')}/register?inviteToken={invite_token}"
             })
         except Exception as e:
-            print(f"Exception when sending invitation email: {e}")
+            log.error(f"Exception when sending invitation email: {e}")
 
     def send_reset_password_mail(self, to_email: str, reset_token: str, user_name: str):
         """Send a reset password email to users who requested a password reset."""
@@ -23,7 +26,7 @@ class EmailService:
                 "reset_link": f"{os.getenv('FRONTEND_BASE_URL')}/create-new-password?token={reset_token}"
             })
         except Exception as e:
-            print(f"Exception when sending reset password email: {e}")
+            log.error(f"Exception when sending reset password email: {e}")
 
     def send_registration_mail(self, to_email: str, registration_code: str):
         """Send a welcome email to newly registered admins."""
@@ -32,7 +35,7 @@ class EmailService:
                 "verification_code": registration_code,
             })
         except Exception as e:
-            print(f"Exception when sending registration email: {e}")
+            log.error(f"Exception when sending registration email: {e}")
 
     def send_budget_mail_80(self, to_email: str, admin_name: str, company_name: str, billing_page_link: str):
         """Send a budget alerts email to admins when the budget is approaching 80%."""
@@ -43,7 +46,7 @@ class EmailService:
                 "billing_page_link": billing_page_link
             })
         except Exception as e:
-            print(f"Exception when sending budget 80: {e}")
+            log.error(f"Exception when sending budget 80 email: {e}")
 
     def send_budget_mail_100(self, to_email: str, admin_name: str, company_name: str, billing_page_link):
         """Send a budget alerts email to admins when the budget is approaching 100%."""
@@ -54,4 +57,4 @@ class EmailService:
                 "billing_page_link": billing_page_link
             })
         except Exception as e:
-            print(f"Exception when sending budget 100 email: {e}")
+            log.error(f"Exception when sending budget 100 email: {e}")

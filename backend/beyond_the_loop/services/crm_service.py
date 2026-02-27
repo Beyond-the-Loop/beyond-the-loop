@@ -150,7 +150,7 @@ class CRMService:
             log.error(f"update_company_plan exception for {company_name}: {e}")
             return
 
-    def update_company_adoption_rate(self, company_name: str, adoption_rate: float):
+    def update_company_engagement_score(self, company_name: str, engagement_score: float):
         if not self.execute:
             return
 
@@ -162,7 +162,7 @@ class CRMService:
                 response = requests.patch(
                     f"{self.base_url}/objects/workspaces/records/{record_id}",
                     headers=self.headers,
-                    json={"data": {"values": {"adoption_rate": adoption_rate}}},
+                    json={"data": {"values": {"adoption_rate": engagement_score}}},
                     timeout=self.timeout,
                 )
 
@@ -171,12 +171,10 @@ class CRMService:
                     self._company_cache[company_name] = company
                     return
 
-                log.warning(f"update_company_adoption_rate failed for {company_name}, status code: {response.status_code}, and response: {response.text}")
-
+                log.warning(f"update_company_engagement_score failed for {company_name}, status code: {response.status_code}, and response: {response.text}")
             return
-
         except Exception as e:
-            log.error(f"update_company_adoption_rate exception for {company_name}: {e}")
+            log.error(f"update_company_engagement_score exception for {company_name}: {e}")
             return
 
     def update_company_credit_consumption(self, company_name: str, credit_consumption: float):
@@ -275,11 +273,10 @@ class CRMService:
                     return
 
                 log.warning(f"create_user failed for {user_email}, status code: {response.status_code}, and response: {response.text}")
-
             return
 
         except Exception as e:
-            print(f"create_user exception for {user_email}: {e}")
+            log.error(f"create_user exception for {user_email}: {e}")
             return
 
     def update_user_access_level(self, user_email: str, access_level: str):

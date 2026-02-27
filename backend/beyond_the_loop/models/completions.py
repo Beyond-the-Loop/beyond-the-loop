@@ -1,11 +1,15 @@
+import logging
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
-from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float
+
+from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float, Boolean
 
 import uuid
 import time
 
 from open_webui.internal.db import get_db, Base
+
+log = logging.getLogger(__name__)
 
 ####################
 # Completion DB Schema
@@ -16,35 +20,35 @@ class Completion(Base):
 
     id = Column(String, primary_key=True, unique=True)
     user_id = Column(String, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    chat_id = Column(String, nullable=True)
     model = Column(Text)
     credits_used = Column(Float)
     created_at = Column(BigInteger)
-    time_saved_in_seconds = Column(Float)
+    assistant = Column(Text)
+    from_agent = Column(Boolean, default=False)
 
 class CompletionModel(BaseModel):
     id: str
-    user_id: Optional[str]
-    chat_id: Optional[str]
+    user_id: str
     model: str
     credits_used: float
     created_at: int  # timestamp in epoch
-    time_saved_in_seconds: float
+    assistant: Optional[str]
+    from_agent: Optional[bool]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, chat_id: str, model: str, credits_used: float, time_saved_in_seconds: float) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent) -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
-                "chat_id": chat_id,
                 "created_at": int(time.time()),
                 "model": model,
                 "credits_used": credits_used,
-                "time_saved_in_seconds": time_saved_in_seconds
+                "assistant": assistant,
+                "from_agent": from_agent
             }
         )
 
@@ -57,10 +61,10 @@ class CompletionTable:
                 if result:
                     return CompletionModel.model_validate(result)
                 else:
-                    print("insertion failed", result)
+                    log.error(f"Completion insertion failed: {result}")
                     return None
         except Exception as e:
-            print(f"Error creating completion: {e}")
+            log.error(f"Error creating completion: {e}")
             return None
 
     def get_completions_last_three_hours_by_user_and_model(
@@ -85,12 +89,12 @@ class CompletionTable:
 
                 return count
         except Exception as e:
-            print(f"Error fetching completions for usage count: {e}")
+            log.error(f"Error fetching completions for usage count: {e}")
             return 0
 
 
 def calculate_saved_time_in_seconds(last_message, response_message):
-    # print(last_message + " ----- " + response_message)
+    # log.debug(f"{last_message} ----- {response_message}")
 
     writing_speed_per_word = 600 / 500  # 500 words in 600 seconds = 1.2 sec per word
     reading_speed_per_word = 400 / 500  # 500 words in 400 seconds = 0.8 sec per word

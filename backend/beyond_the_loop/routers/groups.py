@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from beyond_the_loop.models.groups import (
     Groups,
@@ -5,6 +6,8 @@ from beyond_the_loop.models.groups import (
     GroupUpdateForm,
     GroupResponse,
 )
+
+log = logging.getLogger(__name__)
 
 def normalize_workspace_permissions(form_data: GroupForm) -> None:
     """
@@ -70,7 +73,7 @@ async def create_new_function(form_data: GroupForm, user=Depends(get_admin_user)
                 detail=ERROR_MESSAGES.DEFAULT("Error creating group"),
             )
     except Exception as e:
-        print(e)
+        log.error(f"Error creating group: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT(e),
@@ -125,7 +128,7 @@ async def update_group_by_id(
                 detail=ERROR_MESSAGES.DEFAULT("Error updating group"),
             )
     except Exception as e:
-        print(e)
+        log.error(f"Error updating group: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT(e),
@@ -149,7 +152,7 @@ async def delete_group_by_id(id: str, user=Depends(get_admin_user)):
                 detail=ERROR_MESSAGES.DEFAULT("Error deleting group"),
             )
     except Exception as e:
-        print(e)
+        log.error(f"Error deleting group: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT(e),

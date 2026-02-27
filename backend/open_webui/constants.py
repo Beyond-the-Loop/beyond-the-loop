@@ -32,7 +32,7 @@ class ERROR_MESSAGES(str, Enum):
     USERNAME_TAKEN = (
         "Uh-oh! This username is already registered. Please choose another username."
     )
-    COMMAND_TAKEN = "Uh-oh! This command is already registered. Please choose another command string."
+    TITLE_TAKEN = "Uh-oh! This title is already registered. Please choose another title."
     FILE_EXISTS = "Uh-oh! This file is already registered. Please choose another file."
 
     ID_TAKEN = "Uh-oh! This id is already registered. Please choose another id string."
@@ -44,6 +44,7 @@ class ERROR_MESSAGES(str, Enum):
     )
     INVALID_CRED = "The email or password provided is incorrect. Please check for typos and try logging in again."
     INVALID_EMAIL_FORMAT = "The email format you entered is invalid. Please double-check and make sure you're using a valid email address (e.g., yourname@example.com)."
+    NOT_BUSINESS_EMAIL = "Please use your business email address."
     INVALID_PASSWORD = (
         "The password provided is incorrect. Please check for typos and try again."
     )

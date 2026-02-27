@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 import re
 import html
 from urllib.parse import urlparse, urlunparse
+
+log = logging.getLogger(__name__)
 
 
 import site
@@ -277,7 +280,7 @@ class PDFGenerator:
                 
             # Combine messages
             self.messages_html = "<div>" + "".join(rendered_messages_html) + "</div>"
-            print(self.messages_html)
+            log.debug(f"messages_html: {self.messages_html}")
             # Generate full body (your method can insert headers, styles, etc.)
             self.html_body = self._generate_html_body() 
 

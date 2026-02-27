@@ -1,7 +1,10 @@
+import logging
 import time
 import uuid
 from datetime import datetime
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 
@@ -168,7 +171,7 @@ class ChatTable:
 
                 return ChatModel.model_validate(chat_item)
         except Exception as e:
-            print("Error on updating chat by id", e)
+            log.error(f"Error on updating chat by id: {e}")
             return None
 
     def update_chat_title_by_id(self, id: str, title: str) -> Optional[ChatModel]:
@@ -489,7 +492,7 @@ class ChatTable:
                 chat = db.query(Chat).filter_by(id=id, user_id=user_id).first()
                 return ChatModel.model_validate(chat)
         except Exception as e:
-            print(e)
+            log.error(f"Error getting chat by id and user_id: {e}")
             return None
 
     def get_chats(self, skip: int = 0, limit: int = 50) -> list[ChatModel]:
@@ -674,7 +677,7 @@ class ChatTable:
             # Perform pagination at the SQL level
             all_chats = query.offset(skip).limit(limit).all()
 
-            print(len(all_chats))
+            log.debug(f"Chat count: {len(all_chats)}")
 
             # Validate and return chats
             return [ChatModel.model_validate(chat) for chat in all_chats]
@@ -735,7 +738,7 @@ class ChatTable:
             query = db.query(Chat).filter_by(user_id=user_id)
             tag_id = tag_name.replace(" ", "_").lower()
 
-            print(db.bind.dialect.name)
+            log.debug(f"DB dialect: {db.bind.dialect.name}")
             if db.bind.dialect.name == "sqlite":
                 # SQLite JSON1 querying for tags within the meta JSON field
                 query = query.filter(
@@ -756,7 +759,7 @@ class ChatTable:
                 )
 
             all_chats = query.all()
-            print("all_chats", all_chats)
+            log.debug(f"all_chats: {all_chats}")
             return [ChatModel.model_validate(chat) for chat in all_chats]
 
     def add_chat_tag_by_id_and_user_id_and_tag_name(
@@ -814,7 +817,7 @@ class ChatTable:
             count = query.count()
 
             # Debugging output for inspection
-            print(f"Count of chats for tag '{tag_name}':", count)
+            log.debug(f"Count of chats for tag '{tag_name}': {count}")
 
             return count
 

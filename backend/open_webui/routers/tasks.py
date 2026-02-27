@@ -106,10 +106,10 @@ async def update_task_config(
 async def generate_title(
     request: Request, form_data: dict, user=Depends(get_verified_user)
 ):
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
+    task_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
     log.debug(
-        f"generating chat title using model {task_model_id} for user {user.email} "
+        f"generating chat title using model {task_model.id} for user {user.email} "
     )
 
     if request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE != "":
@@ -139,7 +139,6 @@ async def generate_title(
     )
 
     payload = {
-        "model": task_model_id,
         "messages": [{"role": "user", "content": content}],
         "stream": False,
         "metadata": {
@@ -151,7 +150,7 @@ async def generate_title(
     }
 
     try:
-        return await generate_chat_completion(form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user, model=task_model)
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -160,62 +159,14 @@ async def generate_title(
         )
 
 
-@router.post("/tags/completions")
-async def generate_chat_tags(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
-):
-
-    if not request.app.state.config.ENABLE_TAGS_GENERATION:
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={"detail": "Tags generation is disabled"},
-        )
-
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
-
-    log.debug(
-        f"generating chat tags using model {task_model_id} for user {user.email} "
-    )
-
-    if request.app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE != "":
-        template = request.app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE
-    else:
-        template = DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE
-
-    content = tags_generation_template(
-        template, form_data["messages"], {"first_name": user.first_name, "last_name": user.last_name}
-    )
-
-    payload = {
-        "model": task_model_id,
-        "messages": [{"role": "user", "content": content}],
-        "stream": False,
-        "metadata": {
-            "task": str(TASKS.TAGS_GENERATION),
-            "task_body": form_data,
-            "chat_id": form_data.get("chat_id", None),
-            "agent_or_task_prompt": True
-        },
-    }
-
-    try:
-        return await generate_chat_completion(form_data=payload, user=user)
-    except Exception as e:
-        log.error(f"Error generating chat completion: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "An internal error has occurred."},
-        )
-
-
 @router.post("/image_prompt/completions")
 async def generate_image_prompt(
     request: Request, form_data: dict, user=Depends(get_verified_user)
 ):
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
+    task_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
     log.debug(
-        f"generating image prompt using model {task_model_id} for user {user.email} "
+        f"generating image prompt using model {task_model.id} for user {user.email} "
     )
 
     if request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE != "":
@@ -233,7 +184,6 @@ async def generate_image_prompt(
     )
 
     payload = {
-        "model": task_model_id,
         "messages": [{"role": "user", "content": content}],
         "stream": False,
         "metadata": {
@@ -245,7 +195,7 @@ async def generate_image_prompt(
     }
 
     try:
-        return await generate_chat_completion(form_data=payload, user=user)
+        return await generate_chat_completion(form_data=payload, user=user, model=task_model)
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -255,10 +205,10 @@ async def generate_image_prompt(
 
 
 async def generate_queries(query_type: str, messages: list[dict], chat_id: str|None, user):
-    task_model_id = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id).id
+    task_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
     log.debug(
-        f"generating {query_type} queries using model {task_model_id} for user {user.email}"
+        f"generating {query_type} queries using model {task_model.id} for user {user.email}"
     )
 
     response_format = None
@@ -303,7 +253,6 @@ async def generate_queries(query_type: str, messages: list[dict], chat_id: str|N
     content = query_generation_template(template, messages)
 
     payload = {
-        "model": task_model_id,
         "messages": [
             {
                 "role": "user",
@@ -319,10 +268,4 @@ async def generate_queries(query_type: str, messages: list[dict], chat_id: str|N
         }
     }
 
-    try:
-        return await generate_chat_completion(form_data=payload, user=user)
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": str(e)},
-        )
+    return await generate_chat_completion(form_data=payload, user=user, model=task_model)

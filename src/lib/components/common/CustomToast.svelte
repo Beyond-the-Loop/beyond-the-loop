@@ -1,7 +1,9 @@
-<script lang="ts">  
-    import { onMount } from 'svelte';
+<script lang="ts">
+    import { onMount, getContext } from 'svelte';
     import SuccessIcon from '../icons/SuccessIcon.svelte';
     import ErrorIcon from '../icons/ErrorIcon.svelte';
+
+    const i18n = getContext('i18n');
 
     export let message: string;
     export let type: 'success' | 'error' = 'success';
@@ -28,7 +30,7 @@
       {/if}
   
       <div class="text-sm text-lightGray-100 dark:text-white text-center">
-        {message}
+        {$i18n.t(message)}
       </div>
     </div>
   {/if}

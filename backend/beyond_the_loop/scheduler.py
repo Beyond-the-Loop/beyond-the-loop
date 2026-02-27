@@ -200,8 +200,8 @@ class TaskScheduler:
                 batch = companies[i:i + batch_size]
 
                 for company in batch:
-                    adoption_rate = AnalyticsService.calculate_adoption_rate_by_company(company.id).get("adoption_rate", 0)
-                    crm_service.update_company_adoption_rate(company_name=company.name, adoption_rate=adoption_rate)
+                    result = AnalyticsService.calculate_engagement_score_by_company(company.id)
+                    crm_service.update_company_engagement_score(company_name=company.name, engagement_score=result.engagement_score)
 
                 batch_processing_time = time.time() - batch_start_time
                 if batch_processing_time < 1.0:

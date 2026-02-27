@@ -1,11 +1,12 @@
 import logging
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Union
 from huggingface_hub import snapshot_download
 from langchain_classic.retrievers import ContextualCompressionRetriever, EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
-from beyond_the_loop.config import VECTOR_DB
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 from open_webui.env import (
@@ -26,7 +27,7 @@ from openai import AzureOpenAI
 
 class VectorSearchRetriever(BaseRetriever):
     collection_name: Any
-    embedding_function: Any
+    query_embedding: Any  # pre-computed — no API call needed
     top_k: int
 
     def _get_relevant_documents(
@@ -37,7 +38,7 @@ class VectorSearchRetriever(BaseRetriever):
     ) -> list[Document]:
         result = VECTOR_DB_CLIENT.search(
             collection_name=self.collection_name,
-            vectors=[self.embedding_function(query)],
+            vectors=[self.query_embedding],
             limit=self.top_k,
         )
 
@@ -66,33 +67,39 @@ def query_doc(
             vectors=[query_embedding],
             limit=k,
         )
-
         return result
     except Exception as e:
-        print(e)
+        log.error(f"Error querying doc: {e}")
         raise e
 
 
 def query_doc_with_hybrid_search(
     collection_name: str,
     query: str,
-    embedding_function,
+    query_embedding,        # pre-computed query vector — used for vector search + reranking
+    embedding_function,     # used only for document embeddings in RerankCompressor
     k: int,
     reranking_function,
     r: float,
 ) -> dict:
     try:
-        result = VECTOR_DB_CLIENT.get(collection_name=collection_name)
+        t_start = time.perf_counter()
 
+        # Step 1: Load ALL documents from collection for BM25
+        result = VECTOR_DB_CLIENT.get(collection_name=collection_name)
+        num_chunks = len(result.documents[0]) if result and result.documents else 0
+
+        # Step 2: Build BM25 index from all loaded documents
         bm25_retriever = BM25Retriever.from_texts(
             texts=result.documents[0],
             metadatas=result.metadatas[0],
         )
         bm25_retriever.k = k
 
+        # Step 3: Vector retriever — uses pre-computed query_embedding, no API call
         vector_search_retriever = VectorSearchRetriever(
             collection_name=collection_name,
-            embedding_function=embedding_function,
+            query_embedding=query_embedding,
             top_k=k,
         )
 
@@ -100,7 +107,8 @@ def query_doc_with_hybrid_search(
             retrievers=[bm25_retriever, vector_search_retriever], weights=[0.5, 0.5]
         )
         compressor = RerankCompressor(
-            embedding_function=embedding_function,
+            embedding_function=embedding_function,  # for document embeddings
+            query_embedding=query_embedding,         # pre-computed, no API call for query
             top_n=k,
             reranking_function=reranking_function,
             r_score=r,
@@ -110,7 +118,11 @@ def query_doc_with_hybrid_search(
             base_compressor=compressor, base_retriever=ensemble_retriever
         )
 
+        # Step 4: Run the full ensemble + rerank pipeline
         result = compression_retriever.invoke(query)
+
+        t_end = time.perf_counter()
+
         result = {
             "distances": [[d.metadata.get("score") for d in result]],
             "documents": [[d.page_content for d in result]],
@@ -124,7 +136,6 @@ def query_doc_with_hybrid_search(
 def merge_and_sort_query_results(
     query_results: list[dict], k: int, reverse: bool = False
 ) -> list[dict]:
-    # Initialize lists to store combined data
     combined_distances = []
     combined_documents = []
     combined_metadatas = []
@@ -134,45 +145,33 @@ def merge_and_sort_query_results(
         combined_documents.extend(data["documents"][0])
         combined_metadatas.extend(data["metadatas"][0])
 
-    # Create a list of tuples (distance, document, metadata)
     combined = list(zip(combined_distances, combined_documents, combined_metadatas))
-
-    # Sort the list based on distances
     combined.sort(key=lambda x: x[0], reverse=reverse)
 
-    # We don't have anything :-(
     if not combined:
         sorted_distances = []
         sorted_documents = []
         sorted_metadatas = []
     else:
-        # Unzip the sorted list
         sorted_distances, sorted_documents, sorted_metadatas = zip(*combined)
-
-        # Slicing the lists to include only k elements
         sorted_distances = list(sorted_distances)[:k]
         sorted_documents = list(sorted_documents)[:k]
         sorted_metadatas = list(sorted_metadatas)[:k]
 
-    # Create the output dictionary
-    result = {
+    return {
         "distances": [sorted_distances],
         "documents": [sorted_documents],
         "metadatas": [sorted_metadatas],
     }
 
-    return result
-
 
 def query_collection(
     collection_names: list[str],
-    queries: list[str],
-    embedding_function,
+    query_embeddings: list,  # one embedding per query
     k: int,
 ) -> dict:
     results = []
-    for query in queries:
-        query_embedding = embedding_function(query)
+    for query_embedding in query_embeddings:
         for collection_name in collection_names:
             if collection_name:
                 try:
@@ -185,56 +184,46 @@ def query_collection(
                         results.append(result.model_dump())
                 except Exception as e:
                     log.exception(f"Error when querying the collection: {e}")
-            else:
-                pass
 
-    if VECTOR_DB == "chroma":
-        # Chroma uses unconventional cosine similarity, so we don't need to reverse the results
-        # https://docs.trychroma.com/docs/collections/configure#configuring-chroma-collections
-        return merge_and_sort_query_results(results, k=k, reverse=False)
-    else:
-        return merge_and_sort_query_results(results, k=k, reverse=True)
+    return merge_and_sort_query_results(results, k=k, reverse=True)
 
 
 def query_collection_with_hybrid_search(
     collection_names: list[str],
     queries: list[str],
-    embedding_function,
+    query_embeddings: list,  # one embedding per query, same order as queries
+    embedding_function,      # for document embeddings in RerankCompressor
     k: int,
     reranking_function,
     r: float,
 ) -> dict:
     results = []
     error = False
-    for collection_name in collection_names:
-        try:
-            for query in queries:
+    for query, query_embedding in zip(queries, query_embeddings):
+        for collection_name in collection_names:
+            try:
                 result = query_doc_with_hybrid_search(
                     collection_name=collection_name,
                     query=query,
+                    query_embedding=query_embedding,
                     embedding_function=embedding_function,
                     k=k,
                     reranking_function=reranking_function,
                     r=r,
                 )
                 results.append(result)
-        except Exception as e:
-            log.exception(
-                "Error when querying the collection with " f"hybrid_search: {e}"
-            )
-            error = True
+            except Exception as e:
+                log.exception(
+                    "Error when querying the collection with " f"hybrid_search: {e}"
+                )
+                error = True
 
     if error:
         raise Exception(
             "Hybrid search failed for all collections. Using Non hybrid search as fallback."
         )
 
-    if VECTOR_DB == "chroma":
-        # Chroma uses unconventional cosine similarity, so we don't need to reverse the results
-        # https://docs.trychroma.com/docs/collections/configure#configuring-chroma-collections
-        return merge_and_sort_query_results(results, k=k, reverse=False)
-    else:
-        return merge_and_sort_query_results(results, k=k, reverse=True)
+    return merge_and_sort_query_results(results, k=k, reverse=True)
 
 
 def get_embedding_function(
@@ -247,7 +236,6 @@ def get_embedding_function(
         return lambda query, user=None: embedding_function.encode(query).tolist()
     elif embedding_engine == "openai":
         func = lambda query, user=None: generate_embeddings(
-            engine=embedding_engine,
             model=embedding_model,
             text=query,
         )
@@ -277,78 +265,108 @@ def get_sources_from_files(
     r,
     hybrid_search,
 ):
-    log.debug(f"files: {files} {queries} {embedding_function} {reranking_function}")
-
-    extracted_collections = []
-    relevant_contexts = []
+    extracted_collections = set()
+    full_context_results = []
+    search_tasks = []
 
     for file in files:
         if file.get("context") == "full":
             context = {
-                "documents": [[file.get("file").get("data", {}).get("content")]],
+                "documents": [[file.get("file", {}).get("data", {}).get("content")]],
                 "metadatas": [[{"file_id": file.get("id"), "name": file.get("name")}]],
             }
+            full_context_results.append((context, file))
         else:
-            context = None
+            if file.get("type") == "text":
+                # text files carry their content inline, no vector search needed
+                search_tasks.append((file, None))
+                continue
 
-            collection_names = []
-            if file.get("type") == "collection":
-                if file.get("legacy"):
-                    collection_names = file.get("collection_names", [])
-                else:
-                    collection_names.append(file["id"])
+            # Extract collection name(s) from the file object.
+            # Files can carry a single "collection_name" string, a list under
+            # "collection_names", or (for type=="collection") use the "id" field.
+            if file.get("collection_names"):
+                collection_names = set(file["collection_names"])
             elif file.get("collection_name"):
-                collection_names.append(file["collection_name"])
-            elif file.get("id"):
-                if file.get("legacy"):
-                    collection_names.append(f"{file['id']}")
-                else:
-                    collection_names.append(f"file-{file['id']}")
+                collection_names = {file["collection_name"]}
+            elif file.get("type") == "collection" and file.get("id"):
+                collection_names = {file["id"]}
+            else:
+                continue
 
-            collection_names = set(collection_names).difference(extracted_collections)
+            collection_names = collection_names.difference(extracted_collections)
+
             if not collection_names:
                 log.debug(f"skipping {file} as it has already been extracted")
                 continue
 
+            extracted_collections.update(collection_names)
+            search_tasks.append((file, collection_names))
+
+    # Batch-compute all query embeddings in one API call.
+    # embedding_function accepts a list and returns a list of vectors.
+    query_embeddings = embedding_function(queries) if queries else []
+
+    def search_one(file, collection_names):
+        """Worker function executed in a thread for each file."""
+        if collection_names is None:
+            return file.get("content")
+
+        if hybrid_search:
             try:
-                context = None
-                if file.get("type") == "text":
-                    context = file["content"]
-                else:
-                    if hybrid_search:
-                        try:
-                            context = query_collection_with_hybrid_search(
-                                collection_names=collection_names,
-                                queries=queries,
-                                embedding_function=embedding_function,
-                                k=k,
-                                reranking_function=reranking_function,
-                                r=r,
-                            )
-                        except Exception as e:
-                            log.debug(
-                                "Error when using hybrid search, using"
-                                " non hybrid search as fallback."
-                            )
-
-                    if (not hybrid_search) or (context is None):
-                        context = query_collection(
-                            collection_names=collection_names,
-                            queries=queries,
-                            embedding_function=embedding_function,
-                            k=k,
-                        )
+                return query_collection_with_hybrid_search(
+                    collection_names=collection_names,
+                    queries=queries,
+                    query_embeddings=query_embeddings,
+                    embedding_function=embedding_function,
+                    k=k,
+                    reranking_function=reranking_function,
+                    r=r,
+                )
             except Exception as e:
-                log.exception(e)
+                log.debug("Hybrid search failed, falling back to vector-only search.", e)
 
-            extracted_collections.extend(collection_names)
+        return query_collection(
+            collection_names=collection_names,
+            query_embeddings=query_embeddings,
+            k=k,
+        )
 
+    max_workers = min(len(search_tasks), 10)
+
+    # Preserve original order so results stay deterministic
+    ordered_results = [None] * len(search_tasks)
+
+    if search_tasks:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_idx = {
+                executor.submit(search_one, file, coll): i
+                for i, (file, coll) in enumerate(search_tasks)
+            }
+
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    ordered_results[idx] = future.result()
+                except Exception as e:
+                    log.exception(f"Search task {idx} failed: {e}")
+
+    relevant_contexts = []
+
+    for context, file in full_context_results:
+        if "data" in file:
+            del file["data"]
+        relevant_contexts.append({**context, "file": file})
+
+    for i, (file, _) in enumerate(search_tasks):
+        context = ordered_results[i]
         if context:
             if "data" in file:
                 del file["data"]
             relevant_contexts.append({**context, "file": file})
 
     sources = []
+
     for context in relevant_contexts:
         try:
             if "documents" in context:
@@ -360,7 +378,6 @@ def get_sources_from_files(
                     }
                     if "distances" in context and context["distances"]:
                         source["distances"] = context["distances"][0]
-
                     sources.append(source)
         except Exception as e:
             log.exception(e)
@@ -369,9 +386,7 @@ def get_sources_from_files(
 
 
 def get_model_path(model: str, update_model: bool = False):
-    # Construct huggingface_hub kwargs with local_files_only to return the snapshot path
     cache_dir = os.getenv("SENTENCE_TRANSFORMERS_HOME")
-
     local_files_only = not update_model
 
     if OFFLINE_MODE:
@@ -385,21 +400,17 @@ def get_model_path(model: str, update_model: bool = False):
     log.debug(f"model: {model}")
     log.debug(f"snapshot_kwargs: {snapshot_kwargs}")
 
-    # Inspiration from upstream sentence_transformers
     if (
         os.path.exists(model)
         or ("\\" in model or model.count("/") > 1)
         and local_files_only
     ):
-        # If fully qualified path exists, return input, else set repo_id
         return model
     elif "/" not in model:
-        # Set valid repo_id for model short-name
         model = "sentence-transformers" + "/" + model
 
     snapshot_kwargs["repo_id"] = model
 
-    # Attempt to query the huggingface_hub library to determine the local path and/or to update
     try:
         model_repo_path = snapshot_download(**snapshot_kwargs)
         log.debug(f"model_repo_path: {model_repo_path}")
@@ -428,14 +439,14 @@ def generate_openai_batch_embeddings(
         log.exception(e)
         return None
 
-def generate_embeddings(engine: str, model: str, text: Union[str, list[str]]):
-    if engine == "openai":
-        if isinstance(text, list):
-            embeddings = generate_openai_batch_embeddings(model, text)
-        else:
-            embeddings = generate_openai_batch_embeddings(model, [text])
 
-        return embeddings[0] if isinstance(text, str) else embeddings
+def generate_embeddings(model: str, text: Union[str, list[str]]):
+    if isinstance(text, list):
+        embeddings = generate_openai_batch_embeddings(model, text)
+    else:
+        embeddings = generate_openai_batch_embeddings(model, [text])
+
+    return embeddings[0] if isinstance(text, str) else embeddings
 
 
 import operator
@@ -446,7 +457,8 @@ from langchain_core.documents import BaseDocumentCompressor, Document
 
 
 class RerankCompressor(BaseDocumentCompressor):
-    embedding_function: Any
+    embedding_function: Any  # used only for document embeddings
+    query_embedding: Any      # pre-computed query vector — no API call for the query
     top_n: int
     reranking_function: Any
     r_score: float
@@ -470,11 +482,11 @@ class RerankCompressor(BaseDocumentCompressor):
         else:
             from sentence_transformers import util
 
-            query_embedding = self.embedding_function(query)
             document_embedding = self.embedding_function(
                 [doc.page_content for doc in documents]
             )
-            scores = util.cos_sim(query_embedding, document_embedding)[0]
+
+            scores = util.cos_sim(self.query_embedding, document_embedding)[0]
 
         docs_with_scores = list(zip(documents, scores.tolist()))
         if self.r_score:
@@ -484,6 +496,7 @@ class RerankCompressor(BaseDocumentCompressor):
 
         result = sorted(docs_with_scores, key=operator.itemgetter(1), reverse=True)
         final_results = []
+
         for doc, doc_score in result[: self.top_n]:
             metadata = doc.metadata
             metadata["score"] = doc_score
@@ -492,4 +505,5 @@ class RerankCompressor(BaseDocumentCompressor):
                 metadata=metadata,
             )
             final_results.append(doc)
+
         return final_results

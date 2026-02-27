@@ -2,64 +2,67 @@ import importlib.metadata
 import json
 import logging
 import os
-import pkgutil
 import sys
 import shutil
+from contextvars import ContextVar
 from pathlib import Path
 
-import markdown
-from bs4 import BeautifulSoup
 from open_webui.constants import ERROR_MESSAGES
+from pythonjsonlogger import jsonlogger
 
 ####################################
 # Load .env file
 ####################################
 
+# ── Request-ID context var (used by middleware and log filter) ───────────────
+request_id_var: ContextVar[str] = ContextVar("request_id", default="")
+
+
+class RequestIDFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = request_id_var.get("")
+        return True
+
+
+# ── Root JSON handler — single setup, before any other logging calls ─────────
+_json_handler = logging.StreamHandler(sys.stdout)
+_json_handler.setFormatter(
+    jsonlogger.JsonFormatter(
+        fmt="%(asctime)s %(name)s %(levelname)s %(message)s %(request_id)s",
+        datefmt="%Y-%m-%dT%H:%M:%SZ",
+        rename_fields={
+            "levelname": "severity",
+            "asctime": "time",
+            "name": "logger",
+            "request_id": "logging.googleapis.com/trace",
+        },
+    )
+)
+_json_handler.addFilter(RequestIDFilter())
+logging.root.addHandler(_json_handler)
+logging.root.setLevel(logging.INFO)   # overridden below once env vars are read
+
+log = logging.getLogger(__name__)
+
 OPEN_WEBUI_DIR = Path(__file__).parent  # the path containing this file
-print(OPEN_WEBUI_DIR)
+log.debug("OPEN_WEBUI_DIR: %s", OPEN_WEBUI_DIR)
 
 BACKEND_DIR = OPEN_WEBUI_DIR.parent  # the path containing this file
 BASE_DIR = BACKEND_DIR.parent  # the path containing the backend/
 
-print(BACKEND_DIR)
-print(BASE_DIR)
+log.debug("BACKEND_DIR: %s", BACKEND_DIR)
+log.debug("BASE_DIR: %s", BASE_DIR)
 
 try:
     from dotenv import find_dotenv, load_dotenv
 
     load_dotenv(find_dotenv(str(BASE_DIR / ".env")))
 except ImportError:
-    print("dotenv not installed, skipping...")
+    log.warning("dotenv not installed, skipping")
 
 DOCKER = os.environ.get("DOCKER", "False").lower() == "true"
 
-# device type embedding models - "cpu" (default), "cuda" (nvidia gpu required) or "mps" (apple silicon) - choosing this right can lead to better performance
-USE_CUDA = os.environ.get("USE_CUDA_DOCKER", "false")
-
-if USE_CUDA.lower() == "true":
-    try:
-        import torch
-
-        assert torch.cuda.is_available(), "CUDA not available"
-        DEVICE_TYPE = "cuda"
-    except Exception as e:
-        cuda_error = (
-            "Error when testing CUDA but USE_CUDA_DOCKER is true. "
-            f"Resetting USE_CUDA_DOCKER to false: {e}"
-        )
-        os.environ["USE_CUDA_DOCKER"] = "false"
-        USE_CUDA = "false"
-        DEVICE_TYPE = "cpu"
-else:
-    DEVICE_TYPE = "cpu"
-
-try:
-    import torch
-
-    if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-        DEVICE_TYPE = "mps"
-except Exception:
-    pass
+DEVICE_TYPE = "cpu"
 
 ####################################
 # LOGGING
@@ -68,16 +71,12 @@ except Exception:
 log_levels = ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]
 
 GLOBAL_LOG_LEVEL = os.environ.get("GLOBAL_LOG_LEVEL", "").upper()
-if GLOBAL_LOG_LEVEL in log_levels:
-    logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL, force=True)
-else:
+if GLOBAL_LOG_LEVEL not in log_levels:
     GLOBAL_LOG_LEVEL = "INFO"
+logging.root.setLevel(GLOBAL_LOG_LEVEL)
 
 log = logging.getLogger(__name__)
-log.info(f"GLOBAL_LOG_LEVEL: {GLOBAL_LOG_LEVEL}")
-
-if "cuda_error" in locals():
-    log.exception(cuda_error)
+log.info("GLOBAL_LOG_LEVEL: %s", GLOBAL_LOG_LEVEL)
 
 log_sources = [
     "AUDIO",
@@ -283,7 +282,7 @@ ENABLE_REALTIME_CHAT_SAVE = (
 # REDIS
 ####################################
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL")
 
 ####################################
 # WEBUI_AUTH (Required for security)
@@ -333,9 +332,7 @@ ENABLE_WEBSOCKET_SUPPORT = (
 
 WEBSOCKET_MANAGER = os.environ.get("WEBSOCKET_MANAGER", "")
 
-WEBSOCKET_REDIS_URL = os.environ.get("WEBSOCKET_REDIS_URL", REDIS_URL)
-
-AIOHTTP_CLIENT_TIMEOUT = os.environ.get("AIOHTTP_CLIENT_TIMEOUT", "")
+AIOHTTP_CLIENT_TIMEOUT = os.environ.get("AIOHTTP_CLIENT_TIMEOUT", "300")
 
 if AIOHTTP_CLIENT_TIMEOUT == "":
     AIOHTTP_CLIENT_TIMEOUT = None

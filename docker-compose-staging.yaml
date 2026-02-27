@@ -23,11 +23,15 @@ services:
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     extra_hosts:
       - host.docker.internal:host-gateway
+    logging:
+      driver: gcplogs
+      options:
+        gcp-log-cmd: "true"
 
   redis:
     container_name: redis-valkey
     image: valkey/valkey:8.1-alpine
-    command: "valkey-server --save 30 1"
+    command: "valkey-server --save 30 1 --client-output-buffer-limit pubsub 256mb 64mb 60 --timeout 1800 --maxclients 10000"
     healthcheck:
       test: "[ $$(valkey-cli ping) = 'PONG' ]"
       start_period: 5s
@@ -45,6 +49,10 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
+    logging:
+      driver: gcplogs
+      options:
+        gcp-log-cmd: "true"
 
   beyond-the-loop:
     image: ghcr.io/beyond-the-loop/beyond-the-loop:staging
@@ -73,6 +81,10 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
+    logging:
+      driver: gcplogs
+      options:
+        gcp-log-cmd: "true"
 
 volumes:
   beyond-the-loop: {}

@@ -55,7 +55,7 @@ class CreditService:
                 try:
                     # Check if the company has a stripe customer ID and payment method before recharging
                     if not company.stripe_customer_id:
-                        print(f"Auto-recharge failed: No stripe customer ID for company {user.company_id}")
+                        log.warning(f"Auto-recharge failed: No stripe customer ID for company {user.company_id}")
                         # Don't attempt to recharge if there's no stripe customer ID
                     else:
                         # Check if the customer has any payment methods
@@ -66,7 +66,7 @@ class CreditService:
                             )
 
                             if not payment_methods or len(payment_methods.data) == 0:
-                                print(
+                                log.warning(
                                     f"Auto-recharge failed: No payment methods found for company {user.company_id}")
                                 # Don't attempt to recharge if there are no payment methods
                             else:
@@ -75,11 +75,11 @@ class CreditService:
                                 # Note: The webhook will handle adding the credits when payment succeeds
                                 should_send_budget_email_80 = False  # Don't send email if auto-recharge succeeded
                         except Exception as e:
-                            print(f"Error checking payment methods: {str(e)}")
+                            log.error(f"Error checking payment methods: {str(e)}")
                 except HTTPException as e:
-                    print(f"Auto-recharge failed: {str(e)}")
+                    log.error(f"Auto-recharge failed: {str(e)}")
                 except Exception as e:
-                    print(f"Unexpected error during auto-recharge: {str(e)}")
+                    log.error(f"Unexpected error during auto-recharge: {str(e)}")
 
             if should_send_budget_email_80 and not company.budget_mail_80_sent:
                 admins = Users.get_admin_users_by_company(company.id)
@@ -114,8 +114,8 @@ class CreditService:
 
         return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
-    async def subtract_credits_by_user_for_image(self, user, model_name: str):
-        image_cost = ModelCosts.get_cost_per_image_by_model_name(model_name) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
+    async def subtract_credits_by_user_for_image(self, user):
+        image_cost = ModelCosts.get_cost_per_image_by_model_name("Nano Banana") * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
 
         credit_cost = image_cost
 
@@ -145,7 +145,7 @@ class CreditService:
 
         credit_cost = total_costs
 
-        print(f" Model: {model_name}", f"Reasoning tokens: {reasoning_tokens}", f"Search query cost: {search_query_cost}", f"Credit cost: {credit_cost}", f"Cost per input token: {costs_per_input_token}", f"Cost per output token: {cost_per_output_token}", f"Total costs: {total_costs}", f"Input tokens: {input_tokens}", f"Output tokens: {output_tokens}")
+        log.debug(f"Model: {model_name} | Reasoning tokens: {reasoning_tokens} | Search query cost: {search_query_cost} | Credit cost: {credit_cost} | Cost per input token: {costs_per_input_token} | Cost per output token: {cost_per_output_token} | Total costs: {total_costs} | Input tokens: {input_tokens} | Output tokens: {output_tokens}")
 
         return await self._subtract_credits_by_user_and_credits(user, credit_cost)
 
@@ -194,26 +194,26 @@ class CreditService:
                     detail="No active subscription found. Please subscribe to a plan.",
                 )
 
-        # Proceed with credit balance check
-        current_balance = company.credit_balance + (company.flex_credit_balance or 0) if company else None
+            # Proceed with credit balance check
+            current_balance = company.credit_balance + (company.flex_credit_balance or 0) if company else None
 
-        # Check if company has sufficient credits
-        if current_balance == 0:
-            if not company.budget_mail_100_sent:
-                email_service = EmailService()
-                email_service.send_budget_mail_100(
-                    to_email=user.email,
-                    admin_name=user.first_name,
-                    company_name=company.name,
-                    billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing"
+            # Check if company has sufficient credits
+            if current_balance == 0:
+                if not company.budget_mail_100_sent:
+                    email_service = EmailService()
+                    email_service.send_budget_mail_100(
+                        to_email=user.email,
+                        admin_name=user.first_name,
+                        company_name=company.name,
+                        billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing"
+                    )
+
+                    Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})
+
+                raise HTTPException(
+                    status_code=402,  # 402 Payment Required
+                    detail=f"Insufficient credits. No credits left.",
                 )
-
-                Companies.update_company_by_id(user.company_id, {"budget_mail_100_sent": True})
-
-            raise HTTPException(
-                status_code=402,  # 402 Payment Required
-                detail=f"Insufficient credits. No credits left.",
-            )
 
     @staticmethod
     async def subtract_credit_cost_by_user_and_response_and_model(user: UserModel, response, model_name: str):

@@ -11,7 +11,6 @@ from sqlalchemy import Boolean, Column, String, Text
 from open_webui.utils.auth import verify_password
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
-from beyond_the_loop.routers.payments import get_subscription
 import stripe
 
 from beyond_the_loop.services.payments_service import payments_service
@@ -154,7 +153,7 @@ class AuthsTable:
 
                 try:
                         loops_service.create_or_update_loops_contact(user)
-                        company = Companies.get_company_by_id(company_id).name
+                        company = Companies.get_company_by_id(company_id)
                         crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
                 except Exception as e:
                     log.error(f"Failed to create user in CRM or in Loops: {e}")
@@ -175,7 +174,7 @@ class AuthsTable:
             db.refresh(result)
 
             if user.company_id != "NEW":
-                company = Companies.get_company_by_id(user.company_id).name
+                company = Companies.get_company_by_id(user.company_id)
 
                 subscription = payments_service.get_subscription(user.company_id)
 
@@ -193,7 +192,7 @@ class AuthsTable:
 
                 try:
                     loops_service.create_or_update_loops_contact(user)
-                    crm_service.create_user(company_name=company, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
+                    crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
                 except Exception as e:
                     log.error(f"Failed to create user in CRM or in Loops: {e}")
 

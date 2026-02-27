@@ -1,9 +1,11 @@
 import asyncio
+import anyio
 import logging
 import mimetypes
 import os
 import sys
 import time
+import uuid
 from contextlib import asynccontextmanager
 from urllib.parse import urlencode, parse_qs, urlparse
 
@@ -29,13 +31,8 @@ from starlette.responses import Response
 
 from beyond_the_loop.config import (
     # Image
-    BLACK_FOREST_LABS_API_KEY,
     ENABLE_IMAGE_GENERATION,
-    ENABLE_IMAGE_PROMPT_GENERATION,
-    IMAGE_GENERATION_ENGINE,
-    IMAGE_GENERATION_MODEL,
-    IMAGE_SIZE,
-    IMAGE_STEPS,
+
     # Audio
     AUDIO_STT_ENGINE,
     AUDIO_STT_MODEL,
@@ -145,7 +142,6 @@ from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.socket.main import (
     app as socket_app,
-    periodic_usage_pool_cleanup,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
@@ -154,7 +150,6 @@ from open_webui.env import (
     SAFE_MODE,
     SRC_LOG_LEVELS,
     VERSION,
-    WEBUI_BUILD_HASH,
     WEBUI_SECRET_KEY,
     WEBUI_SESSION_COOKIE_SAME_SITE,
     WEBUI_SESSION_COOKIE_SECURE,
@@ -163,6 +158,7 @@ from open_webui.env import (
     ENABLE_WEBSOCKET_SUPPORT,
     RESET_CONFIG_ON_START,
     OFFLINE_MODE,
+    request_id_var,
 )
 from open_webui.internal.db import Session
 from open_webui.routers import (
@@ -192,44 +188,53 @@ from open_webui.utils.chat import (
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
-if SAFE_MODE:
-    print("SAFE MODE ENABLED")
-
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
-log.setLevel(SRC_LOG_LEVELS["MAIN"])
+
+if SAFE_MODE:
+    log.warning("SAFE MODE ENABLED")
 
 
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except (HTTPException, StarletteHTTPException) as ex:
             if ex.status_code == 404:
-                return await super().get_response("index.html", scope)
+                response = await super().get_response("index.html", scope)
             else:
                 raise ex
 
+        # Vite fingerprints all files under /_app/immutable/ with content hashes,
+        # so they can be cached indefinitely by browsers and CDNs.
+        if "/_app/immutable/" in path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            # index.html and all other routes: always revalidate so users get
+            # fresh deploys immediately.
+            response.headers["Cache-Control"] = "no-cache"
 
-print(
-    rf"""
-  ___                    __        __   _     _   _ ___
- / _ \ _ __   ___ _ __   \ \      / /__| |__ | | | |_ _|
-| | | | '_ \ / _ \ '_ \   \ \ /\ / / _ \ '_ \| | | || |
-| |_| | |_) |  __/ | | |   \ V  V /  __/ |_) | |_| || |
- \___/| .__/ \___|_| |_|    \_/\_/ \___|_.__/ \___/|___|
-      |_|
+        return response
 
 
-v{VERSION} - building the best open-source AI user interface.
-{f"Commit: {WEBUI_BUILD_HASH}" if WEBUI_BUILD_HASH != "dev-build" else ""}
-https://github.com/open-webui/open-webui
-"""
-)
+log.info(rf"""
+
+
+▀█████████▄     ▄████████ ▄██   ▄    ▄██████▄  ███▄▄▄▄   ████████▄           ███        ▄█    █▄       ▄████████       ▄█        ▄██████▄   ▄██████▄     ▄███████▄ 
+  ███    ███   ███    ███ ███   ██▄ ███    ███ ███▀▀▀██▄ ███   ▀███      ▀█████████▄   ███    ███     ███    ███      ███       ███    ███ ███    ███   ███    ███ 
+  ███    ███   ███    █▀  ███▄▄▄███ ███    ███ ███   ███ ███    ███         ▀███▀▀██   ███    ███     ███    █▀       ███       ███    ███ ███    ███   ███    ███ 
+ ▄███▄▄▄██▀   ▄███▄▄▄     ▀▀▀▀▀▀███ ███    ███ ███   ███ ███    ███          ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄          ███       ███    ███ ███    ███   ███    ███ 
+▀▀███▀▀▀██▄  ▀▀███▀▀▀     ▄██   ███ ███    ███ ███   ███ ███    ███          ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀          ███       ███    ███ ███    ███ ▀█████████▀  
+  ███    ██▄   ███    █▄  ███   ███ ███    ███ ███   ███ ███    ███          ███       ███    ███     ███    █▄       ███       ███    ███ ███    ███   ███        
+  ███    ███   ███    ███ ███   ███ ███    ███ ███   ███ ███   ▄███          ███       ███    ███     ███    ███      ███▌    ▄ ███    ███ ███    ███   ███        
+▄█████████▀    ██████████  ▀█████▀   ▀██████▀   ▀█   █▀  ████████▀          ▄████▀     ███    █▀      ██████████      █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀                                                                                                                    ▀                                             
+""")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 2000
+
     if RESET_CONFIG_ON_START:
         # Note: This won't actually save to the database since company_id is None
         # It will just reset the in-memory config to the default values
@@ -238,7 +243,6 @@ async def lifespan(app: FastAPI):
     # Start the task scheduler for automated processes
     start_scheduler()
 
-    asyncio.create_task(periodic_usage_pool_cleanup())
     yield
 
     # Shutdown the scheduler gracefully
@@ -369,16 +373,7 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
 #
 ########################################
 
-app.state.config.IMAGE_GENERATION_ENGINE = IMAGE_GENERATION_ENGINE
 app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
-app.state.config.ENABLE_IMAGE_PROMPT_GENERATION = ENABLE_IMAGE_PROMPT_GENERATION
-
-app.state.config.IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODEL
-
-app.state.config.BLACK_FOREST_LABS_API_KEY = BLACK_FOREST_LABS_API_KEY
-
-app.state.config.IMAGE_SIZE = IMAGE_SIZE
-app.state.config.IMAGE_STEPS = IMAGE_STEPS
 
 ########################################
 #
@@ -447,7 +442,27 @@ class RedirectMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Extracts or generates a request ID and injects it into the log context."""
+    async def dispatch(self, request: Request, call_next):
+        # GCP injects X-Cloud-Trace-Context as TRACE_ID/SPAN_ID;o=1
+        trace_header = request.headers.get("X-Cloud-Trace-Context", "")
+        if trace_header:
+            request_id = trace_header.split("/")[0]
+        else:
+            request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+
+        token = request_id_var.set(request_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            request_id_var.reset(token)
+
+
 # Add the middleware to the app
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RedirectMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -561,12 +576,17 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") == "free":
-        all_models = [model for model in all_models if model_base_model_names[
-            model.id] in ModelCosts.get_allowed_model_names_free() and model.user_id != "system"]
-    elif subscription.get("plan") == "premium":
+    if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
         all_models = [model for model in all_models if
                       model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
+
+        if subscription.get("plan") == "free":
+            allowed = set(ModelCosts.get_allowed_model_names_free())
+
+            for model in all_models:
+                # Set models to inactive if they are not allowed in free plan but send them with the response to show them in the frontend
+                base = model_base_model_names[model.id]
+                model.is_active = base in allowed
 
         # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
         if user.company_id not in ("c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4", "995d24a9-fc30-43b3-b88b-e8650586d938"):
@@ -647,9 +667,9 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
                     user, response, request.get("model")
                 )
-                Completions.insert_new_completion(user.id, "OPENAI API", request.get("model"), credit_cost, 0)
+                Completions.insert_new_completion(user.id, request.get("model"), credit_cost, None, False)
             except Exception as err:
-                print("Error in chat completions public endpoint LiteLLM credit service", err)
+                log.error("Error in chat completions public endpoint LiteLLM credit service: %s", err)
 
             return response
 
@@ -715,8 +735,7 @@ async def chat_completion(
             "message_id": form_data.pop("id", None),
             "session_id": form_data.pop("session_id", None),
             "files": form_data.get("files", None),
-            "features": form_data.get("features", None),
-            "model": model
+            "features": form_data.get("features", None)
         }
 
         form_data["metadata"] = metadata
@@ -726,20 +745,20 @@ async def chat_completion(
         )
 
     except Exception as e:
-        print(e)
+        log.error(f"Error processing chat payload: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
 
     try:
-        response = await chat_completion_handler(form_data, user)
+        response = await chat_completion_handler(form_data, user, model)
 
         return await process_chat_response(
-            request, response, form_data, user, events, metadata, tasks
+            request, response, form_data, user, events, metadata, tasks, model
         )
     except Exception as e:
-        print(e)
+        log.error(f"Error processing chat response: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

@@ -4,11 +4,10 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
 import chromadb
-from pydantic import BaseModel
 from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
@@ -49,7 +48,7 @@ def run_migrations():
 
         command.upgrade(alembic_cfg, "head")
     except Exception as e:
-        print(f"Error: {e}")
+        log.error(f"Migration error: {e}")
 
 
 run_migrations()
@@ -856,18 +855,17 @@ WEBHOOK_URL = PersistentConfig(
 )
 
 WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Please generate 1-3 web search queries for me that help me to answer the user's question.
-For each of the web search queries I want you to tell me a result_limit that determines how many web pages are scraped for the query.
+Decide whether additional keyword web search queries are needed to answer the user's question, and generate them if so (1–3 max).
+For each query also provide a result_limit (minimum 1) that determines how many web pages to scrape.
 
 ### Guidelines:
 - Use the language given in the user's prompt; default to English if unclear.
 - Today's date is: {{CURRENT_DATE}}.
-- Do **not** wrap URLs in phrases like “search for” or “analyze”.
-- IMPORTANT: Generate at least one query and result_limit should also always be at least one! In general be very conservative so only create more than one web search query if you really think it is necessary to answer the question.
-
-### URL Extraction Rules:
-- Scan messages for URLs (http:// or https://)
-- If found, insert the URL (unaltered) as the **first element** your response
+- Do NOT include raw URLs as queries — URLs are already scraped separately and do not need to be re-queried.
+- **If the user's message contains one or more URLs and the intent is clearly to read, fetch, summarize, compare, or analyze those specific pages, return `{"queries": []}` — no additional keyword queries are needed.**
+- Only generate keyword queries if there is a genuine need for additional web research beyond what the provided URLs cover — for example, if the user asks a general question that is not answered by the URLs alone, or asks to compare against external sources.
+- If there are no URLs in the message, always generate at least one keyword query.
+- Be conservative: fewer queries are better. Only generate more than one if clearly necessary.
 
 ### Chat History:
 <chat_history>
@@ -998,8 +996,6 @@ MODEL_ORDER_LIST = PersistentConfig(
     "ui.model_order_list",
     [],
 )
-
-VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")
 
 # Chroma
 CHROMA_DATA_PATH = f"{DATA_DIR}/vector_db"
@@ -1217,59 +1213,14 @@ RAG_OPENAI_API_KEY = PersistentConfig(
     os.getenv("RAG_OPENAI_API_KEY", OPENAI_API_KEY),
 )
 
-
-
 ####################################
 # Images
 ####################################
-
-IMAGE_GENERATION_ENGINE = PersistentConfig(
-    "IMAGE_GENERATION_ENGINE",
-    "image_generation.engine",
-    os.getenv("IMAGE_GENERATION_ENGINE", "openai"),
-)
 
 ENABLE_IMAGE_GENERATION = PersistentConfig(
     "ENABLE_IMAGE_GENERATION",
     "image_generation.enable",
     os.environ.get("ENABLE_IMAGE_GENERATION", "").lower() == "true",
-)
-
-ENABLE_IMAGE_PROMPT_GENERATION = PersistentConfig(
-    "ENABLE_IMAGE_PROMPT_GENERATION",
-    "image_generation.prompt.enable",
-    os.environ.get("ENABLE_IMAGE_PROMPT_GENERATION", "true").lower() == "true",
-)
-
-IMAGES_OPENAI_API_BASE_URL = PersistentConfig(
-    "IMAGES_OPENAI_API_BASE_URL",
-    "image_generation.openai.api_base_url",
-    os.getenv("IMAGES_OPENAI_API_BASE_URL", OPENAI_API_BASE_URL),
-)
-IMAGES_OPENAI_API_KEY = PersistentConfig(
-    "IMAGES_OPENAI_API_KEY",
-    "image_generation.openai.api_key",
-    os.getenv("IMAGES_OPENAI_API_KEY", OPENAI_API_KEY),
-)
-
-IMAGE_SIZE = PersistentConfig(
-    "IMAGE_SIZE", "image_generation.size", os.getenv("IMAGE_SIZE", "512x512")
-)
-
-IMAGE_STEPS = PersistentConfig(
-    "IMAGE_STEPS", "image_generation.steps", int(os.getenv("IMAGE_STEPS", 50))
-)
-
-IMAGE_GENERATION_MODEL = PersistentConfig(
-    "IMAGE_GENERATION_MODEL",
-    "image_generation.model",
-    os.getenv("IMAGE_GENERATION_MODEL", ""),
-)
-
-BLACK_FOREST_LABS_API_KEY = PersistentConfig(
-    "BLACK_FOREST_LABS_API_KEY",
-    "image_generation.flux.api_key",
-    os.getenv("BLACK_FOREST_LABS_API_KEY", ""),
 )
 
 ####################################

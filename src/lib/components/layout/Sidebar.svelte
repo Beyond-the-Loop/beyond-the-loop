@@ -624,7 +624,7 @@
 					}}
 					draggable="false"
 				>
-					{$i18n.t('Assistants')}
+					{$i18n.t('Assistants')}{#if $subscription?.plan === 'free'}<span class="text-[0.4rem] ml-[2px] align-super">Premium</span>{/if}
 				</a>
 			</div>
 			{/if}
@@ -650,7 +650,7 @@
 						}}
 						draggable="false"
 					>
-						{$i18n.t('Knowledge')}
+						{$i18n.t('Knowledge')}{#if $subscription?.plan === 'free'}<span class="text-[0.4rem] ml-[2px] align-super">Premium</span>{/if}
 					</a>
 				</div>
 			{/if}

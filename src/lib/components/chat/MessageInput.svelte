@@ -1,34 +1,31 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { v4 as uuidv4 } from 'uuid';
-	import { createPicker, getAuthToken } from '$lib/utils/google-drive-picker';
+	import { createPicker } from '$lib/utils/google-drive-picker';
 
-	import { onMount, tick, getContext, createEventDispatcher, onDestroy } from 'svelte';
+	import { createEventDispatcher, getContext, onDestroy, onMount, tick } from 'svelte';
 	import ScrollToBottomIcon from '../icons/ScrollToBottomIcon.svelte';
-	const dispatch = createEventDispatcher();
-
+	import ScrollToTopIcon from '../icons/ScrollToTopIcon.svelte';
 	import {
-		type Model,
-		mobile,
-		settings,
-		showSidebar,
-		models,
-		config,
-		showCallOverlay,
-		tools,
-		user as _user,
-		showControls,
 		companyConfig,
-		confirmPromptFn
+		config,
+		confirmPromptFn,
+		mobile,
+		type Model,
+		models,
+		settings,
+		showCallOverlay,
+		showControls,
+		tools,
+		user as _user
 	} from '$lib/stores';
 
 	import { blobToFile, compressImage, createMessagesList, findWordIndices } from '$lib/utils';
 	import { transcribeAudio } from '$lib/apis/audio';
-	import { uploadFile } from '$lib/apis/files';
+	import { deleteFileById, uploadFile } from '$lib/apis/files';
 	import { generateAutoCompletion } from '$lib/apis';
-	import { deleteFileById } from '$lib/apis/files';
 
-	import { WEBUI_BASE_URL, WEBUI_API_BASE_URL, PASTED_TEXT_CHARACTER_LIMIT } from '$lib/constants';
+	import { PASTED_TEXT_CHARACTER_LIMIT, WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
@@ -41,11 +38,6 @@
 	import Image from '../common/Image.svelte';
 
 	import XMark from '../icons/XMark.svelte';
-	import Headphone from '../icons/Headphone.svelte';
-	import GlobeAlt from '../icons/GlobeAlt.svelte';
-	import PhotoSolid from '../icons/PhotoSolid.svelte';
-	import Photo from '../icons/Photo.svelte';
-	import CommandLine from '../icons/CommandLine.svelte';
 	import WebSearchIcon from '../icons/WebSearchIcon.svelte';
 	import CodeInterpreterIcon from '../icons/CodeInterpreterIcon.svelte';
 	import ImageGenerateIcon from '../icons/ImageGenerateIcon.svelte';
@@ -54,6 +46,8 @@
 	import CallIcon from '../icons/CallIcon.svelte';
 	import MagicSearch from '../icons/MagicSearch.svelte';
 	import LoadingIcon from '../icons/LoadingIcon.svelte';
+
+	const dispatch = createEventDispatcher();
 
 	const i18n = getContext('i18n');
 
@@ -64,6 +58,7 @@
 	export let stopResponse: Function;
 
 	export let autoScroll = false;
+	export let isAtTop = false;
 
 	export let atSelectedModel: Model | undefined = undefined;
 	export let selectedModels: [''];
@@ -115,6 +110,14 @@
 		const element = document.getElementById('messages-container');
 		element.scrollTo({
 			top: element.scrollHeight,
+			behavior: 'smooth'
+		});
+	};
+
+	const scrollToTop = () => {
+		const element = document.getElementById('messages-container');
+		element.scrollTo({
+			top: 0,
 			behavior: 'smooth'
 		});
 	};
@@ -191,7 +194,6 @@
 			});
 
 			if (res) {
-				console.log(res);
 				const blob = new Blob([res.text], { type: 'text/plain' });
 				file = blobToFile(blob, `${file.name}.txt`);
 
@@ -268,14 +270,9 @@
 				reader.onload = async (event) => {
 					let imageUrl = event.target.result;
 
-					if ($settings?.imageCompression ?? false) {
-						const width = $settings?.imageCompressionSize?.width ?? null;
-						const height = $settings?.imageCompressionSize?.height ?? null;
-
-						if (width || height) {
-							imageUrl = await compressImage(imageUrl, width, height);
-						}
-					}
+					const maxWidth = 1568;
+					const maxHeight = 1568;
+					imageUrl = await compressImage(imageUrl, maxWidth, maxHeight);
 
 					files = [
 						...files,
@@ -316,12 +313,10 @@
 
 	const onDrop = async (e) => {
 		e.preventDefault();
-		console.log(e);
 
 		if (e.dataTransfer?.files) {
 			const inputFiles = Array.from(e.dataTransfer?.files);
 			if (inputFiles && inputFiles.length > 0) {
-				console.log(inputFiles);
 				inputFilesHandler(inputFiles);
 			}
 		}
@@ -389,7 +384,6 @@
 		}
 
 		if (command.content.includes('{{USER_NAME}}')) {
-			console.log($user);
 			const name = `${$user.first_name} ${$user.last_name}` || 'User';
 			text = text.replaceAll('{{USER_NAME}}', name);
 		}
@@ -445,16 +439,16 @@
 
 	onMount(() => {
 		confirmPromptFn.set(confirmPrompt);
-	})
+	});
 
-	onDestroy(() => confirmPromptFn.set(null))
+	onDestroy(() => confirmPromptFn.set(null));
 
 	onMount(() => {
 		const stored = localStorage.getItem('selectedPrompt');
 		if (stored) {
 			const prompt = JSON.parse(stored);
-			confirmPrompt(prompt);		
-			localStorage.removeItem('selectedPrompt'); 
+			confirmPrompt(prompt);
+			localStorage.removeItem('selectedPrompt');
 		}
 	});
 
@@ -472,11 +466,12 @@
 	});
 
 	let customModel = null;
-	$: console.log(customModel)
 
 	$: {
-		if(selectedModels.length === 1) {
-			customModel = $models.find(model => model.id === selectedModels[0] && model.info?.base_model_id !== null);
+		if (selectedModels.length === 1) {
+			customModel = $models.find(
+				(model) => model.id === selectedModels[0] && model.info?.base_model_id !== null
+			);
 		}
 	}
 </script>
@@ -494,7 +489,7 @@
 				<div class="relative">
 					{#if autoScroll === false && history?.currentId}
 						<div
-							class=" absolute -top-12 left-0 right-0 flex justify-center z-30 pointer-events-none"
+							class=" absolute -top-12 left-0 right-0 flex flex-row justify-center z-30 pointer-events-none"
 						>
 							<button
 								class="border-none p-1.5 rounded-full pointer-events-auto text-white dark:text-[#7C7A7A]"
@@ -503,8 +498,19 @@
 									scrollToBottom();
 								}}
 							>
-							<ScrollToBottomIcon className="size-6"/>	
+								<ScrollToBottomIcon className="size-6" />
 							</button>
+							{#if !isAtTop}
+								<button
+									class="border-none p-1.5 rounded-full pointer-events-auto text-white dark:text-[#7C7A7A]"
+									on:click={() => {
+										autoScroll = false;
+										scrollToTop();
+									}}
+								>
+									<ScrollToTopIcon className="size-6" />
+								</button>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -624,7 +630,7 @@
 						</div>
 					{/if}
 
-					<!-- <Commands
+					<Commands
 						bind:this={commandsElement}
 						bind:prompt
 						bind:files
@@ -632,21 +638,19 @@
 							dispatch('upload', e.detail);
 						}}
 						on:select={(e) => {
-							const data = e.detail;
-
-							if (data?.type === 'model') {
-								atSelectedModel = data.data;
-							}
-
 							const chatInputElement = document.getElementById('chat-input');
 							chatInputElement?.focus();
 						}}
-					/> -->
+					/>
 				</div>
 			</div>
 		</div>
 
-		<div class="{transparentBackground ? 'bg-transparent' : 'bg-lightGray-300 dark:bg-customGray-900'} ">
+		<div
+			class="{transparentBackground
+				? 'bg-transparent'
+				: 'bg-lightGray-300 dark:bg-customGray-900'} "
+		>
 			<div
 				class="{($settings?.widescreenMode ?? null)
 					? 'max-w-full'
@@ -786,9 +790,6 @@
 														files.splice(fileIdx, 1);
 														files = files;
 													}}
-													on:click={() => {
-														console.log(file);
-													}}
 												/>
 											{/if}
 										{/each}
@@ -796,7 +797,7 @@
 								{/if}
 
 								<div class="px-2.5 min-h-[60px]">
-									{#if $settings?.richTextInput ?? true}
+									{#if $settings?.richTextInput ?? false}
 										<div
 											class="scrollbar-hidden text-left bg-transparent dark:text-gray-100 outline-none w-full pt-5 px-3 resize-none h-fit max-h-80 overflow-auto"
 										>
@@ -832,7 +833,6 @@
 														return null;
 													});
 
-													console.log(res);
 													return res;
 												}}
 												on:keydown={async (e) => {
@@ -957,7 +957,6 @@
 												}}
 												on:paste={async (e) => {
 													e = e.detail.event;
-													console.log(e);
 
 													const clipboardData = e.clipboardData || window.clipboardData;
 
@@ -1002,7 +1001,7 @@
 										<textarea
 											id="chat-input"
 											bind:this={chatInputElement}
-											class="scrollbar-hidden bg-transparent dark:text-gray-100 outline-none w-full pt-3 px-1 resize-none"
+											class="scrollbar-hidden bg-transparent dark:text-gray-100 outline-none w-full pt-5 px-2 resize-none"
 											placeholder={placeholder ? placeholder : $i18n.t('Send a message')}
 											bind:value={prompt}
 											on:keypress={(e) => {
@@ -1061,8 +1060,6 @@
 													const editButton = [
 														...document.getElementsByClassName('edit-user-message-button')
 													]?.at(-1);
-
-													console.log(userMessageElement);
 
 													userMessageElement.scrollIntoView({ block: 'center' });
 													editButton?.click();
@@ -1148,8 +1145,10 @@
 												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 											}}
 											on:focus={async (e) => {
-												e.target.style.height = '';
-												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+												if (e.target.value) {
+													e.target.style.height = '';
+													e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+												}
 											}}
 											on:paste={async (e) => {
 												const clipboardData = e.clipboardData || window.clipboardData;
@@ -1197,6 +1196,7 @@
 									<div class="ml-1 self-end gap-0.5 flex items-center flex-1 max-w-[80%]">
 										<InputMenu
 											bind:selectedToolIds
+											{files}
 											{screenCaptureHandler}
 											{inputFilesHandler}
 											uploadFilesHandler={() => {
@@ -1221,6 +1221,20 @@
 														})
 													);
 												}
+											}}
+											onSelectKnowledge={(item) => {
+												if (files.find((f) => f.id === item.id)) {
+													return;
+												}
+												files = [
+													...files,
+													{
+														...item,
+														status: 'processed'
+													}
+												];
+												const chatInput = document.getElementById('chat-input');
+												chatInput?.focus();
 											}}
 											onClose={async () => {
 												await tick();
@@ -1324,7 +1338,7 @@
 											<Tooltip content={$i18n.t('Magic prompt')}>
 												<button
 													id="magic-search-button"
-													class={`${isMagicLoading ? 'dark:bg-customBlue-700/60' : ''} text-customGray-900 dark:text-customGray-100 text-xs leading-none hover:text-gray-700 dark:hover:text-white ${!isMagicLoading? 'dark:hover:bg-customGray-900' : ''}  transition rounded-md py-[3px] px-[5px] mr-0.5 self-center`}
+													class={`${isMagicLoading ? 'dark:bg-customBlue-700/60' : ''} text-customGray-900 dark:text-customGray-100 text-xs leading-none hover:text-gray-700 dark:hover:text-white ${!isMagicLoading ? 'dark:hover:bg-customGray-900' : ''}  transition rounded-md py-[3px] px-[5px] mr-0.5 self-center`}
 													type="button"
 													aria-label="Magic Prompt"
 													disabled={prompt === '' || isMagicLoading}

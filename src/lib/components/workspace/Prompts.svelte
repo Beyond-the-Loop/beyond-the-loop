@@ -19,6 +19,7 @@
 	import {
 		createNewPrompt,
 		deletePromptByCommand,
+		getPromptByCommand,
 		getPrompts,
 		getPromptList,
 		getUserTagsForPrompts
@@ -123,7 +124,9 @@
 	};
 
 	const cloneHandler = async (prompt) => {
-		sessionStorage.prompt = JSON.stringify(prompt);
+		const command = prompt.command.charAt(0) === '/' ? prompt.command.slice(1) : prompt.command;
+		const fullPrompt = await getPromptByCommand(localStorage.token, command).catch(() => prompt);
+		sessionStorage.prompt = JSON.stringify(fullPrompt ?? prompt);
 		goto('/workspace/prompts/create');
 	};
 
@@ -204,6 +207,7 @@
 
 	let showMore = false;
 	let showPrompt = null;
+	let loadingShowMore = false;
 
 	$: colorMap = new Map(
     tags.map((t, i) => [
@@ -244,6 +248,9 @@
 						<CloseIcon />
 					</button>
 				</div>
+		{#if loadingShowMore}
+			<div class="flex justify-center py-6"><Spinner /></div>
+		{:else}
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
 				{#if showPrompt?.description}
@@ -256,6 +263,7 @@
 				</div>
 			</div>
 		</div>
+		{/if}
 	</Modal>
 
 	<div
@@ -577,12 +585,16 @@
 									>
 										{prompt.description ? prompt.description : prompt.content}
 									</div>
-									<button 
-										class="text-xs shrink-0 ml-2 hover:underline font-medium" 
-										on:click={(e) => {
+									<button
+										class="text-xs shrink-0 ml-2 hover:underline font-medium"
+										on:click={async (e) => {
 											e.stopPropagation();
-											showMore = !showMore;
-											showPrompt = prompt;
+											showMore = true;
+											showPrompt = null;
+											loadingShowMore = true;
+											const command = prompt.command.charAt(0) === '/' ? prompt.command.slice(1) : prompt.command;
+											showPrompt = await getPromptByCommand(localStorage.token, command).catch(() => prompt);
+											loadingShowMore = false;
 										}}>{$i18n.t('Show more')}
 									</button>
 								</div>

@@ -86,8 +86,9 @@
 		});
 
 		if (res) {
-			knowledgeBases = await getKnowledgeBaseList(localStorage.token);
-			knowledge.set(await getKnowledgeBases(localStorage.token));
+			const updated = await getKnowledgeBaseList(localStorage.token);
+			knowledgeBases = updated;
+			knowledge.set(updated);
 			toast.success($i18n.t('Knowledge deleted successfully.'));
 		}
 	};
@@ -144,7 +145,6 @@
 
 	let showMore = false;
 	let showKnowledge = null;
-	$: console.log(showKnowledge, 'show knowledge')
 </script>
 
 <svelte:head>

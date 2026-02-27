@@ -91,7 +91,7 @@ async def get_models(user=Depends(get_verified_user)):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-    return Models.get_assistants_by_user_and_company(user.id, user.company_id)
+    return Models.get_assistants_lite_by_user_and_company(user.id, user.company_id)
 
 
 ############################

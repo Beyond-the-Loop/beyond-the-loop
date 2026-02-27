@@ -6,7 +6,6 @@ from typing import Optional
 
 import aiohttp
 import requests
-
 import os
 
 from aiohttp import ClientResponseError
@@ -16,7 +15,6 @@ from starlette.background import BackgroundTask
 
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
-from beyond_the_loop.models.completions import calculate_saved_time_in_seconds
 from litellm.utils import trim_messages
 
 
@@ -45,6 +43,7 @@ from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
+from beyond_the_loop.socket.main import get_event_emitter
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -63,15 +62,19 @@ async def _get_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(
             trust_env=True,
             timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
-            connector=aiohttp.TCPConnector(limit=100)  # limits concurrent connections
+            connector=aiohttp.TCPConnector(
+                limit=200,
+                enable_cleanup_closed=True, # proactively detects stale connections
+                ttl_dns_cache=300,  # cache Docker DNS for 5 min
+            )
         )
     return session
 
 async def send_get_request(url, key=None):
     timeout = aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST)
     try:
-        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
-            async with session.get(
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as s:
+            async with s.get(
                 url, headers={**({"Authorization": f"Bearer {key}"} if key else {})}
             ) as response:
                 return await response.json()
@@ -82,13 +85,10 @@ async def send_get_request(url, key=None):
 
 
 async def cleanup_response(
-    response: Optional[aiohttp.ClientResponse],
-    session: Optional[aiohttp.ClientSession],
+    response: Optional[aiohttp.ClientResponse]
 ):
     if response:
         response.close()
-    if session:
-        await session.close()
 
 
 ##########################################
@@ -205,19 +205,31 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
-@router.post("/chat/completions")
 async def generate_chat_completion(
         form_data: dict,
-        user=Depends(get_verified_user)
+        user,
+        model
 ):
     payload = {**form_data}
     metadata = payload.pop("metadata", {})
 
+    event_emitter = get_event_emitter(metadata)
+
     agent_or_task_prompt = metadata.get("agent_or_task_prompt", False)
 
-    model_info = Models.get_model_by_id(form_data.get("model"))
+    if not agent_or_task_prompt:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "generating_response",
+                    "done": False,
+                    "description": "Preparing model request"
+                },
+            }
+        )
 
-    if model_info is None:
+    if model is None:
         raise HTTPException(
             status_code=404,
             detail="Model not found. Please check the model ID is correct.",
@@ -225,10 +237,10 @@ async def generate_chat_completion(
 
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
-    if model_info.base_model_id:
-        model_name = model_info.base_model_id if model_info.user_id == "system" else Models.get_model_by_id(model_info.base_model_id).name
+    if model.base_model_id:
+        model_name = model.base_model_id if model.user_id == "system" else Models.get_model_by_id(model.base_model_id).name
     else:
-        model_name = model_info.name
+        model_name = model.name
 
     payload["model"] = model_name
 
@@ -243,17 +255,17 @@ async def generate_chat_completion(
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if (has_chat_id or agent_or_task_prompt) and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+    if has_chat_id or agent_or_task_prompt:
         await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
-    params = model_info.params.model_dump()
+    params = model.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
     # Check model access
     if not agent_or_task_prompt and not(
-        model_info.is_active and (user.id == model_info.user_id or (not model_info.base_model_id and user.role == "admin") or has_access(
-            user.id, type="read", access_control=model_info.access_control
+        model.is_active and (user.id == model.user_id or (not model.base_model_id and user.role == "admin") or has_access(
+            user.id, type="read", access_control=model.access_control
         ))
     ):
         raise HTTPException(
@@ -292,22 +304,44 @@ async def generate_chat_completion(
     try:
         payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
     except Exception:
-        print("Error trimming messages, continuing with the original messages...")
+        log.warning("Error trimming messages, continuing with the original messages...")
+
+    # Extract last user message before serializing
+    last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
 
     r = None
-    session = None
     streaming = False
     response = None
 
-    # Parse payload once for both streaming and non-streaming cases
-    payload_dict = json.loads(payload)
-    last_user_message = next((msg['content'] for msg in reversed(payload_dict['messages']) if msg['role'] == 'user'), '')
-
     try:
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Creating session"
+                    },
+                }
+            )
+
         s = await _get_session()
+
+        if not agent_or_task_prompt:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "generating_response",
+                        "done": False,
+                        "description": "Waiting for model response"
+                    },
+                }
+            )
 
         r = await s.request(
             method="POST",
@@ -351,10 +385,9 @@ async def generate_chat_completion(
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                                     credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
 
-                                Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost_streaming, calculate_saved_time_in_seconds(last_user_message, full_response))
-
+                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
                         except json.JSONDecodeError:
-                            print(f"\n{chunk_str}")
+                            log.debug(f"JSON decode error for chunk: {chunk_str}")
 
                     yield chunk
 
@@ -363,27 +396,26 @@ async def generate_chat_completion(
                 status_code=r.status,
                 headers=dict(r.headers),
                 background=BackgroundTask(
-                    cleanup_response, response=r, session=session
+                    cleanup_response, response=r
                 ),
             )
         else:
             try:
                 response = await r.json()
             except Exception as e:
-                print(e)
+                log.error(f"Error parsing JSON response: {e}")
                 response = await r.text()
 
             try:
                 r.raise_for_status()
             except ClientResponseError as e:
-                print(e)
+                log.error(f"HTTP error from LLM backend: {e}")
                 if agent_or_task_prompt:
                     raise e
 
                 model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
                 form_data = {
-                    "model": model.id,
                     "messages": [
                         {
                             "role": "assistant",
@@ -401,7 +433,7 @@ async def generate_chat_completion(
                     "temperature": 0.0
                 }
 
-                return await generate_chat_completion(form_data, user)
+                return await generate_chat_completion(form_data, user, model)
 
             credit_cost = 0
 
@@ -411,11 +443,11 @@ async def generate_chat_completion(
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
 
-            Completions.insert_new_completion(user.id, metadata["chat_id"], model_name, credit_cost, calculate_saved_time_in_seconds(last_user_message, response_content))
+            Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 
             return response
     except Exception as e:
-        print(e)
+        log.error(f"Error in generate_chat_completion: {e}")
 
         detail = None
         if isinstance(response, dict):
@@ -429,10 +461,9 @@ async def generate_chat_completion(
             detail=detail if detail else "Server Connection Error",
         )
     finally:
-        if not streaming and session:
+        if not streaming:
             if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
-            await session.close()
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
@@ -576,7 +607,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
     """
 
     form_data = {
-        "model": model.id,
         "messages": [
             {
                 "role": "assistant",
@@ -594,6 +624,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(form_data, user)
+    message = await generate_chat_completion(form_data, user, model)
 
     return message['choices'][0]['message']['content']
