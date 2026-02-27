@@ -100,28 +100,41 @@ def create_premium_subscription_checkout_session(user=Depends(get_verified_user)
 
 @router.post("/checkout-webhook")
 async def checkout_webhook(request: Request, stripe_signature: str = Header(None)):
+    print("WEBHOOK [1]: checkout_webhook called", flush=True)
+
     if not stripe_signature:
+        print("WEBHOOK [2]: No stripe_signature header — returning 400", flush=True)
         raise HTTPException(status_code=400, detail="No Stripe signature provided")
 
+    print(f"WEBHOOK [3]: stripe_signature present, reading body", flush=True)
     payload = await request.body()
+    print(f"WEBHOOK [4]: payload length={len(payload)}", flush=True)
+
     try:
-        # Verify Stripe Webhook Signature
+        print(f"WEBHOOK [5]: verifying signature, webhook_secret={'SET' if payments_service.webhook_secret else 'MISSING'}", flush=True)
         event = stripe.Webhook.construct_event(
             payload=payload,
             sig_header=stripe_signature,
             secret=payments_service.webhook_secret
         )
+        print("WEBHOOK [6]: signature verified OK", flush=True)
 
         event_type = event.get("type")
         event_data = event.get("data", {}).get("object", {})
-
         stripe_customer_id = event_data.get('customer')
+
+        print(f"WEBHOOK [7]: event_type={event_type}, stripe_customer_id={stripe_customer_id}", flush=True)
 
         company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
 
+        print(f"WEBHOOK [8]: company lookup result={company}", flush=True)
+
         if not company:
+            print(f"WEBHOOK [9]: no company found — returning early", flush=True)
             log.error(f"No company found for stripe_customer_id: {stripe_customer_id} (event: {event_type})")
             return {"message": "Customer not found for Stripe checkout webhook"}
+
+        print(f"WEBHOOK [10]: company found id={company.id}, clearing caches", flush=True)
 
         if company.id in STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE:
             del STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company.id]
@@ -129,9 +142,12 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         if company.id in STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE:
             del STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company.id]
 
-        # Subscription events
+        print(f"WEBHOOK [11]: routing event_type={event_type}", flush=True)
+
         if event_type == "customer.subscription.created":
+            print("WEBHOOK [12]: calling handle_subscription_created", flush=True)
             handle_subscription_created(event_data)
+            print("WEBHOOK [13]: handle_subscription_created done", flush=True)
             return None
         elif event_type == "customer.subscription.updated":
             handle_subscription_updated(event_data)
@@ -147,8 +163,10 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         return {"message": "Webhook processed successfully"}
 
     except stripe.error.SignatureVerificationError:
+        print("WEBHOOK [ERR]: SignatureVerificationError", flush=True)
         raise HTTPException(status_code=400, detail="Invalid Stripe signature")
     except Exception as e:
+        print(f"WEBHOOK [ERR]: Unexpected exception: {e}", flush=True)
         log.error(f"Webhook processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -162,8 +180,11 @@ def handle_subscription_created(event_data):
         event_data: The subscription data from the Stripe webhook event
     """
     try:
+        print("WEBHOOK [SUB_CREATED]: entering handle_subscription_created", flush=True)
         payments_service.handle_company_subscription_update(event_data)
+        print("WEBHOOK [SUB_CREATED]: handle_company_subscription_update returned", flush=True)
     except Exception as e:
+        print(f"WEBHOOK [SUB_CREATED ERR]: {e}", flush=True)
         log.error(f"Error handling subscription created event: {e}")
 
 
