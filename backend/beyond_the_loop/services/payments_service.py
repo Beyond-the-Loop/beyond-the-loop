@@ -329,72 +329,56 @@ class PaymentsService:
             tuple: (company, credits_per_month, plan_id) or (None, None, None) if any step fails
         """
         try:
-            print("CREDITS [1]: handle_company_subscription_update entered", flush=True)
 
             canceled_at = event_data.get("canceled_at")
-            print(f"CREDITS [2]: canceled_at={canceled_at}", flush=True)
 
             if canceled_at:
-                print("CREDITS [3]: subscription is canceled — returning early", flush=True)
                 return None, None, None
 
             subscription_id = event_data.get('id')
             stripe_customer_id = event_data.get('customer')
-            print(f"CREDITS [4]: subscription_id={subscription_id}, stripe_customer_id={stripe_customer_id}", flush=True)
 
             if not subscription_id or not stripe_customer_id:
-                print("CREDITS [ERR]: missing subscription_id or stripe_customer_id", flush=True)
                 log.error("Missing subscription_id or customer_id in event data")
                 return None, None, None
 
             company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
-            print(f"CREDITS [5]: company={company}", flush=True)
 
             if not company:
-                print(f"CREDITS [ERR]: no company for stripe_customer_id={stripe_customer_id}", flush=True)
                 log.error(f"No company found for stripe_customer_id: {stripe_customer_id}")
                 return None, None, None
 
             items = event_data.get('items', {}).get('data', [])
-            print(f"CREDITS [6]: items count={len(items)}, items={items}", flush=True)
 
             if not items:
-                print("CREDITS [ERR]: no items in subscription", flush=True)
                 log.error(f"No items found in subscription {subscription_id}")
                 return None, None, None
 
             price_id = items[0].get('price', {}).get('id')
-            print(f"CREDITS [7]: price_id={price_id}", flush=True)
 
             if not price_id:
-                print("CREDITS [ERR]: no price_id found", flush=True)
                 log.error(f"No price ID found in subscription {subscription_id}")
                 return None, None, None
 
             plan_id = next((plan for plan, details in payments_service.SUBSCRIPTION_PLANS.items()
                             if details.get("stripe_price_id") == price_id), None)
-            print(f"CREDITS [8]: plan_id={plan_id}", flush=True)
 
             try:
                 plan_name = re.sub(r"_", " ", plan_id)
                 plan_name = re.sub(r"(\b\w)", lambda m: m.group(1).upper(), plan_name)
                 crm_service.update_company_plan(company.name, plan_name)
             except Exception as e:
-                print(f"CREDITS [WARN]: crm update failed: {e}", flush=True)
                 log.error(f"Error updating Attio workspace plan for company {company.id}: {e}")
 
             if plan_id == "premium":
-                print("CREDITS [9]: premium plan — no credits to add", flush=True)
                 return None, None, None
 
             if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
-                print(f"CREDITS [ERR]: plan not found for price_id={price_id}. Known: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }", flush=True)
                 log.error(f"No plan found for price ID: {price_id}. Known price IDs: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }")
                 return None, None, None
 
             subscription_metadata = event_data.get('metadata', {})
             custom_credit_amount = subscription_metadata.get('custom_credit_amount')
-            print(f"CREDITS [10]: custom_credit_amount={custom_credit_amount}", flush=True)
 
             if custom_credit_amount:
                 try:
@@ -404,22 +388,18 @@ class PaymentsService:
             else:
                 credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
 
-            print(f"CREDITS [11]: credits_per_month={credits_per_month}", flush=True)
 
             if credits_per_month > 0:
-                print(f"CREDITS [12]: updating company {company.id} with {credits_per_month} credits", flush=True)
                 Companies.update_company_by_id(company.id, {
                     "credit_balance": credits_per_month,
                     "budget_mail_80_sent": False,
                     "budget_mail_100_sent": False
                 })
                 _set_new_credit_recharge_check_date(company)
-                print(f"CREDITS [13]: company update done", flush=True)
 
             return company, credits_per_month, plan_id
 
         except Exception as e:
-            print(f"CREDITS [ERR]: exception: {e}", flush=True)
             log.error(f"Error on adding credits from subscription event: {e}")
             return None, None, None
 
