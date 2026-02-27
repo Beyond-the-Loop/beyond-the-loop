@@ -50,7 +50,7 @@ class AnalyticsService:
 
             user_scores = AnalyticsService._calculate_user_engagement_scores(company_user_ids, db)
 
-        engagement_score = 100 * (sum(user_scores.values()) / total_users)
+        engagement_score = sum(user_scores.values()) / total_users
         return EngagementScoreResponse(engagement_score=round(engagement_score, 2))
 
     @staticmethod
@@ -566,7 +566,11 @@ class AnalyticsService:
         if not user_ids:
             return {}
 
-        thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
+        now = datetime.now()
+        thirty_days_ago = int((now - timedelta(days=30)).timestamp())
+        effective_start_ts = max(thirty_days_ago, MIN_ANALYTICS_TIMESTAMP)
+        window_days = max(1, (now - datetime.fromtimestamp(effective_start_ts)).days)
+        score_divisor = min(30, window_days)
 
         daily_counts = (
             db.query(
@@ -576,7 +580,7 @@ class AnalyticsService:
             )
             .filter(
                 Completion.user_id.in_(user_ids),
-                Completion.created_at >= max(thirty_days_ago, MIN_ANALYTICS_TIMESTAMP),
+                Completion.created_at >= effective_start_ts,
                 Completion.from_agent.isnot(True),
             )
             .group_by(Completion.user_id, 'day')
@@ -592,7 +596,7 @@ class AnalyticsService:
             return log_val / (1 + log_val)
 
         return {
-            user_id: sum(day_score(c) for c in user_day_counts.get(user_id, {}).values()) / 30
+            user_id: 100 * (sum(day_score(c) for c in user_day_counts.get(user_id, {}).values()) / score_divisor)
             for user_id in user_ids
         }
 

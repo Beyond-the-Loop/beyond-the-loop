@@ -97,9 +97,15 @@ async def chat_web_search_handler(
     messages = form_data["messages"]
     user_message = get_last_user_message(messages)
 
-    # Extract URLs from the user message reliably via regex (never delegate to LLM)
-    _url_re = re.compile(r'https?://[^\s<>"{}|\\^`\[\]\']+')
-    extracted_urls = [u.rstrip('.,;:)!?\'\"') for u in _url_re.findall(user_message or "")]
+    # Extract URLs from the user message reliably via regex (never delegate to LLM).
+    # Also matches bare www. URLs (e.g. www.example.com) and normalises them to https://.
+    _url_re = re.compile(r'(?:https?://|www\.)[^\s<>"{}|\\^`\[\]\']+')
+    extracted_urls = []
+    for u in _url_re.findall(user_message or ""):
+        u = u.rstrip('.,;:)!?\'\"')
+        if u.startswith('www.'):
+            u = 'https://' + u
+        extracted_urls.append(u)
 
     # Generate keyword search queries via LLM; filter out any accidental URL queries
     try:
@@ -116,7 +122,7 @@ async def chat_web_search_handler(
             all_queries = json.loads(content).get("queries", [])
             search_queries = [
                 q for q in all_queries
-                if not q.get("query", "").startswith(("http://", "https://"))
+                if not q.get("query", "").startswith(("http://", "https://", "www."))
             ]
         except json.JSONDecodeError:
             search_queries = []

@@ -282,9 +282,19 @@ def get_sources_from_files(
                 search_tasks.append((file, None))
                 continue
 
-            print("FILEEEE", file)
+            # Extract collection name(s) from the file object.
+            # Files can carry a single "collection_name" string, a list under
+            # "collection_names", or (for type=="collection") use the "id" field.
+            if file.get("collection_names"):
+                collection_names = set(file["collection_names"])
+            elif file.get("collection_name"):
+                collection_names = {file["collection_name"]}
+            elif file.get("type") == "collection" and file.get("id"):
+                collection_names = {file["id"]}
+            else:
+                continue
 
-            collection_names = set(collection_names).difference(extracted_collections)
+            collection_names = collection_names.difference(extracted_collections)
 
             if not collection_names:
                 log.debug(f"skipping {file} as it has already been extracted")
