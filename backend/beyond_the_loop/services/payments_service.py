@@ -341,31 +341,38 @@ class PaymentsService:
             stripe_customer_id = event_data.get('customer')
 
             if not subscription_id or not stripe_customer_id:
-                log.warning("Missing subscription_id or customer_id in event data")
+                log.error("Missing subscription_id or customer_id in event data")
                 return None, None, None
+
+            log.info(f"Processing subscription {subscription_id} for customer {stripe_customer_id}")
 
             # Get the company associated with this Stripe customer
             company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
 
             if not company:
+                log.error(f"No company found for stripe_customer_id: {stripe_customer_id}")
                 return None, None, None
 
             # Get the price ID from the subscription
             items = event_data.get('items', {}).get('data', [])
 
             if not items:
-                log.warning(f"No items found in subscription {subscription_id}")
+                log.error(f"No items found in subscription {subscription_id}")
                 return None, None, None
 
             price_id = items[0].get('price', {}).get('id')
 
             if not price_id:
-                log.warning(f"No price ID found in subscription {subscription_id}")
+                log.error(f"No price ID found in subscription {subscription_id}")
                 return None, None, None
+
+            log.info(f"Subscription {subscription_id}: price_id={price_id}")
 
             # Find the plan associated with this price ID
             plan_id = next((plan for plan, details in payments_service.SUBSCRIPTION_PLANS.items()
                             if details.get("stripe_price_id") == price_id), None)
+
+            log.info(f"Subscription {subscription_id}: resolved plan_id={plan_id} for price_id={price_id}")
 
             try:
                 # Replace underscores with spaces
@@ -382,7 +389,7 @@ class PaymentsService:
                 return None, None, None
 
             if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
-                log.warning(f"No plan found for price ID: {price_id}")
+                log.error(f"No plan found for price ID: {price_id}. Known price IDs: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }")
                 return None, None, None
 
             # For subscription events, get metadata directly from event data

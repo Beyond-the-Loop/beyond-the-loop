@@ -120,7 +120,7 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
 
         if not company:
-            # Customer created or other events without customer information
+            log.error(f"No company found for stripe_customer_id: {stripe_customer_id} (event: {event_type})")
             return {"message": "Customer not found for Stripe checkout webhook"}
 
         if company.id in STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE:
