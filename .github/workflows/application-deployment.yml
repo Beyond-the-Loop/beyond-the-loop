@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Create directory on EC2 if it doesn't exist
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -87,7 +87,7 @@ jobs:
           strip_components: 0
 
       - name: Rename file on remote
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -106,7 +106,7 @@ jobs:
           overwrite: true
 
       - name: Ensure traefik folder exists on remote
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -115,7 +115,7 @@ jobs:
             mkdir -p ~/beyond-the-loop/traefik
 
       - name: Create empty acme.json if not exists
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -137,7 +137,7 @@ jobs:
           overwrite: true
 
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
@@ -238,7 +238,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Create directory on EC2 if it doesn't exist
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -258,7 +258,7 @@ jobs:
           strip_components: 0
 
       - name: Rename file on remote
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -277,7 +277,7 @@ jobs:
           overwrite: true
 
       - name: Ensure traefik folder exists on remote
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -286,7 +286,7 @@ jobs:
             mkdir -p ~/beyond-the-loop/traefik
 
       - name: Create empty acme.json if not exists
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
@@ -308,7 +308,7 @@ jobs:
           overwrite: true
 
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.4
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
