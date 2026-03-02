@@ -506,6 +506,7 @@
 			modelIconUrl = '/logo_light.png';
 		}
 	}
+<<<<<<< HEAD
 
   let answerEl: HTMLDivElement;
 
@@ -547,6 +548,8 @@
     // event.clipboardData?.setData('text/html', cleanedHtml);
   }
 
+=======
+>>>>>>> 2b60c55fe (handleCopy entfernt)
 </script>
 
 {#key message.id}
@@ -595,10 +598,16 @@
 					</div>
 				{/if}
 
+<<<<<<< HEAD
 				<div 
 					bind:this={answerEl}
   					
 				 	class="chat-{message.role} w-full min-w-full markdown-prose">
+=======
+				<div
+					class="chat-{message.role} w-full min-w-full markdown-prose"
+				>
+>>>>>>> 2b60c55fe (handleCopy entfernt)
 					<div>
 						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
 							{@const status = (
