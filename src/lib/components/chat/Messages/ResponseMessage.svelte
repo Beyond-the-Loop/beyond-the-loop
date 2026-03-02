@@ -530,6 +530,7 @@
 
     const container = document.createElement('div');
     container.appendChild(fragment);
+	// copyToClipboard(container.innerText, null);
 
     container.querySelectorAll<HTMLElement>('*').forEach((el) => {
       el.style.backgroundColor = '';
@@ -537,13 +538,13 @@
       el.removeAttribute('bgcolor');
     });
 
-    const cleanedText = container.textContent ?? '';
-    const cleanedHtml = container.innerHTML;
+    // const cleanedText = container.innerText ?? '';
+    // const cleanedHtml = container.innerHTML;
 
-    event.preventDefault();
+    // event.preventDefault();
 
-    event.clipboardData?.setData('text/plain', cleanedText);
-    event.clipboardData?.setData('text/html', cleanedHtml);
+    // event.clipboardData?.setData('text/plain', cleanedText);
+    // event.clipboardData?.setData('text/html', cleanedHtml);
   }
 
 </script>
@@ -596,7 +597,7 @@
 
 				<div 
 					bind:this={answerEl}
-  					on:copy={handleCopy}
+  					
 				 	class="chat-{message.role} w-full min-w-full markdown-prose">
 					<div>
 						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
