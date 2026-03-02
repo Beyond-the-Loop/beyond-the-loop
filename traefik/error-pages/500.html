@@ -1,84 +1,77 @@
 <html><head>
-	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>  
-	<title>500 Error</title>
+	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script> 
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>500 Error</title> 
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.10/lottie.min.js"></script>
+	<meta http-equiv="refresh" content="5">
+	<style>
+		.shimmer {
+			background: linear-gradient(90deg, #9a9b9e 25%, #2a2929 50%, #9a9b9e 75%);
+			background-size: 200% 100%;
+			background-clip: text;
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			animation: shimmer 8s linear infinite;
+			color: #818286; /* Fallback color */
+		}
+		@keyframes shimmer {
+			0% {
+				background-position: 200% 0;
+			}
+			100% {
+				background-position: -200% 0;
+			}
+		}
+		.dark {
+			background: #000;
+		}
+	</style>
 </head>
 <body>
-	<div class="dark:bg-gray-800 h-[90vh] flex mb-16">
+	<div class="h-[100vh] flex">
 		<div
-			class="flex-grow dark:text-gray-200 text-center flex justify-center flex-col space-y-4 mx-4 mb-12"
+			class="flex-grow text-center flex justify-center flex-col space-y-2 mx-4 mb-12"
 		>
 			<a href="/">
-				<img 
-					id="logoImg"
-					crossorigin="anonymous"
-					src="/logo_light_transparent.png"
-					class="size-16 mx-auto"
+				<div 
+					id="lottie-animation"
+					class="h-[5rem] w-auto mx-auto"
 					alt=""
-				/>
+				></div>
 			</a>
 			<div>
-				<div id="errorMessageDiv" class="text-xl md:text-xl font-normal mb-1">
-					Beyond Chat ist temporär nicht erreichbar. Bitte versuche, die Seite neu zu laden.
-				</div>
+				
 
-				<div class="text-medium text-gray-500 dark:text-gray-500 flex flex-col">
-					<div id="errorInfoDiv">
-						Wir führen gerade ein kurzes Update durch. In wenigen Minuten sind wir wieder da.
-					</div>
-						<div
-							class="relative md:w-[300px] h-[6px] bg-gray-200 dark:bg-gray-700 mx-auto rounded-full mt-7"
-						>
-							<div
-								class="absolute h-full bg-[#007fff] dark:bg-gray-200 rounded-full
-										animate-[bounceWidth_5s_cubic-bezier(0.4,0,0.2,1)_infinite]"
-							></div>
-						</div>
+					<div id="errorInfoDiv" class="text-medium text-gray-500 flex flex-col shimmer">
 						
-						<style>
-							@keyframes bounceWidth {
-								0%,
-								100% {
-									width: 30%;
-									left: 0;
-								}
-
-								25% {
-									width: 70%;
-									left: 15%;
-								}
-
-								50% {
-									width: 30%;
-									left: 70%;
-								}
-
-								75% {
-									width: 60%;
-									left: 15%;
-								}
-							}
-							body {
-								margin: 0;
-								padding: 0;
-							}
-							
-						</style>
-				</div>
+					</div>
 			</div>
 		</div>
 	</div>
 	<script>
-		// const isDarkLS = (localStorage.getItem('theme') || 'system') === 'dark';
-		// let logoSrc = isDarkLS ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
-		// document.getElementById('logoImg').src = logoSrc;
 		const language = localStorage.getItem('locale') || 'de-DE';
-		document.getElementById('errorMessageDiv').innerHTML = 
-			language == 'de-DE' ? 'Beyond Chat ist temporär nicht erreichbar. Bitte versuche, die Seite neu zu laden.' : 
-			'Beyond Chat is temporarily unavailable. Please try refreshing.';
 
 		document.getElementById('errorInfoDiv').innerText = 
-			language == 'de-DE' ? 'Wir führen gerade ein kurzes Update durch. In wenigen Minuten sind wir wieder da.' : 
-			`We are performing a short update. We'll be back in a few minutes.`;
+			language == 'de-DE' ? 'Wir führen gerade ein kurzes Update durch. In wenigen Augenblicken sind wir wieder da.' : 
+			`We are performing a short update. We'll be back in a moment.`;
+		window.addEventListener('DOMContentLoaded', () => {
+				const isDarkLS = localStorage.getItem('theme') === 'dark';
+				const isDark = localStorage.getItem('theme') === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+				if(isDarkLS || isDark)
+				{
+					document.documentElement.classList.add('dark');
+				}
+
+				const animationPath = isDarkLS || isDark ? '/b-logo-white.json' : '/b-logo-black.json';
+				const container = document.getElementById('lottie-animation');
+				const animation = lottie.loadAnimation({
+					container: container,
+					renderer: 'svg',
+					loop: true,
+					autoplay: true,
+					path: animationPath
+				});
+			});
 	</script>
 </body>
 </html>
