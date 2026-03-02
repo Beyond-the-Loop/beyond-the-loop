@@ -515,40 +515,6 @@
 			modelIconUrl = '/logo_light.png';
 		}
 	}
-
-	let answerEl: HTMLDivElement;
-
-	function handleCopy(event: ClipboardEvent) {
-		const selection = window.getSelection();
-		if (!selection || selection.rangeCount === 0) return;
-
-		const anchor = selection.anchorNode;
-		const focus = selection.focusNode;
-
-		if (!anchor || !focus || !answerEl.contains(anchor) || !answerEl.contains(focus)) {
-			return;
-		}
-
-		const range = selection.getRangeAt(0);
-		const fragment = range.cloneContents();
-
-		const container = document.createElement('div');
-		container.appendChild(fragment);
-
-		container.querySelectorAll<HTMLElement>('*').forEach((el) => {
-			el.style.backgroundColor = '';
-			el.style.background = '';
-			el.removeAttribute('bgcolor');
-		});
-
-		const cleanedText = container.textContent ?? '';
-		const cleanedHtml = container.innerHTML;
-
-		event.preventDefault();
-
-		event.clipboardData?.setData('text/plain', cleanedText);
-		event.clipboardData?.setData('text/html', cleanedHtml);
-	}
 </script>
 
 {#key message.id}
@@ -598,8 +564,6 @@
 				{/if}
 
 				<div
-					bind:this={answerEl}
-					on:copy={handleCopy}
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
