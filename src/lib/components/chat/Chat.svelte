@@ -112,6 +112,7 @@
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
 	let codeInterpreterEnabled = false;
+	let autoToolsEnabled = false;
 	let chat = null;
 	let tags = [];
 	let alert: Alert;
@@ -154,6 +155,7 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
+						autoToolsEnabled = input.autoToolsEnabled;
 					} catch (e) {}
 				}
 
@@ -396,12 +398,14 @@
 				selectedToolIds = input.selectedToolIds;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
+				autoToolsEnabled = input.autoToolsEnabled;
 			} catch (e) {
 				prompt = '';
 				files = [];
 				selectedToolIds = [];
 				webSearchEnabled = false;
 				imageGenerationEnabled = false;
+				autoToolsEnabled = false;
 			}
 		}
 
@@ -669,6 +673,7 @@
 		webSearchEnabled = false;
 		imageGenerationEnabled = false;
 		codeInterpreterEnabled = false;
+		autoToolsEnabled = false;
 
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
@@ -1547,22 +1552,43 @@
 				files: (files?.length ?? 0) > 0 ? files : undefined,
 				tool_ids: selectedToolIds.length > 0 ? selectedToolIds : undefined,
 
-				features: {
-					image_generation:
-						$config?.features?.enable_image_generation &&
-						($user.role === 'admin' || $user?.permissions?.features?.image_generation)
-							? imageGenerationEnabled
-							: false,
-					code_interpreter:
-						$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
-							? codeInterpreterEnabled
-							: false,
-					web_search:
-						$config?.features?.enable_web_search &&
-						($user.role === 'admin' || $user?.permissions?.features?.web_search)
-							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
-							: false
-				},
+				features: autoToolsEnabled
+					? {}
+					: {
+							image_generation:
+								$config?.features?.enable_image_generation &&
+								($user.role === 'admin' || $user?.permissions?.features?.image_generation)
+									? imageGenerationEnabled
+									: false,
+							code_interpreter:
+								$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
+									? codeInterpreterEnabled
+									: false,
+							web_search:
+								$config?.features?.enable_web_search &&
+								($user.role === 'admin' || $user?.permissions?.features?.web_search)
+									? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
+									: false
+						},
+
+				auto_tools: autoToolsEnabled
+					? [
+							...($companyConfig?.config?.rag?.web?.search?.enable &&
+							($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
+							(model?.info?.meta?.capabilities?.websearch ?? true)
+								? ['web_search']
+								: []),
+							...($companyConfig?.config?.image_generation?.enable &&
+							($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
+							(model?.info?.meta?.capabilities?.image_generation ?? true)
+								? ['image_generation']
+								: []),
+							...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
+							(model?.info?.meta?.capabilities?.code_interpreter ?? true)
+								? ['code_interpreter']
+								: [])
+						]
+					: undefined,
 
 				session_id: $socket?.id,
 				chat_id: _chatId,
@@ -1986,6 +2012,7 @@
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
+									bind:autoToolsEnabled
 									bind:atSelectedModel
 									{isMagicLoading}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}
@@ -2063,6 +2090,7 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
+								bind:autoToolsEnabled
 								bind:atSelectedModel
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}

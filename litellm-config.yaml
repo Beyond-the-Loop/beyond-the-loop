@@ -142,6 +142,8 @@ litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true
   default_fallbacks: ["Google 2.5 Flash"]
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
 
 general_settings:
   alerting: ["slack"]

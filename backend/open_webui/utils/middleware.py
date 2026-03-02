@@ -21,6 +21,22 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
 from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
+from beyond_the_loop.prompts import (
+    IMAGE_EDIT_DECISION_MESSAGE,
+    FILE_INTENT_DECISION_PROMPT,
+    KNOWLEDGE_INTENT_DECISION_PROMPT,
+    WEB_SEARCH_CONTEXT_MESSAGE,
+    IMAGE_GENERATED_CONTEXT,
+    IMAGE_ERROR_CONTEXT,
+    AUTO_TOOL_SELECTION_PROMPT,
+)
+from beyond_the_loop.utils.structured_completion import (
+    structured_completion,
+    ImageEditDecision,
+    FileIntentDecision,
+    KnowledgeUseDecision,
+    ToolSelectionDecision,
+)
 from beyond_the_loop.models.files import FileForm
 from beyond_the_loop.socket.main import (
     get_event_call,
@@ -116,16 +132,11 @@ async def chat_web_search_handler(
             user
         )
 
-        content = res["choices"][0]["message"]["content"]
-
-        try:
-            all_queries = json.loads(content).get("queries", [])
-            search_queries = [
-                q for q in all_queries
-                if not q.get("query", "").startswith(("http://", "https://", "www."))
-            ]
-        except json.JSONDecodeError:
-            search_queries = []
+        all_queries = res.get("queries", [])
+        search_queries = [
+            q for q in all_queries
+            if not q.get("query", "").startswith(("http://", "https://", "www."))
+        ]
     except Exception as e:
         log.exception(e)
         # Only fall back to the raw message if there are no URLs to scrape either
@@ -261,7 +272,7 @@ async def chat_web_search_handler(
     if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.subtract_credits_by_user_for_web_search(user)
 
-    system_message_content = "<context>You are a websearch agent and the websearch is done now. Answer the user's question with the web search results. IMPORTANT: Don't ask any questions, just answer the question.</context>"
+    system_message_content = WEB_SEARCH_CONTEXT_MESSAGE
 
     form_data["messages"] = add_or_update_system_message(
         system_message_content, form_data["messages"]
@@ -298,26 +309,9 @@ async def chat_image_generation_handler(
         model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
         decision_messages = messages.copy()
-        decision_messages.append({
-            "role": "user",
-            "content": "Please decide if the user wants to edit the last image generated. IMPORTANT: Only respond with 'yes' or 'no' and nothing else."
-        })
-
-        decision_form_data = {
-            "messages": decision_messages,
-            "stream": False,
-            "metadata": {
-                "chat_id": None,
-                "agent_or_task_prompt": True
-            },
-            "temperature": 0.0
-        }
-
-        response = await generate_chat_completion(decision_form_data, user, model)
-
-        response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
-
-        edit_last_image = response_message.lower().strip() == 'yes'
+        decision_messages.append({"role": "user", "content": IMAGE_EDIT_DECISION_MESSAGE})
+        result = await structured_completion(decision_messages, ImageEditDecision, model)
+        edit_last_image = result.decision == "yes"
 
     if not edit_last_image:
         try:
@@ -329,22 +323,7 @@ async def chat_image_generation_handler(
                 },
                 user,
             )
-
-            response = res["choices"][0]["message"]["content"]
-
-            try:
-                bracket_start = response.find("{")
-                bracket_end = response.rfind("}") + 1
-
-                if bracket_start == -1 or bracket_end == -1:
-                    raise Exception("No JSON object found in the response")
-
-                response = response[bracket_start:bracket_end]
-                response = json.loads(response)
-                prompt = response.get("prompt", [])
-            except Exception as e:
-                prompt = user_message
-
+            prompt = res.get("prompt") or user_message
         except Exception as e:
             log.exception(e)
             prompt = user_message
@@ -380,7 +359,7 @@ async def chat_image_generation_handler(
                 }
             )
 
-        system_message_content = "<context>An image has been generated and displayed above. Do not generate any image markdown. Acknowledge that the image has been generated and tell the user in his language,that you can edit the image if he asks you to do so.</context>"
+        system_message_content = IMAGE_GENERATED_CONTEXT
 
     except Exception as e:
         log.exception(e)
@@ -394,7 +373,7 @@ async def chat_image_generation_handler(
             }
         )
 
-        system_message_content = "<context>Unable to generate an image, tell the user that an error occured</context>"
+        system_message_content = IMAGE_ERROR_CONTEXT
 
     if system_message_content:
         form_data["messages"] = add_or_update_system_message(
@@ -450,38 +429,19 @@ async def chat_file_intent_decision_handler(
         return form_data, True  # No user message, proceed with RAG
     
     try:
-        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
-        if not model:
-            log.warning(f"DEFAULT_AGENT_MODEL {DEFAULT_AGENT_MODEL.value} not found for company {user.company_id}")
-            return form_data, True  # Fallback to RAG
-        
-        # Create decision prompt
-        decision_messages = [
-            {
-                "role": "system",
-                "content": "You are an AI assistant that determines user intent. The user has attached non-image files to their message. Analyze their message and determine:\n\nFor the user's intent, is it necessary to use the ENTIRE content of the document?\n\nExamples that need ENTIRE content:\n- Translation tasks\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n\nExamples that can use RAG (partial content):\n- Answering specific questions about the document\n- Finding particular information or facts\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'FULL' or 'RAG' - nothing else."
-            },
-            {
-                "role": "user",
-                "content": f"User message: {user_message}\n\nFile names: {', '.join([f.get('name', 'unknown') for f in non_image_files])}\n\nWhat is the user's intent?"
-            }
-        ]
-        
-        decision_form_data = {
-            "messages": decision_messages,
-            "stream": False,
-            "metadata": {
-                "chat_id": None,
-                "agent_or_task_prompt": True
-            },
-            "temperature": 0.0
-        }
-        
-        response = await generate_chat_completion(decision_form_data, user, model)
-        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
-        
-        is_rag_task = response_content == 'RAG'
-        log.debug(f"File intent decision: {response_content} -> is_rag_task: {is_rag_task}")
+        result = await structured_completion(
+            messages=[
+                {"role": "system", "content": FILE_INTENT_DECISION_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"User message: {user_message}\n\nFile names: {', '.join([f.get('name', 'unknown') for f in non_image_files])}\n\nWhat is the user's intent?"
+                }
+            ],
+            response_model=FileIntentDecision,
+            model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        )
+        is_rag_task = result.intent == "RAG"
+        log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
 
         return form_data, is_rag_task
         
@@ -555,20 +515,6 @@ async def chat_completion_files_handler(
                 form_data.get("chat_id", None),
                 user
             )
-
-            queries_response = queries_response["choices"][0]["message"]["content"]
-
-            try:
-                bracket_start = queries_response.find("{")
-                bracket_end = queries_response.rfind("}") + 1
-
-                if bracket_start == -1 or bracket_end == -1:
-                    raise Exception("No JSON object found in the response")
-
-                queries_response = queries_response[bracket_start:bracket_end]
-                queries_response = json.loads(queries_response)
-            except Exception as e:
-                queries_response = {"queries": [queries_response]}
 
             queries = queries_response.get("queries", [])
         except Exception as e:
@@ -684,8 +630,48 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     sources = []
 
     features = form_data.pop("features", None)
+    auto_tools = form_data.pop("auto_tools", None)
 
     user_message = get_last_user_message(form_data["messages"])
+
+    if auto_tools and isinstance(auto_tools, list) and len(auto_tools) > 0 and user_message:
+        try:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "tool_selection",
+                        "description": "Auto-selecting tools",
+                        "done": False,
+                    },
+                }
+            )
+            prompt = AUTO_TOOL_SELECTION_PROMPT.replace("{{USER_MESSAGE}}", user_message)
+            decision = await structured_completion(
+                messages=[{"role": "user", "content": prompt}],
+                response_model=ToolSelectionDecision,
+                model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id),
+            )
+            selected_tool = decision.tool
+            if selected_tool != "none" and selected_tool in auto_tools:
+                features = {selected_tool: True}
+                log.debug(f"Auto tool selection: {selected_tool}")
+            else:
+                features = None
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "tool_selection",
+                        "description": "Auto-selecting tools",
+                        "done": True,
+                        "hidden": True,
+                    },
+                }
+            )
+        except Exception as e:
+            log.exception(f"Auto tool selection failed: {e}")
+            features = None
 
     model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
@@ -720,32 +706,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
-        # Create decision prompt
-        decision_messages = [
-            {
-                "role": "system",
-                "content": "You are an AI assistant that determines user intent. The user has attached a knowledge base and/or single files to the prompt. Analyze their message and determine:\n\nFor the user's intent, is it necessary to search the knowledge or the files?\n\nExamples that need the knowledge/files:\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n- Answering specific questions about the document\n- Finding particular information or facts in the knowledge base\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'YES' or 'NO' - nothing else. Return no only, of you know that you don't need extra knowledge to answer the question."
-            },
-            {
-                "role": "user",
-                "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
-            }
-        ]
-
-        decision_form_data = {
-            "messages": decision_messages,
-            "stream": False,
-            "metadata": {
-                "chat_id": None,
-                "agent_or_task_prompt": True
-            },
-            "temperature": 0.0
-        }
-
-        response = await generate_chat_completion(decision_form_data, user, model)
-        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
-
-        use_model_knowledge_or_files = response_content == 'YES'
+        knowledge_result = await structured_completion(
+            messages=[
+                {"role": "system", "content": KNOWLEDGE_INTENT_DECISION_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
+                }
+            ],
+            response_model=KnowledgeUseDecision,
+            model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        )
+        use_model_knowledge_or_files = knowledge_result.needs_knowledge == "YES"
 
         if use_model_knowledge_or_files:
             await event_emitter(
@@ -988,29 +960,7 @@ async def process_chat_response(
                         )
 
                         if res and isinstance(res, dict):
-                            if len(res.get("choices", [])) == 1:
-                                title_string = (
-                                    res.get("choices", [])[0]
-                                    .get("message", {})
-                                    .get("content", message.get("content", "New chat"))
-                                )
-                            else:
-                                title_string = ""
-
-                            title_string = title_string[
-                                title_string.find("{") : title_string.rfind("}") + 1
-                            ]
-
-                            try:
-                                title = json.loads(title_string).get(
-                                    "title", "New chat"
-                                )
-                            except Exception as e:
-                                title = ""
-
-                            if not title:
-                                title = messages[0].get("content", "New chat")
-
+                            title = res.get("title", "") or messages[0].get("content", "New chat")
                             Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
                             await event_emitter(

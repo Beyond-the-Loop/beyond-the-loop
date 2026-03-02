@@ -395,8 +395,6 @@ def save_docs_to_vector_db(
         for doc in docs
     ]
 
-    # ChromaDB does not like datetime formats
-    # for meta-data so convert them to string.
     for metadata in metadatas:
         for key, value in metadata.items():
             if isinstance(value, datetime):

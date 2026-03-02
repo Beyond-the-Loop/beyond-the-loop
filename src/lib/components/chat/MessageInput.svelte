@@ -53,7 +53,8 @@
 
 	export let transparentBackground = false;
 
-	export let onChange: Function = () => {};
+	export let onChange: Function = () => {
+	};
 	export let createMessagePair: Function;
 	export let stopResponse: Function;
 
@@ -77,13 +78,15 @@
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
+	export let autoToolsEnabled = false;
 
 	$: onChange({
 		prompt,
 		files,
 		selectedToolIds,
 		imageGenerationEnabled,
-		webSearchEnabled
+		webSearchEnabled,
+		autoToolsEnabled
 	});
 
 	let loaded = false;
@@ -1254,65 +1257,99 @@
 
 										<div class="flex gap-1 items-center overflow-x-auto scrollbar-none flex-1">
 											{#if $_user}
-												{#if $companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (customModel?.meta?.capabilities?.websearch ?? true)}
+												{@const
+													canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (customModel?.meta?.capabilities?.websearch ?? true))}
+												{@const
+													canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (customModel?.meta?.capabilities?.image_generation ?? true))}
+												{@const
+													canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true))}
+												{@const hasAnyFeature = canWebSearch || canImageGen || canCodeInterpreter}
+
+												{#if hasAnyFeature}
+													<Tooltip content={$i18n.t('Automatically select tool')} placement="top">
+														<button
+															on:click|preventDefault={() => {
+																autoToolsEnabled = !autoToolsEnabled;
+																if (autoToolsEnabled) {
+																	webSearchEnabled = false;
+																	imageGenerationEnabled = false;
+																	codeInterpreterEnabled = false;
+																}
+															}}
+															type="button"
+															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {autoToolsEnabled
+																? 'bg-blue-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
+																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900'}"
+														>
+															<span
+																class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis">{$i18n.t('Auto')}</span>
+														</button>
+													</Tooltip>
+
+													<div class="w-px h-4 bg-gray-200 dark:bg-customGray-700 flex-shrink-0"></div>
+												{/if}
+
+												{#if canWebSearch}
 													<Tooltip content={$i18n.t('Search the internet')} placement="top">
 														<button
 															on:click|preventDefault={() => {
+																autoToolsEnabled = false;
 																webSearchEnabled = !webSearchEnabled;
 																imageGenerationEnabled = false;
 																codeInterpreterEnabled = false;
 															}}
 															type="button"
-															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {webSearchEnabled ||
-															($settings?.webSearch ?? false) === 'always'
+															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {autoToolsEnabled ? 'opacity-40' : ''} {webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
 																? 'bg-blue-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
 																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900'}"
 														>
 															<WebSearchIcon />
 															{#if webSearchEnabled || ($settings?.webSearch ?? false) === 'always'}
 																<span
-																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Web Search')}</span
+																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis"
+																>{$i18n.t('Web Search')}</span
 																>
 															{/if}
 														</button>
 													</Tooltip>
 												{/if}
 
-												{#if $companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (customModel?.meta?.capabilities?.image_generation ?? true)}
+												{#if canImageGen}
 													<Tooltip content={$i18n.t('Generate an image')} placement="top">
 														<button
 															on:click|preventDefault={() => {
+																autoToolsEnabled = false;
 																imageGenerationEnabled = !imageGenerationEnabled;
 																codeInterpreterEnabled = false;
 																webSearchEnabled = false;
 															}}
 															type="button"
-															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {imageGenerationEnabled
+															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {autoToolsEnabled ? 'opacity-40' : ''} {imageGenerationEnabled
 																? 'bg-blue-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
 																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900 '}"
 														>
 															<ImageGenerateIcon />
 															{#if imageGenerationEnabled}
 																<span
-																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Image')}</span
+																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis"
+																>{$i18n.t('Image')}</span
 																>
 															{/if}
 														</button>
 													</Tooltip>
 												{/if}
 
-												{#if ($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true)}
+												{#if canCodeInterpreter}
 													<Tooltip content={$i18n.t('Execute code for analysis')} placement="top">
 														<button
 															on:click|preventDefault={() => {
+																autoToolsEnabled = false;
 																codeInterpreterEnabled = !codeInterpreterEnabled;
 																imageGenerationEnabled = false;
 																webSearchEnabled = false;
 															}}
 															type="button"
-															class="p-[3px] flex gap-1.5 items-center text-xs rounded-lg font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {codeInterpreterEnabled
+															class="p-[3px] flex gap-1.5 items-center text-xs rounded-lg font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {autoToolsEnabled ? 'opacity-40' : ''} {codeInterpreterEnabled
 																? 'bg-gray-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
 																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900 '}"
 														>
@@ -1320,7 +1357,7 @@
 															{#if codeInterpreterEnabled}
 																<span
 																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Code Interpreter')}
+																>{$i18n.t('Code Interpreter')}
 																</span>
 																<span class="text-[0.5rem] leading-[11px] ml-[-5px] self-start">
 																	Beta
@@ -1348,8 +1385,8 @@
 												>
 													{#if isMagicLoading}
 														<span class="flex items-center"
-															><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
-															></span
+														><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
+														></span
 														>
 													{:else}
 														<MagicSearch />
