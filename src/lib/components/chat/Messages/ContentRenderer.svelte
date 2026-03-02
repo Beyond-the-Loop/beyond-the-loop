@@ -109,7 +109,7 @@
 	});
 </script>
 
-<div bind:this={contentContainerElement}>
+<div bind:this={contentContainerElement} class="select-text">
 	<Markdown
 		{id}
 		{content}
