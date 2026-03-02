@@ -100,12 +100,13 @@ def create_premium_subscription_checkout_session(user=Depends(get_verified_user)
 
 @router.post("/checkout-webhook")
 async def checkout_webhook(request: Request, stripe_signature: str = Header(None)):
+
     if not stripe_signature:
         raise HTTPException(status_code=400, detail="No Stripe signature provided")
 
     payload = await request.body()
+
     try:
-        # Verify Stripe Webhook Signature
         event = stripe.Webhook.construct_event(
             payload=payload,
             sig_header=stripe_signature,
@@ -114,14 +115,16 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
 
         event_type = event.get("type")
         event_data = event.get("data", {}).get("object", {})
-
         stripe_customer_id = event_data.get('customer')
+
 
         company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
 
+
         if not company:
-            # Customer created or other events without customer information
+            log.error(f"No company found for stripe_customer_id: {stripe_customer_id} (event: {event_type})")
             return {"message": "Customer not found for Stripe checkout webhook"}
+
 
         if company.id in STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE:
             del STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company.id]
@@ -129,7 +132,7 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         if company.id in STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE:
             del STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company.id]
 
-        # Subscription events
+
         if event_type == "customer.subscription.created":
             handle_subscription_created(event_data)
             return None

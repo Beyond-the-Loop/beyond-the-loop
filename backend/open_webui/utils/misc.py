@@ -193,32 +193,6 @@ def openai_chat_message_template(model: str):
     }
 
 
-def openai_chat_chunk_message_template(
-    model: str,
-    content: Optional[str] = None,
-    tool_calls: Optional[list[dict]] = None,
-    usage: Optional[dict] = None,
-) -> dict:
-    template = openai_chat_message_template(model)
-    template["object"] = "chat.completion.chunk"
-
-    template["choices"][0]["index"] = 0
-    template["choices"][0]["delta"] = {}
-
-    if content:
-        template["choices"][0]["delta"]["content"] = content
-
-    if tool_calls:
-        template["choices"][0]["delta"]["tool_calls"] = tool_calls
-
-    if not content and not tool_calls:
-        template["choices"][0]["finish_reason"] = "stop"
-
-    if usage:
-        template["usage"] = usage
-    return template
-
-
 def openai_chat_completion_message_template(
     model: str, message: Optional[str] = None, usage: Optional[dict] = None
 ) -> dict:

@@ -41,6 +41,7 @@
 			align="start"
 			transition={(e) => fade(e, { duration: 100 })}
 		>
+		{#if !$mobile}
 			<button
 				class="font-medium flex rounded-md text-sm text-lightGray-100 dark:text-customGray-100 py-2 px-3 w-full hover:bg-lightGray-700 dark:hover:text-white dark:hover:bg-customGray-950 transition"
 				on:click={async () => {
@@ -83,6 +84,7 @@
 					<div class=" self-center truncate">{$i18n.t('Company settings')}</div>
 				</button>
 			{/if}
+		{/if}
 
 			<!-- <button
 				class="flex rounded-md py-2 px-3 w-full hover:bg-lightGray-300 dark:hover:bg-gray-800 transition"

@@ -30,7 +30,7 @@
 	$: command = prompt?.split('\n').pop()?.split(' ')?.pop() ?? '';
 
 	let show = false;
-	$: show = command?.charAt(0) === '/';
+	// $: show = command?.charAt(0) === '/'; // prompt list disabled
 
 	$: if (show) {
 		init();

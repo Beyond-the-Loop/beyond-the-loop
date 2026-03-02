@@ -1,0 +1,84 @@
+<html><head>
+	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>  
+	<title>500 Error</title>
+</head>
+<body>
+	<div class="dark:bg-gray-800 h-[90vh] flex mb-16">
+		<div
+			class="flex-grow dark:text-gray-200 text-center flex justify-center flex-col space-y-4 mx-4 mb-12"
+		>
+			<a href="/">
+				<img 
+					id="logoImg"
+					crossorigin="anonymous"
+					src="/logo_light_transparent.png"
+					class="size-16 mx-auto"
+					alt=""
+				/>
+			</a>
+			<div>
+				<div id="errorMessageDiv" class="text-xl md:text-xl font-normal mb-1">
+					Beyond Chat ist temporär nicht erreichbar. Bitte versuche, die Seite neu zu laden.
+				</div>
+
+				<div class="text-medium text-gray-500 dark:text-gray-500 flex flex-col">
+					<div id="errorInfoDiv">
+						Wir führen gerade ein kurzes Update durch. In wenigen Minuten sind wir wieder da.
+					</div>
+						<div
+							class="relative md:w-[300px] h-[6px] bg-gray-200 dark:bg-gray-700 mx-auto rounded-full mt-7"
+						>
+							<div
+								class="absolute h-full bg-[#007fff] dark:bg-gray-200 rounded-full
+										animate-[bounceWidth_5s_cubic-bezier(0.4,0,0.2,1)_infinite]"
+							></div>
+						</div>
+						
+						<style>
+							@keyframes bounceWidth {
+								0%,
+								100% {
+									width: 30%;
+									left: 0;
+								}
+
+								25% {
+									width: 70%;
+									left: 15%;
+								}
+
+								50% {
+									width: 30%;
+									left: 70%;
+								}
+
+								75% {
+									width: 60%;
+									left: 15%;
+								}
+							}
+							body {
+								margin: 0;
+								padding: 0;
+							}
+							
+						</style>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		// const isDarkLS = (localStorage.getItem('theme') || 'system') === 'dark';
+		// let logoSrc = isDarkLS ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
+		// document.getElementById('logoImg').src = logoSrc;
+		const language = localStorage.getItem('locale') || 'de-DE';
+		document.getElementById('errorMessageDiv').innerHTML = 
+			language == 'de-DE' ? 'Beyond Chat ist temporär nicht erreichbar. Bitte versuche, die Seite neu zu laden.' : 
+			'Beyond Chat is temporarily unavailable. Please try refreshing.';
+
+		document.getElementById('errorInfoDiv').innerText = 
+			language == 'de-DE' ? 'Wir führen gerade ein kurzes Update durch. In wenigen Minuten sind wir wieder da.' : 
+			`We are performing a short update. We'll be back in a few minutes.`;
+	</script>
+</body>
+</html>

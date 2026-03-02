@@ -32,12 +32,12 @@
 			<img
 				crossorigin="anonymous"
 				src={logoSrc}
-				class="rounded-full size-16 mx-auto"
+				class="size-16 mx-auto"
 				alt="Beyond The Loop Logo"
 			/>
 		</a>
 		<div>
-			<div class="text-xl md:text-2xl font-normal mb-2">
+			<div class="text-xl md:text-xl font-normal mb-2">
 				{#if errorId in ERROR_MESSAGES}
 					{@html $i18n.t(ERROR_MESSAGES[errorId], {
 						link: '<a href=\"/\" class=\"underline text-gray-800 dark:text-gray-100\">',
