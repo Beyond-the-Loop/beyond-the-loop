@@ -322,7 +322,7 @@ jobs:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
-          source: "traefik/error-pages"
+          source: "traefik/error-pages/*"
           target: "~/beyond-the-loop"
           overwrite: true
 
