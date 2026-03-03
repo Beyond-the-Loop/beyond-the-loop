@@ -314,6 +314,7 @@ jobs:
           username: ${{ secrets.STAGING_EC2_USERNAME }}
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
           script: |
+            sudo rm -rf ~/beyond-the-loop/traefik/error-pages
             mkdir -p ~/beyond-the-loop/traefik/error-pages
 
       - name: Copy error-pages files to EC2
