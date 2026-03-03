@@ -307,6 +307,25 @@ jobs:
           target: "~/beyond-the-loop"
           overwrite: true
 
+      - name: Ensure traefik/error-pages folder exists on remote
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: ${{ secrets.STAGING_EC2_HOST }}
+          username: ${{ secrets.STAGING_EC2_USERNAME }}
+          key: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          script: |
+            mkdir -p ~/beyond-the-loop/traefik/error-pages
+
+      - name: Copy error-pages files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_EC2_HOST }}
+          username: ${{ secrets.STAGING_EC2_USERNAME }}
+          key: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          source: "traefik/error-pages"
+          target: "~/beyond-the-loop"
+          overwrite: true
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.4
         with:
