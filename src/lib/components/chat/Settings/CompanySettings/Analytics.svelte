@@ -10,6 +10,10 @@
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import ChevronUp from '$lib/components/icons/ChevronUp.svelte';
 	import { subscription } from '$lib/stores';
+	import fileSaver from 'file-saver';
+	import { generateCsv, type CsvColumnDef } from '$lib/utils/csv';
+	import type { TopUserItem, TopModelItem, TopAssistantItem } from '$lib/apis/analytics/types';
+	import Download from '$lib/components/icons/Download.svelte';
 	import {
 		getEngagementScore,
 		getPowerUsers,
@@ -66,10 +70,10 @@
 	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
 
 	const assistantKey = (r) => r.assistant;
-	$: assistantRankByKey = new Map(  
-		(analytics?.topAssistants?.top_assistants ?? [])    
-			.slice()    
-			.sort((a, b) => b.message_count - a.message_count)  
+	$: assistantRankByKey = new Map(
+		(analytics?.topAssistants?.top_assistants ?? [])
+			.slice()
+			.sort((a, b) => b.message_count - a.message_count)
 			.map((r, i) => [assistantKey(r), i + 1])
 		);
 
@@ -80,6 +84,7 @@
 		expanded = new Set(expanded);
 	}
 
+	const { saveAs } = fileSaver;
 	const token = localStorage.token;
 	const now = new Date();
 	const year = now.getFullYear();
@@ -417,6 +422,60 @@
 		const a = assistantRows.find((r) => r.assistant === assistantName);
 		return a?.profile_image_url ?? null;
 	}
+
+	// --- CSV export ---
+	$: userCsvColumns = [
+		{ header: 'First Name', accessor: (r: TopUserItem) => r.first_name },
+		{ header: 'Last Name', accessor: (r: TopUserItem) => r.last_name },
+		{ header: 'Email', accessor: (r: TopUserItem) => r.email },
+		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium'
+			? [{ header: 'Credits Used', accessor: (r: TopUserItem) => r.credits_used }]
+			: []),
+		{ header: 'Messages', accessor: (r: TopUserItem) => r.message_count },
+		{ header: 'Engagement Score', accessor: (r: TopUserItem) => r.engagement_score },
+		{ header: 'Top Model', accessor: (r: TopUserItem) => r.top_model ?? '' },
+		{ header: 'Top Assistant', accessor: (r: TopUserItem) => r.top_assistant ?? '' }
+	] as CsvColumnDef<TopUserItem>[];
+
+	$: modelCsvColumns = [
+		{ header: 'Model', accessor: (r: TopModelItem) => r.model },
+		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium'
+			? [{ header: 'Credits Used', accessor: (r: TopModelItem) => r.credits_used }]
+			: []),
+		{ header: 'Messages', accessor: (r: TopModelItem) => r.message_count }
+	] as CsvColumnDef<TopModelItem>[];
+
+	const assistantCsvColumns: CsvColumnDef<TopAssistantItem>[] = [
+		{ header: 'Assistant', accessor: (r) => r.assistant },
+		{ header: 'Credits Used', accessor: (r) => r.credits_used },
+		{ header: 'Messages', accessor: (r) => r.message_count }
+	];
+
+	function exportCurrentTabCsv() {
+		const timestamp = formatYYYYMMDD(new Date());
+		let csvContent: string;
+		let filename: string;
+
+		switch (activeTab) {
+			case 'users':
+				csvContent = generateCsv(rows, userCsvColumns);
+				filename = `analytics-users-${timestamp}.csv`;
+				break;
+			case 'models':
+				csvContent = generateCsv(modelRows, modelCsvColumns);
+				filename = `analytics-models-${timestamp}.csv`;
+				break;
+			case 'assistants':
+				csvContent = generateCsv(assistantRows, assistantCsvColumns);
+				filename = `analytics-assistants-${timestamp}.csv`;
+				break;
+			default:
+				return;
+		}
+
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+		saveAs(blob, filename);
+	}
 </script>
 
 <div class="pb-20">
@@ -532,28 +591,40 @@
 		</div>
 
 		<Tabs.Root bind:value={activeTab} class="rounded-card border-muted w-full shadow-card mt-4 ">
-			<Tabs.List
-				class="bg-lightGray-400/60 dark:bg-customGray-900 rounded-md flex flex-row p-[2px] text-xs w-fit font-medium"
-			>
-				<Tabs.Trigger
-					value="users"
-					class=" py-[10px] px-3 data-[state=active]:text-lightGray-100 dark:data-[state=active]:text-white  text-lightGray-100/75 dark:text-white/75 py-1 rounded-md flex flex-row items-center data-[state=active]:bg-lightGray-400 dark:data-[state=active]:bg-gray-900 "
-					><UsersIcon className="size-3 mr-2" />
-					{$i18n.t('Users')}</Tabs.Trigger
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<Tabs.List
+					class="bg-lightGray-400/60 dark:bg-customGray-900 rounded-md flex flex-row p-[2px] text-xs w-fit font-medium"
 				>
-				<Tabs.Trigger
-					value="models"
-					class=" py-[10px] px-3 data-[state=active]:text-lightGray-100 dark:data-[state=active]:text-white  text-lightGray-100/75 dark:text-white/75 rounded-md flex flex-row items-center data-[state=active]:bg-lightGray-400 dark:data-[state=active]:bg-gray-900 "
-					><Cube className="size-3 mr-2" />
-					{$i18n.t('Models')}</Tabs.Trigger
-				>
-				<Tabs.Trigger
-					value="assistants"
-					class=" py-[10px] px-3 data-[state=active]:text-lightGray-100 dark:data-[state=active]:text-white  text-lightGray-100/75 dark:text-white/75 rounded-md flex flex-row items-center data-[state=active]:bg-lightGray-400 dark:data-[state=active]:bg-gray-900 "
-					><AssistantsIcon className="size-3 mr-2" />
-					{$i18n.t('Assistants')}</Tabs.Trigger
-				>
-			</Tabs.List>
+					<Tabs.Trigger
+						value="users"
+						class=" py-[10px] px-3 data-[state=active]:text-lightGray-100 dark:data-[state=active]:text-white  text-lightGray-100/75 dark:text-white/75 py-1 rounded-md flex flex-row items-center data-[state=active]:bg-lightGray-400 dark:data-[state=active]:bg-gray-900 "
+						><UsersIcon className="size-3 mr-2" />
+						{$i18n.t('Users')}</Tabs.Trigger
+					>
+					<Tabs.Trigger
+						value="models"
+						class=" py-[10px] px-3 data-[state=active]:text-lightGray-100 dark:data-[state=active]:text-white  text-lightGray-100/75 dark:text-white/75 rounded-md flex flex-row items-center data-[state=active]:bg-lightGray-400 dark:data-[state=active]:bg-gray-900 "
+						><Cube className="size-3 mr-2" />
+						{$i18n.t('Models')}</Tabs.Trigger
+					>
+					<Tabs.Trigger
+						value="assistants"
+						class=" py-[10px] px-3 data-[state=active]:text-lightGray-100 dark:data-[state=active]:text-white  text-lightGray-100/75 dark:text-white/75 rounded-md flex flex-row items-center data-[state=active]:bg-lightGray-400 dark:data-[state=active]:bg-gray-900 "
+						><AssistantsIcon className="size-3 mr-2" />
+						{$i18n.t('Assistants')}</Tabs.Trigger
+					>
+				</Tabs.List>
+
+				<Tooltip content={$i18n.t('Export CSV')}>
+					<button
+						class="flex items-center gap-1.5 rounded-lg bg-lightGray-300 border border-lightGray-400 text-lightGray-100 text-xs font-medium px-3 py-2 transition hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 dark:border-customGray-700"
+						on:click={exportCurrentTabCsv}
+					>
+						<Download className="size-3.5" />
+						{$i18n.t('Export (CSV)')}
+					</button>
+				</Tooltip>
+			</div>
 			<div
 				class="w-full mt-4 ring-1 ring-lightGray-400 dark:ring-transparent rounded-md gap-3 p-2 bg-lightGray-300 dark:bg-customGray-900 text-2xs flex flex-row items-center"
 			>
