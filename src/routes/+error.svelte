@@ -2,20 +2,23 @@
 	import { page } from '$app/state';
 	import { onMount, getContext } from 'svelte';
 	import { theme, systemTheme } from '$lib/stores';
+	import { goto } from '$app/navigation';
+	import Spinner from '$lib/components/common/Spinner.svelte';
 
 	const i18n = getContext('i18n');
-
-	let logoSrc: string = '/logo_light_transparent.png';
 
 	let errorId = page.status;
 	let errorMessage = page.error.message;
 	// errorId = 500;
 	// errorMessage = 'Internal Server Error';
 
-	const ERROR_MESSAGES: Record<number, string> = {
-		'404': `This page doesn't exist. Please navigate {{link}}back to Beyond Chat{{_link}}.`,
-		'500': 'Beyond Chat is temporarily unavailable. Please try refreshing.'
-	};
+	let logoSrc = '/logo_light_transparent.png';
+	let buttonClicked = false;
+
+	function navigateHome () {
+		buttonClicked = true;
+		goto('/');
+	}
 
 	onMount(() => {
 		const theme: string = $theme === 'system' ? $systemTheme : $theme;
@@ -24,68 +27,43 @@
 	});
 </script>
 
-<div class="dark:bg-customGray-800 min-h-screen flex mb-16">
-	<div
-		class="flex-grow dark:text-gray-200 text-center flex justify-center flex-col space-y-4 mx-4 mb-32"
-	>
+<div class="flex h-screen w-full dark:bg-[#111111] bg-lightGray-200 items-center justify-center">
+	<div class="flex flex-col items-center gap-6">
 		<a href="/">
 			<img
 				crossorigin="anonymous"
 				src={logoSrc}
-				class="size-16 mx-auto"
+				class="size-16 mx-auto -mb-2"
 				alt="Beyond The Loop Logo"
 			/>
 		</a>
-		<div>
-			<div class="text-xl md:text-xl font-normal mb-2">
-				{#if errorId in ERROR_MESSAGES}
-					{@html $i18n.t(ERROR_MESSAGES[errorId], {
-						link: '<a href=\"/\" class=\"underline text-gray-800 dark:text-gray-100\">',
-						_link: '</a>'
-					})}
+		<h1 class="text-2xl font-semibold text-black dark:text-white text-center -mb-2">
+				<!-- Etwas ist schiefgelaufen -->
+				{#if errorId == 404} 
+					404: {$i18n.t('Page not found')}
 				{:else}
-					{$i18n.t('Unexpected system error. Please contact your administrator.')}
-				{/if}
-			</div>
-
-			<div class="text-medium text-gray-500 dark:text-gray-500 flex flex-col">
-				{#if errorId != 500}
-					{errorId}: {errorMessage}
+					{$i18n.t('Something went wrong')}
+				{/if} 
+			</h1>
+		<p class="text-sm text-[#666] text-center leading-[1.65] max-w-[380px] ">
+				{#if errorId == 404} 
+					{$i18n.t('Return to Beyond Chat or contact our support if this is an error.')}
 				{:else}
-					<div
-						class="relative md:w-[300px] h-[6px] bg-gray-200 dark:bg-gray-700 mx-auto rounded-full mt-3"
-					>
-						<div
-							class="absolute h-full bg-gray-800 dark:bg-gray-200 rounded-full
-									animate-[bounceWidth_5s_cubic-bezier(0.4,0,0.2,1)_infinite]"
-						></div>
-					</div>
-					<style>
-						@keyframes bounceWidth {
-							0%,
-							100% {
-								width: 30%;
-								left: 0;
-							}
-
-							25% {
-								width: 70%;
-								left: 15%;
-							}
-
-							50% {
-								width: 30%;
-								left: 70%;
-							}
-
-							75% {
-								width: 60%;
-								left: 15%;
-							}
-						}
-					</style>
-				{/if}
-			</div>
-		</div>
+					{$i18n.t('There is currently a temporary disruption. We are working on it — please try again in a moment.')}
+				{/if} 	
+		</p>
+		<button class="relative px-5 py-2 rounded-md bg-customBlue-500 hover:bg-customBlue-600 text-sm font-medium text-white transition-colors duration-150" on:click={navigateHome}>
+			{#if errorId == 404} 
+				{$i18n.t('Return to Beyond Chat')}
+			{:else}
+				{$i18n.t('Try again')}
+			{/if} 
+			{#if buttonClicked}
+				<div class="dark:text-white text-black absolute top-2 -right-8">
+					<Spinner />
+				</div>
+			{/if}
+			
+		</button>
 	</div>
 </div>
