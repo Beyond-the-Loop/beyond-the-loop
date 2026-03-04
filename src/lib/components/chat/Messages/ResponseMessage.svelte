@@ -814,7 +814,7 @@
 									<Citations sources={message?.sources ?? message?.citations} />
 								{/if}
 
-								{#if message.code_executions}+
+								{#if message.code_executions}
 									<CodeExecutions codeExecutions={message.code_executions} />
 								{/if}
 							</div>
