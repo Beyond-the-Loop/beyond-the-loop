@@ -1541,16 +1541,16 @@
 					? [
 							...($companyConfig?.config?.rag?.web?.search?.enable &&
 							($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
-							(model?.info?.meta?.capabilities?.websearch ?? true)
+							(model?.meta?.capabilities?.websearch ?? true)
 								? ['web_search']
 								: []),
 							...($companyConfig?.config?.image_generation?.enable &&
 							($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
-							(model?.info?.meta?.capabilities?.image_generation ?? true)
+							(model?.meta?.capabilities?.image_generation ?? true)
 								? ['image_generation']
 								: []),
 							...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
-							(model?.info?.meta?.capabilities?.code_interpreter ?? true)
+							(model?.meta?.capabilities?.code_interpreter ?? true)
 								? ['code_interpreter']
 								: [])
 						]

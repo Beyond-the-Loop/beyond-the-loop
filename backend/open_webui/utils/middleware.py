@@ -661,9 +661,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             else:
                 features = None
 
-            metadata["features"] = features
-
-            print("AUTO SELECTED TOOL", features)
+            metadata["features"] = features or {}
 
             await event_emitter(
                 {
@@ -1336,6 +1334,7 @@ async def process_chat_response(
 
             # We might want to disable this by default
             detect_reasoning = True
+
             detect_code_interpreter = metadata.get("features", {}).get(
                 "code_interpreter", False
             )
