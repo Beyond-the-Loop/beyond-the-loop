@@ -2,13 +2,11 @@
 	import { onMount, getContext, tick } from 'svelte';
 	import {
 		models,
-		tools,
 		functions,
 		knowledge as knowledgeCollections,
 		companyConfig
 	} from '$lib/stores';
 	import Textarea from '$lib/components/common/Textarea.svelte';
-	import { getTools } from '$lib/apis/tools';
 	import { getFunctions } from '$lib/apis/functions';
 	import { getKnowledgeBases } from '$lib/apis/knowledge';
 	import { toast } from 'svelte-sonner';
@@ -106,7 +104,6 @@
 	};
 
 	let knowledge = [];
-	let toolIds = [];
 	let filterIds = [];
 	let actionIds = [];
 
@@ -152,14 +149,6 @@
 			}
 		}
 
-		if (toolIds.length > 0) {
-			info.meta.toolIds = toolIds;
-		} else {
-			if (info.meta.toolIds) {
-				delete info.meta.toolIds;
-			}
-		}
-
 		if (filterIds.length > 0) {
 			info.meta.filterIds = filterIds;
 		} else {
@@ -196,7 +185,6 @@
 	};
 
 	onMount(async () => {
-		await tools.set(await getTools(localStorage.token));
 		await functions.set(await getFunctions(localStorage.token));
 		await knowledgeCollections.set(await getKnowledgeBases(localStorage.token));
 
@@ -237,7 +225,6 @@
 					)
 				: null;
 
-			toolIds = model?.meta?.toolIds ?? [];
 			filterIds = model?.meta?.filterIds ?? [];
 			actionIds = model?.meta?.actionIds ?? [];
 			knowledge = model?.meta?.knowledge ?? [];

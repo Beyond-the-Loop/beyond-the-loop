@@ -647,17 +647,24 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             )
             prompt = AUTO_TOOL_SELECTION_PROMPT.replace("{{USER_MESSAGE}}", user_message)
+
             decision = await structured_completion(
                 messages=[{"role": "user", "content": prompt}],
                 response_model=ToolSelectionDecision,
                 model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id),
             )
             selected_tool = decision.tool
+
             if selected_tool != "none" and selected_tool in auto_tools:
                 features = {selected_tool: True}
                 log.debug(f"Auto tool selection: {selected_tool}")
             else:
                 features = None
+
+            metadata["features"] = features
+
+            print("AUTO SELECTED TOOL", features)
+
             await event_emitter(
                 {
                     "type": "status",

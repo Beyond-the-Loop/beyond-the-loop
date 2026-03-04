@@ -16,6 +16,7 @@
 	import GroupIcon from '$lib/components/icons/GroupIcon.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
 	import { subscription } from '$lib/stores';
+	import { tagColors, tagColorsLight } from '$lib/utils';
 
 	const i18n = getContext('i18n');
 	let models = null;
@@ -41,13 +42,20 @@
 	}
 
 	let filteredItems = [];
-
 	let taggedPrompts = {};
+	let uncategorizedPrompts = [];
+	let allTags = [];
 
-	const tagColors = ['#115A1A', '#32472D', '#476956', '#5D4D0D', '#633B14', '#556111', '#112550', '#12595A', '#114558', '#340E56', '#4D123D', '#591626'];
-	const tagColorsLight = ['#D6F1D9', '#DCFFCA', '#D1FCE4', '#FDF2C8', '#FDE3C8', '#F5FDC8', '#E4ECFD', '#CFF6F2', '#CFEBF6', '#E4CFF6', '#F6CFEB', '#F6CFD8'];
 	let showInput = false;
 	let query = '';
+
+	// Stable global tag list so colors are consistent regardless of filtering
+	$: if (prompts) {
+		allTags = Array.from(
+			new Set(prompts.flatMap((p) => p.meta?.tags?.map((t) => t.name.toLowerCase()) || []))
+		);
+	}
+
 	$: {
 		if (prompts) {
 			filteredItems = prompts?.filter((p) => {
@@ -69,15 +77,20 @@
 
 	$: if (filteredItems) {
 		taggedPrompts = {};
+		uncategorizedPrompts = [];
 
 		for (const prompt of filteredItems) {
 			const tagNames = prompt.meta?.tags?.map((t) => t.name.toLowerCase()) || [];
 
-			for (const tag of tagNames) {
-				if (!taggedPrompts[tag]) {
-					taggedPrompts[tag] = [];
+			if (tagNames.length === 0) {
+				uncategorizedPrompts.push(prompt);
+			} else {
+				for (const tag of tagNames) {
+					if (!taggedPrompts[tag]) {
+						taggedPrompts[tag] = [];
+					}
+					taggedPrompts[tag].push(prompt);
 				}
-				taggedPrompts[tag].push(prompt);
 			}
 		}
 	}
@@ -264,12 +277,12 @@
 		</div>
 		<div class="prompt-scrollbar overflow-y-auto pr-6" style="max-height: calc(100dvh - 16rem);">
 			<div class="container">
-				{#each Object.keys(taggedPrompts) as tag, i}
+				{#each Object.keys(taggedPrompts) as tag}
 					<Accordeon
 						hideBorder={true}
 						tagColors={tagColors}
 						tagColorsLight={tagColorsLight}
-						i={i}
+						i={allTags.indexOf(tag)}
 						titleClassName={`text-xs text-lightGray100 font-medium dark:text-white rounded-lg px-2 py-1`}
 						id={tag}
 					>
@@ -298,6 +311,40 @@
 						{/each}
 					</Accordeon>
 				{/each}
+				{#if uncategorizedPrompts.length > 0}
+					<Accordeon
+						hideBorder={true}
+						tagColors={[]}
+						tagColorsLight={[]}
+						i={0}
+						titleClassName={`text-xs text-lightGray100 font-medium dark:text-white rounded-lg px-2 py-1`}
+						id="uncategorized"
+					>
+						<span class="capitalize font-medium" slot="title">{$i18n.t('Other')}</span>
+						{#each uncategorizedPrompts as prompt}
+							<div class="flex items-center py-1">
+								<div class="w-4 shrink-0">
+									{#if prompt?.bookmarked_by_user}
+										<BookmarkedIcon className="size-3" />
+									{/if}
+								</div>
+								{#if prompt?.access_control === null}
+									<div class="shrink-0 mr-[6px]"><PublicIcon className="size-3" /></div>
+								{:else if prompt?.access_control?.read?.group_ids?.length > 0 || prompt?.access_control?.write?.group_ids?.length > 0}
+									<div class="shrink-0 mr-[6px]"><GroupIcon className="size-3" /></div>
+								{:else}
+									<div class="shrink-0 mr-[6px]"><PrivateIcon className="size-3" /></div>
+								{/if}
+								<div
+									class="font-medium text-sm text-lightGray-100 dark:text-customGray-100 cursor-pointer"
+									on:click={() => onPromptClick(prompt)}
+								>
+									<Tooltip className="w-full line-clamp-1" content={prompt?.description}>{prompt?.title} • {prompt?.description ? prompt?.description : prompt?.content}</Tooltip>
+								</div>
+							</div>
+						{/each}
+					</Accordeon>
+				{/if}
 			</div>
 		</div>
 	{/if}
