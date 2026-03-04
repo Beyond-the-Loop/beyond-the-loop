@@ -3,8 +3,10 @@ export interface CsvColumnDef<T> {
 	accessor: (row: T) => string | number | null | undefined;
 }
 
+const SEPARATOR = ';';
+
 function escapeCsvField(value: string): string {
-	if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
+	if (value.includes('"') || value.includes(SEPARATOR) || value.includes('\n') || value.includes('\r')) {
 		return `"${value.replace(/"/g, '""')}"`;
 	}
 	return value;
@@ -12,7 +14,7 @@ function escapeCsvField(value: string): string {
 
 export function generateCsv<T>(rows: T[], columns: CsvColumnDef<T>[]): string {
 	const BOM = '\uFEFF';
-	const header = columns.map((col) => escapeCsvField(col.header)).join(',');
+	const header = columns.map((col) => escapeCsvField(col.header)).join(SEPARATOR);
 	const dataLines = rows.map((row) =>
 		columns
 			.map((col) => {
@@ -20,7 +22,7 @@ export function generateCsv<T>(rows: T[], columns: CsvColumnDef<T>[]): string {
 				const str = raw == null ? '' : String(raw);
 				return escapeCsvField(str);
 			})
-			.join(',')
+			.join(SEPARATOR)
 	);
 	return BOM + [header, ...dataLines].join('\r\n');
 }
