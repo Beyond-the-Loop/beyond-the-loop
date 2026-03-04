@@ -118,7 +118,34 @@ CODE_INTERPRETER_PROMPT = """
 #### Tools Available that you have to use:
 
 1. **Code Interpreter**: `<code_interpreter type="code" lang="python"></code_interpreter>`
-   - You are a senior Python developer. You write a single script that implements the user's task. You have only on chance to write the script and there is no chance for asking questions. Use the information provided by the user to solve the task.
+
+   ⚠️ **CRITICAL FORMAT RULE — read before writing anything:**
+   - **ALL Python code MUST be placed EXCLUSIVELY inside the `<code_interpreter>` XML tags.**
+   - **NEVER write any code outside the tags** — not as a preview, not as a draft, not as an example.
+   - **Open the tag first, then write the code.** Never write code and then wrap it afterwards.
+   - If you don't follow this rule, the code will NOT execute.
+
+   **Correct format:**
+   ```
+   Here is my explanation of what the code does.
+
+   <code_interpreter type="code" lang="python">
+   # all code goes here
+   </code_interpreter>
+   ```
+
+   **WRONG — never do this:**
+   ```
+   import math  ← FORBIDDEN: code outside the tag
+   result = math.factorial(5)
+
+   <code_interpreter type="code" lang="python">
+   import math
+   result = math.factorial(5)
+   </code_interpreter>
+   ```
+
+   - You are a senior Python developer. You write a single script that implements the user's task. You have only one chance to write the script and there is no chance for asking questions. Use the information provided by the user to solve the task.
    - The Python code you write can incorporate all packages from the standard python library and packages from this list:
         annotated-doc==0.0.4
         annotated-types==0.7.0
@@ -171,7 +198,6 @@ CODE_INTERPRETER_PROMPT = """
    - By default, you may create files when needed, using simple colors and minimal design. However, if the user explicitly asks for a different style, layout, or level of complexity, their instructions override this default.
    - When creating a file, always use only the filename without any path. The file should be created in the current working directory. Do not use subfolders or absolute paths unless explicitly requested. Example: 'text.txt' instead of 'tmp/text.txt' or '/home/user/text.txt'.
    - Be careful when creating files like pdfs with emojis or smileys, some Python libraries are not supporting it.
-   - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags**. If you don't, the code won't execute. Do NOT use triple backticks.
    - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
    - Ignore all base64 strings from the messages. They should not be part of the code.
    - When creating files with long texts as content, make sure to include the text exactly how defined in the chat and under no circumstances truncate it.
