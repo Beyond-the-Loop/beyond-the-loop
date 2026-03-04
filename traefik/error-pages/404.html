@@ -1,4 +1,5 @@
-<html><head>
+<html>
+	<head>
 	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script> 
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Beyond the Loop</title> 
@@ -52,7 +53,7 @@
 		const language = localStorage.getItem('locale') || 'de-DE';
 
 		document.getElementById('errorInfoDiv').innerText = 
-			language == 'de-DE' ? 'Wir führen gerade ein kurzes Update durch. In wenigen Augenblicken sind wir wieder da.' : 
+			language == 'de-DE' ? 'Wir f\u00fchren gerade ein kurzes Update durch. In wenigen Augenblicken sind wir wieder da.' : 
 			`We are performing a short update. We'll be back in a moment.`;
 		window.addEventListener('DOMContentLoaded', () => {
 				const isDarkLS = localStorage.getItem('theme') === 'dark';
