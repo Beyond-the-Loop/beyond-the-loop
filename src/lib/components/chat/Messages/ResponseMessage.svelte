@@ -506,50 +506,6 @@
 			modelIconUrl = '/logo_light.png';
 		}
 	}
-<<<<<<< HEAD
-
-  let answerEl: HTMLDivElement;
-
-  function handleCopy(event: ClipboardEvent) {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const anchor = selection.anchorNode;
-    const focus = selection.focusNode;
-
-    if (
-      !anchor ||
-      !focus ||
-      !answerEl.contains(anchor) ||
-      !answerEl.contains(focus)
-    ) {
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const fragment = range.cloneContents();
-
-    const container = document.createElement('div');
-    container.appendChild(fragment);
-	// copyToClipboard(container.innerText, null);
-
-    container.querySelectorAll<HTMLElement>('*').forEach((el) => {
-      el.style.backgroundColor = '';
-      el.style.background = '';
-      el.removeAttribute('bgcolor');
-    });
-
-    // const cleanedText = container.innerText ?? '';
-    // const cleanedHtml = container.innerHTML;
-
-    // event.preventDefault();
-
-    // event.clipboardData?.setData('text/plain', cleanedText);
-    // event.clipboardData?.setData('text/html', cleanedHtml);
-  }
-
-=======
->>>>>>> 2b60c55fe (handleCopy entfernt)
 </script>
 
 {#key message.id}
@@ -598,16 +554,9 @@
 					</div>
 				{/if}
 
-<<<<<<< HEAD
-				<div 
-					bind:this={answerEl}
-  					
-				 	class="chat-{message.role} w-full min-w-full markdown-prose">
-=======
 				<div
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
->>>>>>> 2b60c55fe (handleCopy entfernt)
 					<div>
 						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
 							{@const status = (
