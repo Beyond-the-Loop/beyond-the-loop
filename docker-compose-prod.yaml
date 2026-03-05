@@ -9,6 +9,9 @@ services:
       - "./traefik/traefik.yml:/traefik.yml:ro"
       - "./traefik/acme.json:/letsencrypt/acme.json"
     restart: always
+    depends_on:
+      error-pages:
+        condition: service_healthy
 
   litellm:
     container_name: litellm
@@ -105,6 +108,11 @@ services:
       - "traefik.http.routers.staging-fallback.priority=1"
       - "traefik.http.routers.staging-fallback.service=error-pages"
       - "traefik.http.routers.staging-fallback.middlewares=error-pages-mw"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/404.html >/dev/null 2>&1 || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 30 
 
 volumes:
   beyond-the-loop: {}
