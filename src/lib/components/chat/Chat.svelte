@@ -1273,6 +1273,21 @@
 		try {
 			const res = await generateMagicPrompt(localStorage.token, { prompt: userPrompt });
 			prompt = res;
+			const chatInputContainerElement = document.getElementById('chat-input-container');
+			const chatInputElement = document.getElementById('chat-input');
+
+			await tick();
+			if (chatInputContainerElement) {
+				chatInputContainerElement.style.height = '';
+				chatInputContainerElement.style.height =
+					Math.min(chatInputContainerElement.scrollHeight, 200) + 'px';
+			}
+
+			await tick();
+			if (chatInputElement) {
+				chatInputElement.focus();
+				chatInputElement.dispatchEvent(new Event('input'));
+			}
 		} catch (err) {
 			console.error('Magic prompt error:', err);
 		} finally {
