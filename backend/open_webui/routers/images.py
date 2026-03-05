@@ -19,6 +19,7 @@ from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 
 from open_webui.utils.auth import get_verified_user
+from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 
@@ -159,9 +160,14 @@ async def image_generations(
         with open(image_path, "wb") as f:
             f.write(image_bytes)
 
+        image_credit_cost = 0.0
         if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
             # Subtract credits for image generation
-            await credit_service.subtract_credits_by_user_for_image(user)
+            image_credit_cost = await credit_service.subtract_credits_by_user_for_image(user)
+
+        Completions.insert_new_completion(
+            user.id, "Nano Banana", image_credit_cost, None, False, is_image_generation=True
+        )
 
         return [{"url": f"/cache/image/generations/{image_filename}"}]
     except Exception:
