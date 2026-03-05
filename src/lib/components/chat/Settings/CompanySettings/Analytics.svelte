@@ -998,7 +998,9 @@
 											alt="model"
 										/>
 										<div class="text-xs font-semibold">
-											{row.model}
+											{row.model}{row.model === 'Nano Banana'
+												? ` (${$i18n.t('Image Generation')})`
+												: ''}
 										</div>
 									</div>
 								</td>
