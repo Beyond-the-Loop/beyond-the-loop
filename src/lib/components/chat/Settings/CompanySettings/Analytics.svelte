@@ -429,10 +429,10 @@
 		{ header: 'Last Name', accessor: (r: TopUserItem) => r.last_name },
 		{ header: 'Email', accessor: (r: TopUserItem) => r.email },
 		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium'
-			? [{ header: 'Credits Used', accessor: (r: TopUserItem) => r.credits_used }]
+			? [{ header: 'Credits Used', accessor: (r: TopUserItem) => r.credits_used?.toFixed(2) }]
 			: []),
 		{ header: 'Messages', accessor: (r: TopUserItem) => r.message_count },
-		{ header: 'Engagement Score', accessor: (r: TopUserItem) => r.engagement_score },
+		{ header: 'Engagement Score', accessor: (r: TopUserItem) => r.engagement_score?.toFixed(2) },
 		{ header: 'Top Model', accessor: (r: TopUserItem) => r.top_model ?? '' },
 		{ header: 'Top Assistant', accessor: (r: TopUserItem) => r.top_assistant ?? '' }
 	] as CsvColumnDef<TopUserItem>[];
@@ -440,14 +440,14 @@
 	$: modelCsvColumns = [
 		{ header: 'Model', accessor: (r: TopModelItem) => r.model },
 		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium'
-			? [{ header: 'Credits Used', accessor: (r: TopModelItem) => r.credits_used }]
+			? [{ header: 'Credits Used', accessor: (r: TopModelItem) => r.credits_used?.toFixed(2) }]
 			: []),
 		{ header: 'Messages', accessor: (r: TopModelItem) => r.message_count }
 	] as CsvColumnDef<TopModelItem>[];
 
 	const assistantCsvColumns: CsvColumnDef<TopAssistantItem>[] = [
 		{ header: 'Assistant', accessor: (r) => r.assistant },
-		{ header: 'Credits Used', accessor: (r) => r.credits_used },
+		{ header: 'Credits Used', accessor: (r) => r.credits_used?.toFixed(2) },
 		{ header: 'Messages', accessor: (r) => r.message_count }
 	];
 
