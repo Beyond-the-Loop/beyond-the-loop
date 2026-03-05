@@ -629,12 +629,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     events = []
     sources = []
 
-    features = form_data.pop("features", None)
-    auto_tools = form_data.pop("auto_tools", None)
+    features = form_data.pop("features", {})
+    auto_tools = form_data.pop("auto_tools", [])
 
     user_message = get_last_user_message(form_data["messages"])
 
-    if auto_tools and isinstance(auto_tools, list) and len(auto_tools) > 0 and user_message:
+    if auto_tools and user_message:
         try:
             await event_emitter(
                 {
@@ -658,10 +658,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if selected_tool != "none" and selected_tool in auto_tools:
                 features = {selected_tool: True}
                 log.debug(f"Auto tool selection: {selected_tool}")
-            else:
-                features = None
-
-            metadata["features"] = features or {}
 
             await event_emitter(
                 {
@@ -676,7 +672,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             )
         except Exception as e:
             log.exception(f"Auto tool selection failed: {e}")
-            features = None
+
+    metadata["features"] = features
 
     model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
@@ -742,7 +739,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if model_files:
                 files.extend(model_files)
 
-    web_search_active = features and features.get("web_search")
+    web_search_active = features.get("web_search")
     web_search_queries = None
 
     # Include web search files before deciding task intent and building RAG context
@@ -836,7 +833,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-        if not ("code_interpreter" in features and features["code_interpreter"]):
+        if not features.get("code_interpreter", False):
             form_data["messages"] = add_or_update_system_message(
                 rag_template(
                     request.app.state.config.RAG_TEMPLATE, context_string, prompt
@@ -868,75 +865,75 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    if features:
-        form_data["metadata"]["images"] = []
+    form_data["metadata"]["images"] = []
 
-        # Add images to form_data metadata
+    # Add images to form_data metadata
+    for message in form_data["messages"]:
+        if "content" in message and isinstance(message["content"], list):
+            for c in message["content"]:
+                if c.get("type") == "image_url":
+                    url = c.get("image_url", {}).get("url")
+
+                    if url:
+                        ext = get_extension_from_base64(url)
+                        filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                        parts = url.split(',')
+                        if len(parts) > 1:
+                            url = parts[1]
+                        else:
+                            url = parts[0]
+
+                        form_data["metadata"]["images"].append({
+                            "name": filename,
+                            "content": url
+                        })
+
+    use_images_as_tool_input = (
+        features.get("image_generation") or features.get("code_interpreter")
+    )
+
+    if use_images_as_tool_input and form_data["metadata"]["images"]:
+        # Strip image_url blocks from messages — images are forwarded via metadata
+        # to the respective tool handler, so the LLM doesn't need them inline
         for message in form_data["messages"]:
             if "content" in message and isinstance(message["content"], list):
-                for c in message["content"]:
-                    if c.get("type") == "image_url":
-                        url = c.get("image_url", {}).get("url")
+                text_items = [c for c in message["content"] if c.get("type") != "image_url"]
+                if len(text_items) == 1 and text_items[0].get("type") == "text":
+                    message["content"] = text_items[0]["text"]
+                elif text_items:
+                    message["content"] = text_items
+                else:
+                    message["content"] = ""
 
-                        if url:
-                            ext = get_extension_from_base64(url)
-                            filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                            parts = url.split(',')
-                            if len(parts) > 1:
-                                url = parts[1]
-                            else:
-                                url = parts[0]
-
-                            form_data["metadata"]["images"].append({
-                                "name": filename,
-                                "content": url
-                            })
-
-        use_images_as_tool_input = (
-            features.get("image_generation") or features.get("code_interpreter")
+    if features.get("image_generation", False):
+        form_data = await chat_image_generation_handler(
+            request, form_data, extra_params, user
         )
-        if use_images_as_tool_input and form_data["metadata"]["images"]:
-            # Strip image_url blocks from messages — images are forwarded via metadata
-            # to the respective tool handler, so the LLM doesn't need them inline
-            for message in form_data["messages"]:
-                if "content" in message and isinstance(message["content"], list):
-                    text_items = [c for c in message["content"] if c.get("type") != "image_url"]
-                    if len(text_items) == 1 and text_items[0].get("type") == "text":
-                        message["content"] = text_items[0]["text"]
-                    elif text_items:
-                        message["content"] = text_items
-                    else:
-                        message["content"] = ""
 
-        if "image_generation" in features and features["image_generation"]:
-            form_data = await chat_image_generation_handler(
-                request, form_data, extra_params, user
-            )
+    if features.get("code_interpreter", False):
+        form_data["messages"] = add_or_update_system_message(
+            CODE_INTERPRETER_PROMPT, form_data["messages"]
+        )
 
-        if "code_interpreter" in features and features["code_interpreter"]:
-            form_data["messages"] = add_or_update_system_message(
-                CODE_INTERPRETER_PROMPT, form_data["messages"]
-            )
+        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
+        form_data["model"] = model.id
 
-            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
-            form_data["model"] = model.id
+        code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
+        form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
 
-            code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
-            form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
+        non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
 
-            non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
+        # Inform the LLM about available uploaded files so it can reference them in generated code
+        if code_interpreter_files or non_knowledge_files or form_data["metadata"]["images"]:
+            # Build a concise instruction listing accessible filenames (non-image, non-collection)
+            file_list_str = ", ".join(f["file"]["filename"] for f in non_knowledge_files) + ", ".join(
+                image["name"] for image in form_data["metadata"]["images"]) + ", ".join(
+                file["name"] for file in code_interpreter_files)
 
-            # Inform the LLM about available uploaded files so it can reference them in generated code
-            if code_interpreter_files or non_knowledge_files or form_data["metadata"]["images"]:
-                # Build a concise instruction listing accessible filenames (non-image, non-collection)
-                file_list_str = ", ".join(f["file"]["filename"] for f in non_knowledge_files) + ", ".join(
-                    image["name"] for image in form_data["metadata"]["images"]) + ", ".join(
-                    file["name"] for file in code_interpreter_files)
-
-                code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
-                form_data["messages"] = add_or_update_user_message(
-                    code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
+            code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
+            form_data["messages"] = add_or_update_user_message(
+                code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
     return form_data, metadata, events
 
