@@ -149,9 +149,11 @@
 
 	// Addons
 	let enableMemory = false;
+	let disableSkeleton = false;
 
 	onMount(async () => {
 		enableMemory = $settings?.memory ?? false;
+		disableSkeleton = JSON.parse(localStorage.getItem("disableSkeleton") || "false");
 	});
 
 </script>
@@ -346,6 +348,24 @@
 					bind:state={enableMemory}
 					on:change={async () => {
 								saveSettings({ memory: enableMemory });
+							}}
+				/>
+			</div>
+		</div>
+	</div>
+	<div class="mb-2.5">
+		<div
+			class="flex items-center justify-between mb-1 w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md h-12 px-2.5 py-2">
+
+			<div class="text-sm text-lightGray-100 dark:text-customGray-100">
+				Skeleton ausblenden (Entwickler)
+			</div>
+
+			<div class="">
+				<Switch
+					bind:state={disableSkeleton}
+					on:change={async () => {
+								localStorage.setItem("disableSkeleton", JSON.stringify(disableSkeleton));
 							}}
 				/>
 			</div>
