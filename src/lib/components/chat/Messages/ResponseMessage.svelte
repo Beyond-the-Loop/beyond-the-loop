@@ -748,7 +748,7 @@
 								class="w-full flex flex-col relative text-base leading-[1.5] dark:text-customGray-100"
 								id="response-content-container"
 							>
-								{#if message.content === '' && !message.error}
+								{#if message.content === '' && !message.error && !message.done}
 									<Skeleton />
 								{:else if message.content && message.error !== true}
 									<!-- always show message contents even if there's an error -->
