@@ -112,7 +112,7 @@
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
 	let codeInterpreterEnabled = false;
-	let autoToolsEnabled = false;
+	let autoToolsEnabled = true;
 	let chat = null;
 	let tags = [];
 	let alert: Alert;
@@ -155,7 +155,7 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-						autoToolsEnabled = input.autoToolsEnabled;
+						autoToolsEnabled = input.autoToolsEnabled ?? true;
 					} catch (e) {}
 				}
 
@@ -398,14 +398,14 @@
 				selectedToolIds = input.selectedToolIds;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
-				autoToolsEnabled = input.autoToolsEnabled;
+				autoToolsEnabled = input.autoToolsEnabled ?? true;
 			} catch (e) {
 				prompt = '';
 				files = [];
 				selectedToolIds = [];
 				webSearchEnabled = false;
 				imageGenerationEnabled = false;
-				autoToolsEnabled = false;
+				autoToolsEnabled = true;
 			}
 		}
 
@@ -673,7 +673,7 @@
 		webSearchEnabled = false;
 		imageGenerationEnabled = false;
 		codeInterpreterEnabled = false;
-		autoToolsEnabled = false;
+		autoToolsEnabled = true;
 
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
