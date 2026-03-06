@@ -1350,6 +1350,12 @@ export const emojiToBase64 = (emoji) => {
 	return emoji;
 };
 
+export function getTagColor(name: string, colors: string[]): string {
+	let hash = 0;
+	for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+	return colors[Math.abs(hash) % colors.length];
+}
+
 export const tagColorsLight = [
 	'#D6F1D9',
 	'#DCFFCA',

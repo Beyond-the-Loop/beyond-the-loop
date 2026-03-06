@@ -33,7 +33,7 @@
 	import ChevronRight from '../icons/ChevronRight.svelte';
 	import Spinner from '../common/Spinner.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
-	import { capitalizeFirstLetter, tagColorsLight, tagColors } from '$lib/utils';
+	import { capitalizeFirstLetter, getTagColor, tagColorsLight, tagColors } from '$lib/utils';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import { getGroups } from '$lib/apis/groups';
 	import GroupIcon from '../icons/GroupIcon.svelte';
@@ -210,11 +210,11 @@
 	let loadingShowMore = false;
 
 	$: colorMap = new Map(
-    tags.map((t, i) => [
+    tags.map((t) => [
       t,
       ($theme === 'system' && $systemTheme === 'light' || $theme === 'light')
-        ? tagColorsLight[i % tagColorsLight.length]
-        : tagColors[i % tagColors.length],
+        ? getTagColor(t, tagColorsLight)
+        : getTagColor(t, tagColors),
     	])
   	);
 </script>
