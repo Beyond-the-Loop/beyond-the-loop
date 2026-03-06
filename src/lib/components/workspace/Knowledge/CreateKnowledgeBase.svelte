@@ -96,7 +96,7 @@
 	const submitHandler = async () => {
 		loading = true;
 
-		if (name.trim() === '' || description.trim() === '') {
+		if (name.trim() === '') {
 			toast.error($i18n.t('Please fill in all fields.'));
 			name = '';
 			description = '';
@@ -200,7 +200,6 @@
 							placeholder={$i18n.t('Description')}
 							bind:value={description}
 							rows={4}
-							required
 						/>
 						{#if !description}
 							<span

@@ -419,7 +419,7 @@
 		}
 
 		debounceTimeout = setTimeout(async () => {
-			if (knowledge.name.trim() === '' || knowledge.description.trim() === '') {
+			if (knowledge.name.trim() === '') {
 				toast.error($i18n.t('Please fill in all fields.'));
 				return;
 			}
