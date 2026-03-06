@@ -39,7 +39,6 @@
 	let knowledgeSearch = '';
 
 	$: if (show) {
-		init();
 		loadKnowledge();
 	}
 
