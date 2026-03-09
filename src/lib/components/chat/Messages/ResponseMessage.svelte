@@ -384,12 +384,12 @@
 			type: 'rating',
 			data: {
 				...(updatedMessage?.annotation ? updatedMessage.annotation : {}),
-				model_id: message?.selectedModelId ?? message.model,
+				model_id: message.model,
 				...(history.messages[message.parentId].childrenIds.length > 1
 					? {
 							sibling_model_ids: history.messages[message.parentId].childrenIds
 								.filter((id) => id !== message.id)
-								.map((id) => history.messages[id]?.selectedModelId ?? history.messages[id].model)
+								.map((id) => history.messages[id].model)
 						}
 					: {})
 			},

@@ -9,7 +9,10 @@
       "WebFetch(domain:docs.litellm.ai)",
       "WebFetch(domain:github.com)",
       "WebSearch",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(docker exec:*)",
+      "Bash(do:*)"
     ]
   }
 }

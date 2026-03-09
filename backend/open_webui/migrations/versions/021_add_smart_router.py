@@ -5,14 +5,13 @@ Revises: 020
 Create Date: 2026-03-06
 
 """
-from typing import Sequence, Union
-
-from alembic import op
-import sqlalchemy as sa
+import json
 import time
 import uuid
-import json
+from typing import Sequence, Union
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '021'
@@ -27,23 +26,13 @@ def upgrade() -> None:
 
     companies = conn.execute(sa.text("SELECT id FROM company")).fetchall()
 
-    meta = json.dumps({
-        "description": "Wählt automatisch das beste Modell basierend auf der Komplexität deiner Anfrage.",
-        "tags": [{"name": "auto"}],
-        "capabilities": {
-            "vision": False,
-            "usage": True,
-            "citations": False,
-        },
-    })
-
     rows = [
         {
             "id": str(uuid.uuid4()),
             "user_id": None,
             "base_model_id": None,
-            "name": "smart-router",
-            "meta": meta,
+            "name": "Smart Router",
+            "meta": json.dumps({}),
             "params": json.dumps({}),
             "created_at": now,
             "updated_at": now,
@@ -72,6 +61,19 @@ def upgrade() -> None:
             ),
             rows,
         )
+
+    conn.execute(
+        sa.text("""
+                INSERT
+                INTO model_cost(model_name, cost_per_million_input_tokens, cost_per_million_output_tokens,
+                                cost_per_image,
+                                cost_per_minute, cost_per_million_characters, cost_per_million_reasoning_tokens,
+                                cost_per_thousand_search_queries, allowed_messages_per_three_hours_free,
+                                allowed_messages_per_three_hours_premium)
+                VALUES ('Smart Router', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 300, 300);
+                """
+            )
+    )
 
 
 def downgrade() -> None:

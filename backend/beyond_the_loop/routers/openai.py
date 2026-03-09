@@ -56,6 +56,27 @@ log.setLevel(SRC_LOG_LEVELS["OPENAI"])
 
 session: aiohttp.ClientSession | None = None
 
+async def _resolve_billing_model_name(model_name: str, response_headers) -> str:
+    """For Smart Router, resolve the actual model used via x-litellm-model-id header."""
+    if model_name != "Smart Router":
+        return model_name
+    litellm_model_id = response_headers.get("x-litellm-model-id")
+    if not litellm_model_id:
+        return model_name
+    try:
+        url = f"{os.getenv('OPENAI_API_BASE_URL')}/model/info"
+        api_key = os.getenv("OPENAI_API_KEY")
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as s:
+            async with s.get(url, headers={"Authorization": f"Bearer {api_key}"}) as resp:
+                data = await resp.json()
+                for item in data.get("data", []):
+                    if item.get("model_info", {}).get("id") == litellm_model_id:
+                        return item["model_name"]
+    except Exception as e:
+        log.warning(f"Failed to resolve billing model name from LiteLLM: {e}")
+    return model_name
+
 async def _get_session() -> aiohttp.ClientSession:
     global session
     if session is None or session.closed:
@@ -367,6 +388,14 @@ async def generate_chat_completion(
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
 
+            resolved_billing_model_name = await _resolve_billing_model_name(model_name, r.headers)
+
+            if model_name == "Smart Router" and resolved_billing_model_name != "Smart Router":
+                actual_model = Models.get_model_by_name_and_company(resolved_billing_model_name, user.company_id)
+
+                if actual_model:
+                    model = actual_model
+
             async def insert_completion_if_streaming_is_done():
                 full_response = ""
                 async for chunk in r.content:
@@ -383,23 +412,22 @@ async def generate_chat_completion(
                                 credit_cost_streaming = 0
 
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                    billing_model_name = data.get("model", model_name) if model_name == "smart-router" else model_name
-                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, billing_model_name)
+                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, resolved_billing_model_name)
 
-                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
+                                Completions.insert_new_completion(user.id, resolved_billing_model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
                         except json.JSONDecodeError:
                             log.debug(f"JSON decode error for chunk: {chunk_str}")
 
                     yield chunk
 
-            return StreamingResponse(
+            return (StreamingResponse(
                 insert_completion_if_streaming_is_done(),
                 status_code=r.status,
                 headers=dict(r.headers),
                 background=BackgroundTask(
                     cleanup_response, response=r
                 ),
-            )
+            ), model)
         else:
             try:
                 response = await r.json()
@@ -439,15 +467,14 @@ async def generate_chat_completion(
             credit_cost = 0
 
             # Add completion to completion table
-            response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+            billing_model_name = await _resolve_billing_model_name(model_name, r.headers)
 
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                billing_model_name = response.get("model", model_name) if model_name == "smart-router" else model_name
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, billing_model_name)
 
-            Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
+            Completions.insert_new_completion(user.id, billing_model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 
-            return response
+            return response, model
     except Exception as e:
         log.error(f"Error in generate_chat_completion: {e}")
 

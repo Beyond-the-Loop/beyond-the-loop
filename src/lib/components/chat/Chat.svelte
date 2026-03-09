@@ -1709,9 +1709,7 @@
 			responseMessage.done = false;
 			await tick();
 
-			const model = $models
-				.filter((m) => m.id === (responseMessage?.selectedModelId ?? responseMessage.model))
-				.at(0);
+			const model = $models.find((m) => m.id === responseMessage.model);
 
 			if (model) {
 				await sendPromptSocket(history, model, responseMessage.id, _chatId);
