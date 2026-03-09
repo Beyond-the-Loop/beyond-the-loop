@@ -3,6 +3,7 @@
 	import { Switch } from 'bits-ui';
 	export let state = true;
 	export let small = false;
+	export let disabled = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -11,6 +12,7 @@
 
 <Switch.Root
 	bind:checked={state}
+	disabled={disabled}
 	class="flex shrink-0 cursor-pointer items-center rounded-full px-[3px] mx-[1px] transition {small ? 'h-4 min-h-4 w-7' : 'h-5 min-h-5 w-9'} {state
 		? 'bg-white'
 		: 'bg-gray-200 dark:bg-transparent'} outline outline-1 outline-lightGray-400 dark:outline-gray-800"
