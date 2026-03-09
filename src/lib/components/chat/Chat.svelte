@@ -120,6 +120,7 @@
 	};
 
 	let taskId = null;
+	let currentRequestController: AbortController | null = null;
 
 	// Chat Input
 	let prompt = '';
@@ -198,6 +199,9 @@
 			let message = history.messages[event.message_id];
 
 			if (message) {
+				// Ignore all backend events for messages that are already done (e.g. stopped by user)
+				if (message.done) return;
+
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
 
@@ -1490,6 +1494,8 @@
 						})
 			}));
 
+		currentRequestController = new AbortController();
+
 		const res = await generateOpenAIChatCompletion(
 			localStorage.token,
 			{
@@ -1556,7 +1562,8 @@
 						}
 					: {})
 			},
-			`${WEBUI_BASE_URL}/api`
+			`${WEBUI_BASE_URL}/api`,
+			currentRequestController.signal
 		)
 			.catch((error) => {
 				if (!error?.includes('402')) {
@@ -1578,6 +1585,8 @@
 				history.currentId = responseMessageId;
 				return null;
 			});
+
+		currentRequestController = null;
 
 		if (res) {
 			taskId = res.task_id;
@@ -1627,31 +1636,54 @@
 	};
 
 	const stopResponse = () => {
+		// Abort the in-flight HTTP request (covers websearch/RAG preprocessing phase)
+		if (currentRequestController) {
+			currentRequestController.abort();
+			currentRequestController = null;
+		}
+
 		if (taskId) {
-			const res = stopTask(localStorage.token, taskId).catch((error) => {
-				return null;
+			stopTask(localStorage.token, taskId).catch((error) => {
+				console.error('Failed to stop task:', error);
 			});
+			taskId = null;
+		}
 
-			if (res) {
-				taskId = null;
+		if (bufferedResponse) {
+			bufferedResponse.stop();
+			bufferedResponse = null;
+		}
 
-				const responseMessage = history.messages[history.currentId];
+		const responseMessage = history.messages[history.currentId];
+		if (responseMessage && !responseMessage.done) {
+			const visibleContent = (responseMessage.content ?? '')
+				.replace(/<details\s+type="reasoning"[^>]*>[\s\S]*?(<\/details>|$)/g, '')
+				.trim();
+			const hasContent = visibleContent !== '';
+
+			if (hasContent) {
 				responseMessage.done = true;
+				responseMessage.statusHistory = [];
 				responseMessage.content = responseMessage.content.replaceAll(
 					'<details type="reasoning" done="false">',
 					'<details type="reasoning" done="true">'
 				);
-
 				history.messages[history.currentId] = responseMessage;
-
-				if (autoScroll) {
-					scrollToBottom();
+			} else {
+				const parentId = responseMessage.parentId;
+				if (parentId && history.messages[parentId]) {
+					history.messages[parentId].childrenIds = history.messages[parentId].childrenIds.filter(
+						(id) => id !== history.currentId
+					);
+					history.messages[parentId].done = true;
 				}
+				delete history.messages[history.currentId];
+				history.currentId = parentId;
 			}
 		}
-		if (bufferedResponse) {
-			bufferedResponse?.stop();
-			bufferedResponse = null;
+
+		if (autoScroll) {
+			scrollToBottom();
 		}
 	};
 

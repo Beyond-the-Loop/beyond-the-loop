@@ -185,7 +185,7 @@ from open_webui.utils.auth import get_current_api_key_user
 from open_webui.utils.chat import (
     chat_completed as chat_completed_handler
 )
-from open_webui.utils.middleware import process_chat_payload, process_chat_response
+from open_webui.utils.middleware import process_chat_payload, process_chat_response, ClientDisconnectedError
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
@@ -744,6 +744,12 @@ async def chat_completion(
             request, form_data, metadata, user, model
         )
 
+    except ClientDisconnectedError:
+        log.info("Client disconnected during chat payload processing")
+        return JSONResponse(
+            status_code=499,
+            content={"detail": "Client disconnected"},
+        )
     except Exception as e:
         log.error(f"Error processing chat payload: {e}")
         raise HTTPException(

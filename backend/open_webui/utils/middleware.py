@@ -654,6 +654,17 @@ def apply_params_to_form_data(form_data):
     return form_data
 
 
+class ClientDisconnectedError(Exception):
+    """Raised when the client has disconnected during request processing."""
+    pass
+
+
+async def check_disconnect(request):
+    """Check if the client has disconnected and raise if so."""
+    if await request.is_disconnected():
+        raise ClientDisconnectedError("Client disconnected")
+
+
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
 
@@ -742,6 +753,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             "temperature": 0.0
         }
 
+        await check_disconnect(request)
         response = await generate_chat_completion(decision_form_data, user, model)
         response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
 
@@ -770,6 +782,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # Include web search files before deciding task intent and building RAG context
     if web_search_active:
+        await check_disconnect(request)
         web_search_files, web_search_queries = await chat_web_search_handler(
             request, form_data, extra_params, user
         )
@@ -784,6 +797,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
+
+    await check_disconnect(request)
 
     if is_rag_task:
         # Proceed with normal RAG processing
@@ -933,6 +948,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                         message["content"] = ""
 
         if "image_generation" in features and features["image_generation"]:
+            await check_disconnect(request)
             form_data = await chat_image_generation_handler(
                 request, form_data, extra_params, user
             )
