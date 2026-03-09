@@ -65,6 +65,10 @@
 						webSearchEnabled = true;
 						imageGenerationEnabled = true;
 						codeInterpreterEnabled = true;
+					} else {
+						webSearchEnabled = false;
+						imageGenerationEnabled = false;
+						codeInterpreterEnabled = false;
 					}
 				}}
 			>
