@@ -383,7 +383,8 @@ async def generate_chat_completion(
                                 credit_cost_streaming = 0
 
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
+                                    billing_model_name = data.get("model", model_name) if model_name == "smart-router" else model_name
+                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, billing_model_name)
 
                                 Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
                         except json.JSONDecodeError:
@@ -441,7 +442,8 @@ async def generate_chat_completion(
             response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
+                billing_model_name = response.get("model", model_name) if model_name == "smart-router" else model_name
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, billing_model_name)
 
             Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 

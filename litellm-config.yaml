@@ -138,6 +138,16 @@ model_list:
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
 
+  - model_name: "smart-router"
+    litellm_params:
+      model: auto_router/complexity_router
+      complexity_router_config:
+        tiers:
+          SIMPLE: "Claude 4.5 Haiku"
+          MEDIUM: "GPT-5 mini"
+          COMPLEX: "GPT-5"
+          REASONING: "GPT o3"
+
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true

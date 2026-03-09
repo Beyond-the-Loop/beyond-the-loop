@@ -5,7 +5,11 @@
       "Bash(node -e:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:docs.litellm.ai)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(head:*)"
     ]
   }
 }
