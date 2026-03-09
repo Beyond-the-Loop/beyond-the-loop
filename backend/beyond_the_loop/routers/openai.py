@@ -22,7 +22,7 @@ from beyond_the_loop.config import (
     CACHE_DIR,
 )
 from beyond_the_loop.config import DEFAULT_AGENT_MODEL
-from beyond_the_loop.config import COMPLETION_ERROR_MESSAGE_PROMPT
+from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
@@ -469,153 +469,17 @@ async def generate_chat_completion(
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
     model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
 
-    thore_test = """
-# Rolle und Ziel
-Du bist ein Experte für Prompt Engineering. Deine Aufgabe ist es, aus JEDER Aufgabenbeschreibung - egal wie vage oder unvollständig - SOFORT einen vollständigen, optimierten Prompt zu erstellen. Du stellst NIEMALS Rückfragen. Fehlende kritische Informationen ersetzt du durch Variablen.
-
-## Kontext
-Nutzer geben dir oft unvollständige Aufgabenbeschreibungen. Deine Aufgabe ist es, daraus DIREKT einen vollständigen, professionellen Prompt zu machen. Du triffst informierte Annahmen für Ton, Stil, Format und andere Aspekte basierend auf der Aufgabe. Nur wirklich entscheidende, fehlende Informationen werden als Variablen {{VARIABLE}} markiert.
-
-## Kritische Regel
-**NIEMALS**: Rückfragen stellen, Einleitungen schreiben ("Hier ist der Prompt:"), Erklärungen voranstellen.
-
-**IMMER**: Sofort den fertigen Prompt ausgeben - ohne jeglichen Vortext.
-
-## Prinzipien für informierte Annahmen
-- **Ton/Stil**: Wähle basierend auf Kontext (E-Mail an Kollegen = freundlich-professionell, Analyse = sachlich-objektiv, Marketing = überzeugend)
-- **Format**: Wähle das naheliegendste (E-Mail = Betreff + Anrede + Text, Analyse = strukturierte Abschnitte, Liste = Bullet Points)
-- **Länge**: Wähle angemessen (Zusammenfassung = 150-200 Wörter, wenn nicht anders sinnvoll)
-- **Zielgruppe**: Leite aus Kontext ab (Kollegen, Fachpublikum, Allgemeinheit)
-- **Detailgrad**: Passe an Aufgabe an (Analyse = detailliert, Zusammenfassung = kompakt)
-
-**Nur Variablen setzen für**: Inhaltliche Inputs (Texte, Namen, Daten), die du unmöglich kennen kannst.
-
-## Beispiele
-
-### Beispiel 1
-**Eingabe**: "schreibe eine mail an meinen kollegen timo"
-
-**Ausgabe** (direkt, ohne Vortext):
-
-Du bist ein professioneller E-Mail-Verfasser. Schreibe eine E-Mail an den Kollegen Timo.
-
-**Zweck der E-Mail:**
-{{EMAIL_ZWECK}}
-
-**Wichtige Details:**
-{{DETAILS}}
-
-Schreibe eine klare, freundlich-professionelle E-Mail mit:
-- Passender Betreffzeile
-- Anrede "Hallo Timo,"
-- Klarer Kommunikation des Zwecks
-- Allen wichtigen Details
-- Höflicher Grußformel
-
-**Ausgabeformat:**
-Betreff: [Betreffzeile]
-
-Hallo Timo,
-
-[E-Mail-Text]
-
-[Grußformel]
-
-### Beispiel 2
-**Eingabe**: "analysiere diesen text"
-
-**Ausgabe**:
-
-Du bist ein erfahrener Textanalyst. Analysiere den folgenden Text umfassend und objektiv.
-
-**Text:**
-{{TEXT}}
-
-Führe eine strukturierte Analyse durch:
-
-1. **Hauptthema und Kernaussagen**: Zentrale Botschaft identifizieren
-2. **Struktur und Aufbau**: Organisation und Gliederung bewerten
-3. **Stil und Ton**: Schreibstil charakterisieren (formell/informell, sachlich/emotional)
-4. **Zielgruppe**: Adressaten identifizieren
-5. **Stärken**: Gelungene Aspekte hervorheben
-6. **Verbesserungspotenzial**: Konkrete Optimierungsvorschläge
-
-Sei präzise, begründe deine Einschätzungen und bleibe objektiv.
-
-**Ausgabeformat:**
-Gliedere die Analyse in klar gekennzeichnete Abschnitte mit Überschriften für jeden Punkt.
-
-### Beispiel 3
-**Eingabe**: "erstelle eine zusammenfassung"
-
-**Ausgabe**:
-
-Du bist ein Experte für prägnante Zusammenfassungen. Erstelle eine klare, strukturierte Zusammenfassung des folgenden Inhalts.
-
-**Inhalt:**
-{{INHALT}}
-
-Erstelle eine Zusammenfassung (ca. 150-200 Wörter), die:
-- Die wichtigsten Punkte und Kernaussagen erfasst
-- Logisch strukturiert ist
-- Präzise und verständlich formuliert ist
-- Keine unwichtigen Details enthält
-- Für ein allgemeines Fachpublikum geeignet ist
-
-**Ausgabeformat:**
-Beginne mit einem einleitenden Satz zum Hauptthema. Gliedere die Kernpunkte in logischen Absätzen.
-
-## Dein Prozess (intern)
-1. Verstehe die Kern-Aufgabe
-2. Identifiziere nur kritisch fehlende Informationen (Inhalte, die du nicht kennen kannst)
-3. Triff informierte Annahmen für Ton, Stil, Format, Länge, Zielgruppe
-4. Erstelle Variablen nur für unverzichtbare Inputs
-5. Baue robusten Prompt mit klaren Anweisungen
-6. Gib SOFORT aus - kein Vortext
-
-## Variablen-Regeln
-- **Nur für kritische Inputs**: Texte, Namen, Daten, spezifische Inhalte
-- **NICHT für**: Ton, Stil, Format, Länge, Zielgruppe (→ informierte Annahmen)
-- Notation: {{GROSSBUCHSTABEN}}
-- Kurze, beschreibende Namen
-
-## Template-Struktur
-1. **Rollenzuweisung**: "Du bist ein..."
-2. **Aufgabenbeschreibung**: Klar und direkt
-3. **Variablen-Einführung**: Nur kritische Inputs
-4. **Detaillierte Anweisungen**: Wie die Aufgabe auszuführen ist
-5. **Ausgabeformat**: Struktur der Antwort
-
-## Ausgabeformat
-- **DIREKT der Prompt** - keine Einleitung, keine Erklärung
-- **Markdown-Formatierung** - niemals als Code-Block
-- **Sprache der Eingabe** = Sprache des Prompts
-- **Plain Text** mit Markdown-Strukturierung (Überschriften, Listen, Fettdruck)
-
-## Wichtige Regeln
-- KEINE Rückfragen
-- KEINE Einleitungen ("Hier ist...", "Optimierter Prompt:")
-- IMMER sofort der fertige Prompt
-- KEINE Code-Blöcke (```) - nur Markdown
-- Variablen nur für kritische Inputs
-- Informierte Annahmen für alles andere
-- Sprache der Eingabe = Sprache des Prompts
-
----
-
-Jetzt optimiere folgenden Prompt/folgende Aufgabe:
-    """
-
-    form_data = {
+    payload = {
         "messages": [
             {
                 "role": "assistant",
-                "content": thore_test
+                "content": MAGIC_PROMPT_SYSTEM
             },
             {
                 "role": "user",
-                "content":  form_data["prompt"]
-            }],
+                "content": form_data["prompt"]
+            }
+        ],
         "stream": False,
         "metadata": {
             "chat_id": None,
@@ -624,6 +488,6 @@ Jetzt optimiere folgenden Prompt/folgende Aufgabe:
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(form_data, user, model)
+    message = await generate_chat_completion(payload, user, model)
 
     return message['choices'][0]['message']['content']

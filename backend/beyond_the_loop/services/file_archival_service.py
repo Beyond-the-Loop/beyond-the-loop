@@ -15,6 +15,7 @@ from open_webui.internal.db import get_db
 from beyond_the_loop.models.files import File, Files
 from beyond_the_loop.models.knowledge import Knowledge
 from beyond_the_loop.models.users import User
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 log = logging.getLogger(__name__)
 
@@ -150,7 +151,16 @@ class FileArchivalService:
                         log.debug(f"Deleted physical file: {file.path}")
                     except OSError as e:
                         log.warning(f"Could not delete physical file {file.path}: {e}")
-                
+
+                # Delete vector chunks
+                try:
+                    collection_name = f"file-{file.id}"
+                    if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+                        VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+                        log.debug(f"Deleted vector collection: {collection_name}")
+                except Exception as e:
+                    log.warning(f"Could not delete vector collection for file {file.id}: {e}")
+
                 # Delete database record
                 if Files.delete_file_by_id(file.id):
                     deleted_count += 1
