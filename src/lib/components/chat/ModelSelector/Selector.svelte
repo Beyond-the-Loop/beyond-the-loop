@@ -208,6 +208,12 @@
 	};
 
 	let hoveredItem = null;
+	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+	function setHoverTimeout(){
+		hoverTimeout = setTimeout(() =>{
+			hoveredItem = null;
+		}, 200);
+	} 
 
 	let knowledgeCutoff = null;
 
@@ -339,8 +345,15 @@
        				{!item.model?.is_active ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
 
 						data-arrow-selected={index === selectedModelIdx}
-						on:mouseenter={() => (hoveredItem = item)}
-						on:mouseleave={() => (hoveredItem = null)}
+						on:mouseenter={() => {
+							hoveredItem = item;
+							if(hoverTimeout)
+							{
+								clearTimeout(hoverTimeout); 
+								hoverTimeout = null;
+							}
+							}}
+						on:mouseleave={setHoverTimeout}
 						on:click={() => {
 							value = item.value;
 							selectedModelIdx = index;
@@ -408,7 +421,15 @@
 				{/each}
 				{#if hoveredItem && !$mobile}
 					<div
+						role="tooltip"
 						class=" shadow-lg absolute flex flex-col h-[290px] left-full ml-1 top-0 w-[23rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
+						on:mouseenter={() => {
+							if(hoverTimeout)
+							{
+								clearTimeout(hoverTimeout); 
+								hoverTimeout = null;
+							}}}
+						on:mouseleave={setHoverTimeout}
 					>
 						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
 						<div>
