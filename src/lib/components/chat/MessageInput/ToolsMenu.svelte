@@ -62,9 +62,9 @@
 				on:click|preventDefault={() => {
 					autoToolsEnabled = !autoToolsEnabled;
 					if (autoToolsEnabled) {
-						webSearchEnabled = false;
-						imageGenerationEnabled = false;
-						codeInterpreterEnabled = false;
+						webSearchEnabled = true;
+						imageGenerationEnabled = true;
+						codeInterpreterEnabled = true;
 					}
 				}}
 			>
@@ -82,7 +82,7 @@
 			{#if canWebSearch}
 				<button
 					class="flex w-full justify-between gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer rounded-lg {autoToolsEnabled
-						? 'opacity-40'
+						? 'opacity-40 pointer-events-none'
 						: 'hover:bg-gray-50 dark:hover:bg-customGray-950'}"
 					on:click|preventDefault={() => {
 						if (!autoToolsEnabled) {
@@ -94,14 +94,14 @@
 						<WebSearchIcon />
 						{$i18n.t('Web Search')}
 					</div>
-					<Switch state={webSearchEnabled || ($settings?.webSearch ?? false) === 'always'} small />
+					<Switch disabled={autoToolsEnabled} state={webSearchEnabled} small />
 				</button>
 			{/if}
 
 			{#if canImageGen}
 				<button
 					class="flex w-full justify-between gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer rounded-lg {autoToolsEnabled
-						? 'opacity-40'
+						? 'opacity-40 pointer-events-none'
 						: 'hover:bg-gray-50 dark:hover:bg-customGray-950'}"
 					on:click|preventDefault={() => {
 						if (!autoToolsEnabled) {
@@ -113,14 +113,14 @@
 						<ImageGenerateIcon />
 						{$i18n.t('Image Generation')}
 					</div>
-					<Switch state={imageGenerationEnabled} small />
+					<Switch disabled={autoToolsEnabled} state={imageGenerationEnabled} small />
 				</button>
 			{/if}
 
 			{#if canCodeInterpreter}
 				<button
 					class="flex w-full justify-between gap-2 items-center px-2 py-2 text-xs dark:text-customGray-100 font-medium cursor-pointer rounded-lg {autoToolsEnabled
-						? 'opacity-40'
+						? 'opacity-40 pointer-events-none'
 						: 'hover:bg-gray-50 dark:hover:bg-customGray-950'}"
 					on:click|preventDefault={() => {
 						if (!autoToolsEnabled) {
@@ -132,7 +132,7 @@
 						<CodeInterpreterIcon />
 						{$i18n.t('Code Interpreter')}
 					</div>
-					<Switch state={codeInterpreterEnabled} small />
+					<Switch disabled={autoToolsEnabled} state={codeInterpreterEnabled} small />
 				</button>
 			{/if}
 		</DropdownMenu.Content>

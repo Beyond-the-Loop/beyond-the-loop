@@ -36,7 +36,7 @@
 	import Search from '../icons/Search.svelte';
 	import Plus from '../icons/Plus.svelte';
 	import Spinner from '../common/Spinner.svelte';
-	import { tagColorsLight, tagColors } from '$lib/utils';
+	import { getTagColor, tagColorsLight, tagColors } from '$lib/utils';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import GroupIcon from '../icons/GroupIcon.svelte';
 	import PublicIcon from '../icons/PublicIcon.svelte';
@@ -302,11 +302,11 @@
 	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
 
 	$: colorMap = new Map(
-    tags.map((t, i) => [
+    tags.map((t) => [
       t,
       ($theme === 'system' && $systemTheme === 'light' || $theme === 'light')
-        ? tagColorsLight[i % tagColorsLight.length]
-        : tagColors[i % tagColors.length],
+        ? getTagColor(t, tagColorsLight)
+        : getTagColor(t, tagColors),
     	])
   	);
   
