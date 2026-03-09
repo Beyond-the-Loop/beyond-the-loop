@@ -1267,7 +1267,9 @@ export function getModelIcon(label: string): string {
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
-	if (lower.includes('perplexity')) {
+	if (lower.includes('nano banana')) {
+		return '/google-gemini-icon.svg';
+	} else if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {
 		return '/chatgpt-icon.svg';

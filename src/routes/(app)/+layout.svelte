@@ -9,7 +9,6 @@
 	import { page } from '$app/stores';
 
 	import { getModels, getVersionUpdates } from '$lib/apis';
-	import { getTools } from '$lib/apis/tools';
 	import { getUserSettings } from '$lib/apis/users';
 
 	import { WEBUI_VERSION } from '$lib/constants';
@@ -19,7 +18,6 @@
 		user,
 		settings,
 		models,
-		tools,
 		showSettings,
 		showCompanySettings,
 		showChangelog,
@@ -104,7 +102,6 @@
 			}
 
 			models.set(await getModels(localStorage.token));
-			tools.set(await getTools(localStorage.token));
 
 			document.addEventListener('keydown', async function (event) {
 				const isCtrlPressed = event.ctrlKey || event.metaKey; // metaKey is for Cmd key on Mac

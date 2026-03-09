@@ -506,46 +506,6 @@
 			modelIconUrl = '/logo_light.png';
 		}
 	}
-
-  let answerEl: HTMLDivElement;
-
-  function handleCopy(event: ClipboardEvent) {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const anchor = selection.anchorNode;
-    const focus = selection.focusNode;
-
-    if (
-      !anchor ||
-      !focus ||
-      !answerEl.contains(anchor) ||
-      !answerEl.contains(focus)
-    ) {
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const fragment = range.cloneContents();
-
-    const container = document.createElement('div');
-    container.appendChild(fragment);
-
-    container.querySelectorAll<HTMLElement>('*').forEach((el) => {
-      el.style.backgroundColor = '';
-      el.style.background = '';
-      el.removeAttribute('bgcolor');
-    });
-
-    const cleanedText = container.textContent ?? '';
-    const cleanedHtml = container.innerHTML;
-
-    event.preventDefault();
-
-    event.clipboardData?.setData('text/plain', cleanedText);
-    event.clipboardData?.setData('text/html', cleanedHtml);
-  }
-
 </script>
 
 {#key message.id}
@@ -565,9 +525,9 @@
 		<div class="flex-auto w-0 pl-1">
 			<Name>
 				<!-- <Tooltip content={model?.name ?? message.model} placement="top-start"> -->
-					<span class="line-clamp-1 text-base">
-						{model?.name ?? message.model}
-					</span>
+				<span class="line-clamp-1 text-base select-text">
+					{model?.name ?? message.model}
+				</span>
 				<!-- </Tooltip> -->
 
 				{#if message.timestamp}
@@ -594,10 +554,9 @@
 					</div>
 				{/if}
 
-				<div 
-					bind:this={answerEl}
-  					on:copy={handleCopy}
-				 	class="chat-{message.role} w-full min-w-full markdown-prose">
+				<div
+					class="chat-{message.role} w-full min-w-full markdown-prose"
+				>
 					<div>
 						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
 							{@const status = (
@@ -758,7 +717,7 @@
 								class="w-full flex flex-col relative text-base leading-[1.5] dark:text-customGray-100"
 								id="response-content-container"
 							>
-								{#if message.content === '' && !message.error}
+								{#if message.content === '' && !message.error && !message.done}
 									<Skeleton />
 								{:else if message.content && message.error !== true}
 									<!-- always show message contents even if there's an error -->
