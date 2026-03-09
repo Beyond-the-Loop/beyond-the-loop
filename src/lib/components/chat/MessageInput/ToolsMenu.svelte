@@ -38,12 +38,12 @@
 			<Tooltip content={$i18n.t('Tools')} placement="top">
 				<button
 					type="button"
-					class="p-[3px] transition rounded-md focus:outline-none {isActive
+					class="p-[3px] transition rounded-md focus:outline-none hover:bg-gray-100 dark:hover:bg-customGray-900 {isActive
 						? 'text-blue-500 dark:text-blue-400'
-						: 'text-customGray-900 dark:text-customGray-100 hover:bg-gray-100 dark:hover:bg-customGray-900'}"
+						: 'text-customGray-900 dark:text-customGray-100'}"
 					aria-label={$i18n.t('Tools')}
 				>
-					<AdjustmentsHorizontal className="size-4" />
+					<AdjustmentsHorizontal className="size-5" />
 				</button>
 			</Tooltip>
 		</DropdownMenu.Trigger>
