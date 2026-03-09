@@ -106,6 +106,19 @@
 		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.vision ?? true
 	);
 
+	// Magic prompt button — derived state
+	$: isMagicPromptDisabled = prompt.trim() === '' || isMagicLoading;
+
+	$: magicPromptButtonClass = [
+		'text-customGray-900 dark:text-customGray-100',
+		'text-xs leading-none',
+		'transition rounded-md py-[3px] px-[5px] mr-0.5 self-center',
+		'disabled:opacity-40 disabled:cursor-not-allowed',
+		isMagicLoading
+			? 'dark:bg-customBlue-700/60'
+			: 'hover:text-gray-700 dark:hover:text-white dark:hover:bg-customGray-900'
+	].join(' ');
+
 	const scrollToBottom = () => {
 		const element = document.getElementById('messages-container');
 		element.scrollTo({
@@ -1338,10 +1351,10 @@
 											<Tooltip content={$i18n.t('Magic prompt')}>
 												<button
 													id="magic-search-button"
-													class={`${isMagicLoading ? 'dark:bg-customBlue-700/60' : ''} text-customGray-900 dark:text-customGray-100 text-xs leading-none hover:text-gray-700 dark:hover:text-white ${!isMagicLoading ? 'dark:hover:bg-customGray-900' : ''}  transition rounded-md py-[3px] px-[5px] mr-0.5 self-center`}
+													class={magicPromptButtonClass}
 													type="button"
 													aria-label="Magic Prompt"
-													disabled={prompt === '' || isMagicLoading}
+													disabled={isMagicPromptDisabled}
 													on:click|preventDefault={() => {
 														dispatch('magicPrompt', prompt);
 													}}
