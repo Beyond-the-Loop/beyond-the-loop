@@ -1049,6 +1049,7 @@
 	"Serpstack API key": "Serpstack-API-Schlüssel",
 	"Server connection verified": "Serververbindung überprüft",
 	"Set as default": "Als Standard festlegen",
+    "Auto-selecting tools": "Automatische Tool-Auswahl",
 	"Set CFG Scale": "CFG-Skala festlegen",
 	"Set default model": "Standardmodell festlegen",
 	"Set embedding model": "Einbettungsmodell festlegen",

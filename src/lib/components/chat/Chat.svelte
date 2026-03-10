@@ -110,6 +110,7 @@
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
 	let codeInterpreterEnabled = false;
+	let autoToolsEnabled = true;
 	let chat = null;
 	let tags = [];
 	let alert: Alert;
@@ -120,6 +121,7 @@
 	};
 
 	let taskId = null;
+	let currentRequestController: AbortController | null = null;
 
 	// Chat Input
 	let prompt = '';
@@ -152,6 +154,7 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
+						autoToolsEnabled = input.autoToolsEnabled ?? true;
 					} catch (e) {}
 				}
 
@@ -198,6 +201,9 @@
 			let message = history.messages[event.message_id];
 
 			if (message) {
+				// Ignore all backend events for messages that are already done (e.g. stopped by user)
+				if (message.done) return;
+
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
 
@@ -376,12 +382,14 @@
 				selectedToolIds = input.selectedToolIds;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
+				autoToolsEnabled = input.autoToolsEnabled ?? true;
 			} catch (e) {
 				prompt = '';
 				files = [];
 				selectedToolIds = [];
 				webSearchEnabled = false;
 				imageGenerationEnabled = false;
+				autoToolsEnabled = true;
 			}
 		}
 
@@ -649,6 +657,7 @@
 		webSearchEnabled = false;
 		imageGenerationEnabled = false;
 		codeInterpreterEnabled = false;
+		autoToolsEnabled = true;
 
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
@@ -1494,6 +1503,8 @@
 						})
 			}));
 
+		currentRequestController = new AbortController();
+
 		const res = await generateOpenAIChatCompletion(
 			localStorage.token,
 			{
@@ -1517,22 +1528,43 @@
 				files: (files?.length ?? 0) > 0 ? files : undefined,
 				tool_ids: selectedToolIds.length > 0 ? selectedToolIds : undefined,
 
-				features: {
-					image_generation:
-						$config?.features?.enable_image_generation &&
-						($user.role === 'admin' || $user?.permissions?.features?.image_generation)
-							? imageGenerationEnabled
-							: false,
-					code_interpreter:
-						$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
-							? codeInterpreterEnabled
-							: false,
-					web_search:
-						$config?.features?.enable_web_search &&
-						($user.role === 'admin' || $user?.permissions?.features?.web_search)
-							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
-							: false
-				},
+				features: autoToolsEnabled
+					? {}
+					: {
+							image_generation:
+								$config?.features?.enable_image_generation &&
+								($user.role === 'admin' || $user?.permissions?.features?.image_generation)
+									? imageGenerationEnabled
+									: false,
+							code_interpreter:
+								$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
+									? codeInterpreterEnabled
+									: false,
+							web_search:
+								$config?.features?.enable_web_search &&
+								($user.role === 'admin' || $user?.permissions?.features?.web_search)
+									? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
+									: false
+						},
+
+				auto_tools: autoToolsEnabled
+					? [
+							...($companyConfig?.config?.rag?.web?.search?.enable &&
+							($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
+							(model?.meta?.capabilities?.websearch ?? true)
+								? ['web_search']
+								: []),
+							...($companyConfig?.config?.image_generation?.enable &&
+							($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
+							(model?.meta?.capabilities?.image_generation ?? true)
+								? ['image_generation']
+								: []),
+							...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
+							(model?.meta?.capabilities?.code_interpreter ?? true)
+								? ['code_interpreter']
+								: [])
+						]
+					: undefined,
 
 				session_id: $socket?.id,
 				chat_id: _chatId,
@@ -1560,7 +1592,8 @@
 						}
 					: {})
 			},
-			`${WEBUI_BASE_URL}/api`
+			`${WEBUI_BASE_URL}/api`,
+			currentRequestController.signal
 		)
 			.catch((error) => {
 				if (!error?.includes('402')) {
@@ -1582,6 +1615,8 @@
 				history.currentId = responseMessageId;
 				return null;
 			});
+
+		currentRequestController = null;
 
 		if (res) {
 			taskId = res.task_id;
@@ -1631,31 +1666,54 @@
 	};
 
 	const stopResponse = () => {
+		// Abort the in-flight HTTP request (covers websearch/RAG preprocessing phase)
+		if (currentRequestController) {
+			currentRequestController.abort();
+			currentRequestController = null;
+		}
+
 		if (taskId) {
-			const res = stopTask(localStorage.token, taskId).catch((error) => {
-				return null;
+			stopTask(localStorage.token, taskId).catch((error) => {
+				console.error('Failed to stop task:', error);
 			});
+			taskId = null;
+		}
 
-			if (res) {
-				taskId = null;
+		if (bufferedResponse) {
+			bufferedResponse.stop();
+			bufferedResponse = null;
+		}
 
-				const responseMessage = history.messages[history.currentId];
+		const responseMessage = history.messages[history.currentId];
+		if (responseMessage && !responseMessage.done) {
+			const visibleContent = (responseMessage.content ?? '')
+				.replace(/<details\s+type="reasoning"[^>]*>[\s\S]*?(<\/details>|$)/g, '')
+				.trim();
+			const hasContent = visibleContent !== '';
+
+			if (hasContent) {
 				responseMessage.done = true;
+				responseMessage.statusHistory = [];
 				responseMessage.content = responseMessage.content.replaceAll(
 					'<details type="reasoning" done="false">',
 					'<details type="reasoning" done="true">'
 				);
-
 				history.messages[history.currentId] = responseMessage;
-
-				if (autoScroll) {
-					scrollToBottom();
+			} else {
+				const parentId = responseMessage.parentId;
+				if (parentId && history.messages[parentId]) {
+					history.messages[parentId].childrenIds = history.messages[parentId].childrenIds.filter(
+						(id) => id !== history.currentId
+					);
+					history.messages[parentId].done = true;
 				}
+				delete history.messages[history.currentId];
+				history.currentId = parentId;
 			}
 		}
-		if (bufferedResponse) {
-			bufferedResponse?.stop();
-			bufferedResponse = null;
+
+		if (autoScroll) {
+			scrollToBottom();
 		}
 	};
 
@@ -1948,6 +2006,7 @@
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
+									bind:autoToolsEnabled
 									bind:atSelectedModel
 									{isMagicLoading}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}
@@ -2025,6 +2084,7 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
+								bind:autoToolsEnabled
 								bind:atSelectedModel
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
