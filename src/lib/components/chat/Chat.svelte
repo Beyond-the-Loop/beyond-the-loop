@@ -993,6 +993,7 @@
 			type,
 			sources,
 			selected_model_id,
+			selected_model_name,
 			error,
 			usage
 		} = data;
@@ -1106,7 +1107,10 @@
 
 		if (selected_model_id) {
 			message.selectedModelId = selected_model_id;
-			message.arena = true;
+			message.model = selected_model_id;
+			if (selected_model_name) {
+				message.modelName = selected_model_name;
+			}
 		}
 
 		if (usage) {

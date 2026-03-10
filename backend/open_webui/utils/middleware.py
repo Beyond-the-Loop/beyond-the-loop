@@ -1465,12 +1465,24 @@ async def process_chat_response(
                             
                             if "selected_model_id" in data:
                                 model_id = data["selected_model_id"]
+                                model_name_actual = data.get("selected_model_name", model_id)
                                 Chats.upsert_message_to_chat_by_id_and_message_id(
                                     metadata["chat_id"],
                                     metadata["message_id"],
                                     {
+                                        "model": model_id,
+                                        "modelName": model_name_actual,
                                         "selectedModelId": model_id,
                                     },
+                                )
+                                await event_emitter(
+                                    {
+                                        "type": "chat:completion",
+                                        "data": {
+                                            "selected_model_id": model_id,
+                                            "selected_model_name": model_name_actual,
+                                        },
+                                    }
                                 )
                             else:
                                 choices = data.get("choices", [])

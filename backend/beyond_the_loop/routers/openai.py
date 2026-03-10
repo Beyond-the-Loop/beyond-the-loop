@@ -397,6 +397,10 @@ async def generate_chat_completion(
                     model = actual_model
 
             async def insert_completion_if_streaming_is_done():
+                # Inject actual selected model info as first SSE chunk so middleware can update the chat message
+                if model_name == "Smart Router" and model.name != "Smart Router":
+                    yield f'data: {json.dumps({"selected_model_id": model.id, "selected_model_name": model.name})}\n\n'.encode()
+
                 full_response = ""
                 async for chunk in r.content:
                     chunk_str = chunk.decode()
@@ -420,14 +424,14 @@ async def generate_chat_completion(
 
                     yield chunk
 
-            return (StreamingResponse(
+            return StreamingResponse(
                 insert_completion_if_streaming_is_done(),
                 status_code=r.status,
                 headers=dict(r.headers),
                 background=BackgroundTask(
                     cleanup_response, response=r
                 ),
-            ), model)
+            )
         else:
             try:
                 response = await r.json()
@@ -474,7 +478,7 @@ async def generate_chat_completion(
 
             Completions.insert_new_completion(user.id, billing_model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 
-            return response, model
+            return response
     except Exception as e:
         log.error(f"Error in generate_chat_completion: {e}")
 

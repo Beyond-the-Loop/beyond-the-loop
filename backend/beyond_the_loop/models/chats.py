@@ -1,12 +1,9 @@
 import logging
 import time
 import uuid
-from datetime import datetime
 from typing import Optional
 
 log = logging.getLogger(__name__)
-
-from sqlalchemy.dialects.postgresql import TIMESTAMP
 
 from open_webui.internal.db import Base, get_db
 from open_webui.models.tags import TagModel, Tags
