@@ -137,9 +137,173 @@ model_list:
       model: "vertex_ai/gemini-3-pro-image-preview"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+  - model_name: "Text Embedding"
+    litellm_params:
+      model: "azure/text-embedding-3-small"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_version: "2024-02-01"
   - model_name: "Smart Router"
     litellm_params:
-      model: auto_router/complexity_router
+      model: auto_router/auto_router
+      auto_router_default_model: "Claude Sonnet 4.5"
+      auto_router_embedding_model: "Text Embedding"
+      auto_router_config: '{
+        "encoder_type": "openai",
+        "encoder_name": "text-embedding-3-small",
+        "routes": [
+          {
+            "name": "Claude 4.5 Haiku",
+            "utterances": ["summarize this", "translate this to", "fix the grammar", "make this shorter", "what does this word mean", "give me a quick answer", "rephrase this", "convert this to", "list the key points", "rewrite this in simple language"],
+            "description": "Simple and quick tasks",
+            "score_threshold": 0.6
+          },
+          {
+            "name": "Claude Sonnet 4.5",
+            "utterances": ["write a blog post", "help me brainstorm", "draft an email", "explain this concept", "give me feedback on", "create a presentation outline", "write a story", "help me write", "review this text"],
+            "description": "Creative writing and general assistance",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Google 2.5 Flash",
+            "utterances": ["quick question", "what is", "define", "give me a fact about", "what year was", "who is", "how many", "simple calculation", "fast answer"],
+            "description": "Fast general queries",
+            "score_threshold": 0.6
+          },
+          {
+            "name": "Google 2.5 Pro",
+            "utterances": ["analyze this document", "compare these options", "write a detailed report", "explain the implications of", "what are the pros and cons", "create a business plan", "evaluate this strategy", "write a comprehensive analysis", "help me think through", "design a system that", "plan a project"],
+            "description": "Complex analysis and strategic thinking",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT o3",
+            "utterances": ["solve this math problem", "prove this theorem", "solve this logic puzzle", "what is the optimal algorithm for", "formal verification", "advanced mathematical reasoning", "optimize this formula"],
+            "description": "Advanced math and formal reasoning",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT o4-mini",
+            "utterances": ["step by step reasoning", "think through this problem", "break down this question", "logical analysis of", "reason about"],
+            "description": "Efficient reasoning tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT-5",
+            "utterances": ["most difficult task", "frontier research", "cutting edge analysis", "hardest problem", "most complex scenario", "expert level", "advanced multimodal"],
+            "description": "Hardest and most complex tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT-5 mini",
+            "utterances": ["general question", "help me with", "explain to me", "what should I do about", "give me advice on", "how do I", "what is the best way to"],
+            "description": "General purpose assistance",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT-5 nano",
+            "utterances": ["one word answer", "yes or no", "short reply", "quick classification", "is this true", "simple yes or no"],
+            "description": "Ultra-fast minimal responses",
+            "score_threshold": 0.65
+          },
+          {
+            "name": "GPT-5.1 instant",
+            "utterances": ["fast response needed", "quick chat", "conversational reply", "casual question", "chitchat", "everyday question"],
+            "description": "Fast conversational responses",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT-5.1 thinking",
+            "utterances": ["think deeply about", "careful reasoning on", "thorough analysis", "what are all the considerations for", "nuanced view on", "comprehensive thinking about"],
+            "description": "Deep reasoning and nuanced thinking",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT-5.1 Codex",
+            "utterances": ["write a function that", "fix this bug", "debug my code", "refactor this code", "implement a class", "write unit tests for", "explain this code", "how do I implement", "write a script that", "write SQL query", "create an API endpoint", "write a regex", "how to code"],
+            "description": "Coding and programming tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Grok 4",
+            "utterances": ["what do you think about", "opinion on", "current trends in", "latest in tech", "general knowledge about", "fun fact about", "cultural question"],
+            "description": "General knowledge and opinions",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Grok 4 fast (thinking)",
+            "utterances": ["quick reasoning", "fast logical deduction", "rapid problem solving", "think fast about", "quick analysis of"],
+            "description": "Fast reasoning tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Grok 4 fast (instant)",
+            "utterances": ["instant reply", "very quick", "one liner", "short answer please", "brief response"],
+            "description": "Instant responses",
+            "score_threshold": 0.65
+          },
+          {
+            "name": "Mistral Large 2",
+            "utterances": ["auf Deutsch bitte", "en français", "en español", "translate to French", "translate to German", "European language", "multilingual task", "schreibe auf Deutsch"],
+            "description": "Multilingual and European language tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Mistral Large 3",
+            "utterances": ["multilingual document", "translate this document", "cross-language analysis", "international content", "language localization"],
+            "description": "Large-scale multilingual tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Perplexity Sonar Pro",
+            "utterances": ["what happened recently", "latest news about", "current status of", "search for", "what is the current price of", "who won", "recent developments in", "look up", "what is happening with", "find current information"],
+            "description": "Web search and current events",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Perplexity Sonar Reasoning Pro",
+            "utterances": ["research and reason about", "find information and analyze", "search and explain", "evidence-based answer about", "fact-check and reason"],
+            "description": "Research with reasoning",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "Perplexity Sonar Deep Research",
+            "utterances": ["deep research on", "comprehensive research report on", "thorough investigation of", "in-depth study about", "research paper on", "detailed research into", "exhaustive analysis of"],
+            "description": "Deep research reports",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT o3 Deep Research",
+            "utterances": ["deep research with sources", "find and reason about", "research this topic thoroughly with citations", "academic research on", "verify and research"],
+            "description": "Deep research with web search and reasoning",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "DeepSeek-V3.2",
+            "utterances": ["write this algorithm", "implement data structure", "solve this coding challenge", "write efficient code for", "optimize this program", "competitive programming", "leetcode style problem"],
+            "description": "Coding and algorithmic tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "DeepSeek R1",
+            "utterances": ["step by step solution", "chain of thought reasoning", "detailed derivation", "show your work on", "prove step by step", "methodical reasoning about", "systematic approach to"],
+            "description": "Step-by-step deep reasoning",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT OSS 120b",
+            "utterances": ["open source approach", "efficient large scale task", "batch processing", "large context analysis", "process this long document"],
+            "description": "Large-scale open source model tasks",
+            "score_threshold": 0.55
+          },
+          {
+            "name": "GPT-5.2",
+            "utterances": ["multimodal analysis", "analyze this image and text", "vision and language task", "describe and reason about this image", "visual question answering"],
+            "description": "Multimodal vision and language tasks",
+            "score_threshold": 0.55
+          }
+        ]
+      }'
 
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
