@@ -12,7 +12,8 @@
       "Bash(head:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(docker exec:*)",
-      "Bash(do:*)"
+      "Bash(do:*)",
+      "WebFetch(domain:gist.github.com)"
     ]
   }
 }
