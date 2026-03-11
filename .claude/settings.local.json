@@ -10,7 +10,8 @@
       "Bash(npx svelte-check:*)",
       "Bash(nvm use:*)",
       "Bash(~/.nvm/versions/node/v20.9.0/bin/node:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(source backend/.venv/bin/activate 2>/dev/null || true && PYTHONPATH=backend python3 -c \"import litellm; keys = [k for k in litellm.model_cost.keys\\(\\) if 'gemini' in k.lower\\(\\) and \\('image' in k.lower\\(\\) or 'pro' in k.lower\\(\\)\\)]; print\\('\\\\n'.join\\(sorted\\(keys\\)[:40]\\)\\)\" 2>/dev/null)"
     ]
   }
 }

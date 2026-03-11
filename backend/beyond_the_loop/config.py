@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
+import yaml
+
 from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
@@ -51,6 +53,47 @@ def run_migrations():
 
 
 run_migrations()
+
+
+####################################
+# LiteLLM model config
+####################################
+
+def _build_litellm_model_config() -> dict:
+    """
+    Parse litellm-config.yaml and build a per-model config dict.
+
+    Each entry contains the LiteLLM model identifier plus any fields from
+    model_info (fair-usage limits, custom cost overrides, etc.).
+
+    Example result:
+        {
+            "Claude 4.5 Haiku": {"litellm_model": "vertex_ai/claude-haiku-4-5@20251001"},
+            "Nano Banana":       {"litellm_model": "vertex_ai/gemini-3-pro-image-preview",
+                                  "cost_per_image": 0.04},
+            "GPT o3":            {"litellm_model": "azure/responses/o3",
+                                  "allowed_messages_per_three_hours_free": 50,
+                                  "allowed_messages_per_three_hours_premium": 100},
+        }
+    """
+    config_path = Path(__file__).parent.parent.parent / "litellm-config.yaml"
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        result = {}
+        for entry in config.get("model_list", []):
+            model_name = entry["model_name"]
+            litellm_model = entry["litellm_params"]["model"]
+            model_info = entry.get("model_info") or {}
+            result[model_name] = {"litellm_model": litellm_model, **model_info}
+        return result
+    except Exception as e:
+        log.warning(f"Could not build LITELLM_MODEL_CONFIG from litellm-config.yaml: {e}")
+        return {}
+
+
+LITELLM_MODEL_CONFIG: dict = _build_litellm_model_config()
+LITELLM_MODEL_MAP: dict = {k: v["litellm_model"] for k, v in LITELLM_MODEL_CONFIG.items()}
 
 
 class Config(Base):
@@ -117,15 +160,8 @@ DEFAULT_CONFIG = {
     "google_drive": {"enable": False},
     "audio": {
         "tts": {
-            "engine": "openai",
-            "model": "tts-1",
             "voice": "alloy",
-            "split_on": "punctuation"
-        },
-        "stt": {
-            "engine": "openai",
-            "model": "whisper-1"
-        },
+        }
     },
     "image_generation": {
         "engine": "flux",
@@ -972,61 +1008,10 @@ WHISPER_MODEL_AUTO_UPDATE = (
     and os.environ.get("WHISPER_MODEL_AUTO_UPDATE", "").lower() == "true"
 )
 
-AUDIO_STT_ENGINE = PersistentConfig(
-    "AUDIO_STT_ENGINE",
-    "audio.stt.engine",
-    os.getenv("AUDIO_STT_ENGINE", ""),
-)
-
-AUDIO_STT_MODEL = PersistentConfig(
-    "AUDIO_STT_MODEL",
-    "audio.stt.model",
-    os.getenv("AUDIO_STT_MODEL", ""),
-)
-
-AUDIO_TTS_API_KEY = PersistentConfig(
-    "AUDIO_TTS_API_KEY",
-    "audio.tts.api_key",
-    os.getenv("AUDIO_TTS_API_KEY", ""),
-)
-
-AUDIO_TTS_ENGINE = PersistentConfig(
-    "AUDIO_TTS_ENGINE",
-    "audio.tts.engine",
-    os.getenv("AUDIO_TTS_ENGINE", ""),
-)
-
-
-AUDIO_TTS_MODEL = PersistentConfig(
-    "AUDIO_TTS_MODEL",
-    "audio.tts.model",
-    os.getenv("AUDIO_TTS_MODEL", "tts-1"),  # OpenAI default model
-)
-
 AUDIO_TTS_VOICE = PersistentConfig(
     "AUDIO_TTS_VOICE",
     "audio.tts.voice",
     os.getenv("AUDIO_TTS_VOICE", "alloy"),  # OpenAI default voice
-)
-
-AUDIO_TTS_SPLIT_ON = PersistentConfig(
-    "AUDIO_TTS_SPLIT_ON",
-    "audio.tts.split_on",
-    os.getenv("AUDIO_TTS_SPLIT_ON", "punctuation"),
-)
-
-AUDIO_TTS_AZURE_SPEECH_REGION = PersistentConfig(
-    "AUDIO_TTS_AZURE_SPEECH_REGION",
-    "audio.tts.azure.speech_region",
-    os.getenv("AUDIO_TTS_AZURE_SPEECH_REGION", "eastus"),
-)
-
-AUDIO_TTS_AZURE_SPEECH_OUTPUT_FORMAT = PersistentConfig(
-    "AUDIO_TTS_AZURE_SPEECH_OUTPUT_FORMAT",
-    "audio.tts.azure.speech_output_format",
-    os.getenv(
-        "AUDIO_TTS_AZURE_SPEECH_OUTPUT_FORMAT", "audio-24khz-160kbitrate-mono-mp3"
-    ),
 )
 
 

@@ -149,6 +149,7 @@ async def generate_title(
             messages=[{"role": "user", "content": content}],
             response_model=ChatTitleResponse,
             model=task_model,
+            user=user,
         )
         return {"title": result.title}
     except Exception as e:

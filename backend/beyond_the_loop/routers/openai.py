@@ -20,6 +20,7 @@ from litellm.utils import trim_messages
 
 from beyond_the_loop.config import (
     CACHE_DIR,
+    LITELLM_MODEL_MAP,
 )
 from beyond_the_loop.config import DEFAULT_AGENT_MODEL
 from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
@@ -280,29 +281,8 @@ async def generate_chat_completion(
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
 
-    # History shortening (TODO: Find a better place for this)
-    # Mapping internal model names to provider/base models
-    MODEL_MAPPING = {
-        "Claude 4.5 Haiku": "vertex_ai/claude-haiku-4-5@20251001",
-        "Claude Sonnet 4.5": "vertex_ai/claude-sonnet-4-5@20250929",
-        "Google 2.5 Flash": "gemini-2.5-flash",
-        "Google 2.5 Pro": "gemini-2.5-pro",
-        "GPT o3": "azure/o3",
-        "GPT o4-mini": "azure/o4-mini",
-        "GPT-5": "azure/gpt-5",
-        "GPT-5 mini": "azure/gpt-5-mini",
-        "GPT-5 nano": "azure/gpt-5-nano",
-        "Grok 4": "xai/grok-4",
-        "Mistral Large 2": "vertex_ai/mistral-large-2411@001",
-        "Perplexity Sonar Deep Research": "perplexity/sonar-deep-research",
-        "Perplexity Sonar Pro": "perplexity/sonar-pro",
-        "Perplexity Sonar Reasoning Pro": "perplexity/sonar-reasoning-pro",
-        "GPT-5.1 instant": "azure/gpt-5.1-chat",
-        "GPT-5.1 thinking": "azure/gpt-5.1",
-    }
-
     try:
-        payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
+        payload["messages"] = trim_messages(payload["messages"], LITELLM_MODEL_MAP.get(model_name, model_name))
     except Exception:
         log.warning("Error trimming messages, continuing with the original messages...")
 
@@ -436,9 +416,6 @@ async def generate_chat_completion(
                 return await generate_chat_completion(form_data, user, model)
 
             credit_cost = 0
-
-            # Add completion to completion table
-            response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
 
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)

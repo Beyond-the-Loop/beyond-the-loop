@@ -13,7 +13,10 @@ import instructor
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.models import ModelModel
+from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.payments_service import payments_service
 from open_webui.env import SRC_LOG_LEVELS
 
 log = logging.getLogger(__name__)
@@ -90,6 +93,7 @@ async def structured_completion(
     messages: list[dict],
     response_model: Type[T],
     model: ModelModel,
+    user=None,
 ) -> T:
     """
     Call the LiteLLM proxy and return a typed Pydantic response.
@@ -97,19 +101,33 @@ async def structured_completion(
     Args:
         messages: OpenAI-style message list.
         response_model: Pydantic model class for the expected response.
-        temperature: Sampling temperature (default 0.0 for deterministic outputs).
-        model: LiteLLM model name or DB model ID/UUID. Defaults to
-               DEFAULT_AGENT_MODEL.value (resolved via resolve_model_name).
+        model: LiteLLM model name or DB model ID/UUID.
+        user: Optional user for credit tracking. If provided, subtracts credits
+              and inserts a completion record.
 
     Returns:
         An instance of *response_model*.
     """
     client = _get_client()
 
-    return await client.chat.completions.create(
+    result, completion = await client.chat.completions.create_with_completion(
         model=model.name,
         messages=messages,
         response_model=response_model,
         temperature=0.0,
         max_retries=2,
     )
+
+    if user is not None:
+        try:
+            subscription = payments_service.get_subscription(user.company_id)
+            credit_cost = 0.0
+            if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
+                    user, completion.model_dump(), model.name
+                )
+            Completions.insert_new_completion(user.id, model.name, credit_cost, None, True)
+        except Exception:
+            log.warning("Failed to track credits for structured completion", exc_info=True)
+
+    return result

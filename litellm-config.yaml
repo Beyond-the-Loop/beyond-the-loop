@@ -14,6 +14,9 @@ model_list:
       model: 'gemini-2.5-flash'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
+    model_info:
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
   - model_name: "Google 2.5 Pro"
     litellm_params:
       model: 'gemini-2.5-pro'
@@ -25,18 +28,26 @@ model_list:
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 100
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2024-12-01-preview"
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 100
   - model_name: "GPT-5"
     litellm_params:
       model: "azure/responses/gpt-5"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "high"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "GPT-5 mini"
     litellm_params:
       model: "azure/gpt-5-mini"
@@ -44,28 +55,40 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2025-04-01-preview"
       base_model: "azure/gpt-5-mini"
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 100
   - model_name: "GPT-5.1 instant"
     litellm_params:
       model: "azure/responses/gpt-5.1-chat"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "GPT-5.1 thinking"
     litellm_params:
       model: "azure/responses/gpt-5.1"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "GPT-5 nano"
     litellm_params:
       model: "azure/responses/gpt-5-nano"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
+    model_info:
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
   - model_name: "Grok 4"
     litellm_params:
       model: 'xai/grok-4'
       api_key: os.environ/XAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "Mistral Large 2"
     litellm_params:
       model: 'vertex_ai/mistral-large-2411@001'
@@ -75,49 +98,75 @@ model_list:
     litellm_params:
       model: 'perplexity/sonar-deep-research'
       api_key: os.environ/PERPLEXITYAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_premium: 5
   - model_name: "Perplexity Sonar Pro"
     litellm_params:
       model: 'perplexity/sonar-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "Perplexity Sonar Reasoning Pro"
     litellm_params:
       model: 'perplexity/sonar-reasoning-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "GPT OSS 120b"
     litellm_params:
       model: "azure/gpt-oss-120b"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
   - model_name: "Grok 4 fast (thinking)"
     litellm_params:
       model: "azure/grok-4-fast-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
   - model_name: "Grok 4 fast (instant)"
     litellm_params:
       model: "azure/grok-4-fast-non-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
   - model_name: "Mistral Large 3"
     litellm_params:
       model: "azure/Mistral-Large-3"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "DeepSeek-V3.2"
     litellm_params:
       model: "azure/DeepSeek-V3.2"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "DeepSeek R1"
     litellm_params:
       model: "azure/DeepSeek-R1"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT-5.1 Codex"
     litellm_params:
       model: "azure/gpt-5.1-codex"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "GPT o3 Deep Research"
     litellm_params:
       model: "azure/responses/o3-deep-research"
@@ -126,17 +175,31 @@ model_list:
       reasoning_effort: "medium"
       tools:
         - type: "web_search_preview"
+    model_info:
+      allowed_messages_per_three_hours_premium: 5
   - model_name: "GPT-5.2"
     litellm_params:
       model: "azure/responses/gpt-5.2"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
   - model_name: "Nano Banana"
     litellm_params:
       model: "vertex_ai/gemini-3-pro-image-preview"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+  - model_name: "TTS"
+    litellm_params:
+      model: "azure/tts-1"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "STT"
+    litellm_params:
+      model: "azure/whisper-1"
+      api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
 
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
