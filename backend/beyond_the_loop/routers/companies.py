@@ -240,9 +240,15 @@ async def create_company(
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
-        openai_models = await openai.get_all_models()
+        openai_models = (await openai.get_all_models())["data"]
 
-        openai_models = openai_models["data"]
+        util_models = [
+            "TTS",
+            "STT",
+            "Nano Banana"
+        ]
+
+        openai_models = [openai_model for openai_model in openai_models if openai_model["id"] not in util_models]
 
         disabled_models = [
             "Perplexity Sonar Deep Research",
