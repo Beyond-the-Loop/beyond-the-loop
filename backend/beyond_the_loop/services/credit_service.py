@@ -4,6 +4,7 @@ import stripe
 import litellm
 from typing import Optional
 from fastapi import HTTPException
+from nltk.chat.zen import responses
 
 from beyond_the_loop.models.users import UserModel
 from open_webui.env import SRC_LOG_LEVELS
@@ -102,8 +103,8 @@ class CreditService:
 
         return credit_cost
 
-    async def subtract_credits_by_user_for_stt(self, user, model_name: str, response):
-        litellm_model = LITELLM_MODEL_MAP.get(model_name, model_name)
+    async def subtract_credits_by_user_for_stt(self, user, response):
+        litellm_model = LITELLM_MODEL_MAP.get("STT", "")
 
         try:
             from litellm.types.utils import TranscriptionResponse
@@ -121,64 +122,29 @@ class CreditService:
             cost_usd = 0
 
         cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
-        credit_cost = await self._subtract_credits_by_user_and_credits(user, cost)
-        Completions.insert_new_completion(user.id, model_name, credit_cost, None, False)
-        return credit_cost
+        await self._subtract_credits_by_user_and_credits(user, cost)
 
-    async def subtract_credits_by_user_for_tts(self, user, model_name: str, characters: int):
-        # Azure TTS pricing: $15 per 1M characters (same as OpenAI tts-1)
-        TTS_COST_PER_CHARACTER_USD = 15.0 / 1_000_000
-        cost_usd = characters * TTS_COST_PER_CHARACTER_USD
+    async def subtract_credits_by_user_for_tts(self, user, input_text: str):
+        litellm_model = LITELLM_MODEL_MAP.get("TTS", "")
 
-        cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
-        credit_cost = await self._subtract_credits_by_user_and_credits(user, cost)
-        Completions.insert_new_completion(user.id, model_name, credit_cost, None, False)
-        return credit_cost
-
-    async def subtract_credits_by_user_for_web_search(self, user):
-        credit_cost = await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
-        Completions.insert_new_completion(user.id, "web_search", credit_cost, None, False)
-        return credit_cost
-
-    async def subtract_credits_by_user_for_code_interpreter(self, user):
-        credit_cost = await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
-        Completions.insert_new_completion(user.id, "code_interpreter", credit_cost, None, False)
-        return credit_cost
-
-    async def _subtract_credits_by_user_and_tokens(self, user, model_name: str, input_tokens: int, output_tokens: int, reasoning_tokens: int, with_search_query_cost: bool):
-        litellm_model = LITELLM_MODEL_MAP.get(model_name, model_name)
-
-        # Let LiteLLM calculate token cost — it handles reasoning tokens via completion_tokens_details
         try:
-            token_cost_usd = litellm.completion_cost(
+            cost_usd = litellm.completion_cost(
                 model=litellm_model,
-                completion_response={
-                    "model": litellm_model,
-                    "usage": {
-                        "prompt_tokens": input_tokens,
-                        "completion_tokens": output_tokens,
-                        "completion_tokens_details": {"reasoning_tokens": reasoning_tokens},
-                    },
-                },
+                call_type="speech",
+                prompt=input_text,
             )
         except Exception as e:
             log.warning(f"litellm.completion_cost failed for {litellm_model}: {e}")
-            token_cost_usd = 0
+            cost_usd = 0
 
-        if token_cost_usd == 0:
-            log.warning(f"Unknown or zero pricing for model {model_name} ({litellm_model})")
+        cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
+        await self._subtract_credits_by_user_and_credits(user, cost)
 
-        # input_cost_per_query is a custom field not in LiteLLM's pricing table
-        search_query_cost = 0
-        if with_search_query_cost:
-            pricing = litellm.model_cost.get(litellm_model) or LITELLM_MODEL_CONFIG.get(model_name, {})
-            search_query_cost = pricing.get("input_cost_per_query", 0)
+    async def subtract_credits_by_user_for_web_search(self, user):
+        await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
-        total_costs = (token_cost_usd + search_query_cost) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
-
-        log.debug(f"Model: {model_name} ({litellm_model}) | Input tokens: {input_tokens} | Output tokens: {output_tokens - reasoning_tokens} | Reasoning tokens: {reasoning_tokens} | Token cost (USD): {token_cost_usd} | Search query cost: {search_query_cost} | Total cost (EUR): {total_costs}")
-
-        return await self._subtract_credits_by_user_and_credits(user, total_costs)
+    async def subtract_credits_by_user_for_code_interpreter(self, user):
+        await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
     @staticmethod
     async def recharge_flex_credits(user):
@@ -247,21 +213,38 @@ class CreditService:
                 )
 
     @staticmethod
-    async def subtract_credit_cost_by_user_and_response_and_model(user: UserModel, response, model_name: str):
+    async def subtract_credit_cost_by_user_and_response_and_model(user: UserModel, response):
+        model_name = response.get("model")
+
+        litellm_model = LITELLM_MODEL_MAP.get(model_name, "")
+
+        try:
+            token_cost_usd = litellm.completion_cost(
+                model=litellm_model,
+                completion_response=response,
+            )
+        except Exception as e:
+            log.warning(f"litellm.completion_cost failed for {litellm_model}: {e}")
+            token_cost_usd = 0
+
+        if token_cost_usd == 0:
+            log.warning(f"Unknown or zero pricing for model {model_name} ({litellm_model})")
+
+        # input_cost_per_query is a custom field not in LiteLLM's pricing table
+        search_query_cost = 0
+        if "Perplexity" in model_name:
+            pricing = litellm.model_cost.get(litellm_model) or LITELLM_MODEL_CONFIG.get(model_name, {})
+            search_query_cost = pricing.get("input_cost_per_query", 0)
+
+        total_costs = (token_cost_usd + search_query_cost) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
+
         input_tokens = response.get('usage', {}).get('prompt_tokens', 0)
         output_tokens = response.get('usage', {}).get('completion_tokens', 0)
+        completion_tokens_details = response.get('usage', {}).get('completion_tokens_details') or {}
+        reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
 
-        # Safely access nested dictionary values
-        completion_tokens_details = response.get('usage', {}).get('completion_tokens_details', {})
-        reasoning_tokens = 0
+        log.debug(f"Model: {model_name} ({litellm_model}) | Input tokens: {input_tokens} | Output tokens: {output_tokens - reasoning_tokens} | Reasoning tokens: {reasoning_tokens} | Token cost (USD): {token_cost_usd} | Search query cost: {search_query_cost} | Total cost (EUR): {total_costs}")
 
-        if completion_tokens_details is not None:
-            reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
-
-        with_search_query_cost = "Perplexity" in model_name
-
-        credit_cost = await credit_service._subtract_credits_by_user_and_tokens(user, model_name, input_tokens, output_tokens, reasoning_tokens, with_search_query_cost)
-
-        return credit_cost
+        return await credit_service._subtract_credits_by_user_and_credits(user, total_costs)
 
 credit_service = CreditService()

@@ -637,7 +637,7 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
             # Try to deduct credits and record completion
             try:
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
-                    user, response, request.get("model")
+                    user, response
                 )
                 Completions.insert_new_completion(user.id, request.get("model"), credit_cost, None, False)
             except Exception as err:

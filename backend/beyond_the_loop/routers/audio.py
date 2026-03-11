@@ -203,8 +203,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 r.raise_for_status()
 
                 if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                    number_of_characters_in_input = len(payload["input"])
-                    await credit_service.subtract_credits_by_user_for_tts(user, "TTS", number_of_characters_in_input)
+                    await credit_service.subtract_credits_by_user_for_tts(user, payload["input"])
 
                 async with aiofiles.open(file_path, "wb") as f:
                     await f.write(await r.read())
@@ -348,7 +347,7 @@ async def transcription(
             response = transcribe(request, file_path)
 
             if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                await credit_service.subtract_credits_by_user_for_stt(user, "STT", response)
+                await credit_service.subtract_credits_by_user_for_stt(user, response)
 
             file_path = file_path.split("/")[-1]
 

@@ -166,12 +166,7 @@ async def image_generations(
 
         image_credit_cost = 0.0
         if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-            usage = response.usage
-            image_credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
-                user,
-                {"usage": {"prompt_tokens": getattr(usage, "input_tokens", 0) or 0, "completion_tokens": getattr(usage, "output_tokens", 0) or 0}},
-                "Nano Banana",
-            )
+            image_credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response)
 
         Completions.insert_new_completion(
             user.id, "Nano Banana", image_credit_cost, None, False, is_image_generation=True

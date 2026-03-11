@@ -124,7 +124,7 @@ async def structured_completion(
             credit_cost = 0.0
             if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
                 credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
-                    user, completion.model_dump(), model.name
+                    user, completion.model_dump()
                 )
             Completions.insert_new_completion(user.id, model.name, credit_cost, None, True)
         except Exception:
