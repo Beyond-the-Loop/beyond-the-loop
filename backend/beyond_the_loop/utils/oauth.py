@@ -201,6 +201,12 @@ class OAuthManager:
         if provider not in OAUTH_PROVIDERS:
             return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
 
+        # Persist UTM params in session so they survive the OAuth redirect round-trip
+        utm_keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]
+        utm_params = {k: request.query_params[k] for k in utm_keys if k in request.query_params}
+        if utm_params:
+            request.session["utm_params"] = utm_params
+
         # If the provider has a custom redirect URL, use that, otherwise automatically generate one
         redirect_uri = OAUTH_PROVIDERS[provider].get("redirect_uri") or request.url_for(
             "oauth_callback", provider=provider
@@ -385,6 +391,12 @@ class OAuthManager:
                             "user": user.model_dump_json(exclude_none=True),
                         },
                     )
+
+                # Save UTM params from session if present
+                utm_params = request.session.pop("utm_params", None)
+                if utm_params:
+                    existing_info = user.info or {}
+                    Users.update_user_by_id(user.id, {"info": {**existing_info, **utm_params}})
             else:
                 return redirect_with_error(request, OAUTH_ERROR_CODES.ACCESS_PROHIBITED)
 

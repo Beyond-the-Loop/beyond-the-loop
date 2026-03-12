@@ -440,6 +440,17 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 
         user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url)
 
+        utm_params = {k: v for k, v in {
+            "utm_source": form_data.utm_source,
+            "utm_medium": form_data.utm_medium,
+            "utm_campaign": form_data.utm_campaign,
+            "utm_content": form_data.utm_content,
+            "utm_term": form_data.utm_term,
+        }.items() if v}
+        if utm_params:
+            existing_info = user.info or {}
+            user = Users.update_user_by_id(user.id, {"info": {**existing_info, **utm_params}})
+
         Auths.insert_auth_for_existing_user(user, hashed_password)
     except Exception as err:
         raise HTTPException(500, detail=err)
