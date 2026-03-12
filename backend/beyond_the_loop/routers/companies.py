@@ -287,7 +287,11 @@ async def create_company(
         try:
             loops_service.create_or_update_loops_contact(user)
             crm_service.create_company(company_name=company.name, super_admin_email=user.email)
-            crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin")
+            utm_params = {k: v for k, v in (user.info or {}).items() if k.startswith("utm_")}
+
+            print(utm_params, user.info)
+
+            crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin", utm_params=utm_params or None)
             crm_service.update_company_super_admin(company_name=company.name, super_admin_email=user.email)
         except Exception as e:
             log.error(f"Failed to create company or user in CRM or in Loops: {e}")

@@ -239,31 +239,37 @@ class CRMService:
             log.error(f"get_user_by_email exception for {user_email}: {e}")
             return None
 
-    def create_user(self, company_name: str, user_email: str, user_firstname: str, user_lastname: str, access_level: str):
+    def create_user(self, company_name: str, user_email: str, user_firstname: str, user_lastname: str, access_level: str, utm_params: dict = None):
         if not self.execute:
             return
 
         try:
             if self.get_user_by_email(user_email):
                 return
-                
+
             company = self.__get_company_by_company_name(company_name)
 
             if company:
                 company_id = company["id"]["record_id"]
 
+                values = {
+                    "user_id": str(uuid.uuid4()),
+                    "access_level": access_level.capitalize(),
+                    "workspace": [{"target_object": "workspaces", "target_record_id": company_id}],
+                    "monthly_credit_usage_5": [{"value": 0.0}],
+                    "primary_email_address": user_email,
+                    "first_name": user_firstname,
+                    "last_name": user_lastname,
+                }
+                if utm_params:
+                    for key in ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"):
+                        if utm_params.get(key):
+                            values[key] = utm_params[key]
+
                 response = requests.post(
                     f"{self.base_url}/objects/users/records",
                     headers=self.headers,
-                    json={"data": {"values": {
-                        "user_id": str(uuid.uuid4()),
-                        "access_level": access_level.capitalize(),
-                        "workspace": [{"target_object": "workspaces", "target_record_id": company_id}],
-                        "monthly_credit_usage_5": [{"value": 0.0}],
-                        "primary_email_address": user_email,
-                        "first_name": user_firstname,
-                        "last_name": user_lastname
-                    }}},
+                    json={"data": {"values": values}},
                     timeout=self.timeout,
                 )
 

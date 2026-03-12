@@ -897,6 +897,7 @@ export const completeRegistration = async (
 	registration_code: string,
 	password: string,
 	profile_image_url: string,
+	utm_params?: { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string },
 ) => {
 	let error = null;
 
@@ -912,7 +913,8 @@ export const completeRegistration = async (
 			password,
 			signup_token: registration_code,
 			profile_image_url: profile_image_url?.length ? profile_image_url : null,
-			is_invited: false
+			is_invited: false,
+			...(utm_params && Object.fromEntries(Object.entries(utm_params).filter(([, v]) => v)))
 		})
 	})
 		.then(async (res) => {

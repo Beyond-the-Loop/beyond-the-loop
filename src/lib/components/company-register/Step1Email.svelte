@@ -33,6 +33,17 @@
 		dispatch('next', { email: user.email });
 	}
 
+	function oauthLogin(provider: string) {
+		const utmParams = new URLSearchParams();
+		for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+			const el = document.getElementById(key);
+			const val = el ? (el as HTMLInputElement).value : '';
+			if (val) utmParams.set(key, val);
+		}
+		const qs = utmParams.toString();
+		window.location.href = `${WEBUI_BASE_URL}/oauth/${provider}/login${qs ? '?' + qs : ''}`;
+	}
+
 	let logoSrc = '/logo_light.png';
 
 	onMount(() => {
@@ -107,9 +118,7 @@
 			<button
 				type="button"
 				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
-				on:click={() => {
-					window.location.href = `${WEBUI_BASE_URL}/oauth/google/login`;
-				}}
+				on:click={oauthLogin.bind(null, 'google')}
 			>
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="size-4 mr-3">
 					<path
@@ -122,7 +131,7 @@
 					/>
 					<path
 						fill="#FBBC05"
-						d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+						d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
 					/>
 					<path
 						fill="#34A853"
@@ -137,9 +146,7 @@
 			<button
 				type="button"
 				class="mb-2.5 h-10 flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 transition w-full rounded-lg font-medium text-xs py-2.5 border border-lightGray-400 bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:border-customGray-700"
-				on:click={() => {
-					window.location.href = `${WEBUI_BASE_URL}/oauth/microsoft/login`;
-				}}
+				on:click={oauthLogin.bind(null, 'microsoft')}
 			>
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" class="size-4 mr-3">
 					<rect x="1" y="1" width="9" height="9" fill="#f25022" />

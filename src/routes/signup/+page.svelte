@@ -47,7 +47,7 @@
 		if (emailFromUrl) {
 			email = emailFromUrl;
 		}
-	})
+	});
 
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
@@ -67,12 +67,19 @@
 		}
 		if(step === 3) {
 			loading = true;
+			const utm_source = (document.getElementById('utm_source') as HTMLInputElement)?.value ?? '';
+			const utm_medium = (document.getElementById('utm_medium') as HTMLInputElement)?.value ?? '';
+			const utm_campaign = (document.getElementById('utm_campaign') as HTMLInputElement)?.value ?? '';
+			const utm_content = (document.getElementById('utm_content') as HTMLInputElement)?.value ?? '';
+			const utm_term = (document.getElementById('utm_term') as HTMLInputElement)?.value ?? '';
+
 			const user = await completeRegistration(
 				first_name,
 				last_name,
 				registration_code?.trim(),
 				password,
 				profile_image_url ? profile_image_url : generateInitialsImage(`${first_name} ${last_name}`),
+				{ utm_source, utm_medium, utm_campaign, utm_content, utm_term },
 			).catch(error => showToast('error', error));
 			console.log(user)
 			if(user) {
@@ -90,6 +97,14 @@
 </script>
 
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
+
+<!-- Hidden UTM fields — populated by GTM from first-party cookies -->
+<input type="hidden" id="utm_source" name="utm_source" />
+<input type="hidden" id="utm_medium" name="utm_medium" />
+<input type="hidden" id="utm_campaign" name="utm_campaign" />
+<input type="hidden" id="utm_content" name="utm_content" />
+<input type="hidden" id="utm_term" name="utm_term" />
+
 <div
 	class="flex flex-col justify-between w-full h-screen max-h-[100dvh]  px-4 text-white relative bg-lightGray-300 dark:bg-customGray-900"
 >
