@@ -1363,6 +1363,13 @@ async def process_chat_response(
 
             code_interpreter_tags = ["code_interpreter"]
 
+            await event_emitter(
+                {
+                    "type": "chat:completion",
+                    "data": {"model": model.id},
+                }
+            )
+
             try:
                 for event in events:
                     await event_emitter(

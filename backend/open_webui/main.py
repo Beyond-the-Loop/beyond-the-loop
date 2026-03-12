@@ -730,7 +730,7 @@ async def chat_completion(
         )
 
     try:
-        response = await chat_completion_handler(form_data, user, model)
+        response, model = await chat_completion_handler(form_data, user, model)
 
         return await process_chat_response(
             request, response, form_data, user, events, metadata, tasks, model
