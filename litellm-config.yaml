@@ -9,11 +9,52 @@ model_list:
       model: 'vertex_ai/claude-sonnet-4-5@20250929'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west1'
+  - model_name: "Claude Sonnet 4.6"
+    litellm_params:
+      model: 'vertex_ai/claude-sonnet-4-6'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'europe-west1'
+  - model_name: "Claude Opus 4.6"
+    litellm_params:
+      model: 'vertex_ai/claude-opus-4-6'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'europe-west1'
   - model_name: "Google 2.5 Flash"
     litellm_params:
       model: 'gemini-2.5-flash'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
+  - model_name: "Gemini 3 Flash (thinking)"
+    litellm_params:
+      model: 'vertex_ai/gemini-3-flash-preview'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      reasoning_effort: "high"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
+  - model_name: "Gemini 3 Flash (instant)"
+    litellm_params:
+      model: 'vertex_ai/gemini-3-flash-preview'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      reasoning_effort: "low"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
+  - model_name: "Gemini 3.1 Flash Lite (thinking)"
+    litellm_params:
+      model: 'vertex_ai/gemini-3.1-flash-lite-preview'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      reasoning_effort: "high"
+    model_info:
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
+  - model_name: "Gemini 3.1 Flash Lite (instant)"
+    litellm_params:
+      model: 'vertex_ai/gemini-3.1-flash-lite-preview'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      reasoning_effort: "low"
     model_info:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
@@ -30,7 +71,7 @@ model_list:
       reasoning_effort: "medium"
     model_info:
       allowed_messages_per_three_hours_free: 50
-      allowed_messages_per_three_hours_premium: 100
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
@@ -39,7 +80,7 @@ model_list:
       api_version: "2024-12-01-preview"
     model_info:
       allowed_messages_per_three_hours_free: 50
-      allowed_messages_per_three_hours_premium: 100
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT-5"
     litellm_params:
       model: "azure/responses/gpt-5"
@@ -47,7 +88,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "high"
     model_info:
-      allowed_messages_per_three_hours_premium: 50
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT-5 mini"
     litellm_params:
       model: "azure/gpt-5-mini"
@@ -57,7 +99,7 @@ model_list:
       base_model: "azure/gpt-5-mini"
     model_info:
       allowed_messages_per_three_hours_free: 50
-      allowed_messages_per_three_hours_premium: 100
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT-5.1 instant"
     litellm_params:
       model: "azure/responses/gpt-5.1-chat"
@@ -65,7 +107,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
     model_info:
-      allowed_messages_per_three_hours_premium: 50
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT-5.1 thinking"
     litellm_params:
       model: "azure/responses/gpt-5.1"
@@ -73,7 +116,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
     model_info:
-      allowed_messages_per_three_hours_premium: 50
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
   - model_name: "GPT-5 nano"
     litellm_params:
       model: "azure/responses/gpt-5-nano"
@@ -98,6 +142,10 @@ model_list:
     litellm_params:
       model: 'perplexity/sonar-deep-research'
       api_key: os.environ/PERPLEXITYAI_API_KEY
+  - model_name: "Perplexity Sonar"
+    litellm_params:
+      model: 'perplexity/sonar'
+      api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       allowed_messages_per_three_hours_premium: 5
   - model_name: "Perplexity Sonar Pro"
@@ -117,6 +165,12 @@ model_list:
       model: "azure/gpt-oss-120b"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "GPT OSS 120b (low)"
+    litellm_params:
+      model: "azure/gpt-oss-120b"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "low"
     model_info:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
@@ -136,11 +190,18 @@ model_list:
     model_info:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
-  - model_name: "Mistral Large 3"
+  - model_name: "Grok 4.1 fast (instant)"
     litellm_params:
-      model: "azure/Mistral-Large-3"
+      model: "azure/grok-4-1-fast-non-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
+  - model_name: "Mistral Large 3"
+    litellm_params:
+      model: "vertex_ai/mistral-large-instruct-2407"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'europe-west4'
     model_info:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -149,6 +210,21 @@ model_list:
       model: "azure/DeepSeek-V3.2"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "DeepSeek-V3.2 (thinking)"
+    litellm_params:
+      model: "azure/DeepSeek-V3.2"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "high"
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
+  - model_name: "DeepSeek-V3.2 (instant)"
+    litellm_params:
+      model: "azure/DeepSeek-V3.2"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "low"
     model_info:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -157,6 +233,14 @@ model_list:
       model: "azure/DeepSeek-R1"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
+  - model_name: " DeepSeek R1-0528"
+    litellm_params:
+      model: "vertex_ai/deepseek-ai/deepseek-r1-0528-maas"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'us-central1'
     model_info:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -176,13 +260,20 @@ model_list:
       tools:
         - type: "web_search_preview"
     model_info:
-      allowed_messages_per_three_hours_premium: 5
+      allowed_messages_per_three_hours_premium: 10
   - model_name: "GPT-5.2"
     litellm_params:
       model: "azure/responses/gpt-5.2"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
+    model_info:
+      allowed_messages_per_three_hours_premium: 50
+  - model_name: "Gemini 3.1 Pro"
+    litellm_params:
+      model: "vertex_ai/gemini-3.1-pro-preview"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
     model_info:
       allowed_messages_per_three_hours_premium: 50
   - model_name: "Nano Banana"
