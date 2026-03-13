@@ -568,6 +568,23 @@ async def get_active_models(user=Depends(get_verified_user)):
     return {"data": all_models}
 
 
+_DISPLAY_METADATA_FIELDS = {
+    'context_window', 'category', 'costFactor', 'description', 'hosted_in',
+    'intelligence_score', 'knowledge_cutoff', 'multimodal', 'organization',
+    'reasoning', 'research', 'speed', 'zdr'
+}
+
+
+@app.get("/api/models/metadata")
+async def get_models_metadata(user=Depends(get_verified_user)):
+    result = {}
+    for model_name, cfg in LITELLM_MODEL_CONFIG.items():
+        model_meta = {k: v for k, v in cfg.items() if k in _DISPLAY_METADATA_FIELDS}
+        if model_meta:
+            result[model_name] = model_meta
+    return result
+
+
 @app.get("/api/models/base")
 async def get_base_models(user=Depends(get_admin_user)):
     base_models = Models.get_base_models_by_comany_and_user(user.company_id, user.id, user.role)

@@ -15,11 +15,11 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import StarRating from './IntelligenceRating.svelte';
 	import SpeedRating from './SpeedRating.svelte';
-	import { modelsInfo, mapModelsToOrganizations } from '../../../../data/modelsInfo';
+	import { mapModelsToOrganizations } from '../../../../data/modelsInfo';
 	import { getModelIcon } from '$lib/utils';
 	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
 	import CostRating from './CostRating.svelte';
-	import { subscription } from '$lib/stores';
+	import { subscription, modelsInfo } from '$lib/stores';
 	import { DropdownMenu } from 'bits-ui';
 
 	const i18n = getContext('i18n');
@@ -48,9 +48,9 @@
 
 	let selectedModelIdx = 0;
 
-	let modelGroups = mapModelsToOrganizations(modelsInfo);
-	const desiredOrder = Object.values(modelGroups).flat();
-	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
+	$: modelGroups = mapModelsToOrganizations($modelsInfo);
+	$: desiredOrder = Object.values(modelGroups).flat();
+	$: orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 	let filteredSourceItems = []
 	$: filteredSourceItems = $models.map((model) => ({
 			value: model.id,
@@ -218,8 +218,8 @@
 	let knowledgeCutoff = null;
 
 	$: {
-		if (modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff) {
-			const date = new Date(modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff);
+		if ($modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff) {
+			const date = new Date($modelsInfo?.[hoveredItem?.label]?.knowledge_cutoff);
 
 			const formatted = date.toLocaleString('default', {
 				year: 'numeric',
@@ -431,14 +431,14 @@
 							}}}
 						on:mouseleave={setHoverTimeout}
 					>
-						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
+						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
 						<div>
 							<p class="text-xs text-lightGray-100 dark:text-customGray-100">
-								{$i18n.t(modelsInfo?.[hoveredItem?.label]?.description)}
+								{$i18n.t($modelsInfo?.[hoveredItem?.label]?.description)}
 							</p>
 						</div>
 						<div class="flex items-center gap-3 mt-auto">
-							{#if modelsInfo?.[hoveredItem?.label]?.multimodal}
+							{#if $modelsInfo?.[hoveredItem?.label]?.multimodal}
 								<div class="py-2 flex items-center">
 									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 										<CheckmarkIcon className="size-6" />
@@ -446,7 +446,7 @@
 									<p class="text-xs dark:text-customGray-100">{$i18n.t('Multimodal')}</p>
 								</div>
 							{/if}
-							{#if modelsInfo?.[hoveredItem?.label]?.reasoning}
+							{#if $modelsInfo?.[hoveredItem?.label]?.reasoning}
 								<div class="py-2 flex items-center">
 									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 										<CheckmarkIcon className="size-6" />
@@ -454,7 +454,7 @@
 									<p class="text-xs dark:text-customGray-100">{$i18n.t('Reasoning')}</p>
 								</div>
 							{/if}
-							{#if modelsInfo?.[hoveredItem?.label]?.zdr}
+							{#if $modelsInfo?.[hoveredItem?.label]?.zdr}
 								<div class="py-2 flex items-center">
 									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 										<CheckmarkIcon className="size-6" />
@@ -465,9 +465,9 @@
 						</div>
 						<div class="grid grid-cols-3 gap-y-4 gap-x-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700">
 							{#if $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
-								<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
-									{#if modelsInfo?.[hoveredItem?.label]?.costFactor}
-										<CostRating rating={modelsInfo?.[hoveredItem?.label]?.costFactor} />
+								<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
+									{#if $modelsInfo?.[hoveredItem?.label]?.costFactor}
+										<CostRating rating={$modelsInfo?.[hoveredItem?.label]?.costFactor} />
 									{:else}
 										N/A
 									{/if}
@@ -475,33 +475,33 @@
 								</div>
 							{:else}
 								<div class="flex flex-col items-center text-xs justify-end">
-									{#if modelsInfo?.[hoveredItem?.label]?.category}
-										{modelsInfo?.[hoveredItem?.label]?.category}
+									{#if $modelsInfo?.[hoveredItem?.label]?.category}
+										{$modelsInfo?.[hoveredItem?.label]?.category}
 									{:else}
 										N/A
 									{/if}
 									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Fair Usage category')}</p>
 								</div>
 							{/if}
-							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.intelligence_score && "justify-end"}">
-								{#if modelsInfo?.[hoveredItem?.label]?.intelligence_score}
-									<StarRating rating={modelsInfo?.[hoveredItem?.label]?.intelligence_score} />
+							<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.intelligence_score && "justify-end"}">
+								{#if $modelsInfo?.[hoveredItem?.label]?.intelligence_score}
+									<StarRating rating={$modelsInfo?.[hoveredItem?.label]?.intelligence_score} />
 								{:else}
 									N/A
 								{/if}
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Intelligence score')}</p>
 							</div>
-							<div class="flex flex-col items-center text-xs {!modelsInfo?.[hoveredItem?.label]?.speed && "justify-end"}">
-								{#if modelsInfo?.[hoveredItem?.label]?.speed}
-									<SpeedRating rating={modelsInfo?.[hoveredItem?.label]?.speed} />
+							<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.speed && "justify-end"}">
+								{#if $modelsInfo?.[hoveredItem?.label]?.speed}
+									<SpeedRating rating={$modelsInfo?.[hoveredItem?.label]?.speed} />
 								{:else}
 									N/A
 								{/if}
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Speed')}</p>
 							</div>
 							<div class="flex flex-col items-center py-2">
-								{#if modelsInfo?.[hoveredItem?.label]?.hosted_in}
-									<p class="text-xs dark:text-customGray-100">{modelsInfo?.[hoveredItem?.label]?.hosted_in}</p>
+								{#if $modelsInfo?.[hoveredItem?.label]?.hosted_in}
+									<p class="text-xs dark:text-customGray-100">{$modelsInfo?.[hoveredItem?.label]?.hosted_in}</p>
 									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted in')}</p>
 								{/if}
 							</div>
@@ -517,8 +517,8 @@
 							</div>
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
-									{#if modelsInfo?.[hoveredItem?.label]?.context_window}
-										{modelsInfo?.[hoveredItem?.label]?.context_window}
+									{#if $modelsInfo?.[hoveredItem?.label]?.context_window}
+										{$modelsInfo?.[hoveredItem?.label]?.context_window}
 									{:else}
 										N/A
 									{/if}

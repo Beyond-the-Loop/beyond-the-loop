@@ -66,6 +66,11 @@
 
 		await setSessionUser(sessionUser);
 
+		if (!sessionUser.company_id || sessionUser.company_id === 'NO_COMPANY') {
+			goto('/create-company');
+			return;
+		}
+
 		const [companyInfo, companyConfigInfo] = await Promise.all([
 			getCompanyDetails(sessionUser.token).catch((error) => {
 				showToast('error', error);
@@ -126,6 +131,13 @@
 		}
 		localStorage.token = token;
 		await setSessionUser(sessionUser);
+
+		if (!sessionUser.company_id || sessionUser.company_id === 'NO_COMPANY') {
+			goto('/create-company');
+			oauthLoading = false;
+			return;
+		}
+
 		const [companyInfo, companyConfigInfo] = await Promise.all([
 			getCompanyDetails(sessionUser.token).catch((error) => {
 				// showToast('error', error);

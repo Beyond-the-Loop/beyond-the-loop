@@ -7,6 +7,7 @@ from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Mod
 from beyond_the_loop.routers import openai
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
+    NO_COMPANY,
     Companies,
     CompanyConfigResponse,
     CompanyModel,
@@ -156,14 +157,16 @@ async def get_company_details(request: Request, user=Depends(get_current_user)):
     """
     try:
         company_id = user.company_id
-        if not company_id:
-            raise HTTPException(status_code=400, detail="User is not associated with a company")
-        
+        if not company_id or company_id == NO_COMPANY:
+            raise HTTPException(status_code=404, detail="Company not found")
+
         company = Companies.get_company_by_id(company_id)
         if not company:
             raise HTTPException(status_code=404, detail="Company not found")
-        
+
         return company
+    except HTTPException:
+        raise
     except Exception as e:
         log.error(f"Error getting company details: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting company details: {str(e)}")

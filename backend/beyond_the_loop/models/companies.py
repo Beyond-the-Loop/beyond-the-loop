@@ -138,6 +138,8 @@ class CompanyTable:
         try:
             with get_db() as db:
                 company = db.query(Company).filter_by(id=company_id).first()
+                if company is None:
+                    return None
                 return CompanyModel.model_validate(company)
         except Exception as e:
             log.error(f"Error getting company: {e}")

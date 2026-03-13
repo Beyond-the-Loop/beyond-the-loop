@@ -1,5 +1,5 @@
 <script>
-	import { modelsInfo } from '../../../../data/modelsInfo';
+	import { modelsInfo } from '$lib/stores';
 	import { getContext, onMount } from 'svelte';
     import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
 	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
@@ -10,8 +10,8 @@
 	let knowledgeCutoff = null;
 
 	$: {
-		if (modelsInfo?.[hoveredItem?.name]?.knowledge_cutoff) {
-			const date = new Date(modelsInfo?.[hoveredItem?.name]?.knowledge_cutoff);
+		if ($modelsInfo?.[hoveredItem?.name]?.knowledge_cutoff) {
+			const date = new Date($modelsInfo?.[hoveredItem?.name]?.knowledge_cutoff);
 
 			const formatted = date.toLocaleString('default', {
 				year: 'numeric',
@@ -56,14 +56,14 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 	class={`invisible group-hover:visible absolute -left-7 md:left-0 px-3 py-1 left-full ml-2 w-[23rem] p-2 rounded-xl border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50 shadow
 		${placeAbove ? 'bottom-full mb-2' : 'top-0'}`}
 	>
-		<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.name}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{modelsInfo?.[hoveredItem?.name]?.organization}</span></div>
+		<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.name}/<span class="text-lightGray-900 dark:text-white/50 font-normal">{$modelsInfo?.[hoveredItem?.name]?.organization}</span></div>
 		<div>
-			<p class="text-xs text-lightGray-100 dark:text-customGray-100 {!modelsInfo?.[hoveredItem?.name]?.multimodal && !modelsInfo?.[hoveredItem?.name]?.reasoning && "mb-2"}">
-				{$i18n.t(modelsInfo?.[hoveredItem?.name]?.description)}
+			<p class="text-xs text-lightGray-100 dark:text-customGray-100 {!$modelsInfo?.[hoveredItem?.name]?.multimodal && !$modelsInfo?.[hoveredItem?.name]?.reasoning && "mb-2"}">
+				{$i18n.t($modelsInfo?.[hoveredItem?.name]?.description)}
 			</p>
 		</div>
 		<div class="flex items-center gap-x-3">
-			{#if modelsInfo?.[hoveredItem?.name]?.multimodal}
+			{#if $modelsInfo?.[hoveredItem?.name]?.multimodal}
 				<div class="py-2.5 flex items-center">
 					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 						<CheckmarkIcon className="size-6" />
@@ -71,7 +71,7 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 					<p class="text-xs dark:text-customGray-100">{$i18n.t('Multimodal')}</p>
 				</div>
 			{/if}
-			{#if modelsInfo?.[hoveredItem?.name]?.reasoning}
+			{#if $modelsInfo?.[hoveredItem?.name]?.reasoning}
 				<div class="py-2.5 flex items-center">
 					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 						<CheckmarkIcon className="size-6" />
@@ -79,7 +79,7 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 					<p class="text-xs dark:text-customGray-100">{$i18n.t('Reasoning')}</p>
 				</div>
 			{/if}
-			{#if modelsInfo?.[hoveredItem?.name]?.zdr}
+			{#if $modelsInfo?.[hoveredItem?.name]?.zdr}
 				<div class="py-2.5 flex items-center">
 					<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
 						<CheckmarkIcon className="size-6" />
@@ -90,8 +90,8 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 		</div>
 		<div class="grid grid-cols-3 gap-y-4 gap-x-2 border-t border-lightGray-400 dark:border-customGray-700">
 			<div class="flex flex-col items-center py-2">
-				{#if modelsInfo?.[hoveredItem?.name]?.hosted_in}
-					<p class="text-xs dark:text-customGray-100">{modelsInfo?.[hoveredItem?.name]?.hosted_in}</p>
+				{#if $modelsInfo?.[hoveredItem?.name]?.hosted_in}
+					<p class="text-xs dark:text-customGray-100">{$modelsInfo?.[hoveredItem?.name]?.hosted_in}</p>
 					<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted in')}</p>
 				{/if}
 			</div>
@@ -107,8 +107,8 @@ on:mouseenter={positionTooltip} class="ml-1 cursor-pointer group relative flex j
 			</div>
 			<div class="flex flex-col items-center py-2">
 				<p class="text-xs dark:text-customGray-100">
-					{#if modelsInfo?.[hoveredItem?.name]?.context_window}
-						{modelsInfo?.[hoveredItem?.name]?.context_window}
+					{#if $modelsInfo?.[hoveredItem?.name]?.context_window}
+						{$modelsInfo?.[hoveredItem?.name]?.context_window}
 					{:else}
 						N/A
 					{/if}

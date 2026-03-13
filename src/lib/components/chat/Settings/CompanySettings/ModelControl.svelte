@@ -2,7 +2,8 @@
 	import { getContext, onMount } from 'svelte';
 	import { getBaseModels, updateModelById } from '$lib/apis/models';
 	import { getModels } from '$lib/apis';
-	import { filterCatalog, mapModelsToOrganizations, modelsInfo } from '../../../../../data/modelsInfo';
+	import { filterCatalog, mapModelsToOrganizations } from '../../../../../data/modelsInfo';
+	import { modelsInfo } from '$lib/stores';
 	import { getModelIcon, onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -35,14 +36,13 @@
 	let showImageDropdown = false;
 	let dropdownImageRef;
 
-	let organizations = mapModelsToOrganizations(modelsInfo);
+	$: organizations = mapModelsToOrganizations($modelsInfo);
+	$: desiredOrder = Object.values(organizations).flat();
+	$: orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 
 	let workspaceModels = null;
 	let baseModels = null;
 	let accessControl = null;
-
-	const desiredOrder = Object.values(organizations).flat();
-	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
@@ -291,8 +291,8 @@
 							<div
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
-								{#if modelsInfo?.[model?.name]?.speed}
-									{modelsInfo?.[model?.name]?.speed}
+								{#if $modelsInfo?.[model?.name]?.speed}
+									{$modelsInfo?.[model?.name]?.speed}
 								{:else}
 									N/A
 								{/if}
@@ -300,8 +300,8 @@
 							<div
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
-								{#if modelsInfo?.[model?.name]?.intelligence_score}
-									{modelsInfo?.[model?.name]?.intelligence_score}/5
+								{#if $modelsInfo?.[model?.name]?.intelligence_score}
+									{$modelsInfo?.[model?.name]?.intelligence_score}/5
 								{:else}
 									N/A
 								{/if}
@@ -310,14 +310,14 @@
 								class="border-r border-lightGray-400 dark:border-customGray-700 text-xs flex justify-center items-center dark:text-customGray-100"
 							>
 								{#if $subscription.plan === 'free' || $subscription.plan === 'premium'}
-									{#if modelsInfo?.[model?.name]?.category}
-										{modelsInfo?.[model?.name]?.category}
+									{#if $modelsInfo?.[model?.name]?.category}
+										{$modelsInfo?.[model?.name]?.category}
 									{:else}
 										N/A
 									{/if}
 								{:else}
-									{#if modelsInfo?.[model?.name]?.category}
-										{modelsInfo?.[model?.name]?.costFactor}/5
+									{#if $modelsInfo?.[model?.name]?.category}
+										{$modelsInfo?.[model?.name]?.costFactor}/5
 									{:else}
 										N/A
 									{/if}

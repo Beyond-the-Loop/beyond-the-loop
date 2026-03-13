@@ -4,26 +4,97 @@ model_list:
       model: 'vertex_ai/claude-haiku-4-5@20251001'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west1'
+    model_info:
+      context_window: '200K'
+      costFactor: 1
+      description: 'Claude Haiku 4.5 is fast and cost-effective. Well suited for simpler requests and quick responses. For very complex tasks or in-depth analyses, other models are better suited.'
+      hosted_in: 'EU'
+      intelligence_score: 3
+      knowledge_cutoff: '2025-02-28'
+      multimodal: true
+      organization: 'Anthropic'
+      reasoning: false
+      research: false
+      speed: 2.5
+      zdr: false
+
   - model_name: "Claude Sonnet 4.5"
     litellm_params:
       model: 'vertex_ai/claude-sonnet-4-5@20250929'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west1'
+    model_info:
+      context_window: '200K'
+      costFactor: 3
+      description: "Anthropic's most powerful model, with industry-leading capabilities in programming, computer use, cybersecurity, and working with office files like spreadsheets."
+      hosted_in: 'EU'
+      intelligence_score: 3
+      knowledge_cutoff: '2025-01-01'
+      multimodal: true
+      organization: 'Anthropic'
+      reasoning: false
+      research: false
+      speed: 1.5
+      zdr: false
+
   - model_name: "Claude Sonnet 4.6"
     litellm_params:
       model: 'vertex_ai/claude-sonnet-4-6'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west1'
+    model_info:
+      context_window: '200K'
+      costFactor: 3
+      description: "Anthropic's most capable Sonnet model with superior reasoning, coding, and analysis. The best balance of intelligence and speed in the Claude 4 family."
+      hosted_in: 'EU'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2025-04-01'
+      multimodal: true
+      organization: 'Anthropic'
+      reasoning: false
+      research: false
+      speed: 1.5
+      zdr: false
+
   - model_name: "Claude Opus 4.6"
     litellm_params:
       model: 'vertex_ai/claude-opus-4-6'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west1'
+    model_info:
+      context_window: '200K'
+      costFactor: 4
+      description: "Anthropic's most powerful model. Exceptional intelligence for the most complex reasoning, deep research, and advanced coding tasks."
+      hosted_in: 'EU'
+      intelligence_score: 4
+      knowledge_cutoff: '2025-04-01'
+      multimodal: true
+      organization: 'Anthropic'
+      reasoning: false
+      research: false
+      speed: 1
+      zdr: false
+
   - model_name: "Google 2.5 Flash"
     litellm_params:
       model: 'gemini-2.5-flash'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
+    model_info:
+      context_window: '1M'
+      category: 1
+      costFactor: 0
+      description: "Balanced model with good reasoning and multimodal capabilities. Optimal price-performance ratio."
+      hosted_in: 'EU'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2025-01-31'
+      multimodal: true
+      organization: 'Google'
+      reasoning: false
+      research: false
+      speed: 2
+      zdr: true
+
   - model_name: "Gemini 3 Flash (thinking)"
     litellm_params:
       model: 'vertex_ai/gemini-3-flash-preview'
@@ -31,7 +102,21 @@ model_list:
       vertex_location: 'global'
       reasoning_effort: "high"
     model_info:
+      context_window: '1M'
+      category: 1
+      costFactor: 1
+      description: "Gemini 3 Flash with deep reasoning for complex analytical tasks. Fast and capable with a 1M-token context window."
+      hosted_in: 'EU'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2025-06-01'
+      multimodal: true
+      organization: 'Google'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: true
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Gemini 3 Flash (instant)"
     litellm_params:
       model: 'vertex_ai/gemini-3-flash-preview'
@@ -39,7 +124,21 @@ model_list:
       vertex_location: 'global'
       reasoning_effort: "low"
     model_info:
+      context_window: '1M'
+      category: 1
+      costFactor: 1
+      description: "Gemini 3 Flash optimized for speed. Direct answers to complex tasks with a 1M-token context window."
+      hosted_in: 'EU'
+      intelligence_score: 3
+      knowledge_cutoff: '2025-06-01'
+      multimodal: true
+      organization: 'Google'
+      reasoning: false
+      research: false
+      speed: 3
+      zdr: true
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Gemini 3.1 Flash Lite (thinking)"
     litellm_params:
       model: 'vertex_ai/gemini-3.1-flash-lite-preview'
@@ -47,8 +146,22 @@ model_list:
       vertex_location: 'global'
       reasoning_effort: "high"
     model_info:
+      context_window: '1M'
+      category: 1
+      costFactor: 0
+      description: "Gemini 3.1 Flash Lite with structured thinking for everyday tasks. Efficient, fast, and free."
+      hosted_in: 'EU'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2025-06-01'
+      multimodal: true
+      organization: 'Google'
+      reasoning: true
+      research: false
+      speed: 3
+      zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+
   - model_name: "Gemini 3.1 Flash Lite (instant)"
     litellm_params:
       model: 'vertex_ai/gemini-3.1-flash-lite-preview'
@@ -56,13 +169,41 @@ model_list:
       vertex_location: 'global'
       reasoning_effort: "low"
     model_info:
+      context_window: '1M'
+      category: 1
+      costFactor: 0
+      description: "Gemini 3.1 Flash Lite — ultra-fast for everyday tasks. Free, efficient, and direct."
+      hosted_in: 'EU'
+      intelligence_score: 2
+      knowledge_cutoff: '2025-06-01'
+      multimodal: true
+      organization: 'Google'
+      reasoning: false
+      research: false
+      speed: 5
+      zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+
   - model_name: "Google 2.5 Pro"
     litellm_params:
       model: 'gemini-2.5-pro'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
+    model_info:
+      context_window: '1M'
+      costFactor: 2
+      description: "Strongest Gemini with top-tier reasoning, a 1M-token context window, and comprehensive multimodality. Ideal for complex problems."
+      hosted_in: 'EU'
+      intelligence_score: 3
+      knowledge_cutoff: '2025-01-31'
+      multimodal: true
+      organization: 'Google'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: true
+
   - model_name: "GPT o3"
     litellm_params:
       model: "azure/responses/o3"
@@ -70,8 +211,22 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
     model_info:
+      context_window: '200K'
+      category: 2
+      costFactor: 1.5
+      description: "Strongest reasoning model for math, science, and complex problem solving."
+      hosted_in: 'EU'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-05-31'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 1.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT o4-mini"
     litellm_params:
       model: "azure/o4-mini"
@@ -79,8 +234,22 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       api_version: "2024-12-01-preview"
     model_info:
+      context_window: '200K'
+      category: 2
+      costFactor: 1
+      description: "Fast, affordable reasoning model with strengths in coding and visual tasks."
+      hosted_in: 'EU'
+      intelligence_score: 3
+      knowledge_cutoff: '2024-05-31'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 3
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT-5"
     litellm_params:
       model: "azure/responses/gpt-5"
@@ -88,8 +257,22 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "high"
     model_info:
+      context_window: '400K'
+      category: 3
+      costFactor: 2
+      description: "OpenAI's flagship model for coding, reasoning, and agent tasks. Highest reasoning capabilities with moderate speed for complex domains."
+      hosted_in: 'EU'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-10-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 2.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT-5 mini"
     litellm_params:
       model: "azure/gpt-5-mini"
@@ -98,8 +281,22 @@ model_list:
       api_version: "2025-04-01-preview"
       base_model: "azure/gpt-5-mini"
     model_info:
+      context_window: '400K'
+      category: 2
+      costFactor: 0.5
+      description: "Offers a balanced combination of response quality and speed. Well suited for everyday questions, creative tasks, and explanations of medium complexity. For very complex analyses or highly specialized expert questions, more powerful models are better suited."
+      hosted_in: 'EU'
+      intelligence_score: 3
+      knowledge_cutoff: '2024-04-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 4.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT-5.1 instant"
     litellm_params:
       model: "azure/responses/gpt-5.1-chat"
@@ -107,8 +304,22 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
     model_info:
+      context_window: '128K'
+      category: 3
+      costFactor: 2
+      description: 'GPT-5.1 Instant is particularly conversational, delivers fast, clear answers with reduced jargon, and is especially well-suited for everyday conversations.'
+      hosted_in: 'US'
+      intelligence_score: 2
+      knowledge_cutoff: '2024-09-30'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: false
+      research: false
+      speed: 2
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT-5.1 thinking"
     litellm_params:
       model: "azure/responses/gpt-5.1"
@@ -116,8 +327,22 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "medium"
     model_info:
+      context_window: '128K'
+      category: 3
+      costFactor: 2
+      description: 'Powerful for complex questions and code. Thorough analyses, detailed answers. Ideal for demanding tasks, not for quick responses.'
+      hosted_in: 'EU'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-09-30'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT-5 nano"
     litellm_params:
       model: "azure/responses/gpt-5-nano"
@@ -125,46 +350,155 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
     model_info:
+      context_window: '400K'
+      category: 1
+      costFactor: 0
+      description: "Fast model for simple tasks like summarization and classification. Solid response quality with average reasoning capabilities. For complex analyses or deep logic, other models are better suited."
+      hosted_in: 'EU'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2024-01-04'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 5
+      zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+
   - model_name: "Grok 4"
     litellm_params:
       model: 'xai/grok-4'
       api_key: os.environ/XAI_API_KEY
     model_info:
+      context_window: '256K'
+      category: 3
+      costFactor: 3
+      description: "xAI's most advanced model with exceptional reasoning capabilities and a distinctive communication style."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'xAI'
+      reasoning: true
+      research: false
+      speed: 2.5
+      zdr: false
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Mistral Large 2"
     litellm_params:
       model: 'vertex_ai/mistral-large-2411@001'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
+    model_info:
+      context_window: '128K'
+      costFactor: 1
+      description: 'Strong performance in code, mathematics, and logic. Supports many languages and delivers precise answers. Ideal for technical queries and programming; less flexible for creative tasks.'
+      hosted_in: 'EU'
+      intelligence_score: 1.5
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'Mistral'
+      reasoning: false
+      research: false
+      speed: 0
+      zdr: false
+
   - model_name: "Perplexity Sonar Deep Research"
     litellm_params:
       model: 'perplexity/sonar-deep-research'
       api_key: os.environ/PERPLEXITYAI_API_KEY
+    model_info:
+      context_window: '200K'
+      costFactor: 0
+      description: 'Deep Research generates detailed research reports in 2–4 minutes. Suitable for complex tasks in finance, marketing, technology, product research, and travel planning. Not suitable for simple questions due to higher cost and longer turnaround time.'
+      hosted_in: 'US'
+      intelligence_score: 0
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'Perplexity'
+      reasoning: true
+      research: true
+      speed: 0
+      zdr: false
+
   - model_name: "Perplexity Sonar"
     litellm_params:
       model: 'perplexity/sonar'
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
+      context_window: '127K'
+      costFactor: 0
+      description: 'Fast model with real-time web access for direct, up-to-date answers. Ideal for quick lookups and current information.'
+      hosted_in: 'US'
+      intelligence_score: 1
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'Perplexity'
+      reasoning: false
+      research: true
+      speed: 3
+      zdr: false
       allowed_messages_per_three_hours_premium: 5
+
   - model_name: "Perplexity Sonar Pro"
     litellm_params:
       model: 'perplexity/sonar-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
+      context_window: '127K'
+      costFactor: 0
+      description: 'Provides high-quality answers with reliable source citations via direct internet access. Ideal for knowledge-intensive questions and structured research. For simple questions or time-sensitive requests, lighter-weight models are more efficient.'
+      hosted_in: 'US'
+      intelligence_score: 1.5
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'Perplexity'
+      reasoning: false
+      research: true
+      speed: 0
+      zdr: false
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Perplexity Sonar Reasoning Pro"
     litellm_params:
       model: 'perplexity/sonar-reasoning-pro'
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
+      context_window: '200K'
+      costFactor: 0
+      description: 'Strong reasoning model for complex problem solving. Suitable for multi-step analyses, legal and financial questions, and deep logic. Not suitable for simple questions due to longer turnaround time.'
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'Perplexity'
+      reasoning: true
+      research: true
+      speed: 0
+      zdr: false
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "GPT OSS 120b"
     litellm_params:
       model: "azure/gpt-oss-120b"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 1
+      description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2024-06-01'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: false
+      research: false
+      speed: 1.5
+      zdr: true
+
   - model_name: "GPT OSS 120b (low)"
     litellm_params:
       model: "azure/gpt-oss-120b"
@@ -172,44 +506,128 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
     model_info:
+      context_window: '128K'
+      category: 1
+      costFactor: 0
+      description: "Large open-source language model optimized for fast responses with reduced reasoning depth."
+      hosted_in: 'US'
+      intelligence_score: 2
+      knowledge_cutoff: '2024-06-01'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: false
+      research: false
+      speed: 3
+      zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+
   - model_name: "Grok 4 fast (thinking)"
     litellm_params:
       model: "azure/grok-4-fast-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 1
+      description: "Reasoning-optimized variant of Grok 4 focused on fast, structured thinking. Well suited for technical analyses with reduced response time."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'xAI'
+      reasoning: true
+      research: false
+      speed: 3
+      zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+
   - model_name: "Grok 4 fast (instant)"
     litellm_params:
       model: "azure/grok-4-fast-non-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 1
+      description: "Very fast, conversational Grok 4 variant designed for direct answers and simple to medium tasks without deep analysis."
+      hosted_in: 'US'
+      intelligence_score: 3
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'xAI'
+      reasoning: false
+      research: false
+      speed: 4
+      zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+
   - model_name: "Grok 4.1 fast (instant)"
     litellm_params:
       model: "azure/grok-4-1-fast-non-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
+      context_window: '256K'
+      costFactor: 1
+      description: "Ultra-fast conversational variant of Grok 4.1 for direct, snappy responses to everyday tasks."
+      hosted_in: 'US'
+      intelligence_score: 3
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'xAI'
+      reasoning: false
+      research: false
+      speed: 4.5
+      zdr: false
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Mistral Large 3"
     litellm_params:
       model: "vertex_ai/mistral-large-instruct-2407"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
     model_info:
+      context_window: '256K'
+      category: 2
+      costFactor: 0.5
+      description: "Mistral Large 3, is a state-of-the-art, open-weight, general-purpose multimodal model with a granular Mixture-of-Experts architecture."
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2024-10-01'
+      multimodal: false
+      organization: 'Mistral'
+      reasoning: false
+      research: false
+      speed: 2
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "DeepSeek-V3.2"
     litellm_params:
       model: "azure/DeepSeek-V3.2"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1
+      description: "Powerful open-source model focused on coding, mathematics, and structured problem solving."
+      hosted_in: 'US'
+      intelligence_score: 3
+      knowledge_cutoff: '2024-08-01'
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: false
+
   - model_name: "DeepSeek-V3.2 (thinking)"
     litellm_params:
       model: "azure/DeepSeek-V3.2"
@@ -217,8 +635,22 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "high"
     model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1.5
+      description: "DeepSeek V3.2 with extended reasoning for complex multi-step problems in coding and mathematics."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-08-01'
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 1.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "DeepSeek-V3.2 (instant)"
     litellm_params:
       model: "azure/DeepSeek-V3.2"
@@ -226,31 +658,87 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
     model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 0.5
+      description: "DeepSeek V3.2 optimized for speed — fast answers for direct questions and everyday tasks."
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2024-08-01'
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: false
+      research: false
+      speed: 3.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "DeepSeek R1"
     litellm_params:
       model: "azure/DeepSeek-R1"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1
+      description: "Reasoning-specialized DeepSeek model for complex multi-step reasoning in mathematics, logic, and code."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-08-01'
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 1.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: " DeepSeek R1-0528"
     litellm_params:
       model: "vertex_ai/deepseek-ai/deepseek-r1-0528-maas"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'us-central1'
     model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1
+      description: "Updated DeepSeek R1 reasoning model (May 2028 snapshot) with improved performance on complex analytical and coding tasks."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-08-01'
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 1.5
+      zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+
   - model_name: "GPT-5.1 Codex"
     litellm_params:
       model: "azure/gpt-5.1-codex"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
+      context_window: '128K'
+      category: 3
+      costFactor: 2
+      description: "Code-specialized variant of GPT-5.1 designed for software development, refactoring, testing, and agent-based programming tasks."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-10-01'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: false
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "GPT o3 Deep Research"
     litellm_params:
       model: "azure/responses/o3-deep-research"
@@ -260,7 +748,21 @@ model_list:
       tools:
         - type: "web_search_preview"
     model_info:
+      context_window: '200K'
+      category: 4
+      costFactor: 5
+      description: "Research-oriented variant of GPT o3 designed for producing in-depth, citable reports with multi-step analysis and structured source evaluation."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      knowledge_cutoff: '2024-05-31'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: true
+      speed: 1
+      zdr: false
       allowed_messages_per_three_hours_premium: 10
+
   - model_name: "GPT-5.2"
     litellm_params:
       model: "azure/responses/gpt-5.2"
@@ -268,19 +770,47 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
       reasoning_effort: "low"
     model_info:
+      context_window: '512K'
+      category: 3
+      costFactor: 3
+      description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
+      hosted_in: 'US'
+      intelligence_score: 4
+      knowledge_cutoff: '2025-01-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: false
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Gemini 3.1 Pro"
     litellm_params:
       model: "vertex_ai/gemini-3.1-pro-preview"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
     model_info:
+      context_window: '1M'
+      costFactor: 3
+      description: "Google's most powerful Gemini 3.1 model with advanced reasoning, multimodal understanding, and a 1M-token context window."
+      hosted_in: 'EU'
+      intelligence_score: 4
+      knowledge_cutoff: '2025-06-01'
+      multimodal: true
+      organization: 'Google'
+      reasoning: true
+      research: false
+      speed: 1.5
+      zdr: true
       allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Nano Banana"
     litellm_params:
       model: "vertex_ai/gemini-3-pro-image-preview"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+
   - model_name: "Smart Router"
     litellm_params:
       model: auto_router/complexity_router
