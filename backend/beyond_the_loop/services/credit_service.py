@@ -213,7 +213,7 @@ class CreditService:
                 )
 
     @staticmethod
-    async def subtract_credit_cost_by_user_and_response_and_model(user: UserModel, response):
+    async def subtract_credit_cost_by_user_and_response(user: UserModel, response):
         model_name = response.get("model")
 
         litellm_model = LITELLM_MODEL_MAP.get(model_name, "")

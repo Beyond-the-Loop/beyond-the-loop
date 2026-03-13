@@ -312,9 +312,6 @@ async def generate_chat_completion(
     except Exception:
         log.warning("Error trimming messages, continuing with the original messages...")
 
-    # Extract last user message before serializing
-    last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
-
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
 
@@ -393,7 +390,7 @@ async def generate_chat_completion(
                                 credit_cost_streaming = 0
 
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data)
+                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response(user, data)
 
                                 Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
                         except json.JSONDecodeError:
@@ -448,7 +445,7 @@ async def generate_chat_completion(
             credit_cost = 0
 
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response)
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(user, response)
 
             Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 

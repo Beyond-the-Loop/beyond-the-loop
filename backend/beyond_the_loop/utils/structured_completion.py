@@ -123,7 +123,7 @@ async def structured_completion(
             subscription = payments_service.get_subscription(user.company_id)
             credit_cost = 0.0
             if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(
                     user, completion.model_dump()
                 )
             Completions.insert_new_completion(user.id, model.name, credit_cost, None, True)
