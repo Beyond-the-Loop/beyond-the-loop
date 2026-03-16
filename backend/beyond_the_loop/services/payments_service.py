@@ -73,7 +73,7 @@ class PaymentsService:
                                                               "price_1RglAcBBwyxb4MZjRYcvp9dr")
 
         self.stripe_price_id_business_21_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_21_MONTHLY',
-                                                                  "price_1SecChBBwyxb4MZjwC1dBei8")
+                                                                  "price_1TBbLoBBwyxb4MZjbmP6X9oj")
 
         self.stripe_price_id_business_two_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_TWO_YEARLY',
                                                                   "price_1SFK4QBBwyxb4MZjdHFP4AJh")
