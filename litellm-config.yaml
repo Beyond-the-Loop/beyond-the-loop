@@ -7,7 +7,7 @@ model_list:
     model_info:
       context_window: '200K'
       costFactor: 1
-      description: 'Claude Haiku 4.5 is fast and cost-effective. Well suited for simpler requests and quick responses. For very complex tasks or in-depth analyses, other models are better suited.'
+      description: 'Fastest Claude model for efficient everyday tasks and conversations.'
       hosted_in: 'EU'
       intelligence_score: 3
       knowledge_cutoff: '2025-02-28'
@@ -26,7 +26,7 @@ model_list:
     model_info:
       context_window: '200K'
       costFactor: 3
-      description: "Anthropic's most powerful model, with industry-leading capabilities in programming, computer use, cybersecurity, and working with office files like spreadsheets."
+      description: "Balanced model with strong coding and analytical skills."
       hosted_in: 'EU'
       intelligence_score: 3
       knowledge_cutoff: '2025-01-01'
@@ -45,7 +45,7 @@ model_list:
     model_info:
       context_window: '200K'
       costFactor: 3
-      description: "Anthropic's most capable Sonnet model with superior reasoning, coding, and analysis. The best balance of intelligence and speed in the Claude 4 family."
+      description: "Balanced model with strong coding and analytical skills."
       hosted_in: 'EU'
       intelligence_score: 3.5
       knowledge_cutoff: '2025-04-01'
@@ -64,7 +64,7 @@ model_list:
     model_info:
       context_window: '200K'
       costFactor: 4
-      description: "Anthropic's most powerful model. Exceptional intelligence for the most complex reasoning, deep research, and advanced coding tasks."
+      description: "Most intelligent Claude model for complex coding and scientific analyses."
       hosted_in: 'EU'
       intelligence_score: 4
       knowledge_cutoff: '2025-04-01'
@@ -84,7 +84,7 @@ model_list:
       context_window: '1M'
       category: 1
       costFactor: 0
-      description: "Balanced model with good reasoning and multimodal capabilities. Optimal price-performance ratio."
+      description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
       intelligence_score: 2.5
       knowledge_cutoff: '2025-01-31'
@@ -104,7 +104,7 @@ model_list:
       context_window: '1M'
       category: 1
       costFactor: 0
-      description: "Balanced model with good reasoning and multimodal capabilities. Optimal price-performance ratio."
+      description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
       intelligence_score: 2.5
       knowledge_cutoff: '2025-01-31'
@@ -124,7 +124,7 @@ model_list:
       context_window: '1M'
       category: 1
       costFactor: 1
-      description: "Gemini 3 Flash optimized for speed. Direct answers to complex tasks with a 1M-token context window."
+      description: "Fast multimodal model for efficient text, image, and code processing."
       hosted_in: 'EU'
       intelligence_score: 3
       knowledge_cutoff: '2025-06-01'
@@ -145,7 +145,7 @@ model_list:
       context_window: '1M'
       category: 1
       costFactor: 1
-      description: "Gemini 3 Pro."
+      description: "Powerful multimodal model for demanding analysis and reasoning tasks."
       hosted_in: 'EU'
       intelligence_score: 3
       knowledge_cutoff: '2025-06-01'
@@ -166,7 +166,7 @@ model_list:
       context_window: '1M'
       category: 1
       costFactor: 0
-      description: "Gemini 3.1 Flash Lite — ultra-fast for everyday tasks. Free, efficient, and direct."
+      description: "Fast model for reasoning, science, and code. Focus on low latency."
       hosted_in: 'EU'
       intelligence_score: 2
       knowledge_cutoff: '2025-06-01'
@@ -187,7 +187,7 @@ model_list:
     model_info:
       context_window: '1M'
       costFactor: 2
-      description: "Strongest Gemini with top-tier reasoning, a 1M-token context window, and comprehensive multimodality. Ideal for complex problems."
+      description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
       intelligence_score: 3
       knowledge_cutoff: '2025-01-31'
@@ -207,7 +207,7 @@ model_list:
       context_window: '200K'
       category: 2
       costFactor: 1.5
-      description: "Strongest reasoning model for math, science, and complex problem solving."
+      description: "Multimodal reasoning model with 200K context for complex problem-solving."
       hosted_in: 'EU'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-05-31'
@@ -230,7 +230,7 @@ model_list:
       context_window: '200K'
       category: 2
       costFactor: 1
-      description: "Fast, affordable reasoning model with strengths in coding and visual tasks."
+      description: "Compact reasoning model for efficient mathematical and logical tasks."
       hosted_in: 'EU'
       intelligence_score: 3
       knowledge_cutoff: '2024-05-31'
@@ -252,7 +252,7 @@ model_list:
       context_window: '400K'
       category: 3
       costFactor: 2
-      description: "OpenAI's flagship model for coding, reasoning, and agent tasks. Highest reasoning capabilities with moderate speed for complex domains."
+      description: "Versatile model with strong reasoning for complex problem-solving."
       hosted_in: 'EU'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-10-01'
@@ -298,7 +298,7 @@ model_list:
       context_window: '128K'
       category: 3
       costFactor: 2
-      description: 'GPT-5.1 is particularly conversational, delivers fast, clear answers with reduced jargon, and is especially well-suited for everyday conversations.'
+      description: 'Multimodal model with very large context for complex analysis tasks.'
       hosted_in: 'US'
       intelligence_score: 2
       knowledge_cutoff: '2024-09-30'
@@ -320,7 +320,7 @@ model_list:
       context_window: '128K'
       category: 3
       costFactor: 2
-      description: 'Powerful for complex questions and code. Thorough analyses, detailed answers. Ideal for demanding tasks, not for quick responses.'
+      description: 'Multimodal model with very large context for complex analysis tasks.'
       hosted_in: 'EU'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-09-30'
@@ -363,7 +363,7 @@ model_list:
     model_info:
       context_window: '128K'
       costFactor: 1
-      description: 'Strong performance in code, mathematics, and logic. Supports many languages and delivers precise answers. Ideal for technical queries and programming; less flexible for creative tasks.'
+      description: 'Versatile model with 128K context for reasoning and code tasks.'
       hosted_in: 'EU'
       intelligence_score: 1.5
       knowledge_cutoff: null
@@ -382,7 +382,7 @@ model_list:
     model_info:
       context_window: '128K'
       costFactor: 1
-      description: 'Strong performance in code, mathematics, and logic. Supports many languages and delivers precise answers. Ideal for technical queries and programming; less flexible for creative tasks.'
+      description: 'Versatile model with excellent multilingual capabilities for complex tasks.'
       hosted_in: 'EU'
       intelligence_score: 1.5
       knowledge_cutoff: null
@@ -400,7 +400,7 @@ model_list:
     model_info:
       context_window: '200K'
       costFactor: 0
-      description: 'Deep Research generates detailed research reports in 2–4 minutes. Suitable for complex tasks in finance, marketing, technology, product research, and travel planning. Not suitable for simple questions due to higher cost and longer turnaround time.'
+      description: 'Autonomous research agent for comprehensive analysis reports from web sources.'
       hosted_in: 'US'
       intelligence_score: 0
       knowledge_cutoff: null
@@ -418,7 +418,7 @@ model_list:
     model_info:
       context_window: '127K'
       costFactor: 0
-      description: 'Fast model with real-time web access for direct, up-to-date answers. Ideal for quick lookups and current information.'
+      description: 'Fast search model for precise answers with source citations.'
       hosted_in: 'US'
       intelligence_score: 1
       knowledge_cutoff: null
@@ -437,7 +437,7 @@ model_list:
     model_info:
       context_window: '127K'
       costFactor: 0
-      description: 'Provides high-quality answers with reliable source citations via direct internet access. Ideal for knowledge-intensive questions and structured research. For simple questions or time-sensitive requests, lighter-weight models are more efficient.'
+      description: 'Advanced search for complex, multi-step research with more citations.'
       hosted_in: 'US'
       intelligence_score: 1.5
       knowledge_cutoff: null
@@ -456,7 +456,7 @@ model_list:
     model_info:
       context_window: '200K'
       costFactor: 0
-      description: 'Strong reasoning model for complex problem solving. Suitable for multi-step analyses, legal and financial questions, and deep logic. Not suitable for simple questions due to longer turnaround time.'
+      description: 'Web search with advanced reasoning for analytical research.'
       hosted_in: 'US'
       intelligence_score: 2.5
       knowledge_cutoff: null
@@ -468,26 +468,26 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
-  - model_name: "GPT OSS 120b"
-    litellm_params:
-      model: "azure/gpt-oss-120b"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-    model_info:
-      context_window: '128K'
-      category: 1
-      description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
-      hosted_in: 'US'
-      intelligence_score: 2.5
-      knowledge_cutoff: '2024-06-01'
-      multimodal: false
-      organization: 'OpenAI'
-      reasoning: false
-      research: false
-      speed: 1.5
-      zdr: true
-      allowed_messages_per_three_hours_free: 300
-      allowed_messages_per_three_hours_premium: 300
+  # - model_name: "GPT OSS 120b"
+  #   litellm_params:
+  #     model: "azure/gpt-oss-120b"
+  #     api_base: os.environ/AZURE_OPENAI_ENDPOINT
+  #     api_key: os.environ/AZURE_OPENAI_API_KEY
+  #   model_info:
+  #     context_window: '128K'
+  #     category: 1
+  #     description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
+  #     hosted_in: 'US'
+  #     intelligence_score: 2.5
+  #     knowledge_cutoff: '2024-06-01'
+  #     multimodal: false
+  #     organization: 'OpenAI'
+  #     reasoning: false
+  #     research: false
+  #     speed: 1.5
+  #     zdr: true
+  #     allowed_messages_per_three_hours_free: 300
+  #     allowed_messages_per_three_hours_premium: 300
 
   - model_name: "Grok 4 Fast Reasoning"
     litellm_params:
@@ -498,7 +498,7 @@ model_list:
       context_window: '256K'
       category: 1
       costFactor: 1
-      description: "Reasoning-optimized variant of Grok 4 focused on fast, structured thinking. Well suited for technical analyses with reduced response time."
+      description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
       intelligence_score: 3.5
       knowledge_cutoff: null
@@ -520,7 +520,7 @@ model_list:
       context_window: '256K'
       category: 1
       costFactor: 1
-      description: "Very fast, conversational Grok 4 variant designed for direct answers and simple to medium tasks without deep analysis."
+      description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
       intelligence_score: 3
       knowledge_cutoff: null
@@ -541,7 +541,7 @@ model_list:
     model_info:
       context_window: '256K'
       costFactor: 1
-      description: "Ultra-fast conversational variant of Grok 4.1 for direct, snappy responses to everyday tasks."
+      description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
       intelligence_score: 3
       knowledge_cutoff: null
@@ -561,7 +561,7 @@ model_list:
     model_info:
       context_window: '256K'
       costFactor: 1
-      description: "Ultra-fast conversational variant of Grok 4.1 for direct, snappy responses to everyday tasks."
+      description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
       intelligence_score: 3
       knowledge_cutoff: null
@@ -582,7 +582,7 @@ model_list:
       context_window: '128K'
       category: 2
       costFactor: 1
-      description: "Powerful open-source model focused on coding, mathematics, and structured problem solving."
+      description: "Specialized in multi-step problem-solving in math, code, and science."
       hosted_in: 'US'
       intelligence_score: 3
       knowledge_cutoff: '2024-08-01'
@@ -604,7 +604,7 @@ model_list:
       context_window: '128K'
       category: 2
       costFactor: 1
-      description: "Reasoning-specialized DeepSeek model for complex multi-step reasoning in mathematics, logic, and code."
+      description: "Reasoning model for complex math, logic, and scientific analyses."
       hosted_in: 'US'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-08-01'
@@ -626,7 +626,7 @@ model_list:
       context_window: '128K'
       category: 2
       costFactor: 1
-      description: "Updated DeepSeek R1 reasoning model (May 2028 snapshot) with improved performance on complex analytical and coding tasks."
+      description: "Reasoning model for complex math, logic, and scientific analyses."
       hosted_in: 'US'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-08-01'
@@ -648,7 +648,7 @@ model_list:
       context_window: '128K'
       category: 3
       costFactor: 2
-      description: "Code-specialized variant of GPT-5.1 designed for software development, refactoring, testing, and agent-based programming tasks."
+      description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-10-01'
@@ -660,26 +660,26 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_premium: 10
 
-  - model_name: "GPT-5.1 Codex"
-    litellm_params:
-      model: "azure/gpt-5.1-codex"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-    model_info:
-      context_window: '128K'
-      category: 3
-      costFactor: 2
-      description: "Code-specialized variant of GPT-5.1 designed for software development, refactoring, testing, and agent-based programming tasks."
-      hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-10-01'
-      multimodal: false
-      organization: 'OpenAI'
-      reasoning: true
-      research: false
-      speed: 2
-      zdr: false
-      allowed_messages_per_three_hours_premium: 50
+  # - model_name: "GPT-5.1 Codex"
+  #   litellm_params:
+  #     model: "azure/gpt-5.1-codex"
+  #     api_base: os.environ/AZURE_OPENAI_ENDPOINT
+  #     api_key: os.environ/AZURE_OPENAI_API_KEY
+  #   model_info:
+  #     context_window: '128K'
+  #     category: 3
+  #     costFactor: 2
+  #     description: "Code-specialized variant of GPT-5.1 designed for software development, refactoring, testing, and agent-based programming tasks."
+  #     hosted_in: 'US'
+  #     intelligence_score: 3.5
+  #     knowledge_cutoff: '2024-10-01'
+  #     multimodal: false
+  #     organization: 'OpenAI'
+  #     reasoning: true
+  #     research: false
+  #     speed: 2
+  #     zdr: false
+  #     allowed_messages_per_three_hours_premium: 50
 
   - model_name: "GPT o3 Deep Research"
     litellm_params:
@@ -692,7 +692,7 @@ model_list:
       context_window: '200K'
       category: 4
       costFactor: 5
-      description: "Research-oriented variant of GPT o3 designed for producing in-depth, citable reports with multi-step analysis and structured source evaluation."
+      description: "Agent for autonomous web research with synthesis into comprehensive reports."
       hosted_in: 'US'
       intelligence_score: 3.5
       knowledge_cutoff: '2024-05-31'
@@ -713,7 +713,7 @@ model_list:
       context_window: '512K'
       category: 3
       costFactor: 3
-      description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
+      description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
       intelligence_score: 4
       knowledge_cutoff: '2025-01-01'
@@ -734,7 +734,7 @@ model_list:
       context_window: '512K'
       category: 3
       costFactor: 3
-      description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
+      description: "Specialized in code generation, debugging, and technical documentation."
       hosted_in: 'US'
       intelligence_score: 4
       knowledge_cutoff: '2025-01-01'
@@ -755,7 +755,7 @@ model_list:
       context_window: '512K'
       category: 3
       costFactor: 3
-      description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
+      description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
       intelligence_score: 4
       knowledge_cutoff: '2025-01-01'
@@ -775,7 +775,7 @@ model_list:
     model_info:
       context_window: '1M'
       costFactor: 3
-      description: "Google's most powerful Gemini 3.1 model with advanced reasoning, multimodal understanding, and a 1M-token context window."
+      description: "Multimodal model with extended context for text, image, and code analysis."
       hosted_in: 'EU'
       intelligence_score: 4
       knowledge_cutoff: '2025-06-01'
