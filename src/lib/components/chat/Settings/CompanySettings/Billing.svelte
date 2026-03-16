@@ -204,7 +204,7 @@
 					{/if}
 					<div class="flex items-center gap-2.5">
 						<div class="text-sm text-lightGray-100 dark:text-customGray-100 capitalize">
-								{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', '').replace('_two', ''))}
+								{$i18n.t($subscription?.plan?.replace('_monthly', '').replace('_yearly', '').replace('_two', '').replace('_21', ''))}
 						</div>
 						{#if $subscription?.plan && $subscription.plan.includes("monthly")}
 							<div
