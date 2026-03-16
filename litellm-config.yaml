@@ -9,13 +9,15 @@ model_list:
       costFactor: 1
       description: 'Fastest Claude model for efficient everyday tasks and conversations.'
       hosted_in: 'EU'
-      intelligence_score: 3
+      intelligence_score: 3.5
+      AAII: 0.37
       knowledge_cutoff: '2025-02-28'
       multimodal: true
       organization: 'Anthropic'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 2.5
+      tokens_per_second: 120
       zdr: false
 
   - model_name: "Claude Sonnet 4.5"
@@ -28,13 +30,15 @@ model_list:
       costFactor: 3
       description: "Balanced model with strong coding and analytical skills."
       hosted_in: 'EU'
-      intelligence_score: 3
+      intelligence_score: 4
+      AAII: 0.43
       knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Anthropic'
-      reasoning: false
+      reasoning: true
       research: false
-      speed: 1.5
+      speed: 1
+      tokens_per_second: 48
       zdr: false
 
   - model_name: "Claude Sonnet 4.6"
@@ -47,13 +51,15 @@ model_list:
       costFactor: 3
       description: "Balanced model with strong coding and analytical skills."
       hosted_in: 'EU'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2025-04-01'
+      intelligence_score: 4.5
+      AAII: 0.52
+      knowledge_cutoff: '2025-08-01'
       multimodal: true
       organization: 'Anthropic'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 1.5
+      tokens_per_second: 67
       zdr: false
 
   - model_name: "Claude Opus 4.6"
@@ -66,13 +72,15 @@ model_list:
       costFactor: 4
       description: "Most intelligent Claude model for complex coding and scientific analyses."
       hosted_in: 'EU'
-      intelligence_score: 4
-      knowledge_cutoff: '2025-04-01'
+      intelligence_score: 4.5
+      AAII: 0.53
+      knowledge_cutoff: '2025-08-01'
       multimodal: true
       organization: 'Anthropic'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 1
+      tokens_per_second: 52
       zdr: false
 
   - model_name: "Gemini 2.5 Flash"
@@ -87,12 +95,14 @@ model_list:
       description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
       intelligence_score: 2.5
-      knowledge_cutoff: '2025-01-31'
+      AAII: 0.27
+      knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Google'
       reasoning: false
       research: false
-      speed: 2
+      speed: 3.5
+      tokens_per_second: 197
       zdr: true
 
   - model_name: "Gemini 3 Flash"
@@ -106,13 +116,15 @@ model_list:
       costFactor: 1
       description: "Fast multimodal model for efficient text, image, and code processing."
       hosted_in: 'EU'
-      intelligence_score: 3
-      knowledge_cutoff: '2025-06-01'
+      intelligence_score: 4
+      AAII: 0.46
+      knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Google'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 3
+      tokens_per_second: 156
       zdr: true
       allowed_messages_per_three_hours_premium: 50
 
@@ -127,13 +139,15 @@ model_list:
       costFactor: 1
       description: "Powerful multimodal model for demanding analysis and reasoning tasks."
       hosted_in: 'EU'
-      intelligence_score: 3
-      knowledge_cutoff: '2025-06-01'
+      intelligence_score: 4
+      AAII: 0.48
+      knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Google'
-      reasoning: false
+      reasoning: true
       research: false
-      speed: 3
+      speed: 2
+      tokens_per_second: 116
       zdr: true
       allowed_messages_per_three_hours_premium: 50
 
@@ -148,13 +162,15 @@ model_list:
       costFactor: 0
       description: "Fast model for reasoning, science, and code. Focus on low latency."
       hosted_in: 'EU'
-      intelligence_score: 2
-      knowledge_cutoff: '2025-06-01'
+      intelligence_score: 3
+      AAII: 0.34
+      knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Google'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 5
+      tokens_per_second: 266
       zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
@@ -169,13 +185,15 @@ model_list:
       costFactor: 2
       description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
-      intelligence_score: 3
-      knowledge_cutoff: '2025-01-31'
+      intelligence_score: 2.5
+      AAII: 0.27
+      knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Google'
       reasoning: true
       research: false
-      speed: 2
+      speed: 3.5
+      tokens_per_second: 197
       zdr: true
 
   - model_name: "GPT o3"
@@ -190,12 +208,14 @@ model_list:
       description: "Multimodal reasoning model with 200K context for complex problem-solving."
       hosted_in: 'EU'
       intelligence_score: 3.5
-      knowledge_cutoff: '2024-05-31'
+      AAII: 0.38
+      knowledge_cutoff: '2025-05-01'
       multimodal: false
       organization: 'OpenAI'
       reasoning: true
       research: false
       speed: 1.5
+      tokens_per_second: 81
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -213,12 +233,14 @@ model_list:
       description: "Compact reasoning model for efficient mathematical and logical tasks."
       hosted_in: 'EU'
       intelligence_score: 3
-      knowledge_cutoff: '2024-05-31'
+      AAII: 0.33
+      knowledge_cutoff: '2025-05-01'
       multimodal: false
       organization: 'OpenAI'
-      reasoning: true
+      reasoning: false
       research: false
       speed: 3
+      tokens_per_second: 154
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -234,13 +256,15 @@ model_list:
       costFactor: 2
       description: "Versatile model with strong reasoning for complex problem-solving."
       hosted_in: 'EU'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-10-01'
+      intelligence_score: 4
+      AAII: 0.45
+      knowledge_cutoff: '2024-09-01'
       multimodal: true
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 2.5
+      speed: 1.5
+      tokens_per_second: 80
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -258,13 +282,15 @@ model_list:
       costFactor: 0.5
       description: "Offers a balanced combination of response quality and speed. Well suited for everyday questions, creative tasks, and explanations of medium complexity. For very complex analyses or highly specialized expert questions, more powerful models are better suited."
       hosted_in: 'EU'
-      intelligence_score: 3
+      intelligence_score: 3.5
+      AAII: 0.41
       knowledge_cutoff: '2024-04-01'
       multimodal: true
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 4.5
+      speed: 2
+      tokens_per_second: 101
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -280,13 +306,15 @@ model_list:
       costFactor: 2
       description: 'Multimodal model with very large context for complex analysis tasks.'
       hosted_in: 'US'
-      intelligence_score: 2
-      knowledge_cutoff: '2024-09-30'
+      intelligence_score: 4
+      AAII: 0.48
+      knowledge_cutoff: '2025-09-30'
       multimodal: true
       organization: 'OpenAI'
       reasoning: false
       research: false
-      speed: 2
+      speed: 2.5
+      tokens_per_second: 132
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -302,13 +330,15 @@ model_list:
       costFactor: 2
       description: 'Multimodal model with very large context for complex analysis tasks.'
       hosted_in: 'EU'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-09-30'
+      intelligence_score: 4
+      AAII: 0.48
+      knowledge_cutoff: '2025-09-30'
       multimodal: true
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 2
+      speed: 2.5
+      tokens_per_second: 132
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -325,12 +355,14 @@ model_list:
       description: "Fast model for simple tasks like summarization and classification. Solid response quality with average reasoning capabilities. For complex analyses or deep logic, other models are better suited."
       hosted_in: 'EU'
       intelligence_score: 2.5
-      knowledge_cutoff: '2024-01-04'
+      AAII: 0.27
+      knowledge_cutoff: '2024-01-01'
       multimodal: true
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 5
+      speed: 2.5
+      tokens_per_second: 122
       zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
@@ -346,12 +378,14 @@ model_list:
       description: 'Versatile model with 128K context for reasoning and code tasks.'
       hosted_in: 'EU'
       intelligence_score: 1.5
+      AAII: 0.15
       knowledge_cutoff: null
       multimodal: false
       organization: 'Mistral'
-      reasoning: false
+      reasoning: true
       research: false
-      speed: 0
+      speed: 1
+      tokens_per_second: 41
       zdr: false
 
   - model_name: "Mistral Large 3"
@@ -364,13 +398,15 @@ model_list:
       costFactor: 1
       description: 'Versatile model with excellent multilingual capabilities for complex tasks.'
       hosted_in: 'EU'
-      intelligence_score: 1.5
+      intelligence_score: 2
+      AAII: 0.23
       knowledge_cutoff: null
       multimodal: false
       organization: 'Mistral'
       reasoning: false
       research: false
-      speed: 0
+      speed: 2.5
+      tokens_per_second: 129
       zdr: false
 
   - model_name: "Perplexity Sonar Deep Research"
@@ -382,13 +418,15 @@ model_list:
       costFactor: 0
       description: 'Autonomous research agent for comprehensive analysis reports from web sources.'
       hosted_in: 'US'
-      intelligence_score: 0
+      intelligence_score: null
+      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: true
       research: true
-      speed: 0
+      speed: null
+      tokens_per_seconds: null
       zdr: false
 
   - model_name: "Perplexity Sonar"
@@ -400,13 +438,15 @@ model_list:
       costFactor: 0
       description: 'Fast search model for precise answers with source citations.'
       hosted_in: 'US'
-      intelligence_score: 1
+      intelligence_score: null
+      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: false
       research: true
-      speed: 3
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 5
 
@@ -419,13 +459,15 @@ model_list:
       costFactor: 0
       description: 'Advanced search for complex, multi-step research with more citations.'
       hosted_in: 'US'
-      intelligence_score: 1.5
+      intelligence_score: null
+      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: false
       research: true
-      speed: 0
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -438,13 +480,15 @@ model_list:
       costFactor: 0
       description: 'Web search with advanced reasoning for analytical research.'
       hosted_in: 'US'
-      intelligence_score: 2.5
+      intelligence_score: null
+      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: true
       research: true
-      speed: 0
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -462,7 +506,7 @@ model_list:
   #     knowledge_cutoff: '2024-06-01'
   #     multimodal: false
   #     organization: 'OpenAI'
-  #     reasoning: false
+  #     reasoning: true
   #     research: false
   #     speed: 1.5
   #     zdr: true
@@ -480,13 +524,15 @@ model_list:
       costFactor: 1
       description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: null
+      intelligence_score: 3
+      AAII: 0.35
+      knowledge_cutoff: '2024-12-01'
       multimodal: false
       organization: 'xAI'
       reasoning: true
       research: false
-      speed: 3
+      speed: 4
+      tokens_per_second: 218
       zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
@@ -502,13 +548,15 @@ model_list:
       costFactor: 1
       description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
-      intelligence_score: 3
-      knowledge_cutoff: null
+      intelligence_score: 2
+      AAII: 0.23
+      knowledge_cutoff: '2024-12-01'
       multimodal: false
       organization: 'xAI'
       reasoning: false
       research: false
-      speed: 4
+      speed: 1.5
+      tokens_per_second: 88
       zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
@@ -523,13 +571,15 @@ model_list:
       costFactor: 1
       description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
-      intelligence_score: 3
-      knowledge_cutoff: null
+      intelligence_score: 3.5
+      AAII: 0.39
+      knowledge_cutoff: '2025-08-01'
       multimodal: false
       organization: 'xAI'
-      reasoning: false
+      reasoning: true
       research: false
-      speed: 4.5
+      speed: 2.5
+      tokens_per_second: 126
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -543,13 +593,15 @@ model_list:
       costFactor: 1
       description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
-      intelligence_score: 3
-      knowledge_cutoff: null
+      intelligence_score: 2
+      AAII: 0.24
+      knowledge_cutoff: '2025-08-01'
       multimodal: false
       organization: 'xAI'
       reasoning: false
       research: false
-      speed: 4.5
+      speed: 2
+      tokens_per_second: 116
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -564,13 +616,15 @@ model_list:
       costFactor: 1
       description: "Specialized in multi-step problem-solving in math, code, and science."
       hosted_in: 'US'
-      intelligence_score: 3
-      knowledge_cutoff: '2024-08-01'
+      intelligence_score: 3.5
+      AAII: 0.42
+      knowledge_cutoff: null
       multimodal: false
       organization: 'DeepSeek'
       reasoning: true
       research: false
-      speed: 2
+      speed: 1
+      tokens_per_second: 36
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -586,13 +640,15 @@ model_list:
       costFactor: 1
       description: "Reasoning model for complex math, logic, and scientific analyses."
       hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-08-01'
+      intelligence_score: 1.5
+      AAII: 0.19
+      knowledge_cutoff: null
       multimodal: false
       organization: 'DeepSeek'
       reasoning: true
       research: false
       speed: 1.5
+      tokens_per_second: 89
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -608,13 +664,15 @@ model_list:
       costFactor: 1
       description: "Reasoning model for complex math, logic, and scientific analyses."
       hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-08-01'
+      intelligence_score: 2.5
+      AAII: 0.27
+      knowledge_cutoff: null
       multimodal: false
       organization: 'DeepSeek'
       reasoning: true
       research: false
-      speed: 1.5
+      speed: 3.5
+      tokens_per_second: 175
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
@@ -630,13 +688,15 @@ model_list:
       costFactor: 2
       description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-10-01'
+      intelligence_score: 5
+      AAII: 0.57
+      knowledge_cutoff: '2025-08-01'
       multimodal: false
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 2
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 10
 
@@ -653,13 +713,15 @@ model_list:
       costFactor: 5
       description: "Agent for autonomous web research with synthesis into comprehensive reports."
       hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-05-31'
+      intelligence_score: null
+      AAII: null
+      knowledge_cutoff: null
       multimodal: false
       organization: 'OpenAI'
       reasoning: true
       research: true
-      speed: 1
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 10
 
@@ -674,13 +736,15 @@ model_list:
       costFactor: 3
       description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
-      intelligence_score: 4
-      knowledge_cutoff: '2025-01-01'
+      intelligence_score: 5
+      AAII: 0.57
+      knowledge_cutoff: '2025-08-01'
       multimodal: true
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 2
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -695,13 +759,15 @@ model_list:
       costFactor: 3
       description: "Specialized in code generation, debugging, and technical documentation."
       hosted_in: 'US'
-      intelligence_score: 4
-      knowledge_cutoff: '2025-01-01'
+      intelligence_score: 5
+      AAII: 0.54
+      knowledge_cutoff: null
       multimodal: true
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: 2
+      speed: 1
+      tokens_per_second: 62
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -716,13 +782,15 @@ model_list:
       costFactor: 3
       description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
-      intelligence_score: 4
-      knowledge_cutoff: '2025-01-01'
+      intelligence_score: null
+      AAII: null
+      knowledge_cutoff: '2025-08-01'
       multimodal: true
       organization: 'OpenAI'
-      reasoning: true
+      reasoning: false
       research: false
-      speed: 2
+      speed: null
+      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -736,13 +804,15 @@ model_list:
       costFactor: 3
       description: "Multimodal model with extended context for text, image, and code analysis."
       hosted_in: 'EU'
-      intelligence_score: 4
-      knowledge_cutoff: '2025-06-01'
+      intelligence_score: 5
+      AAII: 0.57
+      knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'Google'
       reasoning: true
       research: false
-      speed: 1.5
+      speed: 2
+      tokens_per_second: 102
       zdr: true
       allowed_messages_per_three_hours_premium: 50
 

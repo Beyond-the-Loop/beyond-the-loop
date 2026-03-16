@@ -493,11 +493,11 @@
 							</div>
 							<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.speed && "justify-end"}">
 								{#if $modelsInfo?.[hoveredItem?.label]?.speed}
-									<SpeedRating rating={$modelsInfo?.[hoveredItem?.label]?.speed} />
+									<SpeedRating rating={$modelsInfo?.[hoveredItem?.label]?.speed} tokens_per_second={$modelsInfo?.[hoveredItem?.label]?.tokens_per_second} />
 								{:else}
 									N/A
 								{/if}
-								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Speed')}</p>
+								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Tokens/second')}</p>
 							</div>
 							<div class="flex flex-col items-center py-2">
 								{#if $modelsInfo?.[hoveredItem?.label]?.hosted_in}
@@ -508,10 +508,16 @@
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
 									{#if knowledgeCutoff}
-										{knowledgeCutoff}
+										{knowledgeCutoff
+											.trim()
+											.split(/\s+/)
+											.map(w => $i18n.t(w))
+											.join(' ')
+										}
 									{:else}
 										N/A
 									{/if}
+
 								</p>
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Knowledge cutoff')}</p>
 							</div>

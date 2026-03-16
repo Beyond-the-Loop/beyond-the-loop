@@ -1204,6 +1204,7 @@
 	"Toggle sidebar": "Seitenleiste umschalten",
 	"Token": "Token",
 	"Tokens to keep on context refresh (num_keep)": "Beizubehaltende Tokens bei Kontextaktualisierung (num_keep)",
+	"Tokens/second": "Tokens/Sekunde",
 	"Too verbose": "Zu ausführlich",
 	"Tool created successfully": "Werkzeug erfolgreich erstellt",
 	"Tool deleted successfully": "Werkzeug erfolgreich gelöscht",
