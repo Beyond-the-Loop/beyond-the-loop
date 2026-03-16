@@ -617,7 +617,7 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
 
-  - model_name: " DeepSeek R1-0528"
+  - model_name: "DeepSeek R1-0528"
     litellm_params:
       model: "vertex_ai/deepseek-ai/deepseek-r1-0528-maas"
       vertex_project: 'beyond-chat-1111'
@@ -659,27 +659,6 @@ model_list:
       speed: 2
       zdr: false
       allowed_messages_per_three_hours_premium: 10
-
-  - model_name: "GPT-5.1 Codex"
-    litellm_params:
-      model: "azure/gpt-5.1-codex"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-    model_info:
-      context_window: '128K'
-      category: 3
-      costFactor: 2
-      description: "Code-specialized variant of GPT-5.1 designed for software development, refactoring, testing, and agent-based programming tasks."
-      hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: '2024-10-01'
-      multimodal: false
-      organization: 'OpenAI'
-      reasoning: true
-      research: false
-      speed: 2
-      zdr: false
-      allowed_messages_per_three_hours_premium: 50
 
   - model_name: "GPT o3 Deep Research"
     litellm_params:
