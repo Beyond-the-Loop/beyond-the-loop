@@ -75,26 +75,6 @@ model_list:
       speed: 1
       zdr: false
 
-  - model_name: "Gemini 2.5 Pro"
-    litellm_params:
-      model: 'gemini-2.5-pro'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'europe-west4'
-    model_info:
-      context_window: '1M'
-      category: 1
-      costFactor: 0
-      description: "Balanced model with good reasoning and multimodal capabilities. Optimal price-performance ratio."
-      hosted_in: 'EU'
-      intelligence_score: 2.5
-      knowledge_cutoff: '2025-01-31'
-      multimodal: true
-      organization: 'Google'
-      reasoning: false
-      research: false
-      speed: 2
-      zdr: true
-
   - model_name: "Gemini 2.5 Flash"
     litellm_params:
       model: 'gemini-2.5-flash'
@@ -179,7 +159,7 @@ model_list:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
 
-  - model_name: "Google 2.5 Pro"
+  - model_name: "Gemini 2.5 Pro"
     litellm_params:
       model: 'gemini-2.5-pro'
       vertex_project: 'beyond-chat-1111'
