@@ -374,6 +374,25 @@ model_list:
       speed: 0
       zdr: false
 
+  - model_name: "Mistral Large 3"
+    litellm_params:
+      model: 'azure/Mistral-Large-3'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'europe-west4'
+    model_info:
+      context_window: '128K'
+      costFactor: 1
+      description: 'Strong performance in code, mathematics, and logic. Supports many languages and delivers precise answers. Ideal for technical queries and programming; less flexible for creative tasks.'
+      hosted_in: 'EU'
+      intelligence_score: 1.5
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'Mistral'
+      reasoning: false
+      research: false
+      speed: 0
+      zdr: false
+
   - model_name: "Perplexity Sonar Deep Research"
     litellm_params:
       model: 'perplexity/sonar-deep-research'
