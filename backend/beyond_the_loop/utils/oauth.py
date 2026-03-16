@@ -202,7 +202,7 @@ class OAuthManager:
             return redirect_with_error(request, OAUTH_ERROR_CODES.NOT_FOUND)
 
         # Persist UTM params in session so they survive the OAuth redirect round-trip
-        utm_keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]
+        utm_keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_gclid"]
         utm_params = {k: request.query_params[k] for k in utm_keys if k in request.query_params}
         if utm_params:
             request.session["utm_params"] = utm_params

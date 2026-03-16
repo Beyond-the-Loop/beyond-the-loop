@@ -446,6 +446,7 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
             "utm_campaign": form_data.utm_campaign,
             "utm_content": form_data.utm_content,
             "utm_term": form_data.utm_term,
+            "utm_gclid": form_data.utm_gclid,
         }.items() if v}
         if utm_params:
             existing_info = user.info or {}

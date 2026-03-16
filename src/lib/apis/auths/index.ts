@@ -897,7 +897,7 @@ export const completeRegistration = async (
 	registration_code: string,
 	password: string,
 	profile_image_url: string,
-	utm_params?: { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string },
+	utm_params?: { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string; utm_gclid?: string },
 ) => {
 	let error = null;
 

@@ -262,7 +262,7 @@ class CRMService:
                     "last_name": user_lastname,
                 }
                 if utm_params:
-                    for key in ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"):
+                    for key in ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_gclid"):
                         if utm_params.get(key):
                             values[key] = utm_params[key]
 

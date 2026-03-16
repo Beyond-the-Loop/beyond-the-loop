@@ -110,6 +110,7 @@ class SignupForm(BaseModel):
     utm_campaign: Optional[str] = None
     utm_content: Optional[str] = None
     utm_term: Optional[str] = None
+    utm_gclid: Optional[str] = None
 
 class AuthsTable:
     def insert_new_auth(
