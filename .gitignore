@@ -298,3 +298,5 @@ dist
 .webui_secret_key
 
 gcp_python_executor_key.json
+
+.claude/settings.local.json
