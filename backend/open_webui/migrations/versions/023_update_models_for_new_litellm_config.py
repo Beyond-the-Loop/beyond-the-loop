@@ -56,10 +56,18 @@ def upgrade() -> None:
     conn = op.get_bind()
     now = int(time.time())
 
-    # 1. Rename changed models
+    # 1. Rename changed models (model.name, model.base_model_id for assistants, completion.model)
     for old_name, new_name in RENAMES:
         conn.execute(
             sa.text("UPDATE model SET name = :new_name WHERE name = :old_name"),
+            {"old_name": old_name, "new_name": new_name},
+        )
+        conn.execute(
+            sa.text("UPDATE model SET base_model_id = :new_name WHERE base_model_id = :old_name"),
+            {"old_name": old_name, "new_name": new_name},
+        )
+        conn.execute(
+            sa.text("UPDATE completion SET model = :new_name WHERE model = :old_name"),
             {"old_name": old_name, "new_name": new_name},
         )
 
