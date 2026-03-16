@@ -125,6 +125,7 @@ from beyond_the_loop.routers.files import upload_file
 from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
 from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.socket.main import (
     app as socket_app,
@@ -545,12 +546,14 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
+    plan = subscription.get("plan")
+
+    if plan == "free" or plan == "premium":
         allowed_premium = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_premium")}
         all_models = [model for model in all_models if
                       model_base_model_names[model.id] in allowed_premium]
 
-        if subscription.get("plan") == "free":
+        if plan == "free":
             allowed = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_free")}
 
             for model in all_models:
@@ -564,6 +567,14 @@ async def get_active_models(user=Depends(get_verified_user)):
                           model_base_model_names[model.id] not in ("Perplexity Sonar Pro",
                                                                    "Perplexity Sonar Deep Research",
                                                                    "Perplexity Sonar Reasoning Pro")]
+
+        # Check fair usage limits in a single batch query
+        unique_base_names = list({name for name in model_base_model_names.values() if name})
+        limit_reached = fair_model_usage_service.get_fair_usage_limit_reached_models(user, unique_base_names, plan)
+
+        for model in all_models:
+            base = model_base_model_names.get(model.id)
+            model.fair_usage_limit_reached = base in limit_reached if base else False
 
     return {"data": all_models}
 

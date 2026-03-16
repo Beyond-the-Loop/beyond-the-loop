@@ -342,7 +342,7 @@
 						aria-label="model-item"
 						class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm outline-none transition-all duration-75 rounded-lg
        				{value === item.value ? 'bg-lightGray-700 dark:bg-customGray-950' : ''}
-       				{!item.model?.is_active ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
+       				{!item.model?.is_active || item.model?.fair_usage_limit_reached ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
 
 						data-arrow-selected={index === selectedModelIdx}
 						on:mouseenter={() => {
@@ -360,7 +360,7 @@
 
 							show = false;
 						}}
-						disabled={!item.model?.is_active}
+						disabled={!item.model?.is_active || item.model?.fair_usage_limit_reached}
 					>
 						<div class="flex flex-col">
 							{#if $mobile && (item?.model?.meta?.tags ?? []).length > 0}
@@ -387,6 +387,8 @@
 												<span>{item.label}</span>
 												{#if !item.model?.is_active}
 													<span class="text-[0.4rem] ml-[-2px] align-super">Premium</span>
+												{:else if item.model?.fair_usage_limit_reached}
+													<span class="text-[0.4rem] ml-[-2px] align-super">Limit reached</span>
 												{/if}
 											</div>
 										</div>
