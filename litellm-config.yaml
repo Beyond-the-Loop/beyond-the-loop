@@ -75,7 +75,7 @@ model_list:
       speed: 1
       zdr: false
 
-  - model_name: "Google 2.5 Flash"
+  - model_name: "Gemini 2.5 Flash"
     litellm_params:
       model: 'gemini-2.5-flash'
       vertex_project: 'beyond-chat-1111'
@@ -450,27 +450,6 @@ model_list:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
 
-  - model_name: "Grok 4.1"
-    litellm_params:
-      model: "azure/grok-4-1"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-    model_info:
-      context_window: '256K'
-      category: 1
-      costFactor: 1
-      description: "Reasoning-optimized variant of Grok 4 focused on fast, structured thinking. Well suited for technical analyses with reduced response time."
-      hosted_in: 'US'
-      intelligence_score: 3.5
-      knowledge_cutoff: null
-      multimodal: false
-      organization: 'xAI'
-      reasoning: true
-      research: false
-      speed: 3
-      zdr: false
-      allowed_messages_per_three_hours_premium: 50
-
   - model_name: "Grok 4 Fast Reasoning"
     litellm_params:
       model: "azure/grok-4-fast-reasoning"
@@ -780,7 +759,7 @@ model_list:
       model: auto_router/complexity_router
       complexity_router_config:
         tiers:
-          SIMPLE: "Google 2.5 Flash"
+          SIMPLE: "Gemini 2.5 Flash"
           MEDIUM: "Claude Sonnet 4.6"
           COMPLEX: "Claude Opus 4.6"
           REASONING: "GPT o4-mini"
@@ -803,7 +782,7 @@ model_list:
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true
-  default_fallbacks: ["Google 2.5 Flash"]
+  default_fallbacks: ["Gemini 2.5 Flash"]
 
 general_settings:
   alerting: ["slack"]
