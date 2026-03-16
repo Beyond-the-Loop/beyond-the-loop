@@ -35,7 +35,7 @@
 
 	function oauthLogin(provider: string) {
 		const utmParams = new URLSearchParams();
-		for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+		for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_gclid']) {
 			const el = document.getElementById(key);
 			const val = el ? (el as HTMLInputElement).value : '';
 			if (val) utmParams.set(key, val);
