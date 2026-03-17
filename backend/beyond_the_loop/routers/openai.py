@@ -22,7 +22,6 @@ from beyond_the_loop.config import (
     CACHE_DIR,
     LITELLM_MODEL_MAP,
 )
-from beyond_the_loop.config import DEFAULT_AGENT_MODEL
 from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
@@ -420,7 +419,7 @@ async def generate_chat_completion(
                 if agent_or_task_prompt:
                     raise e
 
-                model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+                model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
                 form_data = {
                     "messages": [
@@ -471,7 +470,7 @@ async def generate_chat_completion(
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
-    model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+    model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
     payload = {
         "messages": [
