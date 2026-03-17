@@ -252,6 +252,7 @@ model_list:
       model: "azure/responses/gpt-5"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: low
     model_info:
       context_window: '400K'
       category: 3
@@ -660,7 +661,7 @@ model_list:
 
   - model_name: "GPT-5.4 Pro"
     litellm_params:
-      model: "azure/gpt-5.4-pro"
+      model: "azure/responses/gpt-5.4-pro"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
@@ -711,6 +712,7 @@ model_list:
       model: "azure/responses/gpt-5.4"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: medium
     model_info:
       context_window: '512K'
       category: 3
