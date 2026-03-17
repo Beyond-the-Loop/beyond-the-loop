@@ -140,7 +140,7 @@
 						<span class="whitespace-nowrap hidden sm:inline">{$i18n.t('References from')}</span>
 						<div class="flex items-center">
 							<div class="text-xs font-medium items-center">
-								{#each citations.slice(0, 2) as citation, idx}
+								{#each citations as citation, idx}
 									<button
 										class="no-toggle outline-none mb-1 flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
 										on:click={() => {

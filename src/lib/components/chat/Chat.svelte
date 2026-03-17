@@ -1011,10 +1011,6 @@
 			await handleOpenAIError(error, message);
 		}
 
-		if (taskId == null) {
-			return;
-		}
-
 		if (sources) {
 			message.sources = sources;
 		}
