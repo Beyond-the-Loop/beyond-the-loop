@@ -735,6 +735,8 @@
 
 											if (sourceButton) {
 												sourceButton.click();
+											} else if (e.startsWith('http')) {
+												window.open(e, '_blank', 'noopener,noreferrer');
 											}
 										}}
 										onAddMessages={({ modelId, parentId, messages }) => {

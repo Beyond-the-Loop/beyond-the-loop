@@ -258,6 +258,7 @@ Respond to the user query using the provided context, incorporating inline citat
 - Do not cite if the <source_id> tag is not provided in the context.
 - Do not use XML tags in your response.
 - Ensure citations are concise and directly related to the information provided.
+- **Each citation must be in its own separate bracket. Never combine multiple source IDs in one bracket (e.g. use [source1] [source2], never [source1; source2]).**
 
 ### Example of Citation:
 If the user asks about a specific topic and the information is found in "whitepaper.pdf" with a provided <source_id>, the response should include the citation like so:
