@@ -106,7 +106,7 @@ from beyond_the_loop.models.alert import Alerts
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG
-from beyond_the_loop.models.models import Models
+from beyond_the_loop.models.models import Models, ModelMeta, ModelParams, ModelResponse
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import analytics
 from beyond_the_loop.routers import auths
@@ -131,11 +131,11 @@ from beyond_the_loop.socket.main import (
     app as socket_app,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
+from beyond_the_loop.models.models import ModelModel
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
     SAFE_MODE,
-    SRC_LOG_LEVELS,
     VERSION,
     WEBUI_SECRET_KEY,
     WEBUI_SESSION_COOKIE_SAME_SITE,
@@ -174,6 +174,7 @@ from open_webui.utils.chat import (
 )
 from open_webui.utils.middleware import process_chat_payload, process_chat_response, ClientDisconnectedError
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
+from open_webui.utils.middleware import SMART_ROUTER_MODEL
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -572,9 +573,17 @@ async def get_active_models(user=Depends(get_verified_user)):
         unique_base_names = list({name for name in model_base_model_names.values() if name})
         limit_reached = fair_model_usage_service.get_fair_usage_limit_reached_models(user, unique_base_names, plan)
 
-        for model in all_models:
-            base = model_base_model_names.get(model.id)
-            model.fair_usage_limit_reached = base in limit_reached if base else False
+        all_models = [
+            ModelResponse(
+                **model.model_dump(),
+                fair_usage_limit_reached=model_base_model_names.get(model.id) in limit_reached
+            )
+            for model in all_models
+        ]
+
+    smart_router = SMART_ROUTER_MODEL
+
+    all_models = list(all_models) + [smart_router]
 
     return {"data": all_models}
 
@@ -727,7 +736,10 @@ async def chat_completion(
     try:
         model_id = form_data.get("model", None)
 
-        model = Models.get_model_by_id(model_id)
+        if model_id == SMART_ROUTER_MODEL.id:
+            model = SMART_ROUTER_MODEL
+        else:
+            model = Models.get_model_by_id(model_id)
 
         metadata = {
             "user_id": user.id,
@@ -740,7 +752,7 @@ async def chat_completion(
 
         form_data["metadata"] = metadata
 
-        form_data, metadata, events = await process_chat_payload(
+        form_data, metadata, events, model = await process_chat_payload(
             request, form_data, metadata, user, model
         )
 

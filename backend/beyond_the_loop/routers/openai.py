@@ -98,7 +98,7 @@ async def cleanup_response(
 #
 ##########################################
 
-async def get_all_models():
+async def get_all_models_from_litellm():
     """
     Fetch all available models from the litellm server.
     Returns the models in OpenAI API format.

@@ -141,8 +141,6 @@ class ModelModel(BaseModel):
     user_id: Optional[str]
     company_id: str
 
-    fair_usage_limit_reached: Optional[bool] = None
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -151,7 +149,7 @@ class ModelModel(BaseModel):
 ####################
 
 class ModelResponse(ModelModel):
-    pass
+    fair_usage_limit_reached: Optional[bool] = None
 
 class ModelUserResponse(ModelModel):
     user: Optional[UserResponse] = None

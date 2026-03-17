@@ -322,6 +322,32 @@ FILE_INTENT_DECISION_PROMPT = "You are an AI assistant that determines user inte
 KNOWLEDGE_INTENT_DECISION_PROMPT = "You are an AI assistant that determines user intent. The user has attached a knowledge base and/or single files to the prompt. Analyze their message and determine:\n\nFor the user's intent, is it necessary to search the knowledge or the files?\n\nExamples that need the knowledge/files:\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n- Answering specific questions about the document\n- Finding particular information or facts in the knowledge base\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'YES' or 'NO' - nothing else. Return no only, of you know that you don't need extra knowledge to answer the question."
 
 # ---------------------------------------------------------------------------
+# Smart Router
+# ---------------------------------------------------------------------------
+
+SMART_ROUTER_PROMPT = """### Task:
+Analyze the user's message and determine the required intelligence level to answer it correctly.
+
+### Intelligence Scale (float between 1.0 and 5.0):
+1.0 - Very simple: greetings, basic factual questions, simple yes/no, trivial tasks
+2.0 - Simple: straightforward questions, basic writing, simple translations, easy explanations
+3.0 - Moderate: multi-step reasoning, detailed explanations, standard coding tasks, analysis
+4.0 - Complex: advanced reasoning, complex coding, nuanced writing, in-depth analysis, research
+5.0 - Very complex: cutting-edge research, highly technical problems, complex multi-domain reasoning, advanced mathematics
+
+Use intermediate values (e.g. 2.5, 3.5) when the request falls between two levels.
+
+### Rules:
+- Return a float between 1.0 and 5.0.
+- Err on the side of lower scores for straightforward requests.
+- Err on the side of higher scores for complex, technical, or ambiguous requests.
+- When in doubt, prefer a lower score.
+
+### User Message:
+{{USER_MESSAGE}}
+"""
+
+# ---------------------------------------------------------------------------
 # Magic Prompt (Prompt Engineering Assistant)
 # ---------------------------------------------------------------------------
 

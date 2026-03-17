@@ -29,6 +29,7 @@ from beyond_the_loop.prompts import (
     IMAGE_GENERATED_CONTEXT,
     IMAGE_ERROR_CONTEXT,
     AUTO_TOOL_SELECTION_PROMPT,
+    SMART_ROUTER_PROMPT,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
@@ -36,6 +37,7 @@ from beyond_the_loop.utils.structured_completion import (
     FileIntentDecision,
     KnowledgeUseDecision,
     ToolSelectionDecision,
+    SmartRouterDecision,
 )
 from beyond_the_loop.models.files import FileForm
 from beyond_the_loop.socket.main import (
@@ -44,6 +46,7 @@ from beyond_the_loop.socket.main import (
     get_active_status_by_user_id,
 )
 from beyond_the_loop.models.knowledge import Knowledges
+from beyond_the_loop.models.models import ModelMeta, ModelParams
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
@@ -73,6 +76,7 @@ from beyond_the_loop.config import (
     CACHE_DIR,
     CODE_INTERPRETER_PROMPT,
     DEFAULT_AGENT_MODEL,
+    LITELLM_MODEL_CONFIG,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -82,6 +86,7 @@ from open_webui.env import (
 from open_webui.constants import TASKS
 from open_webui.routers.retrieval import process_file, ProcessFileForm
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
@@ -611,6 +616,77 @@ async def check_disconnect(request):
         raise ClientDisconnectedError("Client disconnected")
 
 
+SMART_ROUTER_MODEL = ModelModel(
+                id="Smart Router",
+                name="Smart Router",
+                meta=ModelMeta(),
+                params=ModelParams(),
+                is_active=True,
+                updated_at=int(time.time()),
+                created_at=int(time.time()),
+                user_id=None,
+                company_id="",
+                base_model_id=None,
+                access_control=None,
+            )
+
+
+async def _smart_router_model_selection(user_message: str, user) -> ModelModel | None:
+    """
+    Score the user message complexity (1–5) via structured completion, then pick
+    the active base model whose intelligence_score in LITELLM_MODEL_CONFIG is
+    closest to that score.  Returns None if no suitable model can be found.
+    """
+    try:
+        agent_model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+
+        decision = await structured_completion(
+            messages=[{"role": "user", "content": SMART_ROUTER_PROMPT.replace("{{USER_MESSAGE}}", user_message)}],
+            response_model=SmartRouterDecision,
+            model=agent_model,
+        )
+
+        target_score = max(1.0, min(5.0, decision.intelligence_score))
+
+        log.debug(f"Smart Router: target intelligence score = {target_score}")
+
+        # Lazy import to avoid circular dependency (main.py imports middleware.py)
+        from open_webui.main import get_active_models
+
+        result = await get_active_models(user=user)
+        routable_models = [
+            m for m in result["data"]
+            if m.base_model_id is None                              # no assistants
+            and m.name != SMART_ROUTER_MODEL.name                  # not Smart Router itself
+            and m.is_active                                         # active (e.g. not locked in free plan)
+            and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
+        ]
+
+        # Find the model with the closest intelligence_score
+        best_model: ModelModel | None = None
+
+        best_diff = float("inf")
+
+        for m in routable_models:
+            score = LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score")
+
+            if score is None:
+                continue
+            diff = abs(score - target_score)
+
+            if diff < best_diff:
+                best_diff = diff
+                best_model = m
+
+        if best_model:
+            log.info(f"Smart Router: routed to '{best_model.name}' (score={LITELLM_MODEL_CONFIG.get(best_model.name, {}).get('intelligence_score')})")
+
+        return best_model
+    except Exception as e:
+        log.exception(f"Smart Router model selection failed: {e}")
+        return None
+
+
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
 
@@ -644,6 +720,36 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     auto_tools = form_data.pop("auto_tools", [])
 
     user_message = get_last_user_message(form_data["messages"])
+
+    if model.name == SMART_ROUTER_MODEL.name and user_message:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Routing your request",
+                    "done": False,
+                },
+            }
+        )
+
+        routed_model = await _smart_router_model_selection(user_message, user)
+
+        if routed_model:
+            model = routed_model
+            form_data["model"] = routed_model.id
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Routing your request",
+                    "done": True,
+                    "hidden": True,
+                },
+            }
+        )
 
     if auto_tools and user_message:
         try:
@@ -951,7 +1057,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             form_data["messages"] = add_or_update_user_message(
                 code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
-    return form_data, metadata, events
+    return form_data, metadata, events, model
 
 
 async def process_chat_response(
