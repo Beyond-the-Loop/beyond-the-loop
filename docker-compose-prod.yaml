@@ -79,6 +79,7 @@ services:
       - .env
     volumes:
       - ./backend/data:/app/backend/data
+      - ./litellm-config.yaml:/app/litellm-config.yaml:ro
     depends_on:
       - redis
       - litellm
