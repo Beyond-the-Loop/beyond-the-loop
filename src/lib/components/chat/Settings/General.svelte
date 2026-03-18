@@ -26,6 +26,15 @@
 	let lang = $i18n.language;
 	let system = '';
 
+	const styles = [
+        { value: 'professional', title: '💼 Professionell', description: 'Sachlich, präzise und geschäftlich. Ideal für Unternehmensinhalte.' },
+        { value: 'friendly', title: '😊 Freundlich', description: 'Locker, nahbar und verständlich. Ideal für allgemeine Kommunikation.' },
+        { value: 'creative', title: '🎨 Kreativ', description: 'Inspirierend, bildhaft und unkonventionell. Ideal für Brainstorming.' },
+        { value: 'academic', title: '📚 Akademisch', description: 'Fundiert, strukturiert und detailliert. Ideal für Recherche und Analyse.' },
+    ];
+
+	let selectedStyle: string = styles[0].value;
+
 	onMount(async () => {
 		selectedTheme = localStorage.theme ?? 'system';
 
@@ -103,6 +112,10 @@
 		applyTheme(_theme);
 		selectedTheme = _theme;
 	};
+	function changePromptStyle(prompt: string) {
+		localStorage.setItem('prompt', prompt);
+		selectedStyle = prompt;
+	}
 	let showLanguageDropdown = false;
 	let languageDropdownRef;
 
@@ -262,7 +275,7 @@
 				</div>
 			</div>
 			<div
-				class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
+				class="flex w-full justify-between items-center py-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700 mt-4"
 			>
 				<div class="flex w-full justify-between items-center">
 					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Theme')}</div>
@@ -307,31 +320,51 @@
 
 {#if $user.role === 'admin' || $user?.permissions.chat?.controls}
 	<div
-		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
+		class="flex w-full justify-between items-center pb-1 pt-3 border-t border-lightGray-400 dark:border-customGray-700 mt-6"
 	>
 		<div class="flex w-full justify-between items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Custom instructions')}</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Tone')}</div>
 		</div>
 	</div>
+	<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
+			<!-- {$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')} -->
+			 Wähle einen Ton für KI-Antworten oder schreibe einen eigenen Prompt.
+	</div>
 
+	<div class="w-full grid grid-cols-2 gap-3">
+		{#each styles as style (style.value)}
+			<div
+				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 hover:bg-lightGray-400 rounded-lg cursor-pointer
+					{selectedStyle === style.value && !system ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-gray-600'}"
+				on:click={() => changePromptStyle(style.value)}
+				on:keydown={(e) => {e}}
+				role="radio"                 
+				tabindex="0"                 
+				aria-checked="{selectedStyle === style.value}" 
+				aria-labelledby="style-title-{style.value}"
+			>
+				<h2>{style.title}</h2>
+				<p class="text-xs text-gray-600 dark:text-gray-500">{style.description}</p>
+			</div>
+		{/each}
+	</div>
+	<div class="text-xs text-gray-600 dark:text-customGray-100/50 py-2 pt-4">
+			<!-- {$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')} -->
+			 Eigener Tonalitätsprompt (optional)
+	</div>
 	<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
-		{#if system}
+		<!-- {#if system}
 			<div
 				class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System prompt')}</div>
-		{/if}
+		{/if} -->
 		<textarea
 			bind:value={system}
-			placeholder={$i18n.t('System prompt')}
-			class="px-2.5 py-2 text-sm {system ? "pt-4" : "pt-2"} text-lightGray-100 placeholder:text-lightGray-100 w-full h-20 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none"
+			placeholder="z.B. antworte immer knapp, verwende Aufzählungen und vermeide Fachjargon..."
+			
+			class="px-2.5 py-2 text-sm {system ? "pt-2" : "pt-2"} text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
 					rows="4"
 				/>
 			</div>
-	<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
-		<div>
-			{$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')}
-		</div>
-	</div>
-
 
 	<div class="mb-2.5">
 		<div
