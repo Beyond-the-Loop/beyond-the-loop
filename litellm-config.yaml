@@ -275,10 +275,8 @@ model_list:
   - model_name: "GPT-5 mini"
     litellm_params:
       model: "azure/gpt-5-mini"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-      api_version: "2025-04-01-preview"
-      base_model: "azure/gpt-5-mini"
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '400K'
       category: 2
@@ -349,8 +347,8 @@ model_list:
   - model_name: "GPT-5 nano"
     litellm_params:
       model: "azure/responses/gpt-5-nano"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '400K'
       category: 1
@@ -370,32 +368,11 @@ model_list:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
 
-  - model_name: "Mistral Large 2"
-    litellm_params:
-      model: 'vertex_ai/mistral-large-2411@001'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'europe-west4'
-    model_info:
-      context_window: '128K'
-      costFactor: 1
-      description: 'Versatile model with 128K context for reasoning and code tasks.'
-      hosted_in: 'EU'
-      intelligence_score: 1.5
-      AAII: 0.15
-      knowledge_cutoff: null
-      multimodal: false
-      organization: 'Mistral'
-      reasoning: true
-      research: false
-      speed: 1
-      tokens_per_second: 41
-      zdr: false
-
   - model_name: "Mistral Large 3"
     litellm_params:
       model: 'azure/Mistral-Large-3'
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'europe-west4'
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
       context_window: '128K'
       costFactor: 1
@@ -411,6 +388,8 @@ model_list:
       speed: 2.5
       tokens_per_second: 129
       zdr: false
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
 
   - model_name: "Perplexity Sonar Deep Research"
     litellm_params:
@@ -611,8 +590,8 @@ model_list:
   - model_name: "DeepSeek-V3.2"
     litellm_params:
       model: "azure/DeepSeek-V3.2"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '128K'
       category: 2
@@ -635,8 +614,8 @@ model_list:
   - model_name: "DeepSeek R1"
     litellm_params:
       model: "azure/DeepSeek-R1"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '128K'
       category: 2
@@ -658,9 +637,9 @@ model_list:
 
   - model_name: "DeepSeek R1-0528"
     litellm_params:
-      model: "vertex_ai/deepseek-ai/deepseek-r1-0528-maas"
-      vertex_project: 'beyond-chat-1111'
-      vertex_location: 'us-central1'
+      model: "azure/DeepSeek-R1-0528"
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '128K'
       category: 2

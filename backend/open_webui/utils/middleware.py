@@ -75,7 +75,6 @@ from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     CACHE_DIR,
     CODE_INTERPRETER_PROMPT,
-    DEFAULT_AGENT_MODEL,
     LITELLM_MODEL_CONFIG,
 )
 from open_webui.env import (
@@ -311,7 +310,7 @@ async def chat_image_generation_handler(
     edit_last_image = False
 
     if len(already_generated_images) > 0:
-        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
         decision_messages = messages.copy()
         decision_messages.append({"role": "user", "content": IMAGE_EDIT_DECISION_MESSAGE})
@@ -443,7 +442,7 @@ async def chat_file_intent_decision_handler(
                 }
             ],
             response_model=FileIntentDecision,
-            model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
         )
         is_rag_task = result.intent == "RAG"
         log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
@@ -638,7 +637,7 @@ async def _smart_router_model_selection(user_message: str, user) -> ModelModel |
     closest to that score.  Returns None if no suitable model can be found.
     """
     try:
-        agent_model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
         decision = await structured_completion(
             messages=[{"role": "user", "content": SMART_ROUTER_PROMPT.replace("{{USER_MESSAGE}}", user_message)}],
@@ -738,6 +737,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         if routed_model:
             model = routed_model
             form_data["model"] = routed_model.id
+        else:
+            # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
+            fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            if fallback:
+                model = fallback
+                form_data["model"] = fallback.id
+                log.warning(f"Smart Router: model selection failed, falling back to '{fallback.name}'")
 
         await event_emitter(
             {
@@ -768,7 +774,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             decision = await structured_completion(
                 messages=[{"role": "user", "content": prompt}],
                 response_model=ToolSelectionDecision,
-                model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id),
+                model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
             )
             selected_tool = decision.tool
 
@@ -835,7 +841,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             ],
             response_model=KnowledgeUseDecision,
-            model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
         )
         use_model_knowledge_or_files = knowledge_result.needs_knowledge == "YES"
 

@@ -807,12 +807,6 @@ WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )
 
-DEFAULT_AGENT_MODEL = PersistentConfig(
-    "DEFAULT_AGENT_MODEL",
-    "default_agent_model",
-    os.getenv("DEFAULT_AGENT_MODEL", ""),
-)
-
 ####################################
 # Vector Database
 ####################################
