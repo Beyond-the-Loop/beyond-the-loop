@@ -583,7 +583,7 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     smart_router = SMART_ROUTER_MODEL
 
-    all_models = list(all_models) + [smart_router]
+    all_models = [smart_router] + list(all_models)
 
     return {"data": all_models}
 

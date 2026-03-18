@@ -45,10 +45,12 @@ NEW_MODELS = [
     "GPT-5.3 Chat",
     "Gemini 3.1 Pro",
     "Perplexity Sonar",
+    "Mistral Large 3"
 ]
 
 DELETED_MODELS = [
     "Grok 4",
+    "Mistral Large 2"
 ]
 
 
@@ -102,7 +104,7 @@ def upgrade() -> None:
                         "created_at": now,
                         "updated_at": now,
                         "access_control": None,
-                        "is_active": True,
+                        "is_active": False if model_name == "Claude Opus 4.6" else True,
                         "company_id": company.id,
                     }
                 )
