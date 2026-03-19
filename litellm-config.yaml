@@ -133,6 +133,7 @@ model_list:
       model: 'vertex_ai/gemini-3-pro-preview'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+      reasoning_effort: medium
     model_info:
       context_window: '1M'
       category: 3
@@ -180,6 +181,7 @@ model_list:
       model: 'gemini-2.5-pro'
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'europe-west4'
+      reasoning_effort: medium
     model_info:
       context_window: '1M'
       category: 2
@@ -760,6 +762,7 @@ model_list:
       model: "vertex_ai/gemini-3.1-pro-preview"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+      reasoning_effort: medium
     model_info:
       context_window: '1M'
       category: 3
