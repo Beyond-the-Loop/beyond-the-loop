@@ -1,13 +1,8 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import ProgressIndicator from '$lib/components/company-register/ProgressIndicator.svelte';
-	import Step1Email from '$lib/components/company-register/Step1Email.svelte';
-	import Step2Verify from '$lib/components/company-register/Step2Verify.svelte';
-	import Step3Personal from '$lib/components/company-register/Step3Personal.svelte';
-	import Step4Company from '$lib/components/company-register/Step4Company.svelte';
-	import Step5Invite from '$lib/components/company-register/Step5Invite.svelte';
+	import WorkspaceStep from '$lib/components/signup/WorkspaceStep.svelte';
+	import InviteStep from '$lib/components/signup/InviteStep.svelte';
 	import { createCompany } from '$lib/apis/auths';
-	import { COMPANY_SIZE_OPTIONS, INDUSTRY_OPTIONS, TEAM_FUNCTION_OPTIONS } from '$lib/constants';
 	import {
 		WEBUI_NAME,
 		config,
@@ -32,9 +27,8 @@
 	let step = 4;
 
 	let company_name = '';
-	let company_size = '';
-	let company_industry = '';
-	let company_team_function = '';
+	let subdomain = '';
+	let billing_country = 'Deutschland';
 	let company_profile_image_url = '';
 
 	let loading = false;
@@ -42,17 +36,16 @@
 	async function goNext(event) {
 	
 		if (step === 4) {
-			if(!company_name || !company_size || !company_industry || !company_team_function) {
-				showToast('error', "To continue, please provide full information about your company and team.")
+			if(!company_name) {
+				showToast('error', "To continue, please provide a workspace name.")
 				return;
 			}
 			loading = true;
 			const companyInfo = await createCompany(
 				localStorage.token,
 				company_name,
-				company_size,
-				company_industry,
-				company_team_function,
+				subdomain,
+				billing_country,
 				company_profile_image_url ? company_profile_image_url : ''
 			).catch(error => {
 				showToast('error', error);
@@ -85,21 +78,16 @@
 >
 	<div></div>
 	{#if step === 4}
-		<Step4Company
+		<WorkspaceStep
 			on:next={goNext}
 			on:back={goBack}
-			bind:company_profile_image_url
-			bind:company_name
-			bind:company_size
-			bind:company_industry
-			bind:company_team_function
+			bind:workspace_name={company_name}
+			bind:workspace_logo={company_profile_image_url}
+			bind:subdomain
+			bind:billing_country
 			{loading}
 		/>
 	{:else if step === 5}
-		<Step5Invite on:back={goBack} />
+		<InviteStep on:back={goBack} />
 	{/if}
-
-	<div class="flex flex-col justify-center">
-		<ProgressIndicator {step} />
-	</div>
 </div>
