@@ -205,31 +205,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
-async def _resolve_used_model_name(model_name: str, response_headers) -> str:
-    """For Smart Router, resolve the actual model used via x-litellm-model-id header."""
-    if model_name != "Smart Router":
-        return model_name
-
-    litellm_model_id = response_headers.get("x-litellm-model-id")
-
-    if not litellm_model_id:
-        return model_name
-
-    try:
-        url = f"{os.getenv('OPENAI_API_BASE_URL')}/model/info"
-        api_key = os.getenv("OPENAI_API_KEY")
-        timeout = aiohttp.ClientTimeout(total=10)
-
-        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as s:
-            async with s.get(url, headers={"Authorization": f"Bearer {api_key}"}) as resp:
-                data = await resp.json()
-                for item in data.get("data", []):
-                    if item.get("model_info", {}).get("id") == litellm_model_id:
-                        return item["model_name"]
-    except Exception as e:
-        log.warning(f"Failed to resolve Smart Router model name: {e}")
-    return model_name
-
 
 async def generate_chat_completion(
         form_data: dict,
@@ -364,10 +339,6 @@ async def generate_chat_completion(
                 ),
             },
         )
-
-        # LiteLLM auto router may use different model than selected.
-        model_name = await _resolve_used_model_name(model_name, r.headers)
-        model = Models.get_model_by_name_and_company(model_name, user.company_id)
 
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):

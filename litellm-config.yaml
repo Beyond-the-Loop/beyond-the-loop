@@ -232,7 +232,7 @@ model_list:
     model_info:
       context_window: '200K'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Compact reasoning model for efficient mathematical and logical tasks."
       hosted_in: 'EU'
       intelligence_score: 3
@@ -353,7 +353,7 @@ model_list:
     model_info:
       context_window: '400K'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Fast model for simple tasks like summarization and classification. Solid response quality with average reasoning capabilities. For complex analyses or deep logic, other models are better suited."
       hosted_in: 'EU'
       intelligence_score: 2.5
@@ -371,7 +371,7 @@ model_list:
 
   - model_name: "Mistral Large 3"
     litellm_params:
-      model: 'azure/Mistral-Large-3'
+      model: 'azure/mistral-large-3'
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
@@ -399,17 +399,14 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '200K'
-      costFactor: 0
+      costFactor: 0.5
       description: 'Autonomous research agent for comprehensive analysis reports from web sources.'
       hosted_in: 'US'
-      intelligence_score: null
-      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: true
       research: true
-      speed: null
       tokens_per_seconds: null
       zdr: false
 
@@ -419,18 +416,14 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '127K'
-      costFactor: 0
+      costFactor: 0.5
       description: 'Fast search model for precise answers with source citations.'
       hosted_in: 'US'
-      intelligence_score: null
-      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: false
       research: true
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 5
 
@@ -440,18 +433,14 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '127K'
-      costFactor: 0
+      costFactor: 0.5
       description: 'Advanced search for complex, multi-step research with more citations.'
       hosted_in: 'US'
-      intelligence_score: null
-      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: false
       research: true
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -461,41 +450,37 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '200K'
-      costFactor: 0
+      costFactor: 0.5
       description: 'Web search with advanced reasoning for analytical research.'
       hosted_in: 'US'
-      intelligence_score: null
-      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
       reasoning: true
       research: true
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
-  # - model_name: "GPT OSS 120b"
-  #   litellm_params:
-  #     model: "azure/gpt-oss-120b"
-  #     api_base: os.environ/AZURE_OPENAI_ENDPOINT
-  #     api_key: os.environ/AZURE_OPENAI_API_KEY
-  #   model_info:
-  #     context_window: '128K'
-  #     category: 1
-  #     description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
-  #     hosted_in: 'US'
-  #     intelligence_score: 2.5
-  #     knowledge_cutoff: '2024-06-01'
-  #     multimodal: false
-  #     organization: 'OpenAI'
-  #     reasoning: true
-  #     research: false
-  #     speed: 1.5
-  #     zdr: true
-  #     allowed_messages_per_three_hours_free: 300
-  #     allowed_messages_per_three_hours_premium: 300
+  - model_name: "GPT OSS 120b"
+    litellm_params:
+      model: "azure/gpt-oss-120b"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 1
+      description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      knowledge_cutoff: '2024-06-01'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 1.5
+      zdr: true
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
 
   - model_name: "Grok 4 Fast Reasoning"
     litellm_params:
@@ -505,7 +490,7 @@ model_list:
     model_info:
       context_window: '256K'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
       intelligence_score: 3
@@ -529,7 +514,7 @@ model_list:
     model_info:
       context_window: '256K'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
       intelligence_score: 2
@@ -553,7 +538,7 @@ model_list:
     model_info:
       context_window: '256K'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
       intelligence_score: 3.5
@@ -576,7 +561,7 @@ model_list:
     model_info:
       context_window: '256K'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
       intelligence_score: 2
@@ -593,7 +578,7 @@ model_list:
 
   - model_name: "DeepSeek-V3.2"
     litellm_params:
-      model: "azure/DeepSeek-V3.2"
+      model: "azure/deepseek-v3.2"
       api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
@@ -617,7 +602,7 @@ model_list:
 
   - model_name: "DeepSeek R1"
     litellm_params:
-      model: "azure/DeepSeek-R1"
+      model: "azure/deepseek-r1"
       api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
@@ -639,29 +624,29 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
 
-  # - model_name: "DeepSeek R1-0528"
-  #   litellm_params:
-  #     model: "azure/DeepSeek-R1-0528"
-  #     api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
-  #     api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
-  #   model_info:
-  #     context_window: '128K'
-  #     category: 2
-  #     costFactor: 1
-  #     description: "Reasoning model for complex math, logic, and scientific analyses."
-  #     hosted_in: 'US'
-  #     intelligence_score: 2.5
-  #     AAII: 0.27
-  #     knowledge_cutoff: null
-  #     multimodal: false
-  #     organization: 'DeepSeek'
-  #     reasoning: true
-  #     research: false
-  #     speed: 3.5
-  #     tokens_per_second: 175
-  #     zdr: false
-  #     allowed_messages_per_three_hours_free: 50
-  #     allowed_messages_per_three_hours_premium: 150
+  - model_name: "DeepSeek R1-0528"
+    litellm_params:
+      model: "azure/deepseek-r1-0528"
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1
+      description: "Reasoning model for complex math, logic, and scientific analyses."
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      AAII: 0.27
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 3.5
+      tokens_per_second: 175
+      zdr: false
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
 
   - model_name: "GPT-5.4 Pro"
     litellm_params:
@@ -682,8 +667,6 @@ model_list:
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 10
 
@@ -700,15 +683,11 @@ model_list:
       costFactor: 5
       description: "Agent for autonomous web research with synthesis into comprehensive reports."
       hosted_in: 'US'
-      intelligence_score: null
-      AAII: null
       knowledge_cutoff: null
       multimodal: false
       organization: 'OpenAI'
       reasoning: true
       research: true
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 10
 
@@ -731,8 +710,6 @@ model_list:
       organization: 'OpenAI'
       reasoning: true
       research: false
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -770,15 +747,11 @@ model_list:
       costFactor: 3
       description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
-      intelligence_score: null
-      AAII: null
       knowledge_cutoff: '2025-08-01'
       multimodal: true
       organization: 'OpenAI'
       reasoning: false
       research: false
-      speed: null
-      tokens_per_second: null
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
@@ -789,7 +762,7 @@ model_list:
       vertex_location: 'global'
     model_info:
       context_window: '1M'
-      category: 3 
+      category: 3
       costFactor: 2.5
       description: "Multimodal model with extended context for text, image, and code analysis."
       hosted_in: 'EU'

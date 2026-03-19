@@ -59,7 +59,11 @@
 		}))
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
-		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
+		.sort((a, b) => {
+		if (a?.model?.name === 'Smart Router') return -1;
+		if (b?.model?.name === 'Smart Router') return 1;
+		return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
+	});
 
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))

@@ -653,6 +653,7 @@ async def _smart_router_model_selection(user_message: str, user) -> ModelModel |
         from open_webui.main import get_active_models
 
         result = await get_active_models(user=user)
+
         routable_models = [
             m for m in result["data"]
             if m.base_model_id is None                              # no assistants
@@ -726,7 +727,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 "type": "status",
                 "data": {
                     "action": "smart_router",
-                    "description": "Routing your request",
+                    "description": "Selecting the most suitable model",
                     "done": False,
                 },
             }
@@ -739,18 +740,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             form_data["model"] = routed_model.id
         else:
             # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
-            fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-            if fallback:
-                model = fallback
-                form_data["model"] = fallback.id
-                log.warning(f"Smart Router: model selection failed, falling back to '{fallback.name}'")
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            form_data["model"] = model.id
+            log.warning(f"Smart Router: model selection failed, falling back to '{model.name}'")
 
         await event_emitter(
             {
                 "type": "status",
                 "data": {
                     "action": "smart_router",
-                    "description": "Routing your request",
+                    "description": "Selecting the most suitable model",
                     "done": True,
                     "hidden": True,
                 },

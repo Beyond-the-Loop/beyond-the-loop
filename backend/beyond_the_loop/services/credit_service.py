@@ -217,14 +217,24 @@ class CreditService:
         model_name = response.get("model")
 
         litellm_model = LITELLM_MODEL_MAP.get(model_name, "")
+        pricing_model = litellm_model.replace("azure/responses/", "azure/")
+
+        if pricing_model != "azure/gpt-5.1-chat" and pricing_model != "azure/gpt-5.3-chat":
+            pricing_model = pricing_model.replace("azure/", "azure_ai/")
+
+        if pricing_model == "azure_ai/deepseek-r1-0528":
+            pricing_model = "lambda_ai/deepseek-r1-0528"
+
+        if pricing_model == "perplexity/sonar":
+            pricing_model = "perplexity/sonar-pro"
 
         try:
             token_cost_usd = litellm.completion_cost(
-                model=litellm_model,
+                model=pricing_model,
                 completion_response=response,
             )
         except Exception as e:
-            log.warning(f"litellm.completion_cost failed for {litellm_model}: {e}")
+            log.warning(f"litellm.completion_cost failed for {pricing_model}: {e}")
             token_cost_usd = 0
 
         if token_cost_usd == 0:
@@ -243,7 +253,7 @@ class CreditService:
         completion_tokens_details = response.get('usage', {}).get('completion_tokens_details') or {}
         reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
 
-        log.debug(f"Model: {model_name} ({litellm_model}) | Input tokens: {input_tokens} | Output tokens: {output_tokens - reasoning_tokens} | Reasoning tokens: {reasoning_tokens} | Token cost (USD): {token_cost_usd} | Search query cost: {search_query_cost} | Total cost (EUR): {total_costs}")
+        log.debug(f"Model: {model_name} ({pricing_model}) | Input tokens: {input_tokens} | Output tokens: {output_tokens - reasoning_tokens} | Reasoning tokens: {reasoning_tokens} | Token cost (USD): {token_cost_usd} | Search query cost: {search_query_cost} | Total cost (EUR): {total_costs}")
 
         return await credit_service._subtract_credits_by_user_and_credits(user, total_costs)
 

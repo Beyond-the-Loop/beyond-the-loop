@@ -47,9 +47,11 @@
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
 
-		models = workspaceModels.sort(
-			(a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
-		);
+		models = workspaceModels.sort((a, b) => {
+			if (a?.name === 'Smart Router') return -1;
+			if (b?.name === 'Smart Router') return 1;
+			return (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity);
+		});
 		const availableModels = models.map((model) => model?.name);
 		organizations = filterCatalog(organizations, availableModels);
 	};

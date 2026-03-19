@@ -581,9 +581,7 @@ async def get_active_models(user=Depends(get_verified_user)):
             for model in all_models
         ]
 
-    smart_router = SMART_ROUTER_MODEL
-
-    all_models = [smart_router] + list(all_models)
+    all_models = [SMART_ROUTER_MODEL] + list(all_models)
 
     return {"data": all_models}
 
@@ -623,6 +621,8 @@ async def get_base_models(user=Depends(get_admin_user)):
             base_models = [model for model in base_models if
                            model.name not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research",
                                               "Perplexity Sonar Reasoning Pro")]
+
+    base_models = [SMART_ROUTER_MODEL] + list(base_models)
 
     return {"data": base_models}
 
