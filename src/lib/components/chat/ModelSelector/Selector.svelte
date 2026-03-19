@@ -468,7 +468,7 @@
 						<div class="grid grid-cols-3 gap-y-4 gap-x-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700">
 							{#if $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
 								<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
-									{#if $modelsInfo?.[hoveredItem?.label]?.costFactor}
+									{#if $modelsInfo?.[hoveredItem?.label]?.costFactor != null}
 										<CostRating rating={$modelsInfo?.[hoveredItem?.label]?.costFactor} />
 									{:else}
 										N/A
@@ -477,7 +477,7 @@
 								</div>
 							{:else}
 								<div class="flex flex-col items-center text-xs justify-end">
-									{#if $modelsInfo?.[hoveredItem?.label]?.category}
+									{#if $modelsInfo?.[hoveredItem?.label]?.category != null}
 										{$modelsInfo?.[hoveredItem?.label]?.category}
 									{:else}
 										N/A

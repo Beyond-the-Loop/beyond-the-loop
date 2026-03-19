@@ -91,7 +91,7 @@ model_list:
     model_info:
       context_window: '1M'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
       intelligence_score: 2.5
@@ -113,7 +113,7 @@ model_list:
     model_info:
       context_window: '1M'
       category: 1
-      costFactor: 1
+      costFactor: 0.5
       description: "Fast multimodal model for efficient text, image, and code processing."
       hosted_in: 'EU'
       intelligence_score: 4
@@ -135,8 +135,8 @@ model_list:
       vertex_location: 'global'
     model_info:
       context_window: '1M'
-      category: 1
-      costFactor: 1
+      category: 3
+      costFactor: 2.5
       description: "Powerful multimodal model for demanding analysis and reasoning tasks."
       hosted_in: 'EU'
       intelligence_score: 4
@@ -159,7 +159,7 @@ model_list:
     model_info:
       context_window: '1M'
       category: 1
-      costFactor: 0
+      costFactor: 0.5
       description: "Fast model for reasoning, science, and code. Focus on low latency."
       hosted_in: 'EU'
       intelligence_score: 3
@@ -182,6 +182,7 @@ model_list:
       vertex_location: 'europe-west4'
     model_info:
       context_window: '1M'
+      category: 2
       costFactor: 2
       description: "Fast multimodal model with large context for image-text tasks."
       hosted_in: 'EU'
@@ -230,8 +231,8 @@ model_list:
       api_version: "2024-12-01-preview"
     model_info:
       context_window: '200K'
-      category: 2
-      costFactor: 1
+      category: 1
+      costFactor: 0
       description: "Compact reasoning model for efficient mathematical and logical tasks."
       hosted_in: 'EU'
       intelligence_score: 3
@@ -252,10 +253,10 @@ model_list:
       model: "azure/responses/gpt-5"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: low
+      reasoning_effort: medium
     model_info:
       context_window: '400K'
-      category: 3
+      category: 2
       costFactor: 2
       description: "Versatile model with strong reasoning for complex problem-solving."
       hosted_in: 'EU'
@@ -279,7 +280,7 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '400K'
-      category: 2
+      category: 1
       costFactor: 0.5
       description: "Offers a balanced combination of response quality and speed. Well suited for everyday questions, creative tasks, and explanations of medium complexity. For very complex analyses or highly specialized expert questions, more powerful models are better suited."
       hosted_in: 'EU'
@@ -303,7 +304,7 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
       context_window: '128K'
-      category: 3
+      category: 2
       costFactor: 2
       description: 'Multimodal model with very large context for complex analysis tasks.'
       hosted_in: 'US'
@@ -327,7 +328,7 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
       context_window: '128K'
-      category: 3
+      category: 2
       costFactor: 2
       description: 'Multimodal model with very large context for complex analysis tasks.'
       hosted_in: 'EU'
@@ -375,7 +376,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
       context_window: '128K'
-      costFactor: 1
+      category: 1
+      costFactor: 0.5
       description: 'Versatile model with excellent multilingual capabilities for complex tasks.'
       hosted_in: 'EU'
       intelligence_score: 2
@@ -503,7 +505,7 @@ model_list:
     model_info:
       context_window: '256K'
       category: 1
-      costFactor: 1
+      costFactor: 0
       description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
       intelligence_score: 3
@@ -527,7 +529,7 @@ model_list:
     model_info:
       context_window: '256K'
       category: 1
-      costFactor: 1
+      costFactor: 0
       description: "Multimodal model for text and image analysis with broad knowledge range."
       hosted_in: 'US'
       intelligence_score: 2
@@ -550,7 +552,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
       context_window: '256K'
-      costFactor: 1
+      category: 1
+      costFactor: 0
       description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
       intelligence_score: 3.5
@@ -572,7 +575,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:
       context_window: '256K'
-      costFactor: 1
+      category: 1
+      costFactor: 0
       description: "Fast conversational model for direct answers without reasoning process."
       hosted_in: 'US'
       intelligence_score: 2
@@ -594,8 +598,8 @@ model_list:
       api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
       context_window: '128K'
-      category: 2
-      costFactor: 1
+      category: 1
+      costFactor: 0.5
       description: "Specialized in multi-step problem-solving in math, code, and science."
       hosted_in: 'US'
       intelligence_score: 3.5
@@ -635,39 +639,40 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
 
-  - model_name: "DeepSeek R1-0528"
-    litellm_params:
-      model: "azure/DeepSeek-R1-0528"
-      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
-    model_info:
-      context_window: '128K'
-      category: 2
-      costFactor: 1
-      description: "Reasoning model for complex math, logic, and scientific analyses."
-      hosted_in: 'US'
-      intelligence_score: 2.5
-      AAII: 0.27
-      knowledge_cutoff: null
-      multimodal: false
-      organization: 'DeepSeek'
-      reasoning: true
-      research: false
-      speed: 3.5
-      tokens_per_second: 175
-      zdr: false
-      allowed_messages_per_three_hours_free: 50
-      allowed_messages_per_three_hours_premium: 150
+  # - model_name: "DeepSeek R1-0528"
+  #   litellm_params:
+  #     model: "azure/DeepSeek-R1-0528"
+  #     api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+  #     api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
+  #   model_info:
+  #     context_window: '128K'
+  #     category: 2
+  #     costFactor: 1
+  #     description: "Reasoning model for complex math, logic, and scientific analyses."
+  #     hosted_in: 'US'
+  #     intelligence_score: 2.5
+  #     AAII: 0.27
+  #     knowledge_cutoff: null
+  #     multimodal: false
+  #     organization: 'DeepSeek'
+  #     reasoning: true
+  #     research: false
+  #     speed: 3.5
+  #     tokens_per_second: 175
+  #     zdr: false
+  #     allowed_messages_per_three_hours_free: 50
+  #     allowed_messages_per_three_hours_premium: 150
 
   - model_name: "GPT-5.4 Pro"
     litellm_params:
       model: "azure/responses/gpt-5.4-pro"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: medium
     model_info:
       context_window: '128K'
-      category: 3
-      costFactor: 2
+      category: 4
+      costFactor: 5
       description: "Multimodal model with excellent reasoning for math and science."
       hosted_in: 'US'
       intelligence_score: 5
@@ -784,7 +789,8 @@ model_list:
       vertex_location: 'global'
     model_info:
       context_window: '1M'
-      costFactor: 3
+      category: 3 
+      costFactor: 2.5
       description: "Multimodal model with extended context for text, image, and code analysis."
       hosted_in: 'EU'
       intelligence_score: 5
