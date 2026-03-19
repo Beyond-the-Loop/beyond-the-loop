@@ -70,7 +70,7 @@
 		if (step === 1) {
 			email = event.detail.email;
 		}
-		if (step === 5) {
+		if (step === 3) {
 			loading = true;
 			const registeredUser = await completeRegistration(
 				first_name,
