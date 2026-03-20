@@ -24,7 +24,7 @@
 
 	let languages: Awaited<ReturnType<typeof getLanguages>> = [];
 	let lang = $i18n.language;
-	let system = '';
+	let customInstruction = '';
 
 	const styles = [
         { value: 'professional', title: '💼 Professionell', description: 'Sachlich, präzise und geschäftlich. Ideal für Unternehmensinhalte.' },
@@ -40,7 +40,8 @@
 
 		languages = await getLanguages();
 
-		system = $settings.system ?? '';
+		customInstruction = $settings.customInstruction ?? $settings.system ?? '';
+		selectedStyle = $settings.promptStyle ?? localStorage.getItem('prompt') ?? styles[0].value;
 
 		if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
 			voice = $settings?.audio?.tts?.voice ?? $config.audio.tts.voice ?? '';
@@ -112,9 +113,8 @@
 		applyTheme(_theme);
 		selectedTheme = _theme;
 	};
-	function changePromptStyle(prompt: string) {
-		localStorage.setItem('prompt', prompt);
-		selectedStyle = prompt;
+	function changePromptStyle(style: string) {
+		selectedStyle = style;
 	}
 	let showLanguageDropdown = false;
 	let languageDropdownRef;
@@ -333,19 +333,20 @@
 
 	<div class="w-full grid grid-cols-2 gap-3">
 		{#each styles as style (style.value)}
-			<div
-				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 hover:bg-lightGray-400 rounded-lg cursor-pointer
-					{selectedStyle === style.value && !system ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-gray-600'}"
+			<button
+				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 hover:bg-lightGray-400 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300
+					{selectedStyle === style.value && !customInstruction ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-gray-600'}"
 				on:click={() => changePromptStyle(style.value)}
 				on:keydown={(e) => {e}}
+				disabled={customInstruction ? true : undefined}
 				role="radio"                 
-				tabindex="0"                 
+				tabindex="0"            
 				aria-checked="{selectedStyle === style.value}" 
 				aria-labelledby="style-title-{style.value}"
 			>
 				<h2>{style.title}</h2>
 				<p class="text-xs text-gray-600 dark:text-gray-500">{style.description}</p>
-			</div>
+			</button>
 		{/each}
 	</div>
 	<div class="text-xs text-gray-600 dark:text-customGray-100/50 py-2 pt-4">
@@ -358,10 +359,10 @@
 				class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System prompt')}</div>
 		{/if} -->
 		<textarea
-			bind:value={system}
+			bind:value={customInstruction}
 			placeholder="z.B. antworte immer knapp, verwende Aufzählungen und vermeide Fachjargon..."
-			
-			class="px-2.5 py-2 text-sm {system ? "pt-2" : "pt-2"} text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
+
+			class="px-2.5 py-2 text-sm pt-2 text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
 					rows="4"
 				/>
 			</div>
@@ -413,7 +414,9 @@
 		type="submit"
 		on:click={() => {
 				saveSettings({
-					system: system !== '' ? system : undefined
+					promptStyle: selectedStyle,
+					customInstruction: customInstruction !== '' ? customInstruction : undefined,
+					system: undefined
 				});
 				dispatch('save');
 			}}
