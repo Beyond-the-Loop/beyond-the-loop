@@ -163,6 +163,8 @@ type Settings = {
 	chatDirection: 'LTR' | 'RTL';
 
 	system?: string;
+	promptStyle?: string;
+	customInstruction?: string;
 	requestFormat?: string;
 	keepAlive?: string;
 	seed?: number;
