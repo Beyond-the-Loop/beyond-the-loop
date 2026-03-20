@@ -6,6 +6,7 @@ import base64
 import re
 import mimetypes
 import asyncio
+import random
 from io import BytesIO
 
 import httpx
@@ -633,8 +634,10 @@ SMART_ROUTER_MODEL = ModelModel(
 async def _smart_router_model_selection(user_message: str, user) -> ModelModel | None:
     """
     Score the user message complexity (1–5) via structured completion, then pick
-    the active base model whose intelligence_score in LITELLM_MODEL_CONFIG is
-    closest to that score.  Returns None if no suitable model can be found.
+    the best model from all candidates whose intelligence_score >= that score.
+    Among qualifying models, rank by efficiency: costFactor (60%, lower=better)
+    + speed (40%, higher=better), both normalized 0-1 within the candidate set.
+    Returns None if no suitable model can be found.
     """
     try:
         agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
@@ -647,39 +650,121 @@ async def _smart_router_model_selection(user_message: str, user) -> ModelModel |
 
         target_score = max(1.0, min(5.0, decision.intelligence_score))
 
-        log.debug(f"Smart Router: target intelligence score = {target_score}")
+        log.info(f"Smart Router: target intelligence score = {target_score}")
 
         # Lazy import to avoid circular dependency (main.py imports middleware.py)
         from open_webui.main import get_active_models
 
-        result = await get_active_models(user=user)
+        active_models_result = await get_active_models(user=user)
 
         routable_models = [
-            m for m in result["data"]
+            m for m in active_models_result["data"]
             if m.base_model_id is None                              # no assistants
             and m.name != SMART_ROUTER_MODEL.name                  # not Smart Router itself
             and m.is_active                                         # active (e.g. not locked in free plan)
             and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
         ]
 
-        # Find the model with the closest intelligence_score
-        best_model: ModelModel | None = None
+        log.info(
+            f"Smart Router: {len(routable_models)} routable model(s): "
+            + ", ".join(
+                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
+                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
+                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
+                for m in routable_models
+            )
+        )
 
-        best_diff = float("inf")
+        # Filter to models meeting the minimum intelligence requirement
+        candidates = []
 
         for m in routable_models:
-            score = LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score")
+            cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
+            score = cfg.get("intelligence_score")
+            if score is not None and score >= target_score:
+                candidates.append(m)
 
-            if score is None:
-                continue
-            diff = abs(score - target_score)
+        log.info(
+            f"Smart Router: {len(candidates)} candidate(s) after intelligence filter (>= {target_score}): "
+            + ", ".join(
+                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
+                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
+                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
+                for m in candidates
+            )
+        )
 
-            if diff < best_diff:
-                best_diff = diff
-                best_model = m
+        if not candidates:
+            log.warning("Smart Router: no candidates found, returning None")
+            return None
 
-        if best_model:
-            log.info(f"Smart Router: routed to '{best_model.name}' (score={LITELLM_MODEL_CONFIG.get(best_model.name, {}).get('intelligence_score')})")
+        # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
+        cost_values = {
+            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor")
+            for m in candidates
+        }
+
+        speed_values = {
+            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed")
+            for m in candidates
+        }
+
+        valid_costs = [v for v in cost_values.values() if v is not None]
+        valid_speeds = [v for v in speed_values.values() if v is not None]
+
+        min_cost, max_cost = (min(valid_costs), max(valid_costs)) if valid_costs else (None, None)
+        min_speed, max_speed = (min(valid_speeds), max(valid_speeds)) if valid_speeds else (None, None)
+
+        def efficiency_score(model_name: str) -> float:
+            cost = cost_values.get(model_name)
+            speed = speed_values.get(model_name)
+
+            cost_score = None
+
+            if cost is not None and min_cost is not None and max_cost is not None:
+                if max_cost == min_cost:
+                    cost_score = 1.0
+                else:
+                    cost_score = 1.0 - (cost - min_cost) / (max_cost - min_cost)
+
+            speed_score = None
+
+            if speed is not None and min_speed is not None and max_speed is not None:
+                if max_speed == min_speed:
+                    speed_score = 1.0
+                else:
+                    speed_score = (speed - min_speed) / (max_speed - min_speed)
+
+            if cost_score is not None and speed_score is not None:
+                return 0.6 * cost_score + 0.4 * speed_score
+            elif cost_score is not None:
+                return cost_score
+            elif speed_score is not None:
+                return speed_score
+            return 0.0
+
+        scored_candidates = sorted(
+            candidates, key=lambda m: efficiency_score(m.name), reverse=True
+        )
+
+        log.info(
+            f"Smart Router: candidates ranked by efficiency: "
+            + ", ".join(
+                f"{m.name}(efficiency={efficiency_score(m.name):.3f})"
+                for m in scored_candidates
+            )
+        )
+
+        top_candidates = scored_candidates[:3]
+        best_model = random.choice(top_candidates)
+
+        cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
+        log.info(
+            f"Smart Router: selected '{best_model.name}' (randomly chosen from top {len(top_candidates)}) "
+            f"(intelligence={cfg.get('intelligence_score')}, "
+            f"costFactor={cfg.get('costFactor')}, speed={cfg.get('speed')}, "
+            f"efficiency={efficiency_score(best_model.name):.3f})"
+        )
 
         return best_model
     except Exception as e:
