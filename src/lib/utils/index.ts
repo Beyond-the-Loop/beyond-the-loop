@@ -15,6 +15,7 @@ dayjs.extend(localizedFormat);
 
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { TTS_RESPONSE_SPLIT } from '$lib/types';
+import type { SystemPromptConfig, PromptStyle } from '$lib/stores';
 //////////////////////////
 // Helper functions
 //////////////////////////
@@ -988,11 +989,11 @@ export const blobToFile = (blob, fileName) => {
 };
 
 /**
- * @param {string} template - The template string containing placeholders.
+ * @param {string} instruction - The instruction dict containing promptStyle and customInstruction.
  * @returns {string} The template string with the placeholders replaced by the prompt.
  */
 export const promptTemplate = (
-	template: string,
+	instruction: SystemPromptConfig,
 	user_name?: string,
 	user_location?: string
 ): string => {
@@ -1023,6 +1024,8 @@ export const promptTemplate = (
 
 	// Get the user's language
 	const userLanguage = localStorage.getItem('locale') || 'en-US';
+
+	let template = templates[instruction.promptStyle];
 
 	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
 	template = template.replace('{{CURRENT_DATETIME}}', `${formattedDate} ${currentTime}`);
@@ -1445,4 +1448,11 @@ export function remapCitations(content, messageSources, urlToGlobalIndex, global
 		const idx = urlToGlobalIndex.get(url);
 		return `[${idx}]`;
 	});
+}
+
+export const templates: Record<PromptStyle, string> = {
+  professional: `Antworte nur mit dem Wort: professional.`,
+  friendly: `Antworte nur mit dem Wort: friendly.`,
+  creative: `Antworte nur mit dem Wort: professional.`,
+  academic: `Antworte nur mit dem Wort: academic.`
 }

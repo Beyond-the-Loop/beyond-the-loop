@@ -40,8 +40,8 @@
 
 		languages = await getLanguages();
 
-		customInstruction = $settings.customInstruction ?? $settings.system ?? '';
-		promptStyle = $settings.promptStyle ?? localStorage.getItem('promptStyle') ?? styles[0].value;
+		customInstruction = $settings.system.customInstruction ?? '';
+		promptStyle = $settings.system.promptStyle ?? null;
 
 		if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
 			voice = $settings?.audio?.tts?.voice ?? $config.audio.tts.voice ?? '';
