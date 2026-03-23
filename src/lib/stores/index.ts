@@ -150,6 +150,12 @@ type OllamaModelDetails = {
 	quantization_level: string;
 };
 
+export type PromptStyle = 'professional' | 'friendly' | 'creative' | 'academic';
+export interface SystemPromptConfig {
+  promptStyle: PromptStyle;
+  customInstruction?: string;
+}
+
 type Settings = {
 	models?: string[];
 	conversationMode?: boolean;
@@ -162,9 +168,7 @@ type Settings = {
 	splitLargeDeltas?: boolean;
 	chatDirection: 'LTR' | 'RTL';
 
-	system?: string;
-	promptStyle?: string;
-	customInstruction?: string;
+	system?: SystemPromptConfig;
 	requestFormat?: string;
 	keepAlive?: string;
 	seed?: number;
