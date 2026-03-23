@@ -1038,7 +1038,7 @@
 	"Select only one model to call": "Wählen Sie nur ein Modell zum Anrufen aus",
 	"Selected model(s) do not support image inputs": "Ihre ausgewählten Modelle unterstützen keine Bildeingaben",
 	"Semantic distance to query": "Semantische Distanz zur Abfrage",
-	"Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is, match it against the strengths of our models, and choose the most efficient model for the task.": "Wählt für jede Aufgabe automatisch ein optimales KI-Modell. Dazu analysieren wir, wie anspruchsvoll deine Anfrage ist gleichen sie gezielt mit den Stärken unserer Modelle ab und wählen für die Aufgabe das effizienteste Modell aus.",
+	"Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is, match it against the strengths of our models, and choose the most efficient model for the task.": "Wählt für jede Aufgabe automatisch ein optimales KI-Modell. Dazu analysieren wir, wie anspruchsvoll deine Anfrage ist, gleichen sie gezielt mit den Stärken unserer Modelle ab und wählen für die Aufgabe das effizienteste Modell aus.",
 	"Send": "Senden",
 	"Send a message": "Eine Nachricht senden",
 	"Send invites": "Einladungen senden",
