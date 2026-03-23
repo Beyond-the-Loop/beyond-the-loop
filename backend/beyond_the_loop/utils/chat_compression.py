@@ -159,7 +159,8 @@ def _build_payload(
 async def maybe_compress_chat(
     form_data: dict,
     model: ModelModel,
-    chat_id: str
+    chat_id: str,
+    event_emitter=None,
 ) -> dict:
     all_messages: list[dict] = form_data.get("messages", [])
 
@@ -198,6 +199,18 @@ async def maybe_compress_chat(
     current_tokens = _count_tokens(compression["messages"], model.name)
 
     if current_tokens > threshold_tokens:
+        if event_emitter:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "chat_compression",
+                        "description": "Compressing chat history",
+                        "done": False,
+                    },
+                }
+            )
+
         messages_to_compress: list[dict] = []
 
         while compression["messages"] and current_tokens > threshold_tokens:
@@ -213,6 +226,18 @@ async def maybe_compress_chat(
             agent_model=model,
         )
         compression["summary"] = new_summary
+
+        if event_emitter:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "chat_compression",
+                        "description": "Compressing chat history",
+                        "done": True,
+                    },
+                }
+            )
 
     # -----------------------------------------------------------------------
     # Rebuild the LiteLLM payload when a summary exists

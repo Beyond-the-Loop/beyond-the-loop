@@ -796,6 +796,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data.pop("variables", None)
     form_data.pop("tool_ids", None)
 
+    event_emitter = get_event_emitter(metadata)
+    event_call = get_event_call(metadata)
+
     try:
         chat_id = metadata.get("chat_id")
 
@@ -803,15 +806,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             form_data = await maybe_compress_chat(
                 form_data=form_data,
                 model=model,
-                chat_id=chat_id
+                chat_id=chat_id,
+                event_emitter=event_emitter,
             )
     except Exception as e:
         log.exception(f"[chat_compression] failed, continuing without compression: {e}")
 
     log.debug(f"form_data: {form_data}")
-
-    event_emitter = get_event_emitter(metadata)
-    event_call = get_event_call(metadata)
 
     extra_params = {
         "__event_emitter__": event_emitter,
