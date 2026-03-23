@@ -441,7 +441,7 @@
 						<div>
 							<p class="text-xs text-lightGray-100 dark:text-customGray-100">
 								{#if hoveredItem.label == "Smart Router"}
-								{$i18n.t("Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is and match it specifically with the strengths of our models.")}
+								{$i18n.t("Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is, match it against the strengths of our models, and choose the most efficient model for the task.")}
 								{:else}
 								{$i18n.t($modelsInfo?.[hoveredItem?.label]?.description)}
 								{/if}
