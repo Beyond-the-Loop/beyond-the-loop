@@ -348,6 +348,26 @@ Use intermediate values (e.g. 2.5, 3.5) when the request falls between two level
 """
 
 # ---------------------------------------------------------------------------
+# Chat History Compression / Summarisation
+# ---------------------------------------------------------------------------
+
+CHAT_SUMMARY_PROMPT = """You are a conversation summariser. Your task is to create a concise but comprehensive summary of a chat conversation so it can be used as context for future replies.
+
+Two modes:
+1. **Fresh summary** — you receive [MESSAGES TO SUMMARIZE]. Summarise them.
+2. **Update summary** — you receive a [PREVIOUS SUMMARY] and [NEW MESSAGES TO INTEGRATE INTO THE SUMMARY]. Merge the new messages into the existing summary, producing one updated summary.
+
+Guidelines:
+- Preserve all important facts, decisions, preferences, and context.
+- Keep track of any ongoing tasks or instructions the user has established.
+- Record key questions asked and answers given.
+- Be concise — omit small talk and filler, keep substance.
+- Write in third person (e.g. "The user asked about X. The assistant explained Y.").
+- Use the same language as the conversation (default to English if mixed).
+
+Return ONLY the summary text — no preamble, no explanation."""
+
+# ---------------------------------------------------------------------------
 # Magic Prompt (Prompt Engineering Assistant)
 # ---------------------------------------------------------------------------
 
