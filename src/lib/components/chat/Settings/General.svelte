@@ -33,7 +33,7 @@
         { value: 'academic', title: '📚 Akademisch', description: 'Fundiert, strukturiert und detailliert. Ideal für Recherche und Analyse.' },
     ];
 
-	let selectedStyle: string = styles[0].value;
+	let promptStyle: string | null = styles[0].value;
 
 	onMount(async () => {
 		selectedTheme = localStorage.theme ?? 'system';
@@ -41,7 +41,7 @@
 		languages = await getLanguages();
 
 		customInstruction = $settings.customInstruction ?? $settings.system ?? '';
-		selectedStyle = $settings.promptStyle ?? localStorage.getItem('prompt') ?? styles[0].value;
+		promptStyle = $settings.promptStyle ?? localStorage.getItem('promptStyle') ?? styles[0].value;
 
 		if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
 			voice = $settings?.audio?.tts?.voice ?? $config.audio.tts.voice ?? '';
@@ -114,7 +114,12 @@
 		selectedTheme = _theme;
 	};
 	function changePromptStyle(style: string) {
-		selectedStyle = style;
+		if(promptStyle == style)
+		{
+			promptStyle = null;
+		}else {
+			promptStyle = style;
+		}
 	}
 	let showLanguageDropdown = false;
 	let languageDropdownRef;
@@ -334,14 +339,14 @@
 	<div class="w-full grid grid-cols-2 gap-3">
 		{#each styles as style (style.value)}
 			<button
-				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 hover:bg-lightGray-400 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300
-					{selectedStyle === style.value && !customInstruction ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-gray-600'}"
+				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300
+					{promptStyle === style.value && !customInstruction ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-gray-600 hover:bg-lightGray-400/90'}"
 				on:click={() => changePromptStyle(style.value)}
 				on:keydown={(e) => {e}}
 				disabled={customInstruction ? true : undefined}
 				role="radio"                 
 				tabindex="0"            
-				aria-checked="{selectedStyle === style.value}" 
+				aria-checked="{promptStyle === style.value}" 
 				aria-labelledby="style-title-{style.value}"
 			>
 				<h2>{style.title}</h2>
@@ -360,6 +365,7 @@
 		{/if} -->
 		<textarea
 			bind:value={customInstruction}
+			on:input={() => {promptStyle = null}}
 			placeholder="z.B. antworte immer knapp, verwende Aufzählungen und vermeide Fachjargon..."
 
 			class="px-2.5 py-2 text-sm pt-2 text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
@@ -414,9 +420,10 @@
 		type="submit"
 		on:click={() => {
 				saveSettings({
-					promptStyle: selectedStyle,
-					customInstruction: customInstruction !== '' ? customInstruction : undefined,
-					system: undefined
+					system: {
+						promptStyle: promptStyle,
+						customInstruction: customInstruction !== '' ? customInstruction : undefined
+					},
 				});
 				dispatch('save');
 			}}
