@@ -1059,10 +1059,6 @@ export const promptTemplate = (
 		const currentModelsInfo = get(modelsInfo);
 		template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? ''].organization ?? '');
 	}
-	
-
-	
-	template = template.replace('{{fair usage policy}}', '5');
 
 
 	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
