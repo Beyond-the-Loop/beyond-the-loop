@@ -27,11 +27,11 @@
 	let customInstruction = '';
 
 	const styles = [
-        { value: 'default', title: '📋 Standard', description: 'Sachlich, präzise und geschäftlich. Ideal für Unternehmensinhalte.' },
-        { value: 'concise', title: '⚡ Prägnant', description: 'Präzise, direkt und anpassungsfähig. Ideal für effiziente KI-Arbeit mit klarem Fokus auf Lösung.' },
-        { value: 'formal', title: '🏛️ Formell', description: 'Kompetent, professionell und klar. Ideal für konstruktive KI-ARbeit mit intellektueller Präzision.' },
-        { value: 'explaining', title: '💡 Erklärend', description: 'Klar, geduldig und auf Augenhöhe. Ideal, um komplexe Themen tief zu durchdringen.' },
-    ];
+		{ value: 'default', title: '🌊 Standard', description: 'Neutral, versatile, reliable. The balanced standard.' },
+		{ value: 'concise', title: '🎯 Concise', description: 'Direct, precise, solution-oriented. Gets straight to the point without detours.' },
+		{ value: 'formal', title: '🏛️ Formal', description: 'Sophisticated, well-founded, objective. For formal expression.' },
+		{ value: 'explaining', title: '💡 Explanatory', description: 'Patient, clear, creative. Makes complex topics understandable.' }
+	];
 
 	let promptStyle: string | null = styles[0].value;
 
@@ -333,15 +333,14 @@
 		</div>
 	</div>
 	<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
-			<!-- {$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')} -->
-			 Wähle einen Ton für KI-Antworten oder schreibe einen eigenen Prompt.
+			{$i18n.t('Choose a tone for AI responses or write your own prompt.')}
 	</div>
 
 	<div class="w-full grid grid-cols-2 gap-3">
 		{#each styles as style (style.value)}
 			<button
-				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300
-					{promptStyle === style.value && !customInstruction ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-customGray-700 hover:bg-lightGray-400/90'}"
+				class="text-left flex flex-col gap-2 p-3 dark:bg-customGray-800 bg-lightGray-300 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300 border-2
+					{promptStyle === style.value && !customInstruction ? `border-[#305BE4] shadow-sm` : 'border-transparent ring-1 ring-gray-200 dark:ring-customGray-700 hover:bg-gray-100'}"
 				on:click={() => changePromptStyle(style.value)}
 				on:keydown={(e) => {e}}
 				disabled={customInstruction ? true : undefined}
@@ -350,14 +349,13 @@
 				aria-checked="{promptStyle === style.value}" 
 				aria-labelledby="style-title-{style.value}"
 			>
-				<h2>{style.title}</h2>
-				<p class="text-xs text-gray-600 dark:text-gray-500">{style.description}</p>
+				<h2 class={promptStyle === style.value && !customInstruction ? `font-medium` : ''}>{$i18n.t(style.title)}</h2>
+				<p class="text-xs text-gray-600 dark:text-gray-500">{$i18n.t(style.description)}</p>
 			</button>
 		{/each}
 	</div>
 	<div class="text-xs text-gray-600 dark:text-customGray-100/50 py-2 pt-4">
-			<!-- {$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')} -->
-			 Eigener Tonalitätsprompt (optional)
+			{$i18n.t('Your custom tone prompt (optional)')}
 	</div>
 	<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
 		<!-- {#if system}
@@ -367,7 +365,7 @@
 		<textarea
 			bind:value={customInstruction}
 			on:input={() => {promptStyle = "default"}}
-			placeholder="z.B. antworte immer knapp, verwende Aufzählungen und vermeide Fachjargon..."
+			placeholder={$i18n.t('e.g. always answer concisely, use bullet points and avoid technical jargon...')}
 
 			class="px-2.5 py-2 text-sm pt-2 text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
 					rows="4"

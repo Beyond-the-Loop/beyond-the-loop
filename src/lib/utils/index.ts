@@ -1029,6 +1029,7 @@ export const promptTemplate = (
 		second: 'numeric',
 		hour12: true
 	});
+	console.log(modelName);
 
 	// Get the current weekday
 	const currentWeekday = getWeekday();
@@ -1042,14 +1043,26 @@ export const promptTemplate = (
 	let template = templates[instruction.promptStyle];
 
 	// Replace {{CURRENT_DATE}} in the template with the formatted date
-	template = template.replace('{{CURRENT_DATE}}', formattedDate);
+	template = template.replace('{{CURRENT_DATE}}', currentWeekday + ' ' + formattedDate);
+
+	template = template.replace('{{YEAR}}', currentDate.getFullYear().toString());
 
 	template = template.replace('{{USER_CUSTOM_INSTRUCTIONS}}', instruction.customInstruction ?? '');
 
 	template = template.replace('{{MODEL}}', modelName ?? '');
 
-	const currentModelsInfo = get(modelsInfo);
-	template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? ''].organization ?? '');
+	if (modelName == "Smart Router")
+	{
+		template = template.replace('{{ORGANIZATION}}', "Beyond the Loop");
+	}else
+	{
+		const currentModelsInfo = get(modelsInfo);
+		template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? ''].organization ?? '');
+	}
+	
+
+	
+	template = template.replace('{{fair usage policy}}', '5');
 
 
 	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
