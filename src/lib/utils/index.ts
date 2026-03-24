@@ -16,6 +16,12 @@ dayjs.extend(localizedFormat);
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { TTS_RESPONSE_SPLIT } from '$lib/types';
 import type { SystemPromptConfig, PromptStyle } from '$lib/stores';
+import { concise_prompt } from '$lib/utils/default_prompts/concise';
+import { formal_prompt } from '$lib/utils/default_prompts/formal';
+import { explaining_prompt } from '$lib/utils/default_prompts/explaining';
+import { default_prompt } from '$lib/utils/default_prompts/default';
+import { get } from 'svelte/store';
+import { modelsInfo } from '$lib/stores';
 //////////////////////////
 // Helper functions
 //////////////////////////
@@ -988,6 +994,13 @@ export const blobToFile = (blob, fileName) => {
 	return file;
 };
 
+export const templates: Record<PromptStyle, string> = {
+  concise: concise_prompt,
+  formal: formal_prompt,
+  explaining: explaining_prompt,
+  default: default_prompt
+}
+
 /**
  * @param {string} instruction - The instruction dict containing promptStyle and customInstruction.
  * @returns {string} The template string with the placeholders replaced by the prompt.
@@ -995,7 +1008,8 @@ export const blobToFile = (blob, fileName) => {
 export const promptTemplate = (
 	instruction: SystemPromptConfig,
 	user_name?: string,
-	user_location?: string
+	user_location?: string,
+	modelName?: string
 ): string => {
 	// Get the current date
 	const currentDate = new Date();
@@ -1027,11 +1041,20 @@ export const promptTemplate = (
 
 	let template = templates[instruction.promptStyle];
 
-	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
-	template = template.replace('{{CURRENT_DATETIME}}', `${formattedDate} ${currentTime}`);
-
 	// Replace {{CURRENT_DATE}} in the template with the formatted date
 	template = template.replace('{{CURRENT_DATE}}', formattedDate);
+
+	template = template.replace('{{USER_CUSTOM_INSTRUCTIONS}}', instruction.customInstruction ?? '');
+
+	template = template.replace('{{MODEL}}', modelName ?? '');
+
+	const currentModelsInfo = get(modelsInfo);
+	template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? ''].organization ?? '');
+
+
+	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
+	template = template.replace('{{CURRENT_DATETIME}}', `${formattedDate} ${currentTime}`);
+	
 
 	// Replace {{CURRENT_TIME}} in the template with the formatted time
 	template = template.replace('{{CURRENT_TIME}}', currentTime);
@@ -1448,11 +1471,4 @@ export function remapCitations(content, messageSources, urlToGlobalIndex, global
 		const idx = urlToGlobalIndex.get(url);
 		return `[${idx}]`;
 	});
-}
-
-export const templates: Record<PromptStyle, string> = {
-  professional: `Antworte nur mit dem Wort: professional.`,
-  friendly: `Antworte nur mit dem Wort: friendly.`,
-  creative: `Antworte nur mit dem Wort: professional.`,
-  academic: `Antworte nur mit dem Wort: academic.`
 }

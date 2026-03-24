@@ -150,7 +150,7 @@ type OllamaModelDetails = {
 	quantization_level: string;
 };
 
-export type PromptStyle = 'professional' | 'friendly' | 'creative' | 'academic';
+export type PromptStyle = 'concise' | 'explaining' | 'default' | 'formal';
 export interface SystemPromptConfig {
   promptStyle: PromptStyle;
   customInstruction?: string;

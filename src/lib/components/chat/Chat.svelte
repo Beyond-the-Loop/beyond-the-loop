@@ -1447,6 +1447,7 @@
 			params?.stream_response ??
 			true;
 
+
 		const messages = [
 			params?.system || $settings.system || (responseMessage?.userContext ?? null)
 				? {
@@ -1456,7 +1457,7 @@
 							`${$user.first_name} ${$user.last_name}`,
 							$settings?.userLocation
 								? await getAndUpdateUserLocation(localStorage.token)
-								: undefined
+								: undefined, model.name
 						)}${
 							(responseMessage?.userContext ?? null)
 								? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
