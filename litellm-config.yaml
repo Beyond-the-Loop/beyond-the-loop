@@ -227,10 +227,9 @@ model_list:
 
   - model_name: "GPT o4-mini"
     litellm_params:
-      model: "azure/o4-mini"
+      model: "azure/responses/o4-mini"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      api_version: "2024-12-01-preview"
     model_info:
       context_window: '200K'
       category: 1
