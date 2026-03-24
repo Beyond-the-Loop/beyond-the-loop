@@ -114,12 +114,6 @@
 		selectedTheme = _theme;
 	};
 	function changePromptStyle(style: string) {
-		// if(promptStyle == style)
-		// {
-		// 	promptStyle = null;
-		// }else {
-		// 	promptStyle = style;
-		// }
 		promptStyle = style;
 	}
 	let showLanguageDropdown = false;
@@ -358,10 +352,6 @@
 			{$i18n.t('Your custom tone prompt (optional)')}
 	</div>
 	<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
-		<!-- {#if system}
-			<div
-				class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System prompt')}</div>
-		{/if} -->
 		<textarea
 			bind:value={customInstruction}
 			on:input={() => {promptStyle = "default"}}
