@@ -27,10 +27,10 @@
 	let customInstruction = '';
 
 	const styles = [
-        { value: 'professional', title: '💼 Professionell', description: 'Sachlich, präzise und geschäftlich. Ideal für Unternehmensinhalte.' },
-        { value: 'friendly', title: '😊 Freundlich', description: 'Locker, nahbar und verständlich. Ideal für allgemeine Kommunikation.' },
-        { value: 'creative', title: '🎨 Kreativ', description: 'Inspirierend, bildhaft und unkonventionell. Ideal für Brainstorming.' },
-        { value: 'academic', title: '📚 Akademisch', description: 'Fundiert, strukturiert und detailliert. Ideal für Recherche und Analyse.' },
+        { value: 'default', title: '📋 Standard', description: 'Sachlich, präzise und geschäftlich. Ideal für Unternehmensinhalte.' },
+        { value: 'concise', title: '⚡ Prägnant', description: 'Präzise, direkt und anpassungsfähig. Ideal für effiziente KI-Arbeit mit klarem Fokus auf Lösung.' },
+        { value: 'formal', title: '🏛️ Formell', description: 'Kompetent, professionell und klar. Ideal für konstruktive KI-ARbeit mit intellektueller Präzision.' },
+        { value: 'explaining', title: '💡 Erklärend', description: 'Klar, geduldig und auf Augenhöhe. Ideal, um komplexe Themen tief zu durchdringen.' },
     ];
 
 	let promptStyle: string | null = styles[0].value;
@@ -114,12 +114,13 @@
 		selectedTheme = _theme;
 	};
 	function changePromptStyle(style: string) {
-		if(promptStyle == style)
-		{
-			promptStyle = null;
-		}else {
-			promptStyle = style;
-		}
+		// if(promptStyle == style)
+		// {
+		// 	promptStyle = null;
+		// }else {
+		// 	promptStyle = style;
+		// }
+		promptStyle = style;
 	}
 	let showLanguageDropdown = false;
 	let languageDropdownRef;
@@ -340,7 +341,7 @@
 		{#each styles as style (style.value)}
 			<button
 				class="flex flex-col gap-2 p-4 dark:bg-customGray-800 bg-lightGray-300 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300
-					{promptStyle === style.value && !customInstruction ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-gray-600 hover:bg-lightGray-400/90'}"
+					{promptStyle === style.value && !customInstruction ? `border-2 border-[#305BE4]` : 'border border-gray-200 dark:border-customGray-700 hover:bg-lightGray-400/90'}"
 				on:click={() => changePromptStyle(style.value)}
 				on:keydown={(e) => {e}}
 				disabled={customInstruction ? true : undefined}
@@ -365,7 +366,7 @@
 		{/if} -->
 		<textarea
 			bind:value={customInstruction}
-			on:input={() => {promptStyle = null}}
+			on:input={() => {promptStyle = "default"}}
 			placeholder="z.B. antworte immer knapp, verwende Aufzählungen und vermeide Fachjargon..."
 
 			class="px-2.5 py-2 text-sm pt-2 text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
