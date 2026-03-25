@@ -17,10 +17,6 @@
 					<Selector
 						id={`${selectedModelIdx}`}
 						placeholder={$i18n.t('Select a model')}
-						
-						showTemporaryChatControl={$user.role === 'user'
-							? ($user?.permissions?.chat?.temporary ?? true)
-							: true}
 						bind:value={selectedModel}
 					/>
 				</div>
