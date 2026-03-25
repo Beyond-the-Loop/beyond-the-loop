@@ -131,6 +131,25 @@
 	let isMagicLoading = false;
 	let initNewChatCompleted = false;
 
+	const getDefaultModels = (): string[] => {
+		const defaultModelIds = $companyConfig?.config?.models?.default_models?.split(',');
+		const validDefaults = defaultModelIds?.filter((id) => $models.some((m) => m.id === id));
+
+		if (validDefaults?.length > 0) {
+			return validDefaults;
+		}
+
+		return ["Smart Router"];
+	};
+
+	$: if (
+		!chatIdProp &&
+		$models.length > 0 &&
+		(selectedModels.length === 0 || selectedModels.every((id) => !id || !$models.some((m) => m.id === id)))
+	) {
+		selectedModels = getDefaultModels();
+	}
+
 	$: if (chatIdProp) {
 		(async () => {
 			loading = true;
@@ -583,54 +602,7 @@
 	//////////////////////////
 
 	const initNewChat = async () => {
-		if ($page.url.searchParams.get('models')) {
-			selectedModels = $page.url.searchParams.get('models')?.split(',');
-		} else if ($page.url.searchParams.get('model')) {
-			const urlModels = $page.url.searchParams.get('model')?.split(',');
-
-			if (urlModels.length === 1) {
-				const m = $models.find((m) => m.id === urlModels[0]);
-				if (!m) {
-					const modelSelectorButton = document.getElementById('model-selector-0-button');
-					if (modelSelectorButton) {
-						modelSelectorButton.click();
-						await tick();
-
-						const modelSelectorInput = document.getElementById('model-search-input');
-						if (modelSelectorInput) {
-							modelSelectorInput.focus();
-							modelSelectorInput.value = urlModels[0];
-							modelSelectorInput.dispatchEvent(new Event('input'));
-						}
-					}
-				} else {
-					selectedModels = urlModels;
-				}
-			} else {
-				selectedModels = urlModels;
-			}
-		} else {
-			if ($settings?.models) {
-				selectedModels = $settings?.models;
-			} else if ($companyConfig?.config?.models?.default_models) {
-				const ids = $companyConfig?.config?.models?.default_models?.split(',');
-				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
-				const isActive = $models?.some((model) => ids?.includes(model.id));
-				selectedModels = isActive ? ids : gptDefault ? [gptDefault?.id] : [];
-			} else {
-				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
-				selectedModels = [gptDefault?.id];
-			}
-		}
-
-		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
-		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
-			if ($models.length > 0) {
-				selectedModels = [$models[0].id];
-			} else {
-				selectedModels = [''];
-			}
-		}
+		selectedModels = getDefaultModels();
 
 		await showControls.set(false);
 		await showCallOverlay.set(false);
@@ -685,10 +657,6 @@
 				submitPrompt(prompt);
 			}
 		}
-
-		selectedModels = selectedModels.map((modelId) =>
-			$models.map((m) => m.id).includes(modelId) ? modelId : ''
-		);
 
 		const userSettings = await getUserSettings(localStorage.token);
 
@@ -1982,9 +1950,7 @@
 						<div class=" pb-[1rem] max-w-[980px] mx-auto w-full">
 							<div class="px-3 mb-2.5 flex items-center justify-between">
 								<ModelSelector
-									{initNewChatCompleted}
 									bind:selectedModels
-									showSetDefault={!history.currentId}
 								/>
 								<button
 									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
