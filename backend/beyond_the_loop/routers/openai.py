@@ -245,6 +245,19 @@ async def generate_chat_completion(
 
     payload["model"] = model_name
 
+    tools = []
+
+    #if metadata.get("web_search_enabled", False):
+        #payload["web_search_options"] = {}
+        #tools.append({"type": "web_search_preview"})
+
+    if metadata.get("code_interpreter_enabled", False):
+        #tools.append({"codeExecution": {}})
+        tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
+
+    if tools:
+        payload["tools"] = tools
+
     if model_name == "Mistral Large 2":
         payload["stream"] = False
         for message in payload["messages"]:
@@ -348,6 +361,7 @@ async def generate_chat_completion(
                 full_response = ""
                 async for chunk in r.content:
                     chunk_str = chunk.decode()
+                    print(f"RAW CHUNK: {chunk_str!r}")
                     if chunk_str.startswith('data: '):
                         try:
                             data = json.loads(chunk_str[6:])

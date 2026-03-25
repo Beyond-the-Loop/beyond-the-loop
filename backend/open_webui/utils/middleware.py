@@ -493,8 +493,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     events = []
     sources = []
 
-    form_data.pop("features", None)
-    form_data.pop("auto_tools", None)
+    features = form_data.pop("features", None) or {}
+    auto_tools = form_data.pop("auto_tools", None) or []
+    metadata["web_search_enabled"] = (
+        isinstance(auto_tools, list) and "web_search" in auto_tools
+    ) or (
+        isinstance(features, dict) and features.get("web_search", False)
+    )
+    metadata["code_interpreter_enabled"] = (
+        isinstance(auto_tools, list) and "code_interpreter" in auto_tools
+    ) or (
+        isinstance(features, dict) and features.get("code_interpreter", False)
+    )
 
     user_message = get_last_user_message(form_data["messages"])
 
