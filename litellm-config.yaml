@@ -104,6 +104,8 @@ model_list:
       speed: 3.5
       tokens_per_second: 197
       zdr: true
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
 
   - model_name: "Gemini 3 Flash"
     litellm_params:

@@ -1146,6 +1146,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             CODE_INTERPRETER_PROMPT, form_data["messages"]
         )
 
+        # Store original model for display; use code interpreter model only for the LLM call
+        metadata["display_model_id"] = model.id
         model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
         form_data["model"] = model.id
 
@@ -1307,7 +1309,7 @@ async def process_chat_response(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": model.id,
+                "model": metadata.get("display_model_id", model.id),
             },
         )
 
@@ -1580,7 +1582,7 @@ async def process_chat_response(
             await event_emitter(
                 {
                     "type": "chat:completion",
-                    "data": {"model": model.id},
+                    "data": {"model": metadata.get("display_model_id", model.id)},
                 }
             )
 
