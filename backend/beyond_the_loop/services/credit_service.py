@@ -140,11 +140,6 @@ class CreditService:
         cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
         await self._subtract_credits_by_user_and_credits(user, cost)
 
-    async def subtract_credits_by_user_for_web_search(self, user):
-        await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
-
-    async def subtract_credits_by_user_for_code_interpreter(self, user):
-        await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
     @staticmethod
     async def recharge_flex_credits(user):
