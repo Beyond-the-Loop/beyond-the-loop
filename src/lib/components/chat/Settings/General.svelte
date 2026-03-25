@@ -332,18 +332,23 @@
 
 	<div class="w-full grid grid-cols-2 gap-3">
 		{#each styles as style (style.value)}
+			{@const isActive = promptStyle === style.value && !customInstruction}
 			<button
-				class="text-left flex flex-col gap-2 p-3 dark:bg-customGray-800 bg-lightGray-300 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-default disabled:hover:bg-lightGray-300 border-2
-					{promptStyle === style.value && !customInstruction ? `border-[#305BE4] shadow-sm` : 'border-transparent ring-1 ring-gray-200 dark:ring-customGray-700 hover:bg-gray-100'}"
+				class="text-left flex flex-col gap-2 p-3 rounded-lg transition-all
+						bg-lightGray-300 dark:bg-customGray-900 
+						disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none
+						{isActive 
+							? 'ring-2 ring-inset ring-[#305BE4]' 
+							: 'ring-1 ring-inset ring-gray-200 dark:ring-customGray-700 hover:bg-gray-100 dark:hover:bg-customGray-950'}"
 				on:click={() => changePromptStyle(style.value)}
 				on:keydown={(e) => {e}}
 				disabled={customInstruction ? true : undefined}
 				role="radio"                 
 				tabindex="0"            
-				aria-checked="{promptStyle === style.value}" 
+				aria-checked="{isActive}" 
 				aria-labelledby="style-title-{style.value}"
 			>
-				<h2 class={promptStyle === style.value && !customInstruction ? `font-medium` : ''}>{$i18n.t(style.title)}</h2>
+				<h2 class={isActive ? `font-medium` : ''}>{$i18n.t(style.title)}</h2>
 				<p class="text-xs text-gray-600 dark:text-gray-500">{$i18n.t(style.description)}</p>
 			</button>
 		{/each}

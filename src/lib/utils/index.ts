@@ -1029,7 +1029,6 @@ export const promptTemplate = (
 		second: 'numeric',
 		hour12: true
 	});
-	console.log(modelName);
 
 	// Get the current weekday
 	const currentWeekday = getWeekday();
