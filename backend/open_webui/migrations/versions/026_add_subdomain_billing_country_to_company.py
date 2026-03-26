@@ -1,7 +1,7 @@
 """Add subdomain and billing_country to company, remove size/industry/team_function
 
-Revision ID: 025
-Revises: 024
+Revision ID: 026
+Revises: 025
 Create Date: 2026-03-18 00:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '025'
-down_revision: Union[str, None] = '024'
+revision: str = '026'
+down_revision: Union[str, None] = '025'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -24,8 +24,8 @@ def upgrade() -> None:
     conn.execute(
         sa.text("""
                 ALTER TABLE company
-                    ADD COLUMN subdomain VARCHAR,
-                    ADD COLUMN billing_country VARCHAR;
+                    ADD COLUMN IF NOT EXISTS subdomain VARCHAR,
+                    ADD COLUMN IF NOT EXISTS billing_country VARCHAR;
                 """)
     )
 

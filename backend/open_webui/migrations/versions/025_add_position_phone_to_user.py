@@ -1,7 +1,7 @@
 """Add position and phone columns to user table
 
-Revision ID: 024
-Revises: 023
+Revision ID: 025
+Revises: 024
 Create Date: 2026-03-18 00:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '024'
-down_revision: Union[str, None] = '023'
+revision: str = '025'
+down_revision: Union[str, None] = '024'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -24,8 +24,8 @@ def upgrade() -> None:
     conn.execute(
         sa.text("""
                 ALTER TABLE "user"
-                    ADD COLUMN position VARCHAR,
-                    ADD COLUMN phone VARCHAR;
+                    ADD COLUMN IF NOT EXISTS position VARCHAR,
+                    ADD COLUMN IF NOT EXISTS phone VARCHAR;
                 """)
     )
 
