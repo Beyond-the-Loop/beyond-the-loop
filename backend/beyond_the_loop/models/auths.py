@@ -101,10 +101,18 @@ class ResetPasswordForm(BaseModel):
 class SignupForm(BaseModel):
     first_name: str
     last_name: str
-    password: str
+    password: Optional[str] = None
     signup_token: str
     profile_image_url: Optional[str] = "/user.png"
     is_invited: bool = False
+    position: Optional[str] = None
+    phone: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    utm_content: Optional[str] = None
+    utm_term: Optional[str] = None
+    utm_gclid: Optional[str] = None
 
 class AuthsTable:
     def insert_new_auth(
@@ -192,7 +200,8 @@ class AuthsTable:
 
                 try:
                     loops_service.create_or_update_loops_contact(user)
-                    crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role)
+                    utm_params = {k: v for k, v in (user.info or {}).items() if k.startswith("utm_")}
+                    crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level=user.role, utm_params=utm_params or None)
                 except Exception as e:
                     log.error(f"Failed to create user in CRM or in Loops: {e}")
 

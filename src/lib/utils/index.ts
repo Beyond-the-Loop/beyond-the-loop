@@ -67,6 +67,21 @@ export const replaceTokens = (content, sourceIds, char, user) => {
 		});
 	}
 
+	// Fallback: replace any remaining [https://...] or [http://...] patterns that were not
+	// covered by sourceIds (e.g. missing sources, adjacent brackets, or semicolon-separated URLs).
+	// This prevents Marked's GFM autolink from consuming the ] as part of the URL.
+	content = content.replace(/\[(https?:\/\/[^\]]*;[^\]]*)\]/g, (_, inner) => {
+		// Handle semicolon-separated URLs in one bracket: [url1; url2] → two source_id tags
+		return inner
+			.split(/;\s*/)
+			.filter((u) => u.trim().startsWith('http'))
+			.map((u) => `<source_id data="${u.trim()}" />`)
+			.join(' ');
+	});
+	content = content.replace(/\[(https?:\/\/[^\]]+)\]/g, (_, url) => {
+		return `<source_id data="${url}" />`;
+	});
+
 	return content;
 };
 
@@ -1269,6 +1284,8 @@ export function getModelIcon(label: string): string {
 
 	if (lower.includes('nano banana')) {
 		return '/google-gemini-icon.svg';
+	} else if (lower.includes('router')) {
+		return '/smart-router.svg';
 	} else if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {

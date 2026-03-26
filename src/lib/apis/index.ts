@@ -1,5 +1,26 @@
 import { WEBUI_BASE_URL } from '$lib/constants';
 
+export const getModelsMetadata = async (token: string = '') => {
+	const res = await fetch(`${WEBUI_BASE_URL}/api/models/metadata`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			...(token && { authorization: `Bearer ${token}` })
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			return {};
+		});
+
+	return res ?? {};
+};
+
 export const getModels = async (token: string = '', base: boolean = false) => {
 	let error = null;
 	const res = await fetch(`${WEBUI_BASE_URL}/api/models${base ? '/base' : ''}`, {

@@ -12,7 +12,7 @@ services:
 
   litellm:
     container_name: litellm
-    image: ghcr.io/berriai/litellm:v1.80.15.rc.1
+    image: ghcr.io/berriai/litellm:v1.81.14-stable.gpt-5.4-patch7
     env_file:
       - .env
     restart: unless-stopped
@@ -76,6 +76,7 @@ services:
       - .env
     volumes:
       - ./backend/data:/app/backend/data
+      - ./litellm-config.yaml:/app/litellm-config.yaml:ro
     depends_on:
       - redis
       - litellm
@@ -99,7 +100,7 @@ services:
       - "traefik.http.middlewares.error-pages-mw.errors.status=404,500-599"
       - "traefik.http.middlewares.error-pages-mw.errors.service=error-pages"
       - "traefik.http.middlewares.error-pages-mw.errors.query=/{status}.html"
-      - "traefik.http.routers.staging-fallback.rule=Host(`staging.chat.beyondtheloop.ai`)"
+      - "traefik.http.routers.staging-fallback.rule=Host(`chat.beyondtheloop.ai`)"
       - "traefik.http.routers.staging-fallback.entrypoints=websecure"
       - "traefik.http.routers.staging-fallback.tls.certresolver=myresolver"
       - "traefik.http.routers.staging-fallback.priority=1"

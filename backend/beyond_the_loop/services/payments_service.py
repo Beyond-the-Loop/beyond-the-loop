@@ -1,11 +1,11 @@
 import logging
-from dateutil.relativedelta import relativedelta
-from fastapi import HTTPException
-
-import stripe
 import os
 import time
 from datetime import datetime
+
+import stripe
+from dateutil.relativedelta import relativedelta
+from fastapi import HTTPException
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +14,9 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.services.crm_service import crm_service
 import re
 
-from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
+from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, \
+    STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
+
 
 def _set_new_credit_recharge_check_date(company):
     try:
@@ -51,27 +53,36 @@ class PaymentsService:
         self.stripe_publishable_key = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 
         self.stripe_price_id_starter_monthly = os.environ.get('STRIPE_PRICE_ID_STARTER_MONTHLY',
-                                                         "price_1RNq8xBBwyxb4MZjy1k0SneL")
+                                                              "price_1RNq8xBBwyxb4MZjy1k0SneL")
         self.stripe_price_id_starter_yearly = os.environ.get('STRIPE_PRICE_ID_STARTER_YEARLY',
-                                                        "price_1RNq8xBBwyxb4MZjfz68raOh")
+                                                             "price_1RNq8xBBwyxb4MZjfz68raOh")
 
-        self.stripe_price_id_team_monthly = os.environ.get('STRIPE_PRICE_ID_TEAM_MONTHLY', "price_1RNqAcBBwyxb4MZjAGivhdo7")
+        self.stripe_price_id_team_monthly = os.environ.get('STRIPE_PRICE_ID_TEAM_MONTHLY',
+                                                           "price_1RNqAcBBwyxb4MZjAGivhdo7")
         self.stripe_price_id_team_quarterly = os.environ.get('STRIPE_PRICE_ID_TEAM_QUARTERLY',
-                                                        "price_1SSM5YBBwyxb4MZj6pj9hNIH")
-        self.stripe_price_id_team_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_YEARLY', "price_1RNqAcBBwyxb4MZjNdS4XrNc")
+                                                             "price_1SSM5YBBwyxb4MZj6pj9hNIH")
+        self.stripe_price_id_team_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_YEARLY',
+                                                          "price_1RNqAcBBwyxb4MZjNdS4XrNc")
 
-        self.stripe_price_id_team_two_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_TWO_YEARLY', 'price_1SecChBBwyxb4MZjwC1dBei8')
+        self.stripe_price_id_team_two_yearly = os.environ.get('STRIPE_PRICE_ID_TEAM_TWO_YEARLY',
+                                                              'price_1SecChBBwyxb4MZjwC1dBei8')
 
         self.stripe_price_id_business_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_MONTHLY',
-                                                          "price_1Rgl6vBBwyxb4MZjHFAg6034")
+                                                               "price_1Rgl6vBBwyxb4MZjHFAg6034")
         self.stripe_price_id_business_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_YEARLY',
-                                                         "price_1RglAcBBwyxb4MZjRYcvp9dr")
+                                                              "price_1RglAcBBwyxb4MZjRYcvp9dr")
+
+        self.stripe_price_id_business_21_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_21_MONTHLY',
+                                                                  "price_1TBbLoBBwyxb4MZjbmP6X9oj")
+
         self.stripe_price_id_business_two_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_TWO_YEARLY',
-                                                             "price_1SFK4QBBwyxb4MZjdHFP4AJh")
+                                                                  "price_1SFK4QBBwyxb4MZjdHFP4AJh")
 
-        self.stripe_price_id_enterprise_monthly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_MONTHLY', 'price_1RglhLBBwyxb4MZjTgmXgtSV')
+        self.stripe_price_id_enterprise_monthly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_MONTHLY',
+                                                                 'price_1RglhLBBwyxb4MZjTgmXgtSV')
 
-        self.stripe_price_id_enterprise_yearly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_YEARLY', 'price_1RgliHBBwyxb4MZjb1rAH3tS')
+        self.stripe_price_id_enterprise_yearly = os.environ.get('STRIPE_PRICE_ID_ENTERPRISE_YEARLY',
+                                                                'price_1RgliHBBwyxb4MZjb1rAH3tS')
 
         self.stripe_price_id_user_seat = os.environ.get('STRIPE_PRICE_ID_USER_SEAT', 'price_1Sq9KwBBwyxb4MZj8okVXYiQ')
 
@@ -122,6 +133,12 @@ class PaymentsService:
                 "stripe_price_id": self.stripe_price_id_business_yearly,
                 "seats": 100
             },
+            "business_21_monthly": {
+                "price": 357600, # 3,576€ in cents
+                "credits_per_month": 150,
+                "stripe_price_id": self.stripe_price_id_business_21_monthly,
+                "seats": 100
+            },
             "business_two_yearly": {
                 "price": 969800,  # 9.698,00€ in cents
                 "credits_per_month": 150,
@@ -129,7 +146,7 @@ class PaymentsService:
                 "seats": 100
             },
             "enterprise_monthly": {
-                "price": 124900, # 1.249,00€ in cents
+                "price": 124900,  # 1.249,00€ in cents
                 "credits_per_month": 450,
                 "stripe_price_id": self.stripe_price_id_enterprise_monthly,
                 "seats": 1000
@@ -211,7 +228,8 @@ class PaymentsService:
                 STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company_id] = trial_subscriptions
 
             # If there's an active trial subscription and no active subscription
-            if trial_subscriptions.get("data") and len(trial_subscriptions.get("data")) > 0 and not active_subscriptions.get("data"):
+            if trial_subscriptions.get("data") and len(
+                    trial_subscriptions.get("data")) > 0 and not active_subscriptions.get("data"):
                 trial_subscription = trial_subscriptions.get("data")[0]
 
                 # Calculate days remaining in trial
@@ -254,8 +272,10 @@ class PaymentsService:
                     "end_date": subscription.get("current_period_end"),
                     "cancel_at_period_end": subscription.get("cancel_at_period_end"),
                     "canceled_at": subscription.get("canceled_at") if hasattr(subscription, 'canceled_at') else None,
-                    "will_renew": not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active',
-                    "next_billing_date": subscription.get("current_period_end") if not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active' else None,
+                    "will_renew": not subscription.get("cancel_at_period_end") and subscription.get(
+                        "status") == 'active',
+                    "next_billing_date": subscription.get("current_period_end") if not subscription.get(
+                        "cancel_at_period_end") and subscription.get("status") == 'active' else None,
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     "image_url": image_url,
                     "subscription_id": subscription.get("id"),
@@ -270,7 +290,8 @@ class PaymentsService:
                 "cancel_at_period_end": subscription.get("cancel_at_period_end"),
                 "canceled_at": subscription.get("canceled_at") if hasattr(subscription, 'canceled_at') else None,
                 "will_renew": not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active',
-                "next_billing_date": subscription.get("current_period_end") if not subscription.get("cancel_at_period_end") and subscription.get("status") == 'active' else None,
+                "next_billing_date": subscription.get("current_period_end") if not subscription.get(
+                    "cancel_at_period_end") and subscription.get("status") == 'active' else None,
                 "flex_credits_remaining": company.flex_credit_balance,
                 "credits_remaining": company.credit_balance,
                 "seats": plan.get("seats", 0),
@@ -278,7 +299,9 @@ class PaymentsService:
                 "auto_recharge": company.auto_recharge,
                 "image_url": image_url,
                 "credits_per_month": plan.get("credits_per_month", 0),
-                "custom_credit_amount": int(subscription.get("metadata").get("custom_credit_amount")) if subscription.get("metadata").get("custom_credit_amount") is not None else None,
+                "custom_credit_amount": int(
+                    subscription.get("metadata").get("custom_credit_amount")) if subscription.get("metadata").get(
+                    "custom_credit_amount") is not None else None,
                 "next_credit_recharge": company.next_credit_charge_check
             }
 
@@ -296,7 +319,9 @@ class PaymentsService:
 
                 if subscription.get("is_trial", False) or subscription.get("status", False) == "active":
                     Companies.update_company_by_id(company.id, {
-                        "credit_balance": subscription.get("custom_credit_amount", False) or self.SUBSCRIPTION_PLANS.get(subscription.get("plan", ""), {}).get("credits_per_month", 0),
+                        "credit_balance": subscription.get("custom_credit_amount",
+                                                           False) or self.SUBSCRIPTION_PLANS.get(
+                            subscription.get("plan", ""), {}).get("credits_per_month", 0),
                         "budget_mail_80_sent": False,
                         "budget_mail_100_sent": False
                     })
@@ -374,7 +399,8 @@ class PaymentsService:
                 return None, None, None
 
             if not plan_id or plan_id not in payments_service.SUBSCRIPTION_PLANS:
-                log.error(f"No plan found for price ID: {price_id}. Known price IDs: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }")
+                log.error(
+                    f"No plan found for price ID: {price_id}. Known price IDs: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }")
                 return None, None, None
 
             subscription_metadata = event_data.get('metadata', {})
@@ -387,7 +413,6 @@ class PaymentsService:
                     credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
             else:
                 credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
-
 
             if credits_per_month > 0:
                 Companies.update_company_by_id(company.id, {

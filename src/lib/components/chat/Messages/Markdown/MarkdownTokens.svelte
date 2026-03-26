@@ -182,7 +182,7 @@
 		</div>
 	{:else if token.type === 'blockquote'}
 		<blockquote>
-			<svelte:self id={`${id}-${tokenIdx}`} tokens={token.tokens} />
+			<svelte:self id={`${id}-${tokenIdx}`} tokens={token.tokens} {onSourceClick} />
 		</blockquote>
 	{:else if token.type === 'list'}
 		{#if token.ordered}
@@ -193,6 +193,7 @@
 							id={`${id}-${tokenIdx}-${itemIdx}`}
 							tokens={item.tokens}
 							top={token.loose}
+							{onSourceClick}
 						/>
 					</li>
 				{/each}
@@ -205,6 +206,7 @@
 							id={`${id}-${tokenIdx}-${itemIdx}`}
 							tokens={item.tokens}
 							top={token.loose}
+							{onSourceClick}
 						/>
 					</li>
 				{/each}

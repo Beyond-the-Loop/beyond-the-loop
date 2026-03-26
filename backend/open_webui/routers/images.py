@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import io
 import logging
@@ -133,19 +134,22 @@ async def image_generations(
         if form_data.input_image_path:
             with open(form_data.input_image_path, "rb") as f:
                 image_bytes_list.insert(0, f)
-                response = client.images.edit(
+                response = await asyncio.to_thread(
+                    client.images.edit,
                     model="Nano Banana",
                     prompt=form_data.prompt,
                     image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
                 )
         elif image_bytes_list:
-            response = client.images.edit(
+            response = await asyncio.to_thread(
+                client.images.edit,
                 model="Nano Banana",
                 prompt=form_data.prompt,
                 image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
             )
         else:
-            response = client.images.generate(
+            response = await asyncio.to_thread(
+                client.images.generate,
                 model="Nano Banana",
                 prompt=form_data.prompt,
             )
@@ -162,8 +166,10 @@ async def image_generations(
 
         image_credit_cost = 0.0
         if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-            # Subtract credits for image generation
-            image_credit_cost = await credit_service.subtract_credits_by_user_for_image(user)
+            response_dict = response.model_dump()
+            response_dict["model"] = "Nano Banana"
+
+            image_credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(user, response_dict)
 
         Completions.insert_new_completion(
             user.id, "Nano Banana", image_credit_cost, None, False, is_image_generation=True

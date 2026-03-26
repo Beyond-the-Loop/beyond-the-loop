@@ -163,6 +163,8 @@
 	let generatingImage = false;
 
 	let showRateComment = false;
+	$: statusList = message?.statusHistory ?? [...(message?.status ? [message?.status] : [])];
+	$: status = statusList.length > 0 ? statusList.at(-1) : null
 
 	const copyToClipboard = async (text, sources) => {
 		const res = await copyToClipboardResponse(text, sources);
@@ -570,14 +572,10 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
-							{@const status = (
-								message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]
-							).at(-1)}
-							{#if !status?.hidden}
-								<div class="status-description flex items-center gap-2 py-0.5">
-									{#if status?.done === false}
-										<div class="">
+						{#if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
+								<div class="status-description flex items-center gap-2">
+									{#if !message.done && (status?.done === false || !status)}
+										<div class="py-1">
 											<Spinner className="size-4" />
 										</div>
 									{/if}
@@ -664,7 +662,7 @@
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
-												{#if status?.description.includes('{{searchQuery}}')}
+												{#if status?.description?.includes('{{searchQuery}}')}
 													{$i18n.t(status?.description, {
 														searchQuery: status?.query
 													})}
@@ -675,7 +673,6 @@
 										</div>
 									{/if}
 								</div>
-							{/if}
 						{/if}
 
 						{#if edit === true}
@@ -764,6 +761,8 @@
 
 											if (sourceButton) {
 												sourceButton.click();
+											} else if (e.startsWith('http')) {
+												window.open(e, '_blank', 'noopener,noreferrer');
 											}
 										}}
 										onAddMessages={({ modelId, parentId, messages }) => {

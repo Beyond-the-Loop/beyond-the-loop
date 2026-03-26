@@ -429,16 +429,31 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
         raise HTTPException(404, detail=ERROR_MESSAGES.LINK_EXPIRED)
 
     try:
-        # Validate the password
-        if not validate_password(form_data.password):
-            raise HTTPException(
-                status_code=400, 
-                detail="Password must be 8+ characters, with a number, capital letter, and symbol."
-            )
+        password = form_data.password
+        if password:
+            if not validate_password(password):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Password must be 8+ characters, with a number, capital letter, and symbol."
+                )
+        else:
+            password = generate_secure_password()
 
-        hashed_password = get_password_hash(form_data.password)
+        hashed_password = get_password_hash(password)
 
-        user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url)
+        user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url, position=form_data.position, phone=form_data.phone)
+
+        utm_params = {k: v for k, v in {
+            "utm_source": form_data.utm_source,
+            "utm_medium": form_data.utm_medium,
+            "utm_campaign": form_data.utm_campaign,
+            "utm_content": form_data.utm_content,
+            "utm_term": form_data.utm_term,
+            "utm_gclid": form_data.utm_gclid,
+        }.items() if v}
+        if utm_params:
+            existing_info = user.info or {}
+            user = Users.update_user_by_id(user.id, {"info": {**existing_info, **utm_params}})
 
         Auths.insert_auth_for_existing_user(user, hashed_password)
     except Exception as err:

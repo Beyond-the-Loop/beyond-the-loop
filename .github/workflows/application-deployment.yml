@@ -139,12 +139,22 @@ jobs:
       - name: Ensure traefik/error-pages folder exists on remote
         uses: appleboy/ssh-action@v1.2.4
         with:
-          host: ${{ secrets.STAGING_EC2_HOST }}
-          username: ${{ secrets.STAGING_EC2_USERNAME }}
-          key: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USERNAME }}
+          key: ${{ secrets.PROD_EC2_SSH_KEY }}
           script: |
             sudo rm -rf ~/beyond-the-loop/traefik/error-pages
             mkdir -p ~/beyond-the-loop/traefik/error-pages
+
+      - name: Copy error-pages files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USERNAME }}
+          key: ${{ secrets.PROD_EC2_SSH_KEY }}
+          source: "traefik/error-pages"
+          target: "~/beyond-the-loop"
+          overwrite: true
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.4
@@ -155,8 +165,9 @@ jobs:
           script: |
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
-            docker-compose restart litellm
             docker-compose restart error-pages
+            docker-compose restart traefik
+            docker-compose restart litellm
             docker image prune -f
 
   notify-slack:
@@ -347,6 +358,7 @@ jobs:
           script: |
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
-            docker-compose restart litellm
             docker-compose restart error-pages
+            docker-compose restart traefik
+            docker-compose restart litellm
             docker image prune -f
