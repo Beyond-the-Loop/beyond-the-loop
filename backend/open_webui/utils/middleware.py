@@ -21,7 +21,7 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
-from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT, CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT
 from beyond_the_loop.prompts import (
     IMAGE_EDIT_DECISION_MESSAGE,
     FILE_INTENT_DECISION_PROMPT,
@@ -1160,6 +1160,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             CODE_INTERPRETER_PROMPT, form_data["messages"]
         )
 
+        # Store original model for display; use code interpreter model only for the LLM call
+        metadata["display_model_id"] = model.id
         model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
         form_data["model"] = model.id
 
@@ -1321,7 +1323,7 @@ async def process_chat_response(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": model.id,
+                "model": metadata.get("display_model_id", model.id),
             },
         )
 
@@ -1448,13 +1450,8 @@ async def process_chat_response(
                                 match.end() :
                             ]  # Content after opening tag
 
-                            # Remove the start tag from the currently handling text block
-                            content_blocks[-1]["content"] = content_blocks[-1][
-                                "content"
-                            ].replace(match.group(0), "")
-
-                            if before_tag:
-                                content_blocks[-1]["content"] = before_tag
+                            # Text block should contain only what came BEFORE the start tag
+                            content_blocks[-1]["content"] = before_tag
 
                             if not content_blocks[-1]["content"]:
                                 content_blocks.pop()
@@ -1471,7 +1468,38 @@ async def process_chat_response(
                             )
 
                             if after_tag:
-                                content_blocks[-1]["content"] = after_tag
+                                # Check if the end tag is already in after_tag
+                                # (start + end arrived in the same streaming chunk)
+                                end_tag_pattern_inline = rf"</{tag}>"
+                                if re.search(end_tag_pattern_inline, after_tag):
+                                    end_tag_regex_inline = re.compile(end_tag_pattern_inline, re.DOTALL)
+                                    split_inline = end_tag_regex_inline.split(after_tag, maxsplit=1)
+                                    block_content_inline = split_inline[0].strip()
+                                    leftover_inline = split_inline[1].strip() if len(split_inline) > 1 else ""
+
+                                    if block_content_inline:
+                                        content_blocks[-1]["content"] = block_content_inline
+                                        content_blocks[-1]["ended_at"] = time.time()
+                                        content_blocks[-1]["duration"] = int(
+                                            content_blocks[-1]["ended_at"] - content_blocks[-1]["started_at"]
+                                        )
+                                    else:
+                                        content_blocks.pop()
+
+                                    content_blocks.append({"type": "text", "content": leftover_inline})
+
+                                    # Clean the accumulated content string so subsequent calls
+                                    # don't re-detect the already-processed tags
+                                    content = re.sub(
+                                        rf"<{tag}(.*?)>(.|\n)*?</{tag}>",
+                                        "",
+                                        content,
+                                        flags=re.DOTALL,
+                                    )
+
+                                    end_flag = True
+                                else:
+                                    content_blocks[-1]["content"] = after_tag
 
                             break
                 elif content_blocks[-1]["type"] == content_type:
@@ -1594,7 +1622,7 @@ async def process_chat_response(
             await event_emitter(
                 {
                     "type": "chat:completion",
-                    "data": {"model": model.id},
+                    "data": {"model": metadata.get("display_model_id", model.id)},
                 }
             )
 
@@ -2004,6 +2032,17 @@ async def process_chat_response(
                         break
 
                 if detect_code_interpreter:
+                    # Defensive cleanup: strip any leftover closing tags from code_interpreter
+                    # blocks whose end tag arrived in the same chunk as the start tag and
+                    # therefore wasn't processed by tag_content_handler in a later call.
+                    for _block in content_blocks:
+                        if _block.get("type") == "code_interpreter" and "content" in _block:
+                            _tag = _block.get("tag", "code_interpreter")
+                            _end_re = re.compile(rf"</{re.escape(_tag)}>", re.DOTALL)
+                            _parts = _end_re.split(_block["content"], maxsplit=1)
+                            if len(_parts) > 1:
+                                _block["content"] = _parts[0].strip()
+
                     max_retries = 3
                     retries = 0
 
@@ -2224,9 +2263,21 @@ async def process_chat_response(
 
                         # After code execution completes, call the LLM again to summarize the result
                         try:
-                            # Build follow-up messages
+                            # Replace the full CODE_INTERPRETER_PROMPT system message with a
+                            # minimal follow-up system message — avoids verbose preamble while
+                            # still teaching the tag format for potential retries.
+                            followup_non_system = [
+                                m for m in form_data["messages"] if m.get("role") != "system"
+                            ]
+                            followup_base_messages = [
+                                {"role": "system", "content": CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT},
+                                *followup_non_system,
+                            ]
+
+                            followup_instruction = CODE_INTERPRETER_SUMMARY_PROMPT if retries < max_retries else CODE_INTERPRETER_FAIL_PROMPT
+
                             followup_messages = [
-                                *form_data["messages"],
+                                *followup_base_messages,
                                 {
                                     "role": "assistant",
                                     "content": serialize_content_blocks(content_blocks, raw=True),
@@ -2234,34 +2285,32 @@ async def process_chat_response(
                                 {
                                     "role": "user",
                                     "content": json.dumps({
-                                        "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
-                                    }),
-                                }
-                            ] if retries < max_retries else [
-                                *form_data["messages"],
-                                {
-                                    "role": "assistant",
-                                    "content": serialize_content_blocks(content_blocks, raw=True),
-                                },
-                                {
-                                    "role": "user",
-                                    "content": json.dumps({
-                                        "instruction": CODE_INTERPRETER_FAIL_PROMPT
+                                        "instruction": followup_instruction
                                     }),
                                 }
                             ]
 
-                            res = await generate_chat_completion({
+                            # Use the user's originally selected model for the summary,
+                            # falling back to the code interpreter model if unavailable.
+                            display_model_id = metadata.get("display_model_id")
+                            summary_model = (
+                                Models.get_model_by_id(display_model_id)
+                                if display_model_id
+                                else None
+                            ) or Models.get_model_by_name_and_company(
+                                os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id
+                            )
+
+                            res, _ = await generate_chat_completion({
                                 "stream": True,
                                 "messages": followup_messages,
                                 "metadata": {
                                     "agent_or_task_prompt": True
                                 }
-                            }, user, Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id))
+                            }, user, summary_model)
 
                             if isinstance(res, StreamingResponse):
                                 await stream_body_handler(res)
-
 
                         except Exception as follow_err:
                             log.error(f"Follow-up LLM generation failed: {follow_err}")

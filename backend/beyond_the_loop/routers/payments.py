@@ -139,8 +139,8 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         elif event_type == "customer.subscription.updated":
             handle_subscription_updated(event_data)
             return None
-        elif event_type == "charge.succeeded":
-            handle_charge_succeeded(event_data)
+        elif event_type == "invoice.payment_succeeded":
+            handle_invoice_payment_succeeded(event_data)
             return None
         elif event_type == "customer.subscription.deleted":
             handle_subscription_deleted(event_data)
@@ -204,18 +204,18 @@ def handle_subscription_deleted(event_data):
         log.error(f"Error handling subscription deleted event: {e}")
 
 
-# Legacy flex credits recharge
-def handle_charge_succeeded(event_data):
+def handle_invoice_payment_succeeded(event_data):
     try:
-        flex_credits_recharge = event_data.get("metadata", {}).get("flex_credits_recharge")
+        metadata = event_data.get("metadata", {})
+        flex_credits_recharge = metadata.get("flex_credits_recharge")
 
         if flex_credits_recharge == "true":
-            company_id = event_data.get("metadata", {}).get("company_id")
-            amount = event_data.get("amount")
+            company_id = metadata.get("company_id")
+            base_amount = metadata.get("base_amount")
 
-            Companies.add_flex_credit_balance(company_id, float(amount) / 100) # Convert cents into Euros
+            Companies.add_flex_credit_balance(company_id, float(base_amount) / 100)  # Convert cents into Euros
     except Exception as e:
-        log.error(f"Error processing charge succeeded event: {e}")
+        log.error(f"Error processing invoice payment succeeded event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -277,23 +277,36 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
         # Use the first payment method
         default_payment_method = payment_methods.data[0].id
 
-        # Create a PaymentIntent
-        payment_intent = stripe.PaymentIntent.create(
-            amount=payments_service.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS,  # Default price in cents (25 euro)
-            currency="eur",
+        base_amount = payments_service.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS
+
+        # Create a draft invoice first (auto_advance=False so we control the lifecycle)
+        invoice = stripe.Invoice.create(
             customer=company.stripe_customer_id,
-            payment_method=default_payment_method,  # Specify the payment method
-            payment_method_types=["card"],
-            off_session=True,
-            confirm=True,
+            auto_advance=False,
+            automatic_tax={"enabled": True},
+            default_payment_method=default_payment_method,
+            collection_method="charge_automatically",
             metadata={
                 "company_id": company.id,
                 "flex_credits_recharge": "true",
-                "amount": payments_service.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS
+                "base_amount": base_amount,
             }
         )
 
-        return {"message": "Credits recharged successfully", "payment_intent": payment_intent.id}
+        # Attach the line item directly to this invoice — avoids it landing on a pending subscription invoice
+        stripe.InvoiceItem.create(
+            customer=company.stripe_customer_id,
+            invoice=invoice.id,
+            amount=base_amount,
+            currency="eur",
+            description="Flex Credits Recharge",
+            tax_behavior="exclusive",
+        )
+
+        invoice = stripe.Invoice.finalize_invoice(invoice.id)
+        invoice = stripe.Invoice.pay(invoice.id)
+
+        return {"message": "Credits recharged successfully", "invoice": invoice.id}
 
     except stripe.error.CardError as e:
         # Card declined

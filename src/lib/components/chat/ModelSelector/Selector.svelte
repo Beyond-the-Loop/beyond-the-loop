@@ -437,12 +437,18 @@
 							}}}
 						on:mouseleave={setHoverTimeout}
 					>
-						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
+						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization || "Beyond the Loop"}</span></div>
 						<div>
 							<p class="text-xs text-lightGray-100 dark:text-customGray-100">
+								{#if hoveredItem.label == "Smart Router"}
+								{$i18n.t("Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is, match it against the strengths of our models, and choose the most efficient model for the task.")}
+								{:else}
 								{$i18n.t($modelsInfo?.[hoveredItem?.label]?.description)}
+								{/if}
+
 							</p>
 						</div>
+					{#if hoveredItem.label != "Smart Router"}
 						<div class="flex items-center gap-3 mt-auto">
 							{#if $modelsInfo?.[hoveredItem?.label]?.multimodal}
 								<div class="py-2 flex items-center">
@@ -538,6 +544,9 @@
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context window')}</p>
 							</div>
 						</div>
+
+					{/if}
+
 					</div>
 				{/if}
 
