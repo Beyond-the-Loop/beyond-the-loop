@@ -1044,6 +1044,12 @@ AUDIO_TTS_VOICE = PersistentConfig(
     os.getenv("AUDIO_TTS_VOICE", "alloy"),  # OpenAI default voice
 )
 
+AUDIO_TTS_SPLIT_ON = PersistentConfig(
+    "AUDIO_TTS_SPLIT_ON",
+    "audio.tts.split_on",
+    os.getenv("AUDIO_TTS_SPLIT_ON", "punctuation"),
+)
+
 
 ####################################
 # LDAP
