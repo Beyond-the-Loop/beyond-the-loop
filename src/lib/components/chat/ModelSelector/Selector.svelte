@@ -445,7 +445,7 @@
 								{:else}
 								{$i18n.t($modelsInfo?.[hoveredItem?.label]?.description)}
 								{/if}
-								
+
 							</p>
 						</div>
 					{#if hoveredItem.label != "Smart Router"}
@@ -544,7 +544,7 @@
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context window')}</p>
 							</div>
 						</div>
-						
+
 					{/if}
 
 					</div>
