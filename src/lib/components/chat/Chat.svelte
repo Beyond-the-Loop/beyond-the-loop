@@ -1415,9 +1415,8 @@
 			params?.stream_response ??
 			true;
 
-
 		const messages = [
-			params?.system || $settings.system || (responseMessage?.userContext ?? null)
+			!model.base_model_id && (params?.system || $settings.system || (responseMessage?.userContext ?? null))
 				? {
 					role: 'system',
 					content: `${promptTemplate(
