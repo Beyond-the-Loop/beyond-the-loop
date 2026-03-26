@@ -490,57 +490,320 @@ model_list:
       model: "azure/grok-4-fast-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-  - model_name: "Grok 4 fast (instant)"
+    model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 0.5
+      description: "Multimodal model for text and image analysis with broad knowledge range."
+      hosted_in: 'US'
+      intelligence_score: 3
+      AAII: 0.35
+      knowledge_cutoff: '2024-12-01'
+      multimodal: false
+      organization: 'xAI'
+      reasoning: true
+      research: false
+      speed: 4
+      tokens_per_second: 218
+      zdr: false
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
+
+  - model_name: "Grok 4 Fast Non-Reasoning"
     litellm_params:
       model: "azure/grok-4-fast-non-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-  - model_name: "Mistral Large 3"
+    model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 0.5
+      description: "Multimodal model for text and image analysis with broad knowledge range."
+      hosted_in: 'US'
+      intelligence_score: 2
+      AAII: 0.23
+      knowledge_cutoff: '2024-12-01'
+      multimodal: false
+      organization: 'xAI'
+      reasoning: false
+      research: false
+      speed: 1.5
+      tokens_per_second: 88
+      zdr: false
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
+
+  - model_name: "Grok 4.1 Fast Reasoning"
     litellm_params:
-      model: "azure/Mistral-Large-3"
+      model: "azure/grok-4-1-fast-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 0.5
+      description: "Fast conversational model for direct answers without reasoning process."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      AAII: 0.39
+      knowledge_cutoff: '2025-08-01'
+      multimodal: false
+      organization: 'xAI'
+      reasoning: true
+      research: false
+      speed: 2.5
+      tokens_per_second: 126
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
+
+  - model_name: "Grok 4.1 Fast Non-Reasoning"
+    litellm_params:
+      model: "azure/grok-4-1-fast-non-reasoning"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 0.5
+      description: "Fast conversational model for direct answers without reasoning process."
+      hosted_in: 'US'
+      intelligence_score: 2
+      AAII: 0.24
+      knowledge_cutoff: '2025-08-01'
+      multimodal: false
+      organization: 'xAI'
+      reasoning: false
+      research: false
+      speed: 2
+      tokens_per_second: 116
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
+
   - model_name: "DeepSeek-V3.2"
     litellm_params:
-      model: "azure/DeepSeek-V3.2"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      model: "azure/deepseek-v3.2"
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 1
+      costFactor: 0.5
+      description: "Specialized in multi-step problem-solving in math, code, and science."
+      hosted_in: 'US'
+      intelligence_score: 3.5
+      AAII: 0.42
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 1
+      tokens_per_second: 36
+      zdr: false
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
+
   - model_name: "DeepSeek R1"
     litellm_params:
-      model: "azure/DeepSeek-R1"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-  - model_name: "GPT-5.1 Codex"
+      model: "azure/deepseek-r1"
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1
+      description: "Reasoning model for complex math, logic, and scientific analyses."
+      hosted_in: 'US'
+      intelligence_score: 1.5
+      AAII: 0.19
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 1.5
+      tokens_per_second: 89
+      zdr: false
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
+
+  - model_name: "DeepSeek R1-0528"
     litellm_params:
-      model: "azure/gpt-5.1-codex"
+      model: "azure/deepseek-r1-0528"
+      api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
+    model_info:
+      context_window: '128K'
+      category: 2
+      costFactor: 1
+      description: "Reasoning model for complex math, logic, and scientific analyses."
+      hosted_in: 'US'
+      intelligence_score: 2.5
+      AAII: 0.27
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'DeepSeek'
+      reasoning: true
+      research: false
+      speed: 3.5
+      tokens_per_second: 175
+      zdr: false
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 150
+
+  - model_name: "GPT-5.4 Pro"
+    litellm_params:
+      model: "azure/responses/gpt-5.4-pro"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: medium
+    model_info:
+      context_window: '128K'
+      category: 4
+      costFactor: 5
+      description: "Multimodal model with excellent reasoning for math and science."
+      hosted_in: 'US'
+      intelligence_score: 5
+      AAII: 0.57
+      knowledge_cutoff: '2025-08-01'
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      zdr: false
+      allowed_messages_per_three_hours_premium: 10
+
   - model_name: "GPT o3 Deep Research"
     litellm_params:
       model: "azure/responses/o3-deep-research"
       api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
-      reasoning_effort: "medium"
       tools:
         - type: "web_search_preview"
-  - model_name: "GPT-5.2"
+    model_info:
+      context_window: '200K'
+      category: 4
+      costFactor: 5
+      description: "Agent for autonomous web research with synthesis into comprehensive reports."
+      hosted_in: 'US'
+      knowledge_cutoff: null
+      multimodal: false
+      organization: 'OpenAI'
+      reasoning: true
+      research: true
+      zdr: false
+      allowed_messages_per_three_hours_premium: 10
+
+  - model_name: "GPT-5.4"
     litellm_params:
-      model: "azure/responses/gpt-5.2"
+      model: "azure/responses/gpt-5.4"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
-      reasoning_effort: "low"
+      reasoning_effort: medium
+    model_info:
+      context_window: '512K'
+      category: 3
+      costFactor: 3
+      description: "Multimodal model with excellent reasoning for math and science."
+      hosted_in: 'US'
+      intelligence_score: 5
+      AAII: 0.57
+      knowledge_cutoff: '2025-08-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
+
+  - model_name: "GPT-5.3 Codex"
+    litellm_params:
+      model: "azure/responses/gpt-5.3-codex"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '512K'
+      category: 3
+      costFactor: 3
+      description: "Specialized in code generation, debugging, and technical documentation."
+      hosted_in: 'US'
+      intelligence_score: 5
+      AAII: 0.54
+      knowledge_cutoff: null
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 1
+      tokens_per_second: 62
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
+
+  - model_name: "GPT-5.3 Chat"
+    litellm_params:
+      model: "azure/responses/gpt-5.3-chat"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      context_window: '512K'
+      category: 3
+      costFactor: 3
+      description: "Multimodal model with excellent reasoning for math and science."
+      hosted_in: 'US'
+      knowledge_cutoff: '2025-08-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: false
+      research: false
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
+
+  - model_name: "Gemini 3.1 Pro"
+    litellm_params:
+      model: "vertex_ai/gemini-3.1-pro-preview"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      reasoning_effort: medium
+    model_info:
+      context_window: '1M'
+      category: 3
+      costFactor: 2.5
+      description: "Multimodal model with extended context for text, image, and code analysis."
+      hosted_in: 'EU'
+      intelligence_score: 5
+      AAII: 0.57
+      knowledge_cutoff: '2025-01-01'
+      multimodal: true
+      organization: 'Google'
+      reasoning: true
+      research: false
+      speed: 2
+      tokens_per_second: 102
+      zdr: true
+      allowed_messages_per_three_hours_premium: 50
+
   - model_name: "Nano Banana"
     litellm_params:
       model: "vertex_ai/gemini-3-pro-image-preview"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+      num_retries: 25
+
+  - model_name: "TTS"
+    litellm_params:
+      model: "azure/tts-1"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+  - model_name: "STT"
+    litellm_params:
+      model: "azure/whisper-1"
+      api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
 
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true
-  default_fallbacks: ["Google 2.5 Flash"]
-  success_callback: ["langfuse"]
-  failure_callback: ["langfuse"]
+  default_fallbacks: ["Gemini 2.5 Flash"]
 
 general_settings:
   alerting: ["slack"]
