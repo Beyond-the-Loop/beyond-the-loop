@@ -6,6 +6,7 @@ import base64
 import re
 import mimetypes
 import asyncio
+import random
 from io import BytesIO
 
 import httpx
@@ -20,7 +21,7 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
-from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT, CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT
 from beyond_the_loop.prompts import (
     IMAGE_EDIT_DECISION_MESSAGE,
     FILE_INTENT_DECISION_PROMPT,
@@ -29,6 +30,7 @@ from beyond_the_loop.prompts import (
     IMAGE_GENERATED_CONTEXT,
     IMAGE_ERROR_CONTEXT,
     AUTO_TOOL_SELECTION_PROMPT,
+    SMART_ROUTER_PROMPT,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
@@ -36,6 +38,7 @@ from beyond_the_loop.utils.structured_completion import (
     FileIntentDecision,
     KnowledgeUseDecision,
     ToolSelectionDecision,
+    SmartRouterDecision,
 )
 from beyond_the_loop.models.files import FileForm
 from beyond_the_loop.socket.main import (
@@ -44,6 +47,7 @@ from beyond_the_loop.socket.main import (
     get_active_status_by_user_id,
 )
 from beyond_the_loop.models.knowledge import Knowledges
+from beyond_the_loop.models.models import ModelMeta, ModelParams
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
@@ -72,7 +76,7 @@ from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     CACHE_DIR,
     CODE_INTERPRETER_PROMPT,
-    DEFAULT_AGENT_MODEL,
+    LITELLM_MODEL_CONFIG,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -82,6 +86,7 @@ from open_webui.env import (
 from open_webui.constants import TASKS
 from open_webui.routers.retrieval import process_file, ProcessFileForm
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
@@ -306,7 +311,7 @@ async def chat_image_generation_handler(
     edit_last_image = False
 
     if len(already_generated_images) > 0:
-        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
         decision_messages = messages.copy()
         decision_messages.append({"role": "user", "content": IMAGE_EDIT_DECISION_MESSAGE})
@@ -438,7 +443,7 @@ async def chat_file_intent_decision_handler(
                 }
             ],
             response_model=FileIntentDecision,
-            model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
         )
         is_rag_task = result.intent == "RAG"
         log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
@@ -611,6 +616,178 @@ async def check_disconnect(request):
         raise ClientDisconnectedError("Client disconnected")
 
 
+SMART_ROUTER_MODEL = ModelModel(
+                id="Smart Router",
+                name="Smart Router",
+                meta=ModelMeta(),
+                params=ModelParams(),
+                is_active=True,
+                updated_at=int(time.time()),
+                created_at=int(time.time()),
+                user_id=None,
+                company_id="",
+                base_model_id=None,
+                access_control=None,
+            )
+
+
+async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelModel | None, dict | None]:
+    """
+    Score the user message complexity (1–5) via structured completion, then pick
+    the best model from all candidates whose intelligence_score >= that score.
+    Among qualifying models, rank by efficiency: costFactor (60%, lower=better)
+    + speed (40%, higher=better), both normalized 0-1 within the candidate set.
+    Returns (None, None) if no suitable model can be found.
+    """
+    try:
+        agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+
+        decision = await structured_completion(
+            messages=[{"role": "user", "content": SMART_ROUTER_PROMPT.replace("{{USER_MESSAGE}}", user_message)}],
+            response_model=SmartRouterDecision,
+            model=agent_model,
+        )
+
+        target_score = max(1.0, min(5.0, decision.intelligence_score))
+
+        log.info(f"Smart Router: target intelligence score = {target_score}")
+
+        # Lazy import to avoid circular dependency (main.py imports middleware.py)
+        from open_webui.main import get_active_models
+
+        active_models_result = await get_active_models(user=user)
+
+        routable_models = [
+            m for m in active_models_result["data"]
+            if m.base_model_id is None                              # no assistants
+            and m.name != SMART_ROUTER_MODEL.name                  # not Smart Router itself
+            and m.is_active                                         # active (e.g. not locked in free plan)
+            and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
+        ]
+
+        log.info(
+            f"Smart Router: {len(routable_models)} routable model(s): "
+            + ", ".join(
+                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
+                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
+                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
+                for m in routable_models
+            )
+        )
+
+        # Filter to models meeting the minimum intelligence requirement
+        candidates = []
+
+        for m in routable_models:
+            cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
+            score = cfg.get("intelligence_score")
+            if score is not None and score >= target_score:
+                candidates.append(m)
+
+        log.info(
+            f"Smart Router: {len(candidates)} candidate(s) after intelligence filter (>= {target_score}): "
+            + ", ".join(
+                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
+                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
+                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
+                for m in candidates
+            )
+        )
+
+        if not candidates:
+            log.warning("Smart Router: no candidates found, returning None")
+            return None, None
+
+        # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
+        cost_values = {
+            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor")
+            for m in candidates
+        }
+
+        speed_values = {
+            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed")
+            for m in candidates
+        }
+
+        valid_costs = [v for v in cost_values.values() if v is not None]
+        valid_speeds = [v for v in speed_values.values() if v is not None]
+
+        min_cost, max_cost = (min(valid_costs), max(valid_costs)) if valid_costs else (None, None)
+        min_speed, max_speed = (min(valid_speeds), max(valid_speeds)) if valid_speeds else (None, None)
+
+        def efficiency_score(model_name: str) -> float:
+            cost = cost_values.get(model_name)
+            speed = speed_values.get(model_name)
+
+            cost_score = None
+
+            if cost is not None and min_cost is not None and max_cost is not None:
+                if max_cost == min_cost:
+                    cost_score = 1.0
+                else:
+                    cost_score = 1.0 - (cost - min_cost) / (max_cost - min_cost)
+
+            speed_score = None
+
+            if speed is not None and min_speed is not None and max_speed is not None:
+                if max_speed == min_speed:
+                    speed_score = 1.0
+                else:
+                    speed_score = (speed - min_speed) / (max_speed - min_speed)
+
+            if cost_score is not None and speed_score is not None:
+                return 0.6 * cost_score + 0.4 * speed_score
+            elif cost_score is not None:
+                return cost_score
+            elif speed_score is not None:
+                return speed_score
+            return 0.0
+
+        scored_candidates = sorted(
+            candidates, key=lambda m: efficiency_score(m.name), reverse=True
+        )
+
+        log.info(
+            f"Smart Router: candidates ranked by efficiency: "
+            + ", ".join(
+                f"{m.name}(efficiency={efficiency_score(m.name):.3f})"
+                for m in scored_candidates
+            )
+        )
+
+        top_candidates = scored_candidates[:3]
+        best_model = random.choice(top_candidates)
+
+        cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
+        log.info(
+            f"Smart Router: selected '{best_model.name}' (randomly chosen from top {len(top_candidates)}) "
+            f"(intelligence={cfg.get('intelligence_score')}, "
+            f"costFactor={cfg.get('costFactor')}, speed={cfg.get('speed')}, "
+            f"efficiency={efficiency_score(best_model.name):.3f})"
+        )
+
+        debug_info = {
+            "target_score": target_score,
+            "selected_model": best_model.name,
+            "top_count": len(top_candidates),
+            "candidates": [
+                {
+                    "name": m.name,
+                    "intelligence": LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score"),
+                    "cost": LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor"),
+                    "speed": LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed"),
+                    "efficiency": round(efficiency_score(m.name), 3),
+                }
+                for m in scored_candidates
+            ],
+        }
+
+        return best_model, debug_info
+    except Exception as e:
+        log.exception(f"Smart Router model selection failed: {e}")
+        return None, None
+
+
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
 
@@ -645,6 +822,43 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     user_message = get_last_user_message(form_data["messages"])
 
+    if model.name == SMART_ROUTER_MODEL.name and user_message:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": False,
+                },
+            }
+        )
+
+        routed_model, smart_router_debug = await _smart_router_model_selection(user_message, user)
+
+        if routed_model:
+            model = routed_model
+            form_data["model"] = routed_model.id
+            if smart_router_debug:
+                metadata["smart_router_debug"] = smart_router_debug
+        else:
+            # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            form_data["model"] = model.id
+            log.warning(f"Smart Router: model selection failed, falling back to '{model.name}'")
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": True,
+                    "hidden": True,
+                },
+            }
+        )
+
     if auto_tools and user_message:
         try:
             await event_emitter(
@@ -662,7 +876,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             decision = await structured_completion(
                 messages=[{"role": "user", "content": prompt}],
                 response_model=ToolSelectionDecision,
-                model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id),
+                model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
             )
             selected_tool = decision.tool
 
@@ -729,7 +943,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             ],
             response_model=KnowledgeUseDecision,
-            model=Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
         )
         use_model_knowledge_or_files = knowledge_result.needs_knowledge == "YES"
 
@@ -932,6 +1146,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             CODE_INTERPRETER_PROMPT, form_data["messages"]
         )
 
+        # Store original model for display; use code interpreter model only for the LLM call
+        metadata["display_model_id"] = model.id
         model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
         form_data["model"] = model.id
 
@@ -951,7 +1167,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             form_data["messages"] = add_or_update_user_message(
                 code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
-    return form_data, metadata, events
+    return form_data, metadata, events, model
 
 
 async def process_chat_response(
@@ -1093,7 +1309,7 @@ async def process_chat_response(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": model.id,
+                "model": metadata.get("display_model_id", model.id),
             },
         )
 
@@ -1220,13 +1436,8 @@ async def process_chat_response(
                                 match.end() :
                             ]  # Content after opening tag
 
-                            # Remove the start tag from the currently handling text block
-                            content_blocks[-1]["content"] = content_blocks[-1][
-                                "content"
-                            ].replace(match.group(0), "")
-
-                            if before_tag:
-                                content_blocks[-1]["content"] = before_tag
+                            # Text block should contain only what came BEFORE the start tag
+                            content_blocks[-1]["content"] = before_tag
 
                             if not content_blocks[-1]["content"]:
                                 content_blocks.pop()
@@ -1243,7 +1454,38 @@ async def process_chat_response(
                             )
 
                             if after_tag:
-                                content_blocks[-1]["content"] = after_tag
+                                # Check if the end tag is already in after_tag
+                                # (start + end arrived in the same streaming chunk)
+                                end_tag_pattern_inline = rf"</{tag}>"
+                                if re.search(end_tag_pattern_inline, after_tag):
+                                    end_tag_regex_inline = re.compile(end_tag_pattern_inline, re.DOTALL)
+                                    split_inline = end_tag_regex_inline.split(after_tag, maxsplit=1)
+                                    block_content_inline = split_inline[0].strip()
+                                    leftover_inline = split_inline[1].strip() if len(split_inline) > 1 else ""
+
+                                    if block_content_inline:
+                                        content_blocks[-1]["content"] = block_content_inline
+                                        content_blocks[-1]["ended_at"] = time.time()
+                                        content_blocks[-1]["duration"] = int(
+                                            content_blocks[-1]["ended_at"] - content_blocks[-1]["started_at"]
+                                        )
+                                    else:
+                                        content_blocks.pop()
+
+                                    content_blocks.append({"type": "text", "content": leftover_inline})
+
+                                    # Clean the accumulated content string so subsequent calls
+                                    # don't re-detect the already-processed tags
+                                    content = re.sub(
+                                        rf"<{tag}(.*?)>(.|\n)*?</{tag}>",
+                                        "",
+                                        content,
+                                        flags=re.DOTALL,
+                                    )
+
+                                    end_flag = True
+                                else:
+                                    content_blocks[-1]["content"] = after_tag
 
                             break
                 elif content_blocks[-1]["type"] == content_type:
@@ -1362,6 +1604,13 @@ async def process_chat_response(
             ]
 
             code_interpreter_tags = ["code_interpreter"]
+
+            await event_emitter(
+                {
+                    "type": "chat:completion",
+                    "data": {"model": metadata.get("display_model_id", model.id)},
+                }
+            )
 
             try:
                 for event in events:
@@ -1769,6 +2018,17 @@ async def process_chat_response(
                         break
 
                 if detect_code_interpreter:
+                    # Defensive cleanup: strip any leftover closing tags from code_interpreter
+                    # blocks whose end tag arrived in the same chunk as the start tag and
+                    # therefore wasn't processed by tag_content_handler in a later call.
+                    for _block in content_blocks:
+                        if _block.get("type") == "code_interpreter" and "content" in _block:
+                            _tag = _block.get("tag", "code_interpreter")
+                            _end_re = re.compile(rf"</{re.escape(_tag)}>", re.DOTALL)
+                            _parts = _end_re.split(_block["content"], maxsplit=1)
+                            if len(_parts) > 1:
+                                _block["content"] = _parts[0].strip()
+
                     max_retries = 3
                     retries = 0
 
@@ -1989,9 +2249,21 @@ async def process_chat_response(
 
                         # After code execution completes, call the LLM again to summarize the result
                         try:
-                            # Build follow-up messages
+                            # Replace the full CODE_INTERPRETER_PROMPT system message with a
+                            # minimal follow-up system message — avoids verbose preamble while
+                            # still teaching the tag format for potential retries.
+                            followup_non_system = [
+                                m for m in form_data["messages"] if m.get("role") != "system"
+                            ]
+                            followup_base_messages = [
+                                {"role": "system", "content": CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT},
+                                *followup_non_system,
+                            ]
+
+                            followup_instruction = CODE_INTERPRETER_SUMMARY_PROMPT if retries < max_retries else CODE_INTERPRETER_FAIL_PROMPT
+
                             followup_messages = [
-                                *form_data["messages"],
+                                *followup_base_messages,
                                 {
                                     "role": "assistant",
                                     "content": serialize_content_blocks(content_blocks, raw=True),
@@ -1999,37 +2271,54 @@ async def process_chat_response(
                                 {
                                     "role": "user",
                                     "content": json.dumps({
-                                        "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
-                                    }),
-                                }
-                            ] if retries < max_retries else [
-                                *form_data["messages"],
-                                {
-                                    "role": "assistant",
-                                    "content": serialize_content_blocks(content_blocks, raw=True),
-                                },
-                                {
-                                    "role": "user",
-                                    "content": json.dumps({
-                                        "instruction": CODE_INTERPRETER_FAIL_PROMPT
+                                        "instruction": followup_instruction
                                     }),
                                 }
                             ]
 
-                            res = await generate_chat_completion({
+                            # Use the user's originally selected model for the summary,
+                            # falling back to the code interpreter model if unavailable.
+                            display_model_id = metadata.get("display_model_id")
+                            summary_model = (
+                                Models.get_model_by_id(display_model_id)
+                                if display_model_id
+                                else None
+                            ) or Models.get_model_by_name_and_company(
+                                os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id
+                            )
+
+                            res, _ = await generate_chat_completion({
                                 "stream": True,
                                 "messages": followup_messages,
                                 "metadata": {
                                     "agent_or_task_prompt": True
                                 }
-                            }, user, Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id))
+                            }, user, summary_model)
 
                             if isinstance(res, StreamingResponse):
                                 await stream_body_handler(res)
 
-
                         except Exception as follow_err:
                             log.error(f"Follow-up LLM generation failed: {follow_err}")
+
+                smart_router_debug = metadata.get("smart_router_debug")
+                if smart_router_debug:
+                    debug_rows = "\n".join(
+                        f"| {'**' if c['name'] == smart_router_debug['selected_model'] else ''}"
+                        f"{c['name']}"
+                        f"{'** ✓' if c['name'] == smart_router_debug['selected_model'] else ''}"
+                        f" | {c['intelligence']} | {c['cost']} | {c['speed']} | {c['efficiency']:.3f} |"
+                        for c in smart_router_debug["candidates"]
+                    )
+                    debug_text = (
+                        f"\n\n---\n"
+                        f"**Smart Router** — Required intelligence: **{smart_router_debug['target_score']}/5** | "
+                        f"Selected: **{smart_router_debug['selected_model']}** (randomly from top {smart_router_debug['top_count']})\n\n"
+                        f"| Model | Intelligence | Cost | Speed | Efficiency |\n"
+                        f"|---|---|---|---|---|\n"
+                        f"{debug_rows}"
+                    )
+                    content_blocks.append({"type": "text", "content": debug_text})
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 

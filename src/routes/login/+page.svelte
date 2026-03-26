@@ -128,6 +128,7 @@
 		}
 		localStorage.token = token;
 		await setSessionUser(sessionUser);
+
 		const [companyInfo, companyConfigInfo] = await Promise.all([
 			getCompanyDetails(sessionUser.token).catch((error) => {
 				// showToast('error', error);

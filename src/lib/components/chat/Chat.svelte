@@ -1002,6 +1002,7 @@
 			type,
 			sources,
 			selected_model_id,
+			model: updatedModel,
 			error,
 			usage
 		} = data;
@@ -1112,6 +1113,10 @@
 		if (selected_model_id) {
 			message.selectedModelId = selected_model_id;
 			message.arena = true;
+		}
+
+		if (updatedModel && !choices) {
+			message.model = updatedModel;
 		}
 
 		if (usage) {
