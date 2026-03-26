@@ -247,29 +247,24 @@ async def generate_chat_completion(
 
     # GPT-5.4 (and other azure/responses/* models) must go through /v1/responses
     # so that code interpreter annotations (container_id, file_id) are not dropped.
-    use_responses_api = model_name == "GPT-5.4"
+    use_responses_api = "/responses/" in LITELLM_MODEL_MAP.get(model_name, "")
 
     tools = []
 
-    #if metadata.get("web_search_enabled", False):
-        #payload["web_search_options"] = {}
-        #tools.append({"type": "web_search_preview"})
+    if metadata.get("web_search_enabled", False):
+        if use_responses_api:
+            tools.append({"type": "web_search_preview"})
+        else:
+            payload["web_search_options"] = {}
 
     if metadata.get("code_interpreter_enabled", False):
-        #tools.append({"codeExecution": {}})
-        tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
+        if use_responses_api:
+            tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
+        else:
+            tools.append({"codeExecution": {}})
 
     if tools:
         payload["tools"] = tools
-
-    if model_name == "Mistral Large 2":
-        payload["stream"] = False
-        for message in payload["messages"]:
-            if "content" in message and isinstance(message["content"], list):
-                message["content"] = [
-                    c for c in message["content"]
-                    if c.get("type") != "image_url"
-                ]
 
     subscription = payments_service.get_subscription(user.company_id)
 
@@ -416,6 +411,7 @@ async def generate_chat_completion(
                                         usage = resp.get("usage", {})
                                         credit_cost_streaming = 0
                                         usage_openai_format = {
+                                            "model": model_name,
                                             "usage": {
                                                 "prompt_tokens": usage.get("input_tokens", 0),
                                                 "completion_tokens": usage.get("output_tokens", 0),

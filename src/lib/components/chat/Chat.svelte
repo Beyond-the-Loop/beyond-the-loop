@@ -25,6 +25,7 @@
 		mobile,
 		type Model,
 		models,
+		modelsInfo,
 		settings,
 		showArtifacts,
 		showCallOverlay,
@@ -1550,22 +1551,25 @@
 						},
 
 				auto_tools: autoToolsEnabled
-					? [
-							...($companyConfig?.config?.rag?.web?.search?.enable &&
-							($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
-							(model?.meta?.capabilities?.websearch ?? true)
-								? ['web_search']
-								: []),
-							...($companyConfig?.config?.image_generation?.enable &&
-							($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
-							(model?.meta?.capabilities?.image_generation ?? true)
-								? ['image_generation']
-								: []),
-							...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
-							(model?.meta?.capabilities?.code_interpreter ?? true)
-								? ['code_interpreter']
-								: [])
-						]
+					? (() => {
+							const _meta = $modelsInfo[model?.name];
+							return [
+								...($companyConfig?.config?.rag?.web?.search?.enable &&
+								($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
+								(_meta?.supports_web_search ?? false)
+									? ['web_search']
+									: []),
+								...($companyConfig?.config?.image_generation?.enable &&
+								($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
+								(_meta?.supports_image_generation ?? false)
+									? ['image_generation']
+									: []),
+								...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
+								(_meta?.supports_code_execution ?? false)
+									? ['code_interpreter']
+									: [])
+							];
+						})()
 					: undefined,
 
 				session_id: $socket?.id,

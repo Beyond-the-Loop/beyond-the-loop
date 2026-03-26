@@ -243,7 +243,7 @@ async def create_company(
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
-        openai_models = (await openai.get_all_models_from_litellm())["data"]
+        openai_models = (await litellm.get_all_models_from_litellm())["data"]
 
         util_models = [
             "TTS",

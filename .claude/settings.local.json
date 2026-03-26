@@ -27,7 +27,13 @@
       "Bash(source venv/bin/activate)",
       "Bash(find /Users/philszalay/Documents/code/beyond-the-loop -maxdepth 2 -name vite*)",
       "Bash(grep -r \"container.*file\\\\|files.*container\\\\|/files/.*content\" /Users/philszalay/Documents/code/beyond-the-loop/backend/venv/lib/python3.12/site-packages/litellm/proxy/ --include=*.py -l)",
-      "Bash(source /Users/philszalay/Documents/code/beyond-the-loop/backend/venv/bin/activate)"
+      "Bash(source /Users/philszalay/Documents/code/beyond-the-loop/backend/venv/bin/activate)",
+      "Bash(python3 -c \"import litellm; print\\([x for x in dir\\(litellm\\) if ''''support'''' in x.lower\\(\\)]\\)\")",
+      "Bash(pip3 show:*)",
+      "Bash(backend/venv/bin/python -c \"import litellm; print\\([x for x in dir\\(litellm\\) if 'support' in x.lower\\(\\)]\\)\")",
+      "Bash(backend/venv/bin/python -c \":*)",
+      "Bash(backend/venv/bin/python scripts/check_model_capabilities.py 2>&1)",
+      "Bash(xxd)"
     ]
   }
 }
