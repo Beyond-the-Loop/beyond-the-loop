@@ -767,26 +767,10 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             f"efficiency={efficiency_score(best_model.name):.3f})"
         )
 
-        debug_info = {
-            "target_score": target_score,
-            "selected_model": best_model.name,
-            "top_count": len(top_candidates),
-            "candidates": [
-                {
-                    "name": m.name,
-                    "intelligence": LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score"),
-                    "cost": LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor"),
-                    "speed": LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed"),
-                    "efficiency": round(efficiency_score(m.name), 3),
-                }
-                for m in scored_candidates
-            ],
-        }
-
-        return best_model, debug_info
+        return best_model
     except Exception as e:
         log.exception(f"Smart Router model selection failed: {e}")
-        return None, None
+        return None
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
@@ -848,13 +832,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-        routed_model, smart_router_debug = await _smart_router_model_selection(user_message, user)
+        routed_model = await _smart_router_model_selection(user_message, user)
 
         if routed_model:
             model = routed_model
             form_data["model"] = routed_model.id
-            if smart_router_debug:
-                metadata["smart_router_debug"] = smart_router_debug
         else:
             # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
@@ -2314,25 +2296,6 @@ async def process_chat_response(
 
                         except Exception as follow_err:
                             log.error(f"Follow-up LLM generation failed: {follow_err}")
-
-                smart_router_debug = metadata.get("smart_router_debug")
-                if smart_router_debug:
-                    debug_rows = "\n".join(
-                        f"| {'**' if c['name'] == smart_router_debug['selected_model'] else ''}"
-                        f"{c['name']}"
-                        f"{'** ✓' if c['name'] == smart_router_debug['selected_model'] else ''}"
-                        f" | {c['intelligence']} | {c['cost']} | {c['speed']} | {c['efficiency']:.3f} |"
-                        for c in smart_router_debug["candidates"]
-                    )
-                    debug_text = (
-                        f"\n\n---\n"
-                        f"**Smart Router** — Required intelligence: **{smart_router_debug['target_score']}/5** | "
-                        f"Selected: **{smart_router_debug['selected_model']}** (randomly from top {smart_router_debug['top_count']})\n\n"
-                        f"| Model | Intelligence | Cost | Speed | Efficiency |\n"
-                        f"|---|---|---|---|---|\n"
-                        f"{debug_rows}"
-                    )
-                    content_blocks.append({"type": "text", "content": debug_text})
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
