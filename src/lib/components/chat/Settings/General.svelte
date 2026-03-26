@@ -24,14 +24,24 @@
 
 	let languages: Awaited<ReturnType<typeof getLanguages>> = [];
 	let lang = $i18n.language;
-	let system = '';
+	let customInstruction = '';
+
+	const styles = [
+		{ value: 'default', title: '🌊 Standard', description: 'Neutral, versatile, reliable. The balanced standard.' },
+		{ value: 'concise', title: '🎯 Concise', description: 'Direct, precise, solution-oriented. Gets straight to the point without detours.' },
+		{ value: 'formal', title: '🏛️ Formal', description: 'Sophisticated, well-founded, objective. For formal expression.' },
+		{ value: 'explaining', title: '💡 Explanatory', description: 'Patient, clear, creative. Makes complex topics understandable.' }
+	];
+
+	let promptStyle: string | null = styles[0].value;
 
 	onMount(async () => {
 		selectedTheme = localStorage.theme ?? 'system';
 
 		languages = await getLanguages();
 
-		system = $settings.system ?? '';
+		customInstruction = $settings.system.customInstruction ?? '';
+		promptStyle = $settings.system.promptStyle ?? null;
 
 		if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
 			voice = $settings?.audio?.tts?.voice ?? $config.audio.tts.voice ?? '';
@@ -103,6 +113,9 @@
 		applyTheme(_theme);
 		selectedTheme = _theme;
 	};
+	function changePromptStyle(style: string) {
+		promptStyle = style;
+	}
 	let showLanguageDropdown = false;
 	let languageDropdownRef;
 
@@ -264,7 +277,7 @@
 				</div>
 			</div>
 			<div
-				class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
+				class="flex w-full justify-between items-center py-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700 mt-4"
 			>
 				<div class="flex w-full justify-between items-center">
 					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Theme')}</div>
@@ -309,31 +322,52 @@
 
 {#if $user.role === 'admin' || $user?.permissions.chat?.controls}
 	<div
-		class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2"
+		class="flex w-full justify-between items-center pb-1 pt-3 border-t border-lightGray-400 dark:border-customGray-700 mt-6"
 	>
 		<div class="flex w-full justify-between items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Custom instructions')}</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Tone')}</div>
 		</div>
 	</div>
+	<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
+			{$i18n.t('Choose a tone for AI responses or write your own prompt.')}
+	</div>
 
+	<div class="w-full grid grid-cols-2 gap-3">
+		{#each styles as style (style.value)}
+			{@const isActive = promptStyle === style.value && !customInstruction}
+			<button
+				class="text-left flex flex-col gap-2 p-3 rounded-lg transition-all
+						bg-lightGray-300 dark:bg-customGray-900 
+						disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none
+						{isActive 
+							? 'ring-2 ring-inset ring-[#305BE4]' 
+							: 'ring-1 ring-inset ring-gray-200 dark:ring-customGray-700 hover:bg-gray-100 dark:hover:bg-customGray-950'}"
+				on:click={() => changePromptStyle(style.value)}
+				on:keydown={(e) => {e}}
+				disabled={customInstruction ? true : undefined}
+				role="radio"                 
+				tabindex="0"            
+				aria-checked="{isActive}" 
+				aria-labelledby="style-title-{style.value}"
+			>
+				<h2 class={isActive ? `font-medium` : ''}>{$i18n.t(style.title)}</h2>
+				<p class="text-xs text-gray-600 dark:text-gray-500">{$i18n.t(style.description)}</p>
+			</button>
+		{/each}
+	</div>
+	<div class="text-xs text-gray-600 dark:text-customGray-100/50 py-2 pt-4">
+			{$i18n.t('Your custom tone prompt (optional)')}
+	</div>
 	<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md mb-2.5">
-		{#if system}
-			<div
-				class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('System prompt')}</div>
-		{/if}
 		<textarea
-			bind:value={system}
-			placeholder={$i18n.t('System prompt')}
-			class="px-2.5 py-2 text-sm {system ? "pt-4" : "pt-2"} text-lightGray-100 placeholder:text-lightGray-100 w-full h-20 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none"
+			bind:value={customInstruction}
+			on:input={() => {promptStyle = "default"}}
+			placeholder={$i18n.t('e.g. always answer concisely, use bullet points and avoid technical jargon...')}
+
+			class="px-2.5 py-2 text-sm pt-2 text-lightGray-100 placeholder:text-gray-600 dark:placeholder:text-customGray-100/50 placeholder:text-[0.8rem] w-full h-20 bg-transparent dark:text-white outline-none"
 					rows="4"
 				/>
 			</div>
-	<div class="text-xs text-gray-600 dark:text-customGray-100/50 mb-5">
-		<div>
-			{$i18n.t('Adding a system prompt shapes LLM responses to better fit specific objectives.')}
-		</div>
-	</div>
-
 
 	<div class="mb-2.5">
 		<div
@@ -400,7 +434,10 @@
 		type="submit"
 		on:click={() => {
 				saveSettings({
-					system: system !== '' ? system : undefined
+					system: {
+						promptStyle: promptStyle,
+						customInstruction: customInstruction !== '' ? customInstruction : undefined
+					},
 				});
 				dispatch('save');
 			}}

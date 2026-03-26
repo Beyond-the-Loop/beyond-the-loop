@@ -15,8 +15,6 @@ from starlette.background import BackgroundTask
 
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
-from litellm.utils import trim_messages
-
 
 from beyond_the_loop.config import (
     CACHE_DIR,
@@ -281,11 +279,6 @@ async def generate_chat_completion(
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
-
-    try:
-        payload["messages"] = trim_messages(payload["messages"], LITELLM_MODEL_MAP.get(model_name, model_name))
-    except Exception:
-        log.warning("Error trimming messages, continuing with the original messages...")
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
