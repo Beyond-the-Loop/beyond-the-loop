@@ -26,16 +26,16 @@ class Chat(Base):
     __tablename__ = "chat"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String)
-    title = Column(Text)
-    chat = Column(JSON)
+    user_id = Column(String, nullable=False)
+    title = Column(Text, nullable=False)
+    chat = Column(JSON, nullable=False)
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
     share_id = Column(Text, unique=True, nullable=True)
-    archived = Column(Boolean, default=False)
-    pinned = Column(Boolean, default=False, nullable=True)
+    archived = Column(Boolean, nullable=False, default=False)
+    pinned = Column(Boolean, nullable=False, default=False)
 
     meta = Column(JSON, server_default="{}")
     folder_id = Column(Text, nullable=True)
@@ -907,17 +907,6 @@ class ChatTable:
         except Exception:
             return False
 
-    def delete_chats_by_user_id(self, user_id: str) -> bool:
-        try:
-            with get_db() as db:
-                self.delete_shared_chats_by_user_id(user_id)
-
-                db.query(Chat).filter_by(user_id=user_id).delete()
-                db.commit()
-
-                return True
-        except Exception:
-            return False
 
     def delete_chats_by_user_id_and_folder_id(
         self, user_id: str, folder_id: str
@@ -925,19 +914,6 @@ class ChatTable:
         try:
             with get_db() as db:
                 db.query(Chat).filter_by(user_id=user_id, folder_id=folder_id).delete()
-                db.commit()
-
-                return True
-        except Exception:
-            return False
-
-    def delete_shared_chats_by_user_id(self, user_id: str) -> bool:
-        try:
-            with get_db() as db:
-                chats_by_user = db.query(Chat).filter_by(user_id=user_id).all()
-                shared_chat_ids = [f"shared-{chat.id}" for chat in chats_by_user]
-
-                db.query(Chat).filter(Chat.user_id.in_(shared_chat_ids)).delete()
                 db.commit()
 
                 return True

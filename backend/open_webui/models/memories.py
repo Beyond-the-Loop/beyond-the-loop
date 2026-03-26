@@ -15,10 +15,10 @@ class Memory(Base):
     __tablename__ = "memory"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String)
-    content = Column(Text)
-    updated_at = Column(BigInteger)
-    created_at = Column(BigInteger)
+    user_id = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
 
 
 class MemoryModel(BaseModel):

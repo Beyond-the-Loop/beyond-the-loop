@@ -8,7 +8,14 @@
       "Bash(grep -rn \"$page.url.searchParams.get.*models\\\\|get.*models.*string\" /Users/philszalay/Documents/code/beyond-the-loop/src/)",
       "Bash(grep -A 15 \"page.subscribe\\\\|^\\\\s*$:\" /Users/philszalay/Documents/code/beyond-the-loop/src/routes/\\\\\\(app\\\\\\)/+layout.svelte)",
       "Bash(grep -rn atSelectedModels*= /Users/philszalay/Documents/code/beyond-the-loop/src/lib)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find /Users/philszalay/Documents/code/beyond-the-loop/src -type f -name \"*.svelte\" -exec grep -l \"getContext\\(''''i18n''''\\)\" {})",
+      "Bash(head -25 grep -n \"Column\\\\|class \" /Users/philszalay/Documents/code/beyond-the-loop/backend/open_webui/models/folders.py)",
+      "Bash(head -25 grep -n \"Column\\\\|class \" /Users/philszalay/Documents/code/beyond-the-loop/backend/open_webui/models/memories.py)",
+      "Bash(head -20 grep -n \"Column\\\\|class \" /Users/philszalay/Documents/code/beyond-the-loop/backend/open_webui/models/tags.py)",
+      "Bash(head -20 grep -n \"Column\\\\|class \" /Users/philszalay/Documents/code/beyond-the-loop/backend/open_webui/models/feedbacks.py)",
+      "Bash(head -30 grep -n \"Column\\\\|class \" /Users/philszalay/Documents/code/beyond-the-loop/backend/beyond_the_loop/models/files.py)",
+      "Bash(head -20 grep -n \"Column\\\\|class \" /Users/philszalay/Documents/code/beyond-the-loop/backend/beyond_the_loop/models/auths.py)"
     ]
   }
 }
