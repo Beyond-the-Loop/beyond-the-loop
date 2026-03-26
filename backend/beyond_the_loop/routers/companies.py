@@ -228,9 +228,8 @@ async def create_company(
                 "id": company_id,
                 "name": form_data.company_name,
                 "credit_balance": INITIAL_CREDIT_BALANCE,
-                "size": form_data.company_size,
-                "industry": form_data.company_industry,
-                "team_function": form_data.company_team_function,
+                "subdomain": form_data.subdomain,
+                "billing_country": form_data.billing_country,
                 "profile_image_url": form_data.company_profile_image_url,
             }
         )
