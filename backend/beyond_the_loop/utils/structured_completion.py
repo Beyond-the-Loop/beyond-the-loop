@@ -85,6 +85,10 @@ class ToolSelectionDecision(BaseModel):
     tool: Literal["image_generation", "web_search", "code_interpreter", "none"]
 
 
+class ChatSummaryResponse(BaseModel):
+    summary: str
+
+
 class SmartRouterDecision(BaseModel):
     intelligence_score: float  # 1.0–5.0
 
