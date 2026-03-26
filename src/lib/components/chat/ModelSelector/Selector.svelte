@@ -59,7 +59,11 @@
 		}))
 		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
 		?.filter((item) => item.model?.base_model_id == null)
-		.sort((a, b) => (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity));
+		.sort((a, b) => {
+		if (a?.model?.name === 'Smart Router') return -1;
+		if (b?.model?.name === 'Smart Router') return 1;
+		return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
+	});
 
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
@@ -433,12 +437,18 @@
 							}}}
 						on:mouseleave={setHoverTimeout}
 					>
-						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization}</span></div>
+						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization || "Beyond the Loop"}</span></div>
 						<div>
 							<p class="text-xs text-lightGray-100 dark:text-customGray-100">
+								{#if hoveredItem.label == "Smart Router"}
+								{$i18n.t("Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is, match it against the strengths of our models, and choose the most efficient model for the task.")}
+								{:else}
 								{$i18n.t($modelsInfo?.[hoveredItem?.label]?.description)}
+								{/if}
+
 							</p>
 						</div>
+					{#if hoveredItem.label != "Smart Router"}
 						<div class="flex items-center gap-3 mt-auto">
 							{#if $modelsInfo?.[hoveredItem?.label]?.multimodal}
 								<div class="py-2 flex items-center">
@@ -468,7 +478,7 @@
 						<div class="grid grid-cols-3 gap-y-4 gap-x-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700">
 							{#if $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
 								<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
-									{#if $modelsInfo?.[hoveredItem?.label]?.costFactor}
+									{#if $modelsInfo?.[hoveredItem?.label]?.costFactor != null}
 										<CostRating rating={$modelsInfo?.[hoveredItem?.label]?.costFactor} />
 									{:else}
 										N/A
@@ -477,7 +487,7 @@
 								</div>
 							{:else}
 								<div class="flex flex-col items-center text-xs justify-end">
-									{#if $modelsInfo?.[hoveredItem?.label]?.category}
+									{#if $modelsInfo?.[hoveredItem?.label]?.category != null}
 										{$modelsInfo?.[hoveredItem?.label]?.category}
 									{:else}
 										N/A
@@ -534,6 +544,9 @@
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Context window')}</p>
 							</div>
 						</div>
+
+					{/if}
+
 					</div>
 				{/if}
 
