@@ -261,7 +261,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    url=f"{os.environ.get('AZURE_OPENAI_ENDPOINT')}/openai/deployments/tts/audio/speech?api-version=2025-03-01-preview",
+                    url=f"{os.environ.get('AZURE_OPENAI_ENDPOINT')}/openai/deployments/tts-1/audio/speech?api-version=2025-03-01-preview",
                     json=payload,
                     headers={
                         "Content-Type": "application/json",

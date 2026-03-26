@@ -154,6 +154,8 @@
 	let generatingImage = false;
 
 	let showRateComment = false;
+	$: statusList = message?.statusHistory ?? [...(message?.status ? [message?.status] : [])];
+	$: status = statusList.length > 0 ? statusList.at(-1) : null
 
 	const copyToClipboard = async (text, sources) => {
 		const res = await copyToClipboardResponse(text, sources);
@@ -558,14 +560,10 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{#if (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length > 0}
-							{@const status = (
-								message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]
-							).at(-1)}
-							{#if !status?.hidden}
-								<div class="status-description flex items-center gap-2 py-0.5">
-									{#if status?.done === false}
-										<div class="">
+						{#if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
+								<div class="status-description flex items-center gap-2">
+									{#if !message.done && (status?.done === false || !status)}
+										<div class="py-1">
 											<Spinner className="size-4" />
 										</div>
 									{/if}
@@ -588,6 +586,16 @@
 												</div>
 											</div>
 										</WebSearchResults>
+									{:else if status?.action === 'tool_selection'}
+									<div class="flex flex-col justify-center -space-y-0.5">
+										<div
+											class="{status?.done === false
+												? 'shimmer'
+												: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+										>
+											{$i18n.t('Auto-selecting tools')}
+										</div>
+									</div>
 									{:else if status?.action === 'knowledge_search'}
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div
@@ -627,7 +635,7 @@
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
-												{#if status?.description.includes('{{searchQuery}}')}
+												{#if status?.description?.includes('{{searchQuery}}')}
 													{$i18n.t(status?.description, {
 														searchQuery: status?.query
 													})}
@@ -638,7 +646,6 @@
 										</div>
 									{/if}
 								</div>
-							{/if}
 						{/if}
 
 						{#if edit === true}
@@ -707,9 +714,7 @@
 								class="w-full flex flex-col relative text-base leading-[1.5] dark:text-customGray-100"
 								id="response-content-container"
 							>
-								{#if message.content === '' && !message.error && !message.done}
-									<Skeleton />
-								{:else if message.content && message.error !== true}
+								{#if message.content && message.error !== true}
 									<!-- always show message contents even if there's an error -->
 									<!-- unless message.error === true which is legacy error handling, where the error message is stored in message.content -->
 									<ContentRenderer
@@ -725,6 +730,8 @@
 
 											if (sourceButton) {
 												sourceButton.click();
+											} else if (e.startsWith('http')) {
+												window.open(e, '_blank', 'noopener,noreferrer');
 											}
 										}}
 										onAddMessages={({ modelId, parentId, messages }) => {
@@ -763,7 +770,7 @@
 									<Citations sources={message?.sources ?? message?.citations} />
 								{/if}
 
-								{#if message.code_executions}+
+								{#if message.code_executions}
 									<CodeExecutions codeExecutions={message.code_executions} />
 								{/if}
 							</div>

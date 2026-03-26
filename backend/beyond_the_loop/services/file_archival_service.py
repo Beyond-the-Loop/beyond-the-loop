@@ -4,6 +4,7 @@ File Archival Service
 This service handles automatic deletion of files after 3 months.
 - Deletes files older than 3 months (90 days)
 - Excludes files that are part of Knowledge bases (referenced in data.file_ids)
+- Excludes files that are attached to Assistants/Models (referenced in meta.files)
 """
 
 import logging
@@ -14,7 +15,9 @@ from typing import List, Optional, Set
 from open_webui.internal.db import get_db
 from beyond_the_loop.models.files import File, Files
 from beyond_the_loop.models.knowledge import Knowledge
+from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import User
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 log = logging.getLogger(__name__)
 
@@ -74,20 +77,37 @@ class FileArchivalService:
             }
     
     def _get_protected_file_ids(self) -> Set[str]:
-        """Get all file IDs that are referenced in knowledge bases and should not be deleted"""
+        """Get all file IDs that are referenced in knowledge bases or assistants and should not be deleted"""
         protected_ids = set()
-        
+
         with get_db() as db:
             # Get all knowledge bases that have file_ids in their data
             knowledges = db.query(Knowledge).filter(Knowledge.data.isnot(None)).all()
-            
+
             for knowledge in knowledges:
                 if knowledge.data and isinstance(knowledge.data, dict):
                     file_ids = knowledge.data.get("file_ids", [])
                     if isinstance(file_ids, list):
                         protected_ids.update(file_ids)
-        
-        log.info(f"Found {len(protected_ids)} files protected by knowledge bases")
+
+            knowledge_protected_count = len(protected_ids)
+
+            # Get all assistants (have a base_model_id) that have files attached in meta.files
+            models = db.query(Model).filter(Model.base_model_id.isnot(None), Model.meta.isnot(None)).all()
+
+            for model in models:
+                if model.meta and isinstance(model.meta, dict):
+                    files = model.meta.get("files", [])
+                    if isinstance(files, list):
+                        for file_entry in files:
+                            if isinstance(file_entry, dict) and file_entry.get("id"):
+                                protected_ids.add(file_entry["id"])
+
+        assistant_protected_count = len(protected_ids) - knowledge_protected_count
+        log.info(
+            f"Found {len(protected_ids)} protected files total "
+            f"({knowledge_protected_count} from knowledge bases, {assistant_protected_count} from assistants)"
+        )
         return protected_ids
     
     def _delete_old_files(self) -> None:
@@ -150,7 +170,16 @@ class FileArchivalService:
                         log.debug(f"Deleted physical file: {file.path}")
                     except OSError as e:
                         log.warning(f"Could not delete physical file {file.path}: {e}")
-                
+
+                # Delete vector chunks
+                try:
+                    collection_name = f"file-{file.id}"
+                    if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+                        VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+                        log.debug(f"Deleted vector collection: {collection_name}")
+                except Exception as e:
+                    log.warning(f"Could not delete vector collection for file {file.id}: {e}")
+
                 # Delete database record
                 if Files.delete_file_by_id(file.id):
                     deleted_count += 1

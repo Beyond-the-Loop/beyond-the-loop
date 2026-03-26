@@ -899,6 +899,7 @@ export const completeRegistration = async (
 	profile_image_url: string = '',
 	position: string | null = null,
 	phone: string | null = null,
+	utm_params?: { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string; utm_gclid?: string },
 ) => {
 	let error = null;
 
@@ -916,7 +917,8 @@ export const completeRegistration = async (
 			profile_image_url: profile_image_url?.length ? profile_image_url : null,
 			is_invited: false,
 			position: position || null,
-			phone: phone || null
+			phone: phone || null,
+			...(utm_params && Object.fromEntries(Object.entries(utm_params).filter(([, v]) => v)))
 		})
 	})
 		.then(async (res) => {

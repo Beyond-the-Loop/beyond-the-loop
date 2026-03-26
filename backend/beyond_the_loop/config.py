@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
-import chromadb
 from sqlalchemy import JSON, Column, DateTime, Integer, func, String
 
 from open_webui.env import (
@@ -605,49 +604,11 @@ ENABLE_OPENAI_API = PersistentConfig(
     os.environ.get("ENABLE_OPENAI_API", "True").lower() == "true",
 )
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_API_BASE_URL = os.environ.get("OPENAI_API_BASE_URL", "")
-
-
-if OPENAI_API_BASE_URL == "":
-    OPENAI_API_BASE_URL = "https://api.openai.com/v1"
-
-OPENAI_API_KEYS = os.environ.get("OPENAI_API_KEYS", "")
-OPENAI_API_KEYS = OPENAI_API_KEYS if OPENAI_API_KEYS != "" else OPENAI_API_KEY
-
-OPENAI_API_KEYS = [url.strip() for url in OPENAI_API_KEYS.split(";")]
-OPENAI_API_KEYS = PersistentConfig(
-    "OPENAI_API_KEYS", "openai.api_keys", OPENAI_API_KEYS
-)
-
-OPENAI_API_BASE_URLS = os.environ.get("OPENAI_API_BASE_URLS", "")
-OPENAI_API_BASE_URLS = (
-    OPENAI_API_BASE_URLS if OPENAI_API_BASE_URLS != "" else OPENAI_API_BASE_URL
-)
-
-OPENAI_API_BASE_URLS = [
-    url.strip() if url != "" else "https://api.openai.com/v1"
-    for url in OPENAI_API_BASE_URLS.split(";")
-]
-OPENAI_API_BASE_URLS = PersistentConfig(
-    "OPENAI_API_BASE_URLS", "openai.api_base_urls", OPENAI_API_BASE_URLS
-)
-
 OPENAI_API_CONFIGS = PersistentConfig(
     "OPENAI_API_CONFIGS",
     "openai.api_configs",
     {},
 )
-
-# Get the actual OpenAI API key based on the base URL
-OPENAI_API_KEY = ""
-try:
-    OPENAI_API_KEY = OPENAI_API_KEYS.value[
-        OPENAI_API_BASE_URLS.value.index("https://api.openai.com/v1")
-    ]
-except Exception:
-    pass
-OPENAI_API_BASE_URL = "https://api.openai.com/v1"
 
 ####################################
 # WEBUI
@@ -774,25 +735,19 @@ TITLE_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     os.environ.get("TITLE_GENERATION_PROMPT_TEMPLATE", ""),
 )
 
-DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE = """### Task:
-Generate a concise, 3-5 word title without any emojis (this is important) summarizing the chat history.
-### Guidelines:
-- The title should clearly represent the main theme or subject of the conversation.
-- Write the title in the chat's primary language; default to German if multilingual.
-- Prioritize accuracy over excessive creativity; keep it clear and simple.
-### Output:
-JSON format: { "title": "your concise title here" }
-### Examples:
-- { "title": "Stock Market Trends" },
-- { "title": "Perfect Chocolate Chip Recipe" },
-- { "title": "Evolution of Music Streaming" },
-- { "title": "Remote Work Productivity Tips" },
-- { "title": "Artificial Intelligence in Healthcare" },
-- { "title": "Video Game Development Insights" }
-### Chat History:
-<chat_history>
-{{MESSAGES:END:2}}
-</chat_history>"""
+from beyond_the_loop.prompts import (
+    DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE,
+    DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE,
+    DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
+    WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE,
+    RAG_QUERY_GENERATION_PROMPT_TEMPLATE,
+    CODE_INTERPRETER_PROMPT,
+    CODE_INTERPRETER_FILE_HINT_TEMPLATE,
+    CODE_INTERPRETER_SUMMARY_PROMPT,
+    CODE_INTERPRETER_FAIL_PROMPT,
+    COMPLETION_ERROR_MESSAGE_PROMPT,
+    DEFAULT_RAG_TEMPLATE,
+)
 
 TAGS_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     "TAGS_GENERATION_PROMPT_TEMPLATE",
@@ -800,49 +755,11 @@ TAGS_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     os.environ.get("TAGS_GENERATION_PROMPT_TEMPLATE", ""),
 )
 
-DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE = """### Task:
-Generate 1-3 broad tags categorizing the main themes of the chat history, along with 1-3 more specific subtopic tags.
-
-### Guidelines:
-- Start with high-level domains (e.g. Science, Technology, Philosophy, Arts, Politics, Business, Health, Sports, Entertainment, Education)
-- Consider including relevant subfields/subdomains if they are strongly represented throughout the conversation
-- If content is too short (less than 3 messages) or too diverse, use only ["General"]
-- Use the chat's primary language; default to English if multilingual
-- Prioritize accuracy over specificity
-
-### Output:
-JSON format: { "tags": ["tag1", "tag2", "tag3"] }
-
-### Chat History:
-<chat_history>
-{{MESSAGES:END:6}}
-</chat_history>"""
-
 IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     "IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE",
     "task.image.prompt_template",
     os.environ.get("IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE", ""),
 )
-
-DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = """### Task:
-Generate a detailed prompt for am image generation task based on the given language and context. Describe the image as if you were explaining it to someone who cannot see it. Include relevant details, colors, shapes, and any other important elements.
-
-### Guidelines:
-- Be descriptive and detailed, focusing on the most important aspects of the image.
-- Avoid making assumptions or adding information not present in the image.
-- Use the chat's primary language; default to English if multilingual.
-- If the image is too complex, focus on the most prominent elements.
-
-### Output:
-Strictly return in JSON format:
-{
-    "prompt": "Your detailed description here."
-}
-
-### Chat History:
-<chat_history>
-{{MESSAGES:END:6}}
-</chat_history>"""
 
 ENABLE_TAGS_GENERATION = PersistentConfig(
     "ENABLE_TAGS_GENERATION",
@@ -853,133 +770,6 @@ ENABLE_TAGS_GENERATION = PersistentConfig(
 WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )
-
-WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Decide whether additional keyword web search queries are needed to answer the user's question, and generate them if so (1–3 max).
-For each query also provide a result_limit (minimum 1) that determines how many web pages to scrape.
-
-### Guidelines:
-- Use the language given in the user's prompt; default to English if unclear.
-- Today's date is: {{CURRENT_DATE}}.
-- Do NOT include raw URLs as queries — URLs are already scraped separately and do not need to be re-queried.
-- **If the user's message contains one or more URLs and the intent is clearly to read, fetch, summarize, compare, or analyze those specific pages, return `{"queries": []}` — no additional keyword queries are needed.**
-- Only generate keyword queries if there is a genuine need for additional web research beyond what the provided URLs cover — for example, if the user asks a general question that is not answered by the URLs alone, or asks to compare against external sources.
-- If there are no URLs in the message, always generate at least one keyword query.
-- Be conservative: fewer queries are better. Only generate more than one if clearly necessary.
-
-### Chat History:
-<chat_history>
-{{MESSAGES:END:6}}
-</chat_history>
-"""
-
-RAG_QUERY_GENERATION_PROMPT_TEMPLATE = """### Task:
-Analyze the chat history to generate search queries that retrieve **relevant information from a local RAG (Retrieval-Augmented Generation) document store**. The goal is to identify **semantically rich, specific, and content-focused** queries rather than broad web searches.
-
-### Guidelines:
-- Respond **EXCLUSIVELY** with a JSON object. No commentary or explanations.
-- Response format: { "queries": ["query1", "query2"] }
-- Focus on **semantic retrieval** — generate queries that align with document embeddings and maximize recall of relevant context.
-- Prefer **topic-specific, question-style**, or **phrase-based** queries that match possible file content.
-- If no meaningful retrieval is possible, return: { "queries": [] }
-- Use the chat’s language; default to English if unclear.
-- Today's date is: {{CURRENT_DATE}}.
-
-### Output:
-{
-  "queries": ["query1", "query2"]
-}
-
-### Chat History:
-<chat_history>
-{{MESSAGES:END:6}}
-</chat_history>
-"""
-
-
-CODE_INTERPRETER_PROMPT = """
-#### Tools Available that you have to use:
-
-1. **Code Interpreter**: `<code_interpreter type="code" lang="python"></code_interpreter>`
-   - You are a senior Python developer. You write a single script that implements the user's task. You have only on chance to write the script and there is no chance for asking questions. Use the information provided by the user to solve the task.
-   - The Python code you write can incorporate all packages from the standard python library and packages from this list:
-        annotated-doc==0.0.4
-        annotated-types==0.7.0
-        anyio==4.11.0
-        cachetools==6.2.2
-        certifi==2025.11.12
-        charset-normalizer==3.4.4
-        click==8.3.1
-        et_xmlfile==2.0.0
-        fastapi==0.121.2
-        google-api-core==2.28.1
-        google-auth==2.43.0
-        google-cloud-core==2.5.0
-        google-cloud-storage==2.19.0
-        google-crc32c==1.7.1
-        google-resumable-media==2.7.2
-        googleapis-common-protos==1.72.0
-        h11==0.16.0
-        httptools==0.7.1
-        idna==3.11
-        lxml==6.0.2
-        matplotlib==3.10.7
-        openpyxl==3.1.5
-        pandas==2.3.3
-        pillow==12.0.0
-        proto-plus==1.26.1
-        protobuf==6.33.1
-        pyasn1==0.6.1
-        pyasn1_modules==0.4.2
-        pydantic==2.12.4
-        pydantic_core==2.41.5
-        pypdf==6.3.0
-        python-docx==1.2.0
-        python-dotenv==1.2.1
-        PyYAML==6.0.3
-        reportlab==4.4.4
-        requests==2.32.5
-        rsa==4.9.1
-        sniffio==1.3.1
-        starlette==0.49.3
-        typing-inspection==0.4.2
-        typing_extensions==4.15.0
-        urllib3==2.5.0
-        uvicorn==0.38.0
-        uvloop==0.22.1
-        watchfiles==1.1.1
-        websockets==15.0.1
-   - Use this flexibility to **think outside the box, craft elegant solutions, and harness Python's full potential**.
-   - Make sure it is always valid Python code that you create. No syntax errors (especially no SyntaxError: unterminated triple-quoted string literal)!
-   - By default, you may create files when needed, using simple colors and minimal design. However, if the user explicitly asks for a different style, layout, or level of complexity, their instructions override this default.
-   - When creating a file, always use only the filename without any path. The file should be created in the current working directory. Do not use subfolders or absolute paths unless explicitly requested. Example: 'text.txt' instead of 'tmp/text.txt' or '/home/user/text.txt'.
-   - Be careful when creating files like pdfs with emojis or smileys, some Python libraries are not supporting it.
-   - To use it, **you must enclose your code within `<code_interpreter type="code" lang="python">` XML tags**. If you don't, the code won't execute. Do NOT use triple backticks.
-   - All responses should be communicated in the chat's primary language, ensuring seamless understanding. If the chat is multilingual, default to English for clarity.
-   - Ignore all base64 strings from the messages. They should not be part of the code.
-   - When creating files with long texts as content, make sure to include the text exactly how defined in the chat and under no circumstances truncate it.
-
-Ensure that the tools are effectively utilized to achieve the highest-quality analysis for the user.
-"""
-
-CODE_INTERPRETER_FILE_HINT_TEMPLATE = """
-    The following uploaded files will be available in your current working directory when your code runs: {{file_list}}
-    Open them directly by filename (for example: pandas.read_csv('data.csv')).
-    Do not attempt to download files from external URLs; use these local files.
-"""
-
-CODE_INTERPRETER_SUMMARY_PROMPT = """
-    Based on the most recent code execution output, write a concise wrap up to inform the user what happened: 
-        - Clearly state whether the execution succeeded or failed.
-        - If any file URLs are available, include a Markdown link to each of the files. Inform the user that the link is valid for 48 hours.
-        - IMPORTANT! Use the **exact** link from the response. Every letter is important, don't alter it. Otherwise the user will se a 404 Error what we want to avoid.
-        - Inform the user if you decided to not write the emojis or smileys in the file (e.g. because pdfs don't support it).
-        - If there was an error, briefly summarize it in one sentence. If necessary generate adjusted code (Code Interpreter Tool).
-"""
-
-CODE_INTERPRETER_FAIL_PROMPT = """
-    Tell the user kindly that it was not possible for you to execute the task with the code interpreter. IMPORTANT! Don't write any new code. It is over. Do not try again to solve the task. Just tell the user that he has to try again.
-"""
 
 DEFAULT_AGENT_MODEL = PersistentConfig(
     "DEFAULT_AGENT_MODEL",
@@ -999,8 +789,6 @@ MODEL_ORDER_LIST = PersistentConfig(
 
 # Chroma
 CHROMA_DATA_PATH = f"{DATA_DIR}/vector_db"
-CHROMA_TENANT = os.environ.get("CHROMA_TENANT", chromadb.DEFAULT_TENANT)
-CHROMA_DATABASE = os.environ.get("CHROMA_DATABASE", chromadb.DEFAULT_DATABASE)
 CHROMA_HTTP_HOST = os.environ.get("CHROMA_HTTP_HOST", "")
 CHROMA_HTTP_PORT = int(os.environ.get("CHROMA_HTTP_PORT", "8000"))
 CHROMA_CLIENT_AUTH_PROVIDER = os.environ.get("CHROMA_CLIENT_AUTH_PROVIDER", "")
@@ -1151,66 +939,10 @@ CHUNK_OVERLAP = PersistentConfig(
     int(os.environ.get("CHUNK_OVERLAP", "100")),
 )
 
-COMPLETION_ERROR_MESSAGE_PROMPT = """
-You are an AI assistant generating a helpful fallback message after an upstream model request failed.
-Your goal is to explain the failure in a clear and reassuring way.
-- Describe the error in human-readable terms.
-- Do not invent technical details.
-- Do not blame the user.
-- Keep the tone calm, neutral, and professional.
-- If the cause is unknown, say that the system encountered an unexpected error.
-
-IMPORTANT: If appropriate based on the error, suggest that the user try a different model.
-Only make this suggestion when the error clearly indicates that the current model cannot handle the task.
-"""
-
-DEFAULT_RAG_TEMPLATE = """### Task:
-Respond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.
-
-### Guidelines:
-- If you don't know the answer, clearly state that.
-- If uncertain, ask the user for clarification.
-- Respond in the same language as the user's query.
-- If the context is unreadable or of poor quality, inform the user and provide the best possible answer.
-- If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.
-- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**  
-- Do not cite if the <source_id> tag is not provided in the context.  
-- Do not use XML tags in your response.
-- Ensure citations are concise and directly related to the information provided.
-
-### Example of Citation:
-If the user asks about a specific topic and the information is found in "whitepaper.pdf" with a provided <source_id>, the response should include the citation like so:  
-* "According to the study, the proposed method increases efficiency by 20% [whitepaper.pdf]."
-If no <source_id> is present, the response should omit the citation.
-
-### Output:
-Provide a clear and direct response to the user's query, including inline citations in the format [source_id] only when the <source_id> tag is present in the context.
-
-<context>
-{{CONTEXT}}
-</context>
-
-<user_query>
-{{QUERY}}
-</user_query>
-"""
-
 RAG_TEMPLATE = PersistentConfig(
     "RAG_TEMPLATE",
     "rag.template",
     os.environ.get("RAG_TEMPLATE", DEFAULT_RAG_TEMPLATE),
-)
-
-RAG_OPENAI_API_BASE_URL = PersistentConfig(
-    "RAG_OPENAI_API_BASE_URL",
-    "rag.openai_api_base_url",
-    os.getenv("RAG_OPENAI_API_BASE_URL", OPENAI_API_BASE_URL),
-)
-
-RAG_OPENAI_API_KEY = PersistentConfig(
-    "RAG_OPENAI_API_KEY",
-    "rag.openai_api_key",
-    os.getenv("RAG_OPENAI_API_KEY", OPENAI_API_KEY),
 )
 
 ####################################
@@ -1240,19 +972,6 @@ WHISPER_MODEL_AUTO_UPDATE = (
     and os.environ.get("WHISPER_MODEL_AUTO_UPDATE", "").lower() == "true"
 )
 
-
-AUDIO_STT_OPENAI_API_BASE_URL = PersistentConfig(
-    "AUDIO_STT_OPENAI_API_BASE_URL",
-    "audio.stt.openai.api_base_url",
-    os.getenv("AUDIO_STT_OPENAI_API_BASE_URL", OPENAI_API_BASE_URL),
-)
-
-AUDIO_STT_OPENAI_API_KEY = PersistentConfig(
-    "AUDIO_STT_OPENAI_API_KEY",
-    "audio.stt.openai.api_key",
-    os.getenv("AUDIO_STT_OPENAI_API_KEY", OPENAI_API_KEY),
-)
-
 AUDIO_STT_ENGINE = PersistentConfig(
     "AUDIO_STT_ENGINE",
     "audio.stt.engine",
@@ -1263,17 +982,6 @@ AUDIO_STT_MODEL = PersistentConfig(
     "AUDIO_STT_MODEL",
     "audio.stt.model",
     os.getenv("AUDIO_STT_MODEL", ""),
-)
-
-AUDIO_TTS_OPENAI_API_BASE_URL = PersistentConfig(
-    "AUDIO_TTS_OPENAI_API_BASE_URL",
-    "audio.tts.openai.api_base_url",
-    os.getenv("AUDIO_TTS_OPENAI_API_BASE_URL", OPENAI_API_BASE_URL),
-)
-AUDIO_TTS_OPENAI_API_KEY = PersistentConfig(
-    "AUDIO_TTS_OPENAI_API_KEY",
-    "audio.tts.openai.api_key",
-    os.getenv("AUDIO_TTS_OPENAI_API_KEY", OPENAI_API_KEY),
 )
 
 AUDIO_TTS_API_KEY = PersistentConfig(

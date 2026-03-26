@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import io
 import logging
@@ -133,19 +134,22 @@ async def image_generations(
         if form_data.input_image_path:
             with open(form_data.input_image_path, "rb") as f:
                 image_bytes_list.insert(0, f)
-                response = client.images.edit(
+                response = await asyncio.to_thread(
+                    client.images.edit,
                     model="Nano Banana",
                     prompt=form_data.prompt,
                     image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
                 )
         elif image_bytes_list:
-            response = client.images.edit(
+            response = await asyncio.to_thread(
+                client.images.edit,
                 model="Nano Banana",
                 prompt=form_data.prompt,
                 image=image_bytes_list if len(image_bytes_list) > 1 else image_bytes_list[0],
             )
         else:
-            response = client.images.generate(
+            response = await asyncio.to_thread(
+                client.images.generate,
                 model="Nano Banana",
                 prompt=form_data.prompt,
             )

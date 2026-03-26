@@ -73,6 +73,13 @@
 		}
 		if (step === 3) {
 			loading = true;
+			const utm_source = (document.getElementById('utm_source') as HTMLInputElement)?.value ?? '';
+			const utm_medium = (document.getElementById('utm_medium') as HTMLInputElement)?.value ?? '';
+			const utm_campaign = (document.getElementById('utm_campaign') as HTMLInputElement)?.value ?? '';
+			const utm_content = (document.getElementById('utm_content') as HTMLInputElement)?.value ?? '';
+			const utm_term = (document.getElementById('utm_term') as HTMLInputElement)?.value ?? '';
+			const utm_gclid = (document.getElementById('utm_gclid') as HTMLInputElement)?.value ?? '';
+
 			const registeredUser = await completeRegistration(
 				first_name,
 				last_name,
@@ -80,7 +87,8 @@
 				password || null,
 				generateInitialsImage(`${first_name} ${last_name}`),
 				position,
-				phone
+				phone,
+				{ utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_gclid },
 			).catch((error) => showToast('error', error));
 
 			if (registeredUser) {
@@ -100,6 +108,14 @@
 <svelte:head>
 	<title>{$WEBUI_NAME}</title>
 </svelte:head>
+
+<!-- Hidden UTM fields — populated by GTM from first-party cookies -->
+<input type="hidden" id="utm_source" name="utm_source" />
+<input type="hidden" id="utm_medium" name="utm_medium" />
+<input type="hidden" id="utm_campaign" name="utm_campaign" />
+<input type="hidden" id="utm_content" name="utm_content" />
+<input type="hidden" id="utm_term" name="utm_term" />
+<input type="hidden" id="utm_gclid" name="utm_gclid" />
 
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
 
