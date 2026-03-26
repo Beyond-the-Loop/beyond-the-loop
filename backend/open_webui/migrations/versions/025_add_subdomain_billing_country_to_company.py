@@ -1,7 +1,7 @@
 """Add subdomain and billing_country to company, remove size/industry/team_function
 
-Revision ID: 022
-Revises: 021
+Revision ID: 025
+Revises: 024
 Create Date: 2026-03-18 00:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '022'
-down_revision: Union[str, None] = '021'
+revision: str = '025'
+down_revision: Union[str, None] = '024'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
