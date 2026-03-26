@@ -739,6 +739,28 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_premium: 50
 
+  - model_name: "GPT-5.2"
+    litellm_params:
+      model: "azure/responses/gpt-5.2"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "low"
+    model_info:
+      context_window: '512K'
+      category: 3
+      costFactor: 3
+      description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
+      hosted_in: 'US'
+      intelligence_score: 4
+      knowledge_cutoff: '2025-01-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
+
   - model_name: "GPT-5.3 Chat"
     litellm_params:
       model: "azure/responses/gpt-5.3-chat"
