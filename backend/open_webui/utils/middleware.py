@@ -88,6 +88,7 @@ from open_webui.routers.retrieval import process_file, ProcessFileForm
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.utils.chat_compression import maybe_compress_chat
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -795,10 +796,23 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data.pop("variables", None)
     form_data.pop("tool_ids", None)
 
-    log.debug(f"form_data: {form_data}")
-
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
+
+    try:
+        chat_id = metadata.get("chat_id")
+
+        if chat_id:
+            form_data = await maybe_compress_chat(
+                form_data=form_data,
+                model=model,
+                chat_id=chat_id,
+                event_emitter=event_emitter,
+            )
+    except Exception as e:
+        log.exception(f"[chat_compression] failed, continuing without compression: {e}")
+
+    log.debug(f"form_data: {form_data}")
 
     extra_params = {
         "__event_emitter__": event_emitter,
