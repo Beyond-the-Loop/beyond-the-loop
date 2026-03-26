@@ -148,12 +148,10 @@
 	on:confirm={() => {
 		deleteUserHandler();
 	}}
-	confirmLabel={$i18n.t('Delete Account')}
+	confirmLabel={$i18n.t('Delete account')}
 	>
 	<div class=" text-sm text-gray-700 dark:text-gray-300 flex-1 line-clamp-3">
-		{@html DOMPurify.sanitize(
-			$i18n.t('This action is permanent and cannot be undone. All your data will be lost.')
-		)}
+		{$i18n.t('This action is permanent and cannot be undone. All your data will be lost.')}
 	</div>
 </DeleteConfirmDialog>
 <div class="flex flex-col justify-between text-sm pt-5">
@@ -607,11 +605,18 @@
 		{/if} -->
 	</div>
 
-	<div class="flex justify-end pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
+	<div class="flex justify-between pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
 		<button
-			class=" text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg {loading
-				? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border border-lightGray-400 dark:border-customGray-700'
-				: 'bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border border-lightGray-400 dark:border-customGray-700'} flex justify-center items-center"
+			type="button"
+			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
+			on:click={() => {
+						showDeleteConfirm = true;
+					}}
+		>
+			{$i18n.t('Delete account')}
+		</button>
+		<button
+			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
 			type="submit"
 			disabled={loading}
 			on:click={async () => {
