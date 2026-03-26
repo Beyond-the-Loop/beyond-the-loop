@@ -26,15 +26,15 @@ class Company(Base):
     id = Column(String, primary_key=True, unique=True)
     name = Column(String, nullable=False)
     profile_image_url = Column(Text, nullable=True)
-    credit_balance = Column(Float, default=0)
+    credit_balance = Column(Float, nullable=False, default=0)
     flex_credit_balance = Column(Float, nullable=True)
-    auto_recharge = Column(Boolean, default=False)
+    auto_recharge = Column(Boolean, nullable=False, default=False)
     size = Column(String, nullable=True)
     industry = Column(String, nullable=True)
     team_function = Column(String, nullable=True)
     stripe_customer_id = Column(String, nullable=True)
-    budget_mail_80_sent = Column(Boolean, nullable=True)
-    budget_mail_100_sent = Column(Boolean, nullable=True)
+    budget_mail_80_sent = Column(Boolean, nullable=False, default=False)
+    budget_mail_100_sent = Column(Boolean, nullable=False, default=False)
     subscription_not_required = Column(Boolean, nullable=True)
     next_credit_charge_check = Column(BigInteger, nullable=True)
 
@@ -385,5 +385,24 @@ class CompanyTable:
         except Exception as e:
             log.error(f"Error calculating credit limit for company {company_id}: {e}")
             return 1  # Default fallback value
+
+    def delete_company_by_id(self, company_id: str) -> bool:
+        """Delete a company and all associated data.
+
+        After migration 028 all relevant tables have ON DELETE CASCADE FK constraints
+        to company, so a single DELETE on the company row is sufficient:
+          company → user → (026) auth, chat, model, prompt, file, knowledge, …
+          company → domain
+          company → model, group, prompt, knowledge  (028)
+        """
+        try:
+            with get_db() as db:
+                db.query(Company).filter_by(id=company_id).delete()
+                db.commit()
+            return True
+        except Exception as e:
+            log.error(f"Failed to delete company {company_id}: {e}")
+            return False
+
 
 Companies = CompanyTable()

@@ -20,10 +20,10 @@ from sqlalchemy.sql import exists
 class MessageReaction(Base):
     __tablename__ = "message_reaction"
     id = Column(Text, primary_key=True)
-    user_id = Column(Text)
-    message_id = Column(Text)
-    name = Column(Text)
-    created_at = Column(BigInteger)
+    user_id = Column(Text, nullable=False)
+    message_id = Column(Text, nullable=False)
+    name = Column(Text, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
 
 
 class MessageReactionModel(BaseModel):
@@ -40,17 +40,17 @@ class Message(Base):
     __tablename__ = "message"
     id = Column(Text, primary_key=True)
 
-    user_id = Column(Text)
-    channel_id = Column(Text, nullable=True)
+    user_id = Column(Text, nullable=False)
+    channel_id = Column(Text, nullable=False)
 
     parent_id = Column(Text, nullable=True)
 
-    content = Column(Text)
+    content = Column(Text, nullable=False)
     data = Column(JSON, nullable=True)
     meta = Column(JSON, nullable=True)
 
-    created_at = Column(BigInteger)  # time_ns
-    updated_at = Column(BigInteger)  # time_ns
+    created_at = Column(BigInteger, nullable=False)  # time_ns
+    updated_at = Column(BigInteger, nullable=False)  # time_ns
 
 
 class MessageModel(BaseModel):

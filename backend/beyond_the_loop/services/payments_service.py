@@ -172,6 +172,43 @@ class PaymentsService:
 
         self.PREMIUM_BILLING_PORTAL_ID = os.getenv('STRIPE_PREMIUM_BILLING_PORTAL_ID', "bpc_1SnKqsBBwyxb4MZj4SRs4N0b")
 
+    def cancel_company_subscription(self, company_id: str):
+        """Cancel all active/trialing Stripe subscriptions for a company."""
+        try:
+            company = Companies.get_company_by_id(company_id)
+            if not company or not company.stripe_customer_id:
+                return
+
+            subscriptions = stripe.Subscription.list(
+                customer=company.stripe_customer_id,
+                limit=10
+            )
+
+            for sub in subscriptions.get("data", []):
+                if sub.get("status") in ("active", "trialing"):
+                    stripe.Subscription.cancel(sub.get("id"))
+
+            STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
+            STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
+
+        except Exception as e:
+            log.error(f"Failed to cancel subscription for company {company_id}: {e}")
+
+    def update_premium_seat_count(self, company_id):
+        """Update the Stripe subscription quantity for premium plans to match active user count."""
+        subscription = self.get_subscription(company_id)
+        try:
+            if subscription.get("plan") == "premium":
+                stripe.Subscription.modify(
+                    subscription.get("subscription_id"),
+                    items=[{
+                        "id": subscription.get("subscription_item_id"),
+                        "quantity": Users.get_num_active_users_by_company_id(company_id)
+                    }]
+                )
+        except Exception as e:
+            log.error(f"Failed to update premium seat count for company {company_id}: {e}")
+
     def get_plan_details_from_subscription(self, subscription):
         """
         Extract plan details and product image from a Stripe subscription.

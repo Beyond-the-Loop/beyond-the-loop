@@ -295,6 +295,46 @@ export const getAndUpdateUserLocation = async (token: string) => {
 	}
 };
 
+export type EntityItem = { id: string; name: string };
+
+export type UserEntitiesResponse = {
+	models: EntityItem[];
+	prompts: EntityItem[];
+	knowledge: EntityItem[];
+};
+
+export type TransferItem = {
+	entity_type: 'model' | 'prompt' | 'knowledge';
+	entity_id: string;
+	new_user_id: string;
+};
+
+export const getUserEntities = async (token: string, userId: string): Promise<UserEntitiesResponse> => {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/${userId}/entities`, {
+		headers: { Authorization: `Bearer ${token}` }
+	}).then(async (res) => {
+		if (!res.ok) throw await res.json();
+		return res.json();
+	});
+	return res;
+};
+
+export const transferUserEntities = async (
+	token: string,
+	userId: string,
+	assignments: TransferItem[]
+): Promise<boolean> => {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/${userId}/transfer-entities`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({ assignments })
+	}).then(async (res) => {
+		if (!res.ok) throw await res.json();
+		return res.json();
+	});
+	return res;
+};
+
 export const deleteUserById = async (token: string, userId: string) => {
 	let error = null;
 
