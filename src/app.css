@@ -496,7 +496,7 @@ html.dark #editor .ProseMirror a {
 	text-decoration: underline;
 }
 
-@media (max-width: 990px) {
+@media (max-width: 1320px) {
 	.intercom-app {
 		display: none !important;
 	}
