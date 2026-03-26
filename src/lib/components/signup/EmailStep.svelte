@@ -3,11 +3,11 @@
 	import { Separator } from 'bits-ui';
 
 	import { WEBUI_BASE_URL } from '$lib/constants';
-	import { config, showToast } from '$lib/stores';
+	import { config } from '$lib/stores';
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
 	import AuthSocialButton from './shared/AuthSocialButton.svelte';
 	import { createUser } from '$lib/apis/users';
-	import { validateEmailStep } from '$lib/utils/input-validation';
+	import { normalizeEmailValidationError, validateEmailStep } from '$lib/utils/input-validation';
 
 	const i18n = getContext<import('svelte/store').Writable<import('i18next').i18n>>('i18n');
 	const dispatch = createEventDispatcher();
@@ -20,7 +20,7 @@
 	async function registerEmail() {
 		const errors = validateEmailStep({ email });
 		if (errors) {
-			emailError = $i18n.t(errors.email ?? '');
+			emailError = $i18n.t(normalizeEmailValidationError(errors.email ?? ''));
 			return;
 		}
 		emailError = '';
@@ -29,7 +29,7 @@
 
 		const user = await createUser(email)
 			.catch((error) => {
-				showToast('error', error);
+				emailError = $i18n.t(normalizeEmailValidationError(error));
 			})
 			.finally(() => (loading = false));
 
@@ -69,7 +69,7 @@
 		<input
 			id="signup-email"
 			class="h-12 w-full rounded-lg border border-gray-200 bg-[#F1F1F1] px-4 text-sm text-[#16181D] placeholder:text-gray-400 outline-none transition focus:border-customBlue-500 focus:ring-1 focus:ring-customBlue-500 dark:border-customGray-700 dark:bg-customGray-900 dark:text-white dark:placeholder:text-customGray-300"
-			placeholder="name@unternehmen.de"
+			placeholder={$i18n.t('name@company.com')}
 			bind:value={email}
 			type="email"
 			autocomplete="email"

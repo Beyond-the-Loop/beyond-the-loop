@@ -31,6 +31,7 @@
 	let email = '';
 	let first_name = '';
 	let last_name = '';
+	let password = '';
 	let registration_code = '';
 	let position = '';
 	let phone = '';
@@ -76,7 +77,7 @@
 				first_name,
 				last_name,
 				registration_code?.trim(),
-				null,
+				password || null,
 				generateInitialsImage(`${first_name} ${last_name}`),
 				position,
 				phone
@@ -117,17 +118,18 @@
 					on:back={goBack}
 					bind:first_name
 					bind:last_name
+					bind:password
 					bind:position
 					bind:phone
 				/>
 			{:else if step === 4}
 				<WorkspaceStep
 					on:next={goNext}
-					on:back={goBack}
 					bind:workspace_name
 					bind:workspace_logo
 					bind:subdomain
 					bind:billing_country
+					showBack={false}
 				/>
 			{:else if step === 5}
 				<InviteStep

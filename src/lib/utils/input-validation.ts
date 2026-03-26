@@ -1,42 +1,49 @@
-import i18n from '$lib/i18n';
-
 export enum EmailValidationErrorMessage {
-  NotBusiness = 'Please use your business email address.',
+	Required = 'Please enter your email address.',
+	InvalidFormat = 'Please enter a valid email address.',
+	DetailedInvalidFormat = "The email format you entered is invalid. Please double-check and make sure you're using a valid email address (e.g., yourname@example.com).",
+	NotBusiness = 'Please use your business email address.'
 }
 
-const BLOCKED_EMAIL_DOMAINS = new Set([
-	'gmail.com',
-	'googlemail.com',
-	'yahoo.com',
-	'yahoo.de',
-	'hotmail.com',
-	'hotmail.de',
-	'outlook.com',
-	'outlook.de',
-	'live.com',
-	'live.de',
-	'aol.com',
-	'icloud.com',
-	'me.com',
-	'mac.com',
-	'gmx.de',
-	'gmx.net',
-	'web.de',
-	't-online.de',
-	'freenet.de',
-	'mail.com',
-	'protonmail.com',
-	'proton.me',
-	'zoho.com'
-]);
+const EMAIL_VALIDATION_ERROR_ALIASES: Record<string, EmailValidationErrorMessage> = {
+	'Invalid email format.': EmailValidationErrorMessage.InvalidFormat,
+	'INVALID_EMAIL_FORMAT': EmailValidationErrorMessage.InvalidFormat,
+	'NOT_BUSINESS_EMAIL': EmailValidationErrorMessage.NotBusiness,
+	[EmailValidationErrorMessage.Required]: EmailValidationErrorMessage.Required,
+	[EmailValidationErrorMessage.InvalidFormat]: EmailValidationErrorMessage.InvalidFormat,
+	[EmailValidationErrorMessage.DetailedInvalidFormat]: EmailValidationErrorMessage.InvalidFormat,
+	[EmailValidationErrorMessage.NotBusiness]: EmailValidationErrorMessage.NotBusiness
+};
+
+function extractErrorMessage(error: unknown): string {
+	if (typeof error === 'string') return error;
+
+	if (error && typeof error === 'object' && 'detail' in error) {
+		const detail = (error as { detail?: unknown }).detail;
+		if (typeof detail === 'string') return detail;
+	}
+
+	return '';
+}
+
+export function normalizeEmailValidationError(error: unknown): string {
+	const message = extractErrorMessage(error);
+	if (!message) return '';
+	return EMAIL_VALIDATION_ERROR_ALIASES[message] ?? message;
+}
 
 export function isRequired(value: string): boolean {
 	return !!value.trim();
 }
 
-export function isBusinessEmail(email: string): boolean {
-	const domain = email.split('@')[1]?.toLowerCase();
-	return !!domain && !BLOCKED_EMAIL_DOMAINS.has(domain);
+const EMAIL_FORMAT_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+
+export function isValidEmail(email: string): { valid: boolean; error: string } {
+	const trimmed = email.trim();
+	if (!trimmed) return { valid: false, error: EmailValidationErrorMessage.Required };
+	if (!EMAIL_FORMAT_REGEX.test(trimmed))
+		return { valid: false, error: EmailValidationErrorMessage.InvalidFormat };
+	return { valid: true, error: '' };
 }
 
 export function isValidPassword(value: string): { valid: boolean; error: string } {
@@ -86,15 +93,9 @@ export function isValidPhoneNumber(value: string): { valid: boolean; error: stri
 
 
 export function validateEmailStep(data: { email: string }): { email?: string } | null {
-	const errors: { email?: string } = {};
-
-	if (!isRequired(data.email)) {
-		errors.email = 'Please enter your email address.';
-	} else if (!isBusinessEmail(data.email)) {
-		errors.email = 'Please use your business email address.';
-	}
-
-	return Object.keys(errors).length ? errors : null;
+	const emailResult = isValidEmail(data.email);
+	if (!emailResult.valid) return { email: emailResult.error };
+	return null;
 }
 
 export function validateVerifyStep(data: { code: string; codeLength: number }): { code?: string } | null {
@@ -107,13 +108,18 @@ export function validateVerifyStep(data: { code: string; codeLength: number }): 
 export function validatePersonalStep(data: {
 	first_name: string;
 	last_name: string;
+	password: string;
 	position: string;
 	phone: string;
-}): { firstName?: string; lastName?: string; position?: string; phone?: string } | null {
-	const errors: { firstName?: string; lastName?: string; position?: string; phone?: string } = {};
+}): { firstName?: string; lastName?: string; password?: string; position?: string; phone?: string } | null {
+	const errors: { firstName?: string; lastName?: string; password?: string; position?: string; phone?: string } = {};
 
 	if (!isRequired(data.first_name)) errors.firstName = 'First name is required.';
 	if (!isRequired(data.last_name)) errors.lastName = 'Last name is required.';
+
+	const pwResult = isValidPassword(data.password);
+	if (!pwResult.valid) errors.password = pwResult.error;
+
 	if (!isRequired(data.position)) errors.position = 'Position is required.';
 
 	const phoneResult = isValidPhoneNumber(data.phone);

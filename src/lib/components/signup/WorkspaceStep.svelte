@@ -19,6 +19,7 @@
 	export let billing_country = 'Deutschland';
 	export let step = 4;
 	export let totalSteps = 5;
+	export let showBack = true;
 	export let loading = false;
 
 	let logoInputRef: HTMLInputElement;
@@ -63,13 +64,11 @@
 	let subdomainError = '';
 
 	function handleSubmit() {
-		const errors = validateWorkspaceStep({ workspace_name, subdomain });
-		if (errors) {
-			workspaceNameError = $i18n.t(errors.workspaceName ?? '');
-			subdomainError = $i18n.t(errors.subdomain ?? '');
+		workspaceNameError = '';
+		if (!workspace_name.trim()) {
+			workspaceNameError = $i18n.t('Workspace name is required.');
 			return;
 		}
-		workspaceNameError = subdomainError = '';
 		dispatch('next');
 	}
 </script>
@@ -81,7 +80,7 @@
 <input bind:this={logoInputRef} type="file" hidden accept="image/png,image/jpeg" on:change={handleLogoUpload} />
 
 <form on:submit|preventDefault={handleSubmit}>
-	<StepHeader {step} {totalSteps} on:back />
+	<StepHeader {step} {totalSteps} {showBack} on:back />
 
 	<h1 class="text-2xl font-semibold text-[#16181D] dark:text-customGray-100">{$i18n.t('Create workspace')}</h1>
 	<p class="mt-2 text-base text-[#6B7280] dark:text-customGray-300">{$i18n.t('Set up your team workspace.')}</p>
@@ -137,6 +136,7 @@
 		{/if}
 	</div>
 
+	<!-- Subdomain (deaktiviert)
 	<div class="mt-4">
 		<label for="subdomain" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
 			{$i18n.t('Subdomain')}
@@ -156,6 +156,7 @@
 			<p class="mt-1.5 text-xs text-red-500">{subdomainError}</p>
 		{/if}
 	</div>
+	-->
 
 	<div class="mt-4">
 		<label for="billing-country" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
