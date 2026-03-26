@@ -43,7 +43,7 @@ from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
-from beyond_the_loop.routers.openai import generate_chat_completion
+from beyond_the_loop.routers.litellm import generate_chat_completion
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
@@ -1252,7 +1252,22 @@ async def process_chat_response(
                                     },
                                     data["citations"]
                                 ))
-                            
+
+                            if "file_refs" in data:
+                                await event_emitter(
+                                    {
+                                        "type": "file_refs",
+                                        "data": data["file_refs"],
+                                    }
+                                )
+                                if "content_replacement" in data:
+                                    content = data["content_replacement"]
+                                    content_blocks.clear()
+                                    content_blocks.append(
+                                        {"type": "text", "content": content}
+                                    )
+                                continue
+
                             if "selected_model_id" in data:
                                 model_id = data["selected_model_id"]
                                 Chats.upsert_message_to_chat_by_id_and_message_id(

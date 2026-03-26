@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -10,12 +11,11 @@ import os
 
 from aiohttp import ClientResponseError
 from fastapi import Depends, HTTPException, Request, APIRouter
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from starlette.background import BackgroundTask
-
+from openai import OpenAI
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
-from litellm.utils import trim_messages
 
 
 from beyond_the_loop.config import (
@@ -245,6 +245,10 @@ async def generate_chat_completion(
 
     payload["model"] = model_name
 
+    # GPT-5.4 (and other azure/responses/* models) must go through /v1/responses
+    # so that code interpreter annotations (container_id, file_id) are not dropped.
+    use_responses_api = model_name == "GPT-5.4"
+
     tools = []
 
     #if metadata.get("web_search_enabled", False):
@@ -291,13 +295,12 @@ async def generate_chat_completion(
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
         fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
 
-    if payload["stream"]:
+    if payload["stream"] and not use_responses_api:
         payload["stream_options"] = {"include_usage": True}
 
-    try:
-        payload["messages"] = trim_messages(payload["messages"], LITELLM_MODEL_MAP.get(model_name, model_name))
-    except Exception:
-        log.warning("Error trimming messages, continuing with the original messages...")
+    if use_responses_api:
+        # Responses API uses "input" instead of "messages"
+        payload["input"] = payload.pop("messages")
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -333,9 +336,15 @@ async def generate_chat_completion(
                 }
             )
 
+        api_url = (
+            f"{os.getenv('OPENAI_API_BASE_URL')}/responses"
+            if use_responses_api
+            else f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions"
+        )
+
         r = await s.request(
             method="POST",
-            url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
+            url=api_url,
             data=payload,
             headers={
                 "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
@@ -357,11 +366,112 @@ async def generate_chat_completion(
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
 
+            if use_responses_api:
+                async def responses_api_stream():
+                    buffer = ""
+                    event_type = None
+                    response_id = f"chatcmpl-responses-{int(time.time())}"
+                    annotations = []
+                    accumulated_content = ""
+
+                    async for chunk in r.content:
+                        chunk_str = chunk.decode("utf-8", errors="replace")
+                        buffer += chunk_str
+
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.rstrip("\r")
+
+                            if line.startswith("event: "):
+                                event_type = line[7:].strip()
+                            elif line.startswith("data: "):
+                                data_str = line[6:]
+                                if data_str == "[DONE]":
+                                    yield b"data: [DONE]\n\n"
+                                    return
+                                try:
+                                    data = json.loads(data_str)
+                                    event = data.get("type") or event_type or ""
+
+                                    if event == "response.output_text.delta":
+                                        delta = data.get("delta", "")
+                                        if delta:
+                                            accumulated_content += delta
+                                            chat_chunk = {
+                                                "id": response_id,
+                                                "object": "chat.completion.chunk",
+                                                "created": int(time.time()),
+                                                "model": model_name,
+                                                "choices": [{"index": 0, "delta": {"content": delta}, "finish_reason": None}],
+                                            }
+                                            yield f"data: {json.dumps(chat_chunk)}\n\n".encode()
+
+                                    elif event == "response.output_text.annotation.added":
+                                        annotation = data.get("annotation", {})
+                                        if annotation.get("type") == "container_file_citation":
+                                            annotations.append(annotation)
+
+                                    elif event == "response.completed":
+                                        resp = data.get("response", {})
+                                        usage = resp.get("usage", {})
+                                        credit_cost_streaming = 0
+                                        usage_openai_format = {
+                                            "usage": {
+                                                "prompt_tokens": usage.get("input_tokens", 0),
+                                                "completion_tokens": usage.get("output_tokens", 0),
+                                                "total_tokens": usage.get("total_tokens", usage.get("input_tokens", 0) + usage.get("output_tokens", 0)),
+                                            }
+                                        }
+                                        if has_chat_id and subscription.get("plan") not in ("free", "premium"):
+                                            credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response(user, usage_openai_format)
+                                        Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
+                                        if annotations:
+                                            file_refs = [
+                                                {
+                                                    "container_id": a.get("container_id"),
+                                                    "file_id": a.get("file_id"),
+                                                    "filename": a.get("filename"),
+                                                }
+                                                for a in annotations
+                                            ]
+                                            replaced_content = accumulated_content
+                                            for ref in file_refs:
+                                                filename = ref.get("filename", "")
+                                                container_id = ref.get("container_id", "")
+                                                file_id = ref.get("file_id", "")
+                                                if filename and container_id and file_id:
+                                                    replaced_content = replaced_content.replace(
+                                                        f"(sandbox:/mnt/data/{filename})",
+                                                        f"(/openai/container-files/{container_id}/{file_id}?filename={filename})",
+                                                    )
+                                            yield f"data: {json.dumps({'file_refs': file_refs, 'content_replacement': replaced_content})}\n\n".encode()
+                                        stop_chunk = {
+                                            "id": response_id,
+                                            "object": "chat.completion.chunk",
+                                            "created": int(time.time()),
+                                            "model": model_name,
+                                            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                                            **usage_openai_format,
+                                        }
+                                        yield f"data: {json.dumps(stop_chunk)}\n\n".encode()
+                                        yield b"data: [DONE]\n\n"
+                                        return
+                                except json.JSONDecodeError as e:
+                                    log.warning(f"RESPONSES API JSON decode error: {e} for: {data_str!r}")
+                            elif line == "":
+                                event_type = None
+
+                return StreamingResponse(
+                    responses_api_stream(),
+                    status_code=r.status,
+                    headers=dict(r.headers),
+                    background=BackgroundTask(cleanup_response, response=r),
+                ), model
+
             async def insert_completion_if_streaming_is_done():
                 full_response = ""
                 async for chunk in r.content:
                     chunk_str = chunk.decode()
-                    print(f"RAW CHUNK: {chunk_str!r}")
                     if chunk_str.startswith('data: '):
                         try:
                             data = json.loads(chunk_str[6:])
@@ -452,6 +562,34 @@ async def generate_chat_completion(
         if not streaming:
             if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
+
+@router.get("/container-files/{container_id}/{file_id}")
+async def download_container_file(
+    container_id: str,
+    file_id: str,
+    filename: Optional[str] = None,
+    user=Depends(get_verified_user),
+):
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    url = f"{azure_endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
+
+    s = await _get_session()
+    async with s.get(url, headers={"api-key": azure_api_key}) as r:
+        if r.status != 200:
+            body = await r.text()
+            raise HTTPException(status_code=r.status, detail=body)
+        content = await r.read()
+
+    disposition_filename = filename or file_id
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{disposition_filename}"'
+        },
+    )
+
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):

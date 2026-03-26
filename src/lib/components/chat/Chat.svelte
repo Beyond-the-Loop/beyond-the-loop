@@ -305,6 +305,11 @@
 					} else {
 						toast.info(toastContent);
 					}
+				} else if (type === 'file_refs') {
+					if (!message.fileRefs) {
+						message.fileRefs = [];
+					}
+					message.fileRefs.push(...(data ?? []));
 				} else {
 					console.log('Unknown message type', data);
 				}

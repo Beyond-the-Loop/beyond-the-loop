@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
-from beyond_the_loop.routers import openai
+from beyond_the_loop.routers import litellm
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
     NO_COMPANY,
