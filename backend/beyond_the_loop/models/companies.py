@@ -138,6 +138,8 @@ class CompanyTable:
         try:
             with get_db() as db:
                 company = db.query(Company).filter_by(id=company_id).first()
+                if company is None:
+                    return None
                 return CompanyModel.model_validate(company)
         except Exception as e:
             log.error(f"Error getting company: {e}")
@@ -286,7 +288,7 @@ class CompanyTable:
                 return True
             return False
 
-    def subtract_credit_balance(self, company_id: str, credits_to_subtract: int) -> bool:
+    def subtract_credit_balance(self, company_id: str, credits_to_subtract: int):
         """Subtract credits from company's balance"""
         with get_db() as db:
             company = db.query(Company).filter(Company.id == company_id).first()

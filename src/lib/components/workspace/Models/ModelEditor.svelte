@@ -26,7 +26,8 @@
 	import DocumentIcon from '$lib/components/icons/DocumentIcon.svelte';
 	import AddKnowledgeModal from '../Knowledge/AddKnowledgeModal.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	import { modelsInfo, mapModelsToOrganizations } from '../../../../data/modelsInfo';
+	import { mapModelsToOrganizations } from '../../../../data/modelsInfo';
+	import { modelsInfo } from '$lib/stores';
 	import EmojiMenu from './EmojiMenu.svelte';
 	import { getUserTagsForModels } from '$lib/apis/models';
 
@@ -338,9 +339,9 @@
 
 	let showAddKnowledge = false;
 
-	let organizations = mapModelsToOrganizations(modelsInfo);
-	const desiredOrder = Object.values(organizations).flat();
-	const orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
+	$: organizations = mapModelsToOrganizations($modelsInfo);
+	$: desiredOrder = Object.values(organizations).flat();
+	$: orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 
 	function isTemperatureUnsupportedModel(model) {
   		return /^(GPT\s*o|GPT-?5)/i.test(model?.name ?? '');

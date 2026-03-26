@@ -7,6 +7,7 @@ from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Mod
 from beyond_the_loop.routers import openai
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
+    NO_COMPANY,
     Companies,
     CompanyConfigResponse,
     CompanyModel,
@@ -156,14 +157,16 @@ async def get_company_details(request: Request, user=Depends(get_current_user)):
     """
     try:
         company_id = user.company_id
-        if not company_id:
-            raise HTTPException(status_code=400, detail="User is not associated with a company")
-        
+        if not company_id or company_id == NO_COMPANY:
+            raise HTTPException(status_code=404, detail="Company not found")
+
         company = Companies.get_company_by_id(company_id)
         if not company:
             raise HTTPException(status_code=404, detail="Company not found")
-        
+
         return company
+    except HTTPException:
+        raise
     except Exception as e:
         log.error(f"Error getting company details: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting company details: {str(e)}")
@@ -240,9 +243,15 @@ async def create_company(
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
-        openai_models = await openai.get_all_models()
+        openai_models = (await openai.get_all_models_from_litellm())["data"]
 
-        openai_models = openai_models["data"]
+        util_models = [
+            "TTS",
+            "STT",
+            "Nano Banana"
+        ]
+
+        openai_models = [openai_model for openai_model in openai_models if openai_model["id"] not in util_models]
 
         disabled_models = [
             "Perplexity Sonar Deep Research",
@@ -288,8 +297,6 @@ async def create_company(
             loops_service.create_or_update_loops_contact(user)
             crm_service.create_company(company_name=company.name, super_admin_email=user.email)
             utm_params = {k: v for k, v in (user.info or {}).items() if k.startswith("utm_")}
-
-            print(utm_params, user.info)
 
             crm_service.create_user(company_name=company.name, user_email=user.email, user_firstname=user.first_name, user_lastname=user.last_name, access_level="Admin", utm_params=utm_params or None)
             crm_service.update_company_super_admin(company_name=company.name, super_admin_email=user.email)

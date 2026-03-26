@@ -1284,6 +1284,8 @@ export function getModelIcon(label: string): string {
 
 	if (lower.includes('nano banana')) {
 		return '/google-gemini-icon.svg';
+	} else if (lower.includes('router')) {
+		return '/smart-router.svg';
 	} else if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {
