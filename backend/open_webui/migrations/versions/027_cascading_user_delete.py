@@ -48,7 +48,7 @@ def upgrade() -> None:
     """))
 
     for table, constraint, column, ref in CASCADE_CONSTRAINTS:
-        if column == 'id':
+        if table == 'auth':
             conn.execute(sa.text(
             f'DELETE FROM "{table}" '
             f'WHERE id NOT IN (SELECT id FROM "user") AND id != \'system\' AND id IS NOT NULL'
