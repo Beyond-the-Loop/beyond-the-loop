@@ -378,7 +378,12 @@ async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin
 async def get_user_settings_by_session_user(user=Depends(get_verified_user)):
     user = Users.get_user_by_id(user.id)
     if user:
-        return user.settings
+        settings = user.settings or UserSettings()
+        ui = settings.ui if isinstance(settings.ui, dict) else {}
+        if not isinstance(ui.get("system"), dict):
+            ui["system"] = {"promptStyle": "default"}
+            settings.ui = ui
+        return settings
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

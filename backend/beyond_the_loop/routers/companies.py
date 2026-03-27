@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -51,6 +52,13 @@ async def get_company_config(user=Depends(get_current_user)):
         
         # Get the company config from the database
         config = get_config(company_id)
+
+        # Ensure default_models is always set, falling back to DEFAULT_MODEL env var
+        if not config.get("models", {}).get("default_models"):
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_MODEL"), company_id)
+            if "models" not in config:
+                config["models"] = {}
+            config["models"]["default_models"] = model.id if model else ""
 
         # Remove security relevant fields
         config.get("audio", {}).get("stt", {}).get("openai", {}).pop("api_key", None)
