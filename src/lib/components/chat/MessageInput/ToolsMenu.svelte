@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
 	import { flyAndScale } from '$lib/utils/transitions';
-	import { getContext } from 'svelte';
+	import { createEventDispatcher, getContext } from 'svelte';
 
 	import { settings } from '$lib/stores';
+
+	const dispatch = createEventDispatcher();
 
 	import Switch from '$lib/components/common/Switch.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
@@ -62,10 +64,16 @@
 				on:click|preventDefault={() => {
 					autoToolsEnabled = !autoToolsEnabled;
 					if (autoToolsEnabled) {
+						if (!webSearchEnabled && canWebSearch) dispatch('toolChange', { tool: 'Web Search', enabled: true });
+						if (!imageGenerationEnabled && canImageGen) dispatch('toolChange', { tool: 'Image Generation', enabled: true });
+						if (!codeInterpreterEnabled && canCodeInterpreter) dispatch('toolChange', { tool: 'Code Interpreter', enabled: true });
 						webSearchEnabled = true;
 						imageGenerationEnabled = true;
 						codeInterpreterEnabled = true;
 					} else {
+						if (webSearchEnabled) dispatch('toolChange', { tool: 'Web Search', enabled: false });
+						if (imageGenerationEnabled) dispatch('toolChange', { tool: 'Image Generation', enabled: false });
+						if (codeInterpreterEnabled) dispatch('toolChange', { tool: 'Code Interpreter', enabled: false });
 						webSearchEnabled = false;
 						imageGenerationEnabled = false;
 						codeInterpreterEnabled = false;
@@ -91,6 +99,7 @@
 					on:click|preventDefault={() => {
 						if (!autoToolsEnabled) {
 							webSearchEnabled = !webSearchEnabled;
+							dispatch('toolChange', { tool: 'Web Search', enabled: webSearchEnabled });
 						}
 					}}
 				>
@@ -110,6 +119,7 @@
 					on:click|preventDefault={() => {
 						if (!autoToolsEnabled) {
 							imageGenerationEnabled = !imageGenerationEnabled;
+							dispatch('toolChange', { tool: 'Image Generation', enabled: imageGenerationEnabled });
 						}
 					}}
 				>
@@ -129,6 +139,7 @@
 					on:click|preventDefault={() => {
 						if (!autoToolsEnabled) {
 							codeInterpreterEnabled = !codeInterpreterEnabled;
+							dispatch('toolChange', { tool: 'Code Interpreter', enabled: codeInterpreterEnabled });
 						}
 					}}
 				>

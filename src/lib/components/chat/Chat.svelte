@@ -830,6 +830,33 @@
 		}
 	};
 
+	const handleToolChange = (e: CustomEvent<{ tool: string; enabled: boolean }>) => {
+		const { tool, enabled } = e.detail;
+		const status = enabled ? 'enabled' : 'disabled';
+
+		const systemMessageId = uuidv4();
+		const parentId = history.currentId;
+
+		if (parentId) {
+			history.messages[parentId].childrenIds = [
+				...history.messages[parentId].childrenIds,
+				systemMessageId
+			];
+		}
+
+		history.messages[systemMessageId] = {
+			id: systemMessageId,
+			parentId,
+			childrenIds: [],
+			role: 'system',
+			content: `[System: ${tool} has been ${status} by the user]`,
+			timestamp: Math.floor(Date.now() / 1000)
+		};
+
+		history.currentId = systemMessageId;
+		history = history;
+	};
+
 	const createMessagePair = async (userPrompt) => {
 		prompt = '';
 		if (selectedModels.length === 0) {
@@ -1985,6 +2012,7 @@
 											localStorage.removeItem(`chat-input-${$chatId}`);
 										}
 									}}
+									on:toolChange={handleToolChange}
 									on:upload={async (e) => {
 										const { type, data } = e.detail;
 

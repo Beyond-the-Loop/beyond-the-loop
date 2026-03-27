@@ -1282,6 +1282,7 @@
 												bind:imageGenerationEnabled
 												bind:codeInterpreterEnabled
 												bind:autoToolsEnabled
+											on:toolChange
 											/>
 										{/if}
 									</div>

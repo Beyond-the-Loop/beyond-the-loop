@@ -1050,6 +1050,12 @@ export const promptTemplate = (
 
 	template = template.replace('{{MODEL}}', modelName ?? '');
 
+	template = template.replace('{{WEB_SEARCH}}', 'activated');
+
+	template = template.replace('{{IMAGE_GEN}}', 'activated');
+
+	template = template.replace('{{CODE_INTERPRETER}}', 'activated');
+
 	if (modelName == "Smart Router")
 	{
 		template = template.replace('{{ORGANIZATION}}', "Beyond the Loop");

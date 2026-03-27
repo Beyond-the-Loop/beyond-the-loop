@@ -46,7 +46,9 @@
 		: 'max-w-5xl'} mx-auto rounded-lg group"
 >
 	{#if history.messages[messageId]}
-		{#if history.messages[messageId].role === 'user'}
+		{#if history.messages[messageId].role === 'system'}
+			<!-- System messages are hidden from UI, only sent via API -->
+		{:else if history.messages[messageId].role === 'user'}
 			<UserMessage
 				{user}
 				{history}
