@@ -50,7 +50,7 @@ def upgrade() -> None:
     for table, constraint, column, ref in CASCADE_CONSTRAINTS:
         conn.execute(sa.text(
             f'DELETE FROM "{table}" '
-            f'WHERE user_id NOT IN (SELECT id FROM "user") AND user_id != \'system\''
+            f'WHERE user_id NOT IN (SELECT id FROM "user") AND user_id != \'system\' AND user_id IS NOT NULL'
         ))
         conn.execute(sa.text(
             f'ALTER TABLE "{table}" '
