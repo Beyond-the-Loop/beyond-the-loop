@@ -49,6 +49,10 @@ def upgrade() -> None:
 
     for table, constraint, column, ref in CASCADE_CONSTRAINTS:
         conn.execute(sa.text(
+            f'DELETE FROM "{table}" '
+            f'WHERE user_id NOT IN (SELECT id FROM "user") AND user_id != \'system\''
+        ))
+        conn.execute(sa.text(
             f'ALTER TABLE "{table}" '
             f'DROP CONSTRAINT IF EXISTS {constraint}, '
             f'ADD CONSTRAINT {constraint} FOREIGN KEY ({column}) REFERENCES {ref} ON DELETE CASCADE'
