@@ -455,6 +455,6 @@ async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(payload, user, model)
+    message, _ = await generate_chat_completion(payload, user, model)
 
     return message['choices'][0]['message']['content']
