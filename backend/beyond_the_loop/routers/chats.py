@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+import os
 
 from beyond_the_loop.models.chats import (
     ChatForm,
@@ -14,13 +15,12 @@ from beyond_the_loop.models.folders import Folders
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.utils.access_control import has_permission
-from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -259,12 +259,17 @@ async def get_shared_chat_by_id(share_id: str, user=Depends(get_verified_user)):
             )
 
         owner = Users.get_user_by_id(owner_user_id)
-        if not owner or owner.company_id != user.company_id:
+        chat = Chats.get_chat_by_share_id(share_id)
+        share_company_id = chat.meta.get("share_company_id") if chat else None
+
+        if not owner or (
+            owner.company_id != user.company_id
+            and user.company_id != share_company_id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.NOT_FOUND
             )
 
-        chat = Chats.get_chat_by_share_id(share_id)
         return ChatResponse(**chat.model_dump())
     else:
         raise HTTPException(
@@ -502,15 +507,29 @@ async def archive_chat_by_id(id: str, user=Depends(get_verified_user)):
 ############################
 
 
+class ShareChatForm(BaseModel):
+    share_with_btl: bool = False
+
+
 @router.post("/{id}/share", response_model=Optional[ChatResponse])
-async def share_chat_by_id(id: str, user=Depends(get_verified_user)):
+async def share_chat_by_id(
+    id: str,
+    form_data: ShareChatForm = Body(default=ShareChatForm()),
+    user=Depends(get_verified_user),
+):
+    share_company_id = os.environ.get("BTL_COMPANY_ID", "") if form_data.share_with_btl and os.environ.get("BTL_COMPANY_ID", "") else None
+
     chat = Chats.get_chat_by_id_and_user_id(id, user.id)
     if chat:
         if chat.share_id:
-            shared_chat = Chats.update_shared_chat_by_chat_id(chat.id)
+            shared_chat = Chats.update_shared_chat_by_chat_id(
+                chat.id, share_company_id
+            )
             return ChatResponse(**shared_chat.model_dump())
 
-        shared_chat = Chats.insert_shared_chat_by_chat_id(chat.id)
+        shared_chat = Chats.insert_shared_chat_by_chat_id(
+            chat.id, share_company_id
+        )
         if not shared_chat:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

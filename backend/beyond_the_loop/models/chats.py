@@ -15,6 +15,7 @@ from open_webui.models.tags import TagModel, Tags
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Boolean, Column, String, Text, JSON
 from sqlalchemy import or_, and_, text
+from sqlalchemy.orm.attributes import flag_modified
 
 ####################
 # Chat DB Schema
@@ -268,7 +269,9 @@ class ChatTable:
         chat["history"] = history
         return self.update_chat_by_id(id, chat)
 
-    def insert_shared_chat_by_chat_id(self, chat_id: str) -> Optional[ChatModel]:
+    def insert_shared_chat_by_chat_id(
+        self, chat_id: str, share_company_id: Optional[str] = None
+    ) -> Optional[ChatModel]:
         with get_db() as db:
             # Get the existing chat to share
             chat = db.get(Chat, chat_id)
@@ -276,6 +279,7 @@ class ChatTable:
             if chat.share_id:
                 return self.get_chat_by_id_and_user_id(chat.share_id, "shared")
             # Create a new chat with the same data, but with a new ID
+            shared_meta = {"share_company_id": share_company_id} if share_company_id else {}
             shared_chat = ChatModel(
                 **{
                     "id": str(uuid.uuid4()),
@@ -284,23 +288,26 @@ class ChatTable:
                     "chat": chat.chat,
                     "created_at": chat.created_at,
                     "updated_at": int(time.time()),
+                    "meta": shared_meta,
                 }
             )
             shared_result = Chat(**shared_chat.model_dump())
             db.add(shared_result)
+
+            # Update original chat directly on the ORM object (avoids bulk-update conflict)
+            chat.share_id = shared_chat.id
+            original_meta = dict(chat.meta or {})
+            original_meta["btl_visible"] = bool(share_company_id)
+            chat.meta = original_meta
+            flag_modified(chat, "meta")
+
             db.commit()
             db.refresh(shared_result)
+            return shared_chat if shared_result else None
 
-            # Update the original chat with the share_id
-            result = (
-                db.query(Chat)
-                .filter_by(id=chat_id)
-                .update({"share_id": shared_chat.id})
-            )
-            db.commit()
-            return shared_chat if (shared_result and result) else None
-
-    def update_shared_chat_by_chat_id(self, chat_id: str) -> Optional[ChatModel]:
+    def update_shared_chat_by_chat_id(
+        self, chat_id: str, share_company_id: Optional[str] = None
+    ) -> Optional[ChatModel]:
         try:
             with get_db() as db:
                 chat = db.get(Chat, chat_id)
@@ -309,15 +316,24 @@ class ChatTable:
                 )
 
                 if shared_chat is None:
-                    return self.insert_shared_chat_by_chat_id(chat_id)
+                    return self.insert_shared_chat_by_chat_id(chat_id, share_company_id)
 
                 shared_chat.title = chat.title
                 shared_chat.chat = chat.chat
-
+                shared_chat.meta = (
+                    {"share_company_id": share_company_id} if share_company_id else {}
+                )
+                flag_modified(shared_chat, "meta")
                 shared_chat.updated_at = int(time.time())
+
+                # Keep original chat's btl_visible in sync
+                original_meta = dict(chat.meta or {})
+                original_meta["btl_visible"] = bool(share_company_id)
+                chat.meta = original_meta
+                flag_modified(chat, "meta")
+
                 db.commit()
                 db.refresh(shared_chat)
-
                 return ChatModel.model_validate(shared_chat)
         except Exception:
             return None
@@ -326,8 +342,16 @@ class ChatTable:
         try:
             with get_db() as db:
                 db.query(Chat).filter_by(user_id=f"shared-{chat_id}").delete()
-                db.commit()
 
+                # Clear btl_visible from the original chat's meta
+                chat = db.get(Chat, chat_id)
+                if chat:
+                    original_meta = dict(chat.meta or {})
+                    original_meta.pop("btl_visible", None)
+                    chat.meta = original_meta
+                    flag_modified(chat, "meta")
+
+                db.commit()
                 return True
         except Exception:
             return False
