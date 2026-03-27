@@ -243,7 +243,7 @@ model_list:
       knowledge_cutoff: '2025-05-01'
       multimodal: false
       organization: 'OpenAI'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 3
       tokens_per_second: 154
@@ -402,8 +402,7 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '200K'
-      costFactor: 0.5
-      description: 'Autonomous research agent for comprehensive analysis reports from web sources.'
+      description: 'Autonomous research agent for comprehensive analysis reports from web sources. Costs vary depending on the depth of the research.'
       hosted_in: 'US'
       knowledge_cutoff: null
       multimodal: false
@@ -419,7 +418,6 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '127K'
-      costFactor: 0.5
       description: 'Fast search model for precise answers with source citations.'
       hosted_in: 'US'
       knowledge_cutoff: null
@@ -436,8 +434,7 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '127K'
-      costFactor: 0.5
-      description: 'Advanced search for complex, multi-step research with more citations.'
+      description: 'Advanced search for complex, multi-step research with more citations. Costs vary depending on the depth of the research.'
       hosted_in: 'US'
       knowledge_cutoff: null
       multimodal: false
@@ -453,8 +450,7 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '200K'
-      costFactor: 0.5
-      description: 'Web search with advanced reasoning for analytical research.'
+      description: 'Web search with advanced reasoning for analytical research. Costs vary depending on the depth of the research.'
       hosted_in: 'US'
       knowledge_cutoff: null
       multimodal: false
