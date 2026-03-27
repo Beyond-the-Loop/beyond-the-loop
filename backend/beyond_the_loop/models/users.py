@@ -37,6 +37,9 @@ class User(Base):
     settings = Column(JSONField, nullable=True)
     info = Column(JSONField, nullable=True)
 
+    position = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+
     oauth_sub = Column(Text, unique=True)
 
     invite_token = Column(Text, nullable=True)
@@ -82,6 +85,9 @@ class UserModel(BaseModel):
     api_key: Optional[str] = None
     settings: Optional[UserSettings] = None
     info: Optional[dict] = None
+
+    position: Optional[str] = None
+    phone: Optional[str] = None
 
     oauth_sub: Optional[str] = None
 
@@ -174,6 +180,8 @@ class UsersTable:
         oauth_sub: Optional[str] = None,
         invite_token: Optional[str] = None,
         registration_code: Optional[str] = None,
+        position: Optional[str] = None,
+        phone: Optional[str] = None,
     ) -> Optional[UserModel]:
         with get_db() as db:
             user = UserModel(
@@ -191,6 +199,8 @@ class UsersTable:
                     "company_id": company_id,
                     "invite_token": invite_token,
                     "registration_code": registration_code,
+                    "position": position,
+                    "phone": phone,
                 }
             )
             result = User(**user.model_dump())
@@ -226,10 +236,16 @@ class UsersTable:
         except Exception:
             return None
 
-    def complete_by_id(self, id: str, first_name: str, last_name: str, profile_image_url: Optional[str] = None, company_id: Optional[str] = None) -> Optional[UserModel]:
+    def complete_by_id(self, id: str, first_name: str, last_name: str, profile_image_url: Optional[str] = None, company_id: Optional[str] = None, position: Optional[str] = None, phone: Optional[str] = None) -> Optional[UserModel]:
         try:
             with get_db() as db:
                 update_data = {"first_name": first_name, "last_name": last_name, "invite_token": None, "registration_code": None}
+
+                if position is not None:
+                    update_data["position"] = position
+
+                if phone is not None:
+                    update_data["phone"] = phone
 
                 if profile_image_url is not None:
                     update_data["profile_image_url"] = profile_image_url
