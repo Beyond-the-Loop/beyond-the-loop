@@ -486,6 +486,15 @@ class ChatTable:
         except Exception:
             return None
 
+    def get_chat_owner_user_id_by_share_id(self, share_id: str) -> Optional[str]:
+        """Returns the user_id of the original chat owner for a given share_id."""
+        try:
+            with get_db() as db:
+                chat = db.query(Chat).filter_by(share_id=share_id).first()
+                return chat.user_id if chat else None
+        except Exception:
+            return None
+
     def get_chat_by_id_and_user_id(self, id: str, user_id: str) -> Optional[ChatModel]:
         try:
             with get_db() as db:

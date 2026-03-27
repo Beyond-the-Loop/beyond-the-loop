@@ -8,6 +8,7 @@ from beyond_the_loop.models.chats import (
     Chats,
     ChatTitleIdResponse,
 )
+from beyond_the_loop.models.users import Users
 from open_webui.models.tags import TagModel, Tags
 from beyond_the_loop.models.folders import Folders
 
@@ -251,6 +252,18 @@ async def get_shared_chat_by_id(share_id: str, user=Depends(get_verified_user)):
         )
 
     if user.role == "user" or user.role == "admin":
+        owner_user_id = Chats.get_chat_owner_user_id_by_share_id(share_id)
+        if not owner_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.NOT_FOUND
+            )
+
+        owner = Users.get_user_by_id(owner_user_id)
+        if not owner or owner.company_id != user.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.NOT_FOUND
+            )
+
         chat = Chats.get_chat_by_share_id(share_id)
         return ChatResponse(**chat.model_dump())
     else:
@@ -428,6 +441,14 @@ async def clone_chat_by_id(
 
 @router.post("/{id}/clone/shared", response_model=Optional[ChatResponse])
 async def clone_shared_chat_by_id(id: str, user=Depends(get_verified_user)):
+    owner_user_id = Chats.get_chat_owner_user_id_by_share_id(id)
+    if owner_user_id:
+        owner = Users.get_user_by_id(owner_user_id)
+        if not owner or owner.company_id != user.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.NOT_FOUND
+            )
+
     chat = Chats.get_chat_by_share_id(id)
     if chat:
         updated_chat = {
