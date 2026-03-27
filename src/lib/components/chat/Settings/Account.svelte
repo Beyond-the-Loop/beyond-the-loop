@@ -608,7 +608,7 @@
 	<div class="flex justify-between pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
 		<button
 			type="button"
-			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
+			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 hover:text-red-500 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 dark:hover:text-red-400 border dark:border-customGray-700 flex justify-center items-center"
 			on:click={() => {
 						showDeleteConfirm = true;
 					}}
