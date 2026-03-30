@@ -117,7 +117,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast multimodal model for efficient text, image, and code processing."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 4
       AAII: 0.46
       knowledge_cutoff: '2025-01-01'
@@ -141,7 +141,7 @@ model_list:
       category: 3
       costFactor: 2.5
       description: "Powerful multimodal model for demanding analysis and reasoning tasks."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 4
       AAII: 0.48
       knowledge_cutoff: '2025-01-01'
@@ -164,7 +164,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast model for reasoning, science, and code. Focus on low latency."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 3
       AAII: 0.34
       knowledge_cutoff: '2025-01-01'
@@ -787,7 +787,7 @@ model_list:
       category: 3
       costFactor: 2.5
       description: "Multimodal model with extended context for text, image, and code analysis."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 5
       AAII: 0.57
       knowledge_cutoff: '2025-01-01'
