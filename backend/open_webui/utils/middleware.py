@@ -6,6 +6,8 @@ import base64
 import re
 import asyncio
 import random
+import random
+from io import BytesIO
 
 import json
 import html
@@ -71,6 +73,7 @@ from open_webui.constants import TASKS
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.utils.chat_compression import maybe_compress_chat
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -326,8 +329,6 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
 
         target_score = max(1.0, min(5.0, decision.intelligence_score))
 
-        log.info(f"Smart Router: target intelligence score = {target_score}")
-
         # Lazy import to avoid circular dependency (main.py imports middleware.py)
         from open_webui.main import get_active_models
 
@@ -341,16 +342,6 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
         ]
 
-        log.info(
-            f"Smart Router: {len(routable_models)} routable model(s): "
-            + ", ".join(
-                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
-                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
-                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
-                for m in routable_models
-            )
-        )
-
         # Filter to models meeting the minimum intelligence requirement
         candidates = []
 
@@ -360,18 +351,7 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             if score is not None and score >= target_score:
                 candidates.append(m)
 
-        log.info(
-            f"Smart Router: {len(candidates)} candidate(s) after intelligence filter (>= {target_score}): "
-            + ", ".join(
-                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
-                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
-                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
-                for m in candidates
-            )
-        )
-
         if not candidates:
-            log.warning("Smart Router: no candidates found, returning None")
             return None, None
 
         # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
@@ -423,45 +403,15 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             candidates, key=lambda m: efficiency_score(m.name), reverse=True
         )
 
-        log.info(
-            f"Smart Router: candidates ranked by efficiency: "
-            + ", ".join(
-                f"{m.name}(efficiency={efficiency_score(m.name):.3f})"
-                for m in scored_candidates
-            )
-        )
-
         top_candidates = scored_candidates[:3]
         best_model = random.choice(top_candidates)
 
         cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
-        log.info(
-            f"Smart Router: selected '{best_model.name}' (randomly chosen from top {len(top_candidates)}) "
-            f"(intelligence={cfg.get('intelligence_score')}, "
-            f"costFactor={cfg.get('costFactor')}, speed={cfg.get('speed')}, "
-            f"efficiency={efficiency_score(best_model.name):.3f})"
-        )
 
-        debug_info = {
-            "target_score": target_score,
-            "selected_model": best_model.name,
-            "top_count": len(top_candidates),
-            "candidates": [
-                {
-                    "name": m.name,
-                    "intelligence": LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score"),
-                    "cost": LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor"),
-                    "speed": LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed"),
-                    "efficiency": round(efficiency_score(m.name), 3),
-                }
-                for m in scored_candidates
-            ],
-        }
-
-        return best_model, debug_info
+        return best_model
     except Exception as e:
         log.exception(f"Smart Router model selection failed: {e}")
-        return None, None
+        return None
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
@@ -471,10 +421,23 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data.pop("variables", None)
     form_data.pop("tool_ids", None)
 
-    log.debug(f"form_data: {form_data}")
-
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
+
+    try:
+        chat_id = metadata.get("chat_id")
+
+        if chat_id:
+            form_data = await maybe_compress_chat(
+                form_data=form_data,
+                model=model,
+                chat_id=chat_id,
+                event_emitter=event_emitter,
+            )
+    except Exception as e:
+        log.exception(f"[chat_compression] failed, continuing without compression: {e}")
+
+    log.debug(f"form_data: {form_data}")
 
     extra_params = {
         "__event_emitter__": event_emitter,
@@ -522,16 +485,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         routed_model, smart_router_debug = await _smart_router_model_selection(user_message, user)
 
-        if routed_model:
-            model = routed_model
-            form_data["model"] = routed_model.id
-            if smart_router_debug:
-                metadata["smart_router_debug"] = smart_router_debug
-        else:
-            # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
-            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-            form_data["model"] = model.id
-            log.warning(f"Smart Router: model selection failed, falling back to '{model.name}'")
+            if selected_tool != "none" and selected_tool in auto_tools:
+                features = {selected_tool: True}
+                log.debug(f"Auto tool selection: {selected_tool}")
 
         await event_emitter(
             {
@@ -1176,6 +1132,13 @@ async def process_chat_response(
                 "thought",
                 "Thought",
             ]
+
+            await event_emitter(
+                {
+                    "type": "chat:completion",
+                    "data": {"model": metadata.get("display_model_id", model.id)},
+                }
+            )
 
             await event_emitter(
                 {

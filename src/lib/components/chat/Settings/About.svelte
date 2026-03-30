@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { getVersionUpdates } from '$lib/apis';
-	import { getOllamaVersion } from '$lib/apis/ollama';
 	import { WEBUI_BUILD_HASH, WEBUI_VERSION } from '$lib/constants';
 	import { WEBUI_NAME, config, showChangelog } from '$lib/stores';
 	import { compareVersion } from '$lib/utils';
@@ -32,14 +31,6 @@
 		updateAvailable = compareVersion(version.latest, version.current);
 		console.log(updateAvailable);
 	};
-
-	onMount(async () => {
-		ollamaVersion = await getOllamaVersion(localStorage.token).catch((error) => {
-			return '';
-		});
-
-		checkForVersionUpdates();
-	});
 </script>
 
 <div class="flex flex-col h-full justify-between space-y-3 text-sm mb-6">

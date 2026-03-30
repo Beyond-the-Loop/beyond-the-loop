@@ -888,6 +888,7 @@ async def get_app_config(request: Request):
                     "client_id": GOOGLE_DRIVE_CLIENT_ID.value,
                     "api_key": GOOGLE_DRIVE_API_KEY.value,
                 },
+                "btl_sharing_enabled": bool(os.environ.get("BTL_COMPANY_ID", "")),
             }
             if user is not None
             else {}

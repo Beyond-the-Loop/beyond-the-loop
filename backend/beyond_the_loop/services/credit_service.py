@@ -248,8 +248,6 @@ class CreditService:
         completion_tokens_details = response.get('usage', {}).get('completion_tokens_details') or {}
         reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
 
-        log.debug(f"Model: {model_name} ({pricing_model}) | Input tokens: {input_tokens} | Output tokens: {output_tokens - reasoning_tokens} | Reasoning tokens: {reasoning_tokens} | Token cost (USD): {token_cost_usd} | Search query cost: {search_query_cost} | Total cost (EUR): {total_costs}")
-
         return await credit_service._subtract_credits_by_user_and_credits(user, total_costs)
 
 credit_service = CreditService()

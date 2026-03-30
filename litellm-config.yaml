@@ -119,7 +119,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast multimodal model for efficient text, image, and code processing."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 4
       AAII: 0.46
       knowledge_cutoff: '2025-01-01'
@@ -145,7 +145,7 @@ model_list:
       category: 3
       costFactor: 2.5
       description: "Powerful multimodal model for demanding analysis and reasoning tasks."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 4
       AAII: 0.48
       knowledge_cutoff: '2025-01-01'
@@ -170,7 +170,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast model for reasoning, science, and code. Focus on low latency."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 3
       AAII: 0.34
       knowledge_cutoff: '2025-01-01'
@@ -256,7 +256,7 @@ model_list:
       knowledge_cutoff: '2025-05-01'
       multimodal: false
       organization: 'OpenAI'
-      reasoning: false
+      reasoning: true
       research: false
       speed: 3
       tokens_per_second: 154
@@ -428,8 +428,7 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '200K'
-      costFactor: 0.5
-      description: 'Autonomous research agent for comprehensive analysis reports from web sources.'
+      description: 'Autonomous research agent for comprehensive analysis reports from web sources. Costs vary depending on the depth of the research.'
       hosted_in: 'US'
       knowledge_cutoff: null
       multimodal: false
@@ -438,7 +437,6 @@ model_list:
       research: true
       tokens_per_seconds: null
       zdr: false
-      supports_web_search: true
 
   - model_name: "Perplexity Sonar"
     litellm_params:
@@ -446,7 +444,6 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '127K'
-      costFactor: 0.5
       description: 'Fast search model for precise answers with source citations.'
       hosted_in: 'US'
       knowledge_cutoff: null
@@ -464,8 +461,7 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '127K'
-      costFactor: 0.5
-      description: 'Advanced search for complex, multi-step research with more citations.'
+      description: 'Advanced search for complex, multi-step research with more citations. Costs vary depending on the depth of the research.'
       hosted_in: 'US'
       knowledge_cutoff: null
       multimodal: false
@@ -482,8 +478,7 @@ model_list:
       api_key: os.environ/PERPLEXITYAI_API_KEY
     model_info:
       context_window: '200K'
-      costFactor: 0.5
-      description: 'Web search with advanced reasoning for analytical research.'
+      description: 'Web search with advanced reasoning for analytical research. Costs vary depending on the depth of the research.'
       hosted_in: 'US'
       knowledge_cutoff: null
       multimodal: false
@@ -710,6 +705,8 @@ model_list:
       model: "azure/responses/o3-deep-research"
       api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
+      tools:
+        - type: "web_search_preview"
     model_info:
       context_window: '200K'
       category: 4
@@ -773,6 +770,28 @@ model_list:
       tokens_per_second: 62
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+
+  - model_name: "GPT-5.2"
+    litellm_params:
+      model: "azure/responses/gpt-5.2"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      reasoning_effort: "low"
+    model_info:
+      context_window: '512K'
+      category: 3
+      costFactor: 3
+      description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
+      hosted_in: 'US'
+      intelligence_score: 4
+      knowledge_cutoff: '2025-01-01'
+      multimodal: true
+      organization: 'OpenAI'
+      reasoning: true
+      research: false
+      speed: 2
+      zdr: false
+      allowed_messages_per_three_hours_premium: 50
       supports_web_search: true
       supports_code_execution: true
 
@@ -809,7 +828,7 @@ model_list:
       category: 3
       costFactor: 2.5
       description: "Multimodal model with extended context for text, image, and code analysis."
-      hosted_in: 'EU'
+      hosted_in: 'US'
       intelligence_score: 5
       AAII: 0.57
       knowledge_cutoff: '2025-01-01'

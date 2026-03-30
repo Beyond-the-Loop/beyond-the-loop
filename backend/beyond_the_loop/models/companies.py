@@ -289,8 +289,6 @@ class CompanyTable:
             return False
 
     def subtract_credit_balance(self, company_id: str, credits_to_subtract: int):
-        print("DAS HAT JETZT", credits_to_subtract, "gekostet.")
-
         """Subtract credits from company's balance"""
         with get_db() as db:
             company = db.query(Company).filter(Company.id == company_id).first()

@@ -86,6 +86,14 @@ class SmartRouterDecision(BaseModel):
     intelligence_score: float  # 1.0–5.0
 
 
+class ChatSummaryResponse(BaseModel):
+    summary: str
+
+
+class SmartRouterDecision(BaseModel):
+    intelligence_score: float  # 1.0–5.0
+
+
 # ---------------------------------------------------------------------------
 # structured_completion helper
 # ---------------------------------------------------------------------------
