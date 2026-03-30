@@ -300,30 +300,6 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
 
-  - model_name: "GPT-5.1 Chat"
-    litellm_params:
-      model: "azure/responses/gpt-5.1-chat"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
-    model_info:
-      context_window: '128K'
-      category: 2
-      costFactor: 2
-      description: 'Multimodal model with very large context for complex analysis tasks.'
-      hosted_in: 'US'
-      intelligence_score: 4
-      AAII: 0.48
-      knowledge_cutoff: '2025-09-30'
-      multimodal: true
-      organization: 'OpenAI'
-      reasoning: false
-      research: false
-      speed: 2.5
-      tokens_per_second: 132
-      zdr: false
-      allowed_messages_per_three_hours_free: 50
-      allowed_messages_per_three_hours_premium: 150
-
   - model_name: "GPT-5.1"
     litellm_params:
       model: "azure/responses/gpt-5.1"
