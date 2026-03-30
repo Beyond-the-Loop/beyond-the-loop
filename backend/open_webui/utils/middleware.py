@@ -6,8 +6,6 @@ import base64
 import re
 import asyncio
 import random
-import random
-from io import BytesIO
 
 import json
 import html
@@ -73,7 +71,6 @@ from open_webui.constants import TASKS
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
-from beyond_the_loop.utils.chat_compression import maybe_compress_chat
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -116,15 +113,15 @@ async def chat_file_intent_decision_handler(
             else:
                 # Collections and web search results should use RAG
                 non_image_files.append(file_item)
-    
+
     if not non_image_files:
         return form_data, True  # No non-image files, proceed with normal RAG
-    
+
     # Use DEFAULT_AGENT_MODEL to decide intent
     user_message = get_last_user_message(form_data["messages"])
     if not user_message:
         return form_data, True  # No user message, proceed with RAG
-    
+
     try:
         result = await structured_completion(
             messages=[
@@ -141,7 +138,7 @@ async def chat_file_intent_decision_handler(
         log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
 
         return form_data, is_rag_task
-        
+
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         return form_data, True  # Fallback to RAG on error
@@ -155,40 +152,40 @@ def extract_file_content_with_loader(file_id: str) -> str:
         file_record = Files.get_file_by_id(file_id)
         if not file_record:
             return f"[File {file_id} not found]"
-        
+
         # Get file path using Storage
         if file_record.path:
             try:
                 storage = Storage()
                 file_path = storage.get_file(file_record.path)
-                
+
                 # Use the existing Loader system to extract content
                 loader = Loader()
                 content_type = file_record.meta.get("content_type", "") if file_record.meta else ""
-                
+
                 # Load documents using the existing system
                 documents = loader.load(file_record.filename, content_type, file_path)
-                
+
                 # Combine all document content
                 combined_content = "\n\n".join([doc.page_content for doc in documents])
                 return combined_content
-                
+
             except Exception as e:
                 log.debug(f"Error loading file {file_id} with Loader: {e}")
-        
+
         # Fallback: try to get content from file data if available
         if file_record.data and 'content' in file_record.data:
             return file_record.data['content']
-        
+
         return f"[Could not extract content from file {file_record.filename}]"
-        
+
     except Exception as e:
         log.exception(f"Error extracting content from file {file_id}: {e}")
         return f"[Error reading file {file_id}]"
 
 
 async def chat_completion_files_handler(
-    request: Request, form_data: dict, user: UserModel, extra_params: dict
+        request: Request, form_data: dict, user: UserModel, extra_params: dict
 ) -> tuple[dict, dict[str, list]]:
     sources = []
 
@@ -296,18 +293,18 @@ async def check_disconnect(request):
 
 
 SMART_ROUTER_MODEL = ModelModel(
-                id="Smart Router",
-                name="Smart Router",
-                meta=ModelMeta(),
-                params=ModelParams(),
-                is_active=True,
-                updated_at=int(time.time()),
-                created_at=int(time.time()),
-                user_id=None,
-                company_id="",
-                base_model_id=None,
-                access_control=None,
-            )
+    id="Smart Router",
+    name="Smart Router",
+    meta=ModelMeta(),
+    params=ModelParams(),
+    is_active=True,
+    updated_at=int(time.time()),
+    created_at=int(time.time()),
+    user_id=None,
+    company_id="",
+    base_model_id=None,
+    access_control=None,
+)
 
 
 async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelModel | None, dict | None]:
@@ -329,6 +326,8 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
 
         target_score = max(1.0, min(5.0, decision.intelligence_score))
 
+        log.info(f"Smart Router: target intelligence score = {target_score}")
+
         # Lazy import to avoid circular dependency (main.py imports middleware.py)
         from open_webui.main import get_active_models
 
@@ -336,11 +335,21 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
 
         routable_models = [
             m for m in active_models_result["data"]
-            if m.base_model_id is None                              # no assistants
-            and m.name != SMART_ROUTER_MODEL.name                  # not Smart Router itself
-            and m.is_active                                         # active (e.g. not locked in free plan)
-            and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
+            if m.base_model_id is None  # no assistants
+               and m.name != SMART_ROUTER_MODEL.name  # not Smart Router itself
+               and m.is_active  # active (e.g. not locked in free plan)
+               and not getattr(m, "fair_usage_limit_reached", False)  # fair usage not exhausted
         ]
+
+        log.info(
+            f"Smart Router: {len(routable_models)} routable model(s): "
+            + ", ".join(
+                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
+                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
+                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
+                for m in routable_models
+            )
+        )
 
         # Filter to models meeting the minimum intelligence requirement
         candidates = []
@@ -351,7 +360,18 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             if score is not None and score >= target_score:
                 candidates.append(m)
 
+        log.info(
+            f"Smart Router: {len(candidates)} candidate(s) after intelligence filter (>= {target_score}): "
+            + ", ".join(
+                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
+                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
+                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
+                for m in candidates
+            )
+        )
+
         if not candidates:
+            log.warning("Smart Router: no candidates found, returning None")
             return None, None
 
         # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
@@ -403,15 +423,45 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             candidates, key=lambda m: efficiency_score(m.name), reverse=True
         )
 
+        log.info(
+            f"Smart Router: candidates ranked by efficiency: "
+            + ", ".join(
+                f"{m.name}(efficiency={efficiency_score(m.name):.3f})"
+                for m in scored_candidates
+            )
+        )
+
         top_candidates = scored_candidates[:3]
         best_model = random.choice(top_candidates)
 
         cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
+        log.info(
+            f"Smart Router: selected '{best_model.name}' (randomly chosen from top {len(top_candidates)}) "
+            f"(intelligence={cfg.get('intelligence_score')}, "
+            f"costFactor={cfg.get('costFactor')}, speed={cfg.get('speed')}, "
+            f"efficiency={efficiency_score(best_model.name):.3f})"
+        )
 
-        return best_model
+        debug_info = {
+            "target_score": target_score,
+            "selected_model": best_model.name,
+            "top_count": len(top_candidates),
+            "candidates": [
+                {
+                    "name": m.name,
+                    "intelligence": LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score"),
+                    "cost": LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor"),
+                    "speed": LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed"),
+                    "efficiency": round(efficiency_score(m.name), 3),
+                }
+                for m in scored_candidates
+            ],
+        }
+
+        return best_model, debug_info
     except Exception as e:
         log.exception(f"Smart Router model selection failed: {e}")
-        return None
+        return None, None
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
@@ -421,23 +471,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data.pop("variables", None)
     form_data.pop("tool_ids", None)
 
+    log.debug(f"form_data: {form_data}")
+
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
-
-    try:
-        chat_id = metadata.get("chat_id")
-
-        if chat_id:
-            form_data = await maybe_compress_chat(
-                form_data=form_data,
-                model=model,
-                chat_id=chat_id,
-                event_emitter=event_emitter,
-            )
-    except Exception as e:
-        log.exception(f"[chat_compression] failed, continuing without compression: {e}")
-
-    log.debug(f"form_data: {form_data}")
 
     extra_params = {
         "__event_emitter__": event_emitter,
@@ -459,15 +496,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     features = form_data.pop("features", None) or {}
     auto_tools = form_data.pop("auto_tools", None) or []
     metadata["web_search_enabled"] = (
-        isinstance(auto_tools, list) and "web_search" in auto_tools
-    ) or (
-        isinstance(features, dict) and features.get("web_search", False)
-    )
+                                             isinstance(auto_tools, list) and "web_search" in auto_tools
+                                     ) or (
+                                             isinstance(features, dict) and features.get("web_search", False)
+                                     )
     metadata["code_interpreter_enabled"] = (
-        isinstance(auto_tools, list) and "code_interpreter" in auto_tools
-    ) or (
-        isinstance(features, dict) and features.get("code_interpreter", False)
-    )
+                                                   isinstance(auto_tools, list) and "code_interpreter" in auto_tools
+                                           ) or (
+                                                   isinstance(features, dict) and features.get("code_interpreter",
+                                                                                               False)
+                                           )
 
     user_message = get_last_user_message(form_data["messages"])
 
@@ -485,9 +523,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         routed_model, smart_router_debug = await _smart_router_model_selection(user_message, user)
 
-            if selected_tool != "none" and selected_tool in auto_tools:
-                features = {selected_tool: True}
-                log.debug(f"Auto tool selection: {selected_tool}")
+        if routed_model:
+            model = routed_model
+            form_data["model"] = routed_model.id
+            if smart_router_debug:
+                metadata["smart_router_debug"] = smart_router_debug
+        else:
+            # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            form_data["model"] = model.id
+            log.warning(f"Smart Router: model selection failed, falling back to '{model.name}'")
 
         await event_emitter(
             {
@@ -501,7 +546,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
+    model_knowledge = Knowledges.get_knowledge_by_ids(
+        [knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
     model_files = model.meta.files
 
@@ -530,7 +576,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
 
-        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
+        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (
+            k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
 
         knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
@@ -570,7 +617,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     try:
         has_user_collections = any(f.get("type") == "collection" for f in files)
 
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not has_user_collections else (form_data, True)
+        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data,
+                                                                         user) if not model_knowledge and not has_user_collections else (
+            form_data, True)
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
@@ -602,7 +651,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                     # Skip image files
                                     if not content_type.startswith("image/"):
                                         content = extract_file_content_with_loader(file_id)
-                                        file_contents.append(f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
+                                        file_contents.append(
+                                            f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
                             except Exception as e:
                                 log.debug(f"Error processing file {file_id}: {e}")
 
@@ -644,8 +694,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         if prompt is None:
             raise Exception("No user message found")
         if (
-            request.app.state.config.RELEVANCE_THRESHOLD == 0
-            and context_string.strip() == ""
+                request.app.state.config.RELEVANCE_THRESHOLD == 0
+                and context_string.strip() == ""
         ):
             log.debug(
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
@@ -705,7 +755,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
 
 async def process_chat_response(
-    request, response, form_data, user, events, metadata, tasks, model
+        request, response, form_data, user, events, metadata, tasks, model
 ):
     async def background_tasks_handler():
         message_map = Chats.get_messages_by_chat_id(metadata["chat_id"])
@@ -753,12 +803,12 @@ async def process_chat_response(
     event_caller = None
 
     if (
-        "session_id" in metadata
-        and metadata["session_id"]
-        and "chat_id" in metadata
-        and metadata["chat_id"]
-        and "message_id" in metadata
-        and metadata["message_id"]
+            "session_id" in metadata
+            and metadata["session_id"]
+            and "chat_id" in metadata
+            and metadata["chat_id"]
+            and "message_id" in metadata
+            and metadata["message_id"]
     ):
         event_emitter = get_event_emitter(metadata)
         event_caller = get_event_call(metadata)
@@ -832,8 +882,8 @@ async def process_chat_response(
 
     # Non standard response
     if not any(
-        content_type in response.headers["Content-Type"]
-        for content_type in ["text/event-stream", "application/x-ndjson"]
+            content_type in response.headers["Content-Type"]
+            for content_type in ["text/event-stream", "application/x-ndjson"]
     ):
         return response
 
@@ -967,7 +1017,7 @@ async def process_chat_response(
                                 : match.start()
                             ]  # Content before opening tag
                             after_tag = content[
-                                match.end() :
+                                match.end():
                             ]  # Content after opening tag
 
                             # Text block should contain only what came BEFORE the start tag
@@ -1140,13 +1190,6 @@ async def process_chat_response(
                 }
             )
 
-            await event_emitter(
-                {
-                    "type": "chat:completion",
-                    "data": {"model": metadata.get("display_model_id", model.id)},
-                }
-            )
-
             try:
                 for event in events:
                     await event_emitter(
@@ -1186,7 +1229,7 @@ async def process_chat_response(
                             continue
 
                         # Remove the prefix
-                        data = data[len("data:") :].strip()
+                        data = data[len("data:"):].strip()
 
                         try:
                             data = json.loads(data)
@@ -1254,8 +1297,8 @@ async def process_chat_response(
 
                                         if tool_call_index is not None:
                                             if (
-                                                len(response_tool_calls)
-                                                <= tool_call_index
+                                                    len(response_tool_calls)
+                                                    <= tool_call_index
                                             ):
                                                 response_tool_calls.append(
                                                     delta_tool_call
@@ -1281,15 +1324,15 @@ async def process_chat_response(
                                                     ] += delta_arguments
 
                                 reasoning_content = (
-                                    delta.get("reasoning_content")
-                                    or delta.get("reasoning")
-                                    or delta.get("thinking")
+                                        delta.get("reasoning_content")
+                                        or delta.get("reasoning")
+                                        or delta.get("thinking")
                                 )
 
                                 if reasoning_content:
                                     if (
-                                        not content_blocks
-                                        or content_blocks[-1]["type"] != "reasoning"
+                                            not content_blocks
+                                            or content_blocks[-1]["type"] != "reasoning"
                                     ):
                                         reasoning_block = {
                                             "type": "reasoning",
@@ -1317,13 +1360,13 @@ async def process_chat_response(
                                 if value:
                                     content = f"{content}{value}"
                                     if (
-                                        content_blocks
-                                        and content_blocks[-1]["type"]
-                                        == "reasoning"
-                                        and content_blocks[-1]
-                                        .get("attributes", {})
-                                        .get("type")
-                                        == "reasoning_content"
+                                            content_blocks
+                                            and content_blocks[-1]["type"]
+                                            == "reasoning"
+                                            and content_blocks[-1]
+                                            .get("attributes", {})
+                                            .get("type")
+                                            == "reasoning_content"
                                     ):
                                         reasoning_block = content_blocks[-1]
                                         reasoning_block["ended_at"] = time.time()
@@ -1348,7 +1391,7 @@ async def process_chat_response(
                                         )
 
                                     content_blocks[-1]["content"] = (
-                                        content_blocks[-1]["content"] + value
+                                            content_blocks[-1]["content"] + value
                                     )
 
                                     if detect_reasoning:
@@ -1372,7 +1415,8 @@ async def process_chat_response(
                                                 ),
                                             },
                                         )
-                                    elif (content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
+                                    elif (content_blocks[-1][
+                                              "type"] == "reasoning"):  # In case reasoning summary was detected in tag_content_handler
                                         data = {
                                             "content": serialize_content_blocks(
                                                 content_blocks
@@ -1667,6 +1711,7 @@ async def process_chat_response(
             headers=dict(response.headers),
             background=response.background,
         )
+
 
 def get_extension_from_base64(b64_string):
     match = re.match(r"data:(image/[^;]+);base64,", b64_string)
