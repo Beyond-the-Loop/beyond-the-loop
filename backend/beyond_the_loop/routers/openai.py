@@ -237,7 +237,16 @@ async def generate_chat_completion(
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
     if model.base_model_id:
-        model_name = model.base_model_id if model.user_id == "system" else Models.get_model_by_id(model.base_model_id).name
+        if model.user_id == "system":
+            model_name = model.base_model_id
+        else:
+            base_model = Models.get_model_by_id(model.base_model_id)
+            if base_model is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Base model '{model.base_model_id}' not found for assistant '{model.name}'.",
+                )
+            model_name = base_model.name
     else:
         model_name = model.name
 

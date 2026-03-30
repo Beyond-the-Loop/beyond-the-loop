@@ -817,6 +817,41 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
+    elif model.base_model_id == SMART_ROUTER_MODEL.id and user_message:
+        # Assistant whose base model is "Smart Router": run routing but keep the
+        # assistant's system prompt and params by only swapping out base_model_id.
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": False,
+                },
+            }
+        )
+
+        routed_model = await _smart_router_model_selection(user_message, user)
+
+        if routed_model:
+            model = model.model_copy(update={"base_model_id": routed_model.id})
+        else:
+            fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            if fallback:
+                model = model.model_copy(update={"base_model_id": fallback.id})
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": True,
+                    "hidden": True,
+                },
+            }
+        )
+
     if auto_tools and user_message:
         try:
             await event_emitter(
