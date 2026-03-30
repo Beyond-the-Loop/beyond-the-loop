@@ -1,7 +1,7 @@
 """Remove GPT-5.1 Chat model: repoint assistants to GPT-5.1, then delete
 
-Revision ID: 025
-Revises: 024
+Revision ID: 028
+Revises: 027
 Create Date: 2026-03-30 00:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '025'
-down_revision: Union[str, None] = '024'
+revision: str = '028'
+down_revision: Union[str, None] = '027'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
