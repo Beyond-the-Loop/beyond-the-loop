@@ -1312,6 +1312,55 @@ async def process_chat_response(
                                         "type": "reasoning",
                                     }
 
+                                delta_annotations = delta.get("annotations", [])
+                                if delta_annotations:
+                                    seen_urls = {
+                                        s["document"][0]
+                                        for s in (sources or [])
+                                        if s.get("document")
+                                    }
+                                    for annotation in delta_annotations:
+                                        if annotation.get("type") == "url_citation":
+                                            url_citation = annotation.get("url_citation", {})
+                                            url = url_citation.get("url", "")
+                                            title = url_citation.get("title") or url
+                                            if url and url not in seen_urls:
+                                                seen_urls.add(url)
+                                                if sources is None:
+                                                    sources = []
+                                                sources.append({
+                                                    "source": {"name": title},
+                                                    "document": [url],
+                                                    "metadata": [{"source": url, "name": title}],
+                                                    "distances": [0],
+                                                })
+
+                                # Handle Claude/Vertex AI web search results via provider_specific_fields
+                                provider_specific_fields = delta.get("provider_specific_fields", {})
+                                if provider_specific_fields:
+                                    web_search_results = provider_specific_fields.get("web_search_results")
+                                    if web_search_results:
+                                        seen_urls = {
+                                            s["document"][0]
+                                            for s in (sources or [])
+                                            if s.get("document")
+                                        }
+                                        for result_group in web_search_results:
+                                            for result in result_group.get("content", []):
+                                                if result.get("type") == "web_search_result":
+                                                    url = result.get("url", "")
+                                                    title = result.get("title") or url
+                                                    if url and url not in seen_urls:
+                                                        seen_urls.add(url)
+                                                        if sources is None:
+                                                            sources = []
+                                                        sources.append({
+                                                            "source": {"name": title},
+                                                            "document": [url],
+                                                            "metadata": [{"source": url, "name": title}],
+                                                            "distances": [0],
+                                                        })
+
                                 value = delta.get("content")
 
                                 if value:
@@ -1422,12 +1471,23 @@ async def process_chat_response(
                                     )
 
                     if response_tool_calls:
-                        tool_calls.append(response_tool_calls)
+                        # Filter out server-side native tool calls (e.g. Claude's built-in
+                        # web_search executed by the LLM provider) that are not in our
+                        # user-defined tools. These have already been handled server-side
+                        # and should not be displayed as "Tool Executed" in the UI.
+                        user_tools = metadata.get("tools", {})
+                        client_tool_calls = [
+                            tc for tc in response_tool_calls
+                            if tc.get("function", {}).get("name", "") in user_tools
+                        ]
+                        if client_tool_calls:
+                            tool_calls.append(client_tool_calls)
 
                     if response.background:
                         await response.background()
 
                 await stream_body_handler(response)
+                print(f"[SOURCES DEBUG] sources after stream_body_handler: {sources}", flush=True)
 
                 MAX_TOOL_CALL_RETRIES = 5
                 tool_call_retries = 0
