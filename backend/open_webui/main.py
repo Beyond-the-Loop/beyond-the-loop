@@ -1,4 +1,3 @@
-import asyncio
 import anyio
 import logging
 import mimetypes
@@ -131,7 +130,6 @@ from beyond_the_loop.socket.main import (
     app as socket_app,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
-from beyond_the_loop.models.models import ModelModel
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,

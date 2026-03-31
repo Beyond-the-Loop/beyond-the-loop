@@ -255,8 +255,7 @@ async def create_company(
 
         util_models = [
             "TTS",
-            "STT",
-            "Nano Banana"
+            "STT"
         ]
 
         openai_models = [openai_model for openai_model in openai_models if openai_model["id"] not in util_models]
