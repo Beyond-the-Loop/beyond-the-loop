@@ -2,11 +2,9 @@ import time
 import logging
 import sys
 import os
-import base64
 import re
 import asyncio
 import random
-
 import json
 import html
 import ast
@@ -27,7 +25,6 @@ from beyond_the_loop.utils.structured_completion import (
     KnowledgeUseDecision,
     SmartRouterDecision,
 )
-from beyond_the_loop.models.files import FileForm
 from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -58,7 +55,6 @@ from open_webui.utils.misc import (
 )
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
-    CACHE_DIR,
     LITELLM_MODEL_CONFIG,
 )
 from open_webui.env import (
@@ -67,10 +63,7 @@ from open_webui.env import (
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS
-
-from beyond_the_loop.services.credit_service import credit_service
-from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
-from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.utils.chat_compression import maybe_compress_chat
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -307,7 +300,7 @@ SMART_ROUTER_MODEL = ModelModel(
 )
 
 
-async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelModel | None, dict | None]:
+async def _smart_router_model_selection(user_message: str, user) -> ModelModel | None:
     """
     Score the user message complexity (1–5) via structured completion, then pick
     the best model from all candidates whose intelligence_score >= that score.
@@ -326,8 +319,6 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
 
         target_score = max(1.0, min(5.0, decision.intelligence_score))
 
-        log.info(f"Smart Router: target intelligence score = {target_score}")
-
         # Lazy import to avoid circular dependency (main.py imports middleware.py)
         from open_webui.main import get_active_models
 
@@ -341,38 +332,24 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
                and not getattr(m, "fair_usage_limit_reached", False)  # fair usage not exhausted
         ]
 
-        log.info(
-            f"Smart Router: {len(routable_models)} routable model(s): "
-            + ", ".join(
-                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
-                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
-                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
-                for m in routable_models
-            )
-        )
-
-        # Filter to models meeting the minimum intelligence requirement
+        # Filter to models meeting the minimum intelligence requirement and required capabilities
         candidates = []
 
         for m in routable_models:
             cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
             score = cfg.get("intelligence_score")
-            if score is not None and score >= target_score:
-                candidates.append(m)
-
-        log.info(
-            f"Smart Router: {len(candidates)} candidate(s) after intelligence filter (>= {target_score}): "
-            + ", ".join(
-                f"{m.name}(intelligence={LITELLM_MODEL_CONFIG.get(m.name, {}).get('intelligence_score')}, "
-                f"cost={LITELLM_MODEL_CONFIG.get(m.name, {}).get('costFactor')}, "
-                f"speed={LITELLM_MODEL_CONFIG.get(m.name, {}).get('speed')})"
-                for m in candidates
-            )
-        )
+            if score is None or score < target_score:
+                continue
+            if decision.needs_web_search and not cfg.get("supports_web_search", False):
+                continue
+            if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
+                continue
+            if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
+                continue
+            candidates.append(m)
 
         if not candidates:
-            log.warning("Smart Router: no candidates found, returning None")
-            return None, None
+            return None
 
         # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
         cost_values = {
@@ -423,45 +400,15 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
             candidates, key=lambda m: efficiency_score(m.name), reverse=True
         )
 
-        log.info(
-            f"Smart Router: candidates ranked by efficiency: "
-            + ", ".join(
-                f"{m.name}(efficiency={efficiency_score(m.name):.3f})"
-                for m in scored_candidates
-            )
-        )
-
         top_candidates = scored_candidates[:3]
         best_model = random.choice(top_candidates)
 
         cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
-        log.info(
-            f"Smart Router: selected '{best_model.name}' (randomly chosen from top {len(top_candidates)}) "
-            f"(intelligence={cfg.get('intelligence_score')}, "
-            f"costFactor={cfg.get('costFactor')}, speed={cfg.get('speed')}, "
-            f"efficiency={efficiency_score(best_model.name):.3f})"
-        )
 
-        debug_info = {
-            "target_score": target_score,
-            "selected_model": best_model.name,
-            "top_count": len(top_candidates),
-            "candidates": [
-                {
-                    "name": m.name,
-                    "intelligence": LITELLM_MODEL_CONFIG.get(m.name, {}).get("intelligence_score"),
-                    "cost": LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor"),
-                    "speed": LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed"),
-                    "efficiency": round(efficiency_score(m.name), 3),
-                }
-                for m in scored_candidates
-            ],
-        }
-
-        return best_model, debug_info
+        return best_model
     except Exception as e:
         log.exception(f"Smart Router model selection failed: {e}")
-        return None, None
+        return None
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
@@ -471,10 +418,23 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data.pop("variables", None)
     form_data.pop("tool_ids", None)
 
-    log.debug(f"form_data: {form_data}")
-
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
+
+    try:
+        chat_id = metadata.get("chat_id")
+
+        if chat_id:
+            form_data = await maybe_compress_chat(
+                form_data=form_data,
+                model=model,
+                chat_id=chat_id,
+                event_emitter=event_emitter,
+            )
+    except Exception as e:
+        log.exception(f"[chat_compression] failed, continuing without compression: {e}")
+
+    log.debug(f"form_data: {form_data}")
 
     extra_params = {
         "__event_emitter__": event_emitter,
@@ -493,19 +453,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     events = []
     sources = []
 
-    features = form_data.pop("features", None) or {}
-    auto_tools = form_data.pop("auto_tools", None) or []
-    metadata["web_search_enabled"] = (
-                                             isinstance(auto_tools, list) and "web_search" in auto_tools
-                                     ) or (
-                                             isinstance(features, dict) and features.get("web_search", False)
-                                     )
-    metadata["code_interpreter_enabled"] = (
-                                                   isinstance(auto_tools, list) and "code_interpreter" in auto_tools
-                                           ) or (
-                                                   isinstance(features, dict) and features.get("code_interpreter",
-                                                                                               False)
-                                           )
+    features = form_data.pop("features", {}) or {}
+    auto_tools = form_data.pop("auto_tools", None)
+
+    # When auto selection is active the frontend sends features={} and auto_tools=[...].
+    # Merge auto_tools into features so the rest of the pipeline sees the same structure.
+    if isinstance(auto_tools, list):
+        for tool in auto_tools:
+            features[tool] = True
 
     user_message = get_last_user_message(form_data["messages"])
 
@@ -521,18 +476,15 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-        routed_model, smart_router_debug = await _smart_router_model_selection(user_message, user)
+        routed_model = await _smart_router_model_selection(user_message, user)
 
         if routed_model:
             model = routed_model
             form_data["model"] = routed_model.id
-            if smart_router_debug:
-                metadata["smart_router_debug"] = smart_router_debug
         else:
             # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
             form_data["model"] = model.id
-            log.warning(f"Smart Router: model selection failed, falling back to '{model.name}'")
 
         await event_emitter(
             {
@@ -545,6 +497,51 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 },
             }
         )
+
+    elif model.base_model_id == SMART_ROUTER_MODEL.id and user_message:
+        # Assistant whose base model is "Smart Router": run routing but keep the
+        # assistant's system prompt and params by only swapping out base_model_id.
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": False,
+                },
+            }
+        )
+
+        routed_model = await _smart_router_model_selection(user_message, user)
+
+        if routed_model:
+            model = model.model_copy(update={"base_model_id": routed_model.id})
+        else:
+            fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            if fallback:
+                model = model.model_copy(update={"base_model_id": fallback.id})
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": True,
+                    "hidden": True,
+                },
+            }
+        )
+
+    # Set feature flags in metadata so litellm.py can inject the correct provider-specific tools
+    _model_cfg = LITELLM_MODEL_CONFIG.get(model.name, {})
+
+    if features.get("web_search") and _model_cfg.get("supports_web_search"):
+        metadata["web_search_enabled"] = True
+    if features.get("image_generation") and _model_cfg.get("supports_image_generation"):
+        metadata["image_generation_enabled"] = True
+    if features.get("code_interpreter") and _model_cfg.get("supports_code_execution"):
+        metadata["code_interpreter_enabled"] = True
 
     model_knowledge = Knowledges.get_knowledge_by_ids(
         [knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
@@ -727,30 +724,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    form_data["metadata"]["images"] = []
-
-    # Add images to form_data metadata
-    for message in form_data["messages"]:
-        if "content" in message and isinstance(message["content"], list):
-            for c in message["content"]:
-                if c.get("type") == "image_url":
-                    url = c.get("image_url", {}).get("url")
-
-                    if url:
-                        ext = get_extension_from_base64(url)
-                        filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                        parts = url.split(',')
-                        if len(parts) > 1:
-                            url = parts[1]
-                        else:
-                            url = parts[0]
-
-                        form_data["metadata"]["images"].append({
-                            "name": filename,
-                            "content": url
-                        })
-
     return form_data, metadata, events, model
 
 
@@ -893,7 +866,7 @@ async def process_chat_response(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": metadata.get("display_model_id", model.id),
+                "model": model.id,
             },
         )
 
@@ -955,25 +928,6 @@ async def process_chat_response(
                                 content = f'{content}\n<{block["tag"]}>{block["content"]}</{block["tag"]}>\n'
                             else:
                                 content = f'{content}\n<details type="reasoning" done="false">\n<summary>Thinking…</summary>\n{reasoning_display_content}\n</details>\n'
-
-                    elif block["type"] == "code_interpreter":
-                        attributes = block.get("attributes", {})
-                        output = block.get("output", None)
-                        lang = attributes.get("lang", "")
-
-                        if output:
-                            output = html.escape(json.dumps(output))
-
-                            # RAW means without code interpreter activated - not code execution
-                            if raw:
-                                content = f'{content}\n<code_interpreter type="code" lang="{lang}">\n{block["content"]}\n</code_interpreter>\n```output\n{output}\n```\n'
-                            else:
-                                content = f'{content}\n<details type="code_interpreter" done="true" output="{output}">\n<summary>Analyzed</summary>\n```{lang}\n{block["content"]}\n```\n</details>\n'
-                        else:
-                            if raw:
-                                content = f'{content}\n<code_interpreter type="code" lang="{lang}">\n{block["content"]}\n</code_interpreter>\n'
-                            else:
-                                content = f'{content}\n<details type="code_interpreter" done="false">\n<summary>Analyzing...</summary>\n```{lang}\n{block["content"]}\n```\n</details>\n'
 
                     else:
                         block_content = str(block["content"]).strip()
@@ -1186,7 +1140,7 @@ async def process_chat_response(
             await event_emitter(
                 {
                     "type": "chat:completion",
-                    "data": {"model": metadata.get("display_model_id", model.id)},
+                    "data": {"model": model.id},
                 }
             )
 
@@ -1234,6 +1188,8 @@ async def process_chat_response(
                         try:
                             data = json.loads(data)
 
+                            print(f"[LITELLM CHUNK] {json.dumps(data)}", flush=True)
+
                             if data.get("id") and generating_response:
                                 await event_emitter(
                                     {
@@ -1266,6 +1222,7 @@ async def process_chat_response(
                                         "data": data["file_refs"],
                                     }
                                 )
+
                                 if "content_replacement" in data:
                                     content = data["content_replacement"]
                                     content_blocks.clear()
@@ -1590,26 +1547,6 @@ async def process_chat_response(
                     except Exception as e:
                         log.debug(e)
                         break
-
-                smart_router_debug = metadata.get("smart_router_debug")
-                if smart_router_debug:
-                    debug_rows = "\n".join(
-                        f"| {'**' if c['name'] == smart_router_debug['selected_model'] else ''}"
-                        f"{c['name']}"
-                        f"{'** ✓' if c['name'] == smart_router_debug['selected_model'] else ''}"
-                        f" | {c['intelligence']} | {c['cost']} | {c['speed']} | {c['efficiency']:.3f} |"
-                        for c in smart_router_debug["candidates"]
-                    )
-                    debug_text = (
-                        f"\n\n---\n"
-                        f"**Smart Router** — Required intelligence: **{smart_router_debug['target_score']}/5** | "
-                        f"Selected: **{smart_router_debug['selected_model']}** (randomly from top {smart_router_debug['top_count']})\n\n"
-                        f"| Model | Intelligence | Cost | Speed | Efficiency |\n"
-                        f"|---|---|---|---|---|\n"
-                        f"{debug_rows}"
-                    )
-                    content_blocks.append({"type": "text", "content": debug_text})
-
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {
@@ -1712,23 +1649,3 @@ async def process_chat_response(
             background=response.background,
         )
 
-
-def get_extension_from_base64(b64_string):
-    match = re.match(r"data:(image/[^;]+);base64,", b64_string)
-    if not match:
-        return None  # Not a valid base64 image with MIME info
-
-    mime_type = match.group(1)  # e.g. "image/png"
-
-    # Map MIME → file extension
-    mapping = {
-        "image/png": "png",
-        "image/jpeg": "jpg",
-        "image/jpg": "jpg",
-        "image/webp": "webp",
-        "image/gif": "gif",
-        "image/bmp": "bmp",
-        "image/svg+xml": "svg",
-    }
-
-    return mapping.get(mime_type, None)

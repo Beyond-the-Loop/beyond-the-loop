@@ -176,7 +176,9 @@ KNOWLEDGE_INTENT_DECISION_PROMPT = "You are an AI assistant that determines user
 # ---------------------------------------------------------------------------
 
 SMART_ROUTER_PROMPT = """### Task:
-Analyze the user's message and determine the required intelligence level to answer it correctly.
+Analyze the user's message and determine:
+1. The required intelligence level to answer it correctly.
+2. Which tools are required to fulfill the request.
 
 ### Intelligence Scale (float between 1.0 and 5.0):
 1.0 - Very simple: greetings, basic factual questions, simple yes/no, trivial tasks
@@ -187,7 +189,12 @@ Analyze the user's message and determine the required intelligence level to answ
 
 Use intermediate values (e.g. 2.5, 3.5) when the request falls between two levels.
 
-### Rules:
+### Tool Detection Rules:
+- needs_web_search: true if the request requires current/real-time information, news, live data, recent events, or facts that may change over time. false for general knowledge, reasoning, or static tasks.
+- needs_code_execution: true if the request explicitly requires running code, calculating results programmatically, data analysis with execution, or producing verified computational output. false for writing or explaining code without execution.
+- needs_image_generation: true if the request asks to create, draw, generate, or produce an image/picture/illustration. false for describing, analyzing, or discussing images.
+
+### Intelligence Rules:
 - Return a float between 1.0 and 5.0.
 - Err on the side of lower scores for straightforward requests.
 - Err on the side of higher scores for complex, technical, or ambiguous requests.

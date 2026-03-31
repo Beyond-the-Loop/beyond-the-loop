@@ -4,13 +4,11 @@ import stripe
 import litellm
 from typing import Optional
 from fastapi import HTTPException
-from nltk.chat.zen import responses
 
 from beyond_the_loop.models.users import UserModel
 from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
-from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG, LITELLM_MODEL_MAP
 
@@ -226,7 +224,7 @@ class CreditService:
         try:
             token_cost_usd = litellm.completion_cost(
                 model=pricing_model,
-                completion_response=response,
+                completion_response=response
             )
         except Exception as e:
             log.warning(f"litellm.completion_cost failed for {pricing_model}: {e}")

@@ -266,6 +266,10 @@ async def generate_chat_completion(
         else:
             payload["web_search_options"] = {}
 
+    if metadata.get("image_generation_enabled", False):
+        if use_responses_api:
+            tools.append({"type": "image_generation"})
+
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
             tools.append({"type": "code_interpreter", "container": {"type": "auto"}})

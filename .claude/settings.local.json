@@ -33,7 +33,9 @@
       "Bash(backend/venv/bin/python -c \"import litellm; print\\([x for x in dir\\(litellm\\) if 'support' in x.lower\\(\\)]\\)\")",
       "Bash(backend/venv/bin/python -c \":*)",
       "Bash(backend/venv/bin/python scripts/check_model_capabilities.py 2>&1)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(python:*)",
+      "Bash(git add:*)"
     ]
   }
 }

@@ -84,14 +84,13 @@ class KnowledgeUseDecision(BaseModel):
 
 class SmartRouterDecision(BaseModel):
     intelligence_score: float  # 1.0–5.0
+    needs_web_search: bool
+    needs_code_execution: bool
+    needs_image_generation: bool
 
 
 class ChatSummaryResponse(BaseModel):
     summary: str
-
-
-class SmartRouterDecision(BaseModel):
-    intelligence_score: float  # 1.0–5.0
 
 
 # ---------------------------------------------------------------------------
