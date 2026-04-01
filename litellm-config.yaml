@@ -446,6 +446,7 @@ model_list:
       category: 1
       description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
       hosted_in: 'US'
+      costFactor: 1
       intelligence_score: 2.5
       knowledge_cutoff: '2024-06-01'
       multimodal: false
