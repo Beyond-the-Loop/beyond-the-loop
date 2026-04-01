@@ -277,13 +277,13 @@ class ChatTable:
             chat = db.get(Chat, chat_id)
             # Check if the chat is already shared
             if chat.share_id:
-                return self.get_chat_by_id_and_user_id(chat.share_id, "shared")
+                return self.get_chat_by_id(chat.share_id)
             # Create a new chat with the same data, but with a new ID
             shared_meta = {"share_company_id": share_company_id} if share_company_id else {}
             shared_chat = ChatModel(
                 **{
                     "id": str(uuid.uuid4()),
-                    "user_id": f"shared-{chat_id}",
+                    "user_id": "system",
                     "title": chat.title,
                     "chat": chat.chat,
                     "created_at": chat.created_at,
@@ -312,7 +312,7 @@ class ChatTable:
             with get_db() as db:
                 chat = db.get(Chat, chat_id)
                 shared_chat = (
-                    db.query(Chat).filter_by(user_id=f"shared-{chat_id}").first()
+                    db.get(Chat, chat.share_id) if chat and chat.share_id else None
                 )
 
                 if shared_chat is None:
@@ -341,10 +341,11 @@ class ChatTable:
     def delete_shared_chat_by_chat_id(self, chat_id: str) -> bool:
         try:
             with get_db() as db:
-                db.query(Chat).filter_by(user_id=f"shared-{chat_id}").delete()
+                chat = db.get(Chat, chat_id)
+                if chat and chat.share_id:
+                    db.query(Chat).filter_by(id=chat.share_id).delete()
 
                 # Clear btl_visible from the original chat's meta
-                chat = db.get(Chat, chat_id)
                 if chat:
                     original_meta = dict(chat.meta or {})
                     original_meta.pop("btl_visible", None)
