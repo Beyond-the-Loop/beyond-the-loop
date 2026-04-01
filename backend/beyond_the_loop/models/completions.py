@@ -20,12 +20,12 @@ class Completion(Base):
 
     id = Column(String, primary_key=True, unique=True)
     user_id = Column(String, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    model = Column(Text)
-    credits_used = Column(Float)
-    created_at = Column(BigInteger)
+    model = Column(Text, nullable=False)
+    credits_used = Column(Float, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
     assistant = Column(Text)
-    from_agent = Column(Boolean, default=False)
-    is_image_generation = Column(Boolean, default=False)
+    from_agent = Column(Boolean, nullable=False, default=False)
+    is_image_generation = Column(Boolean, nullable=False, default=False)
 
 class CompletionModel(BaseModel):
     id: str

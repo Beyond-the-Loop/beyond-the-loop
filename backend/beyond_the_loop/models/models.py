@@ -10,7 +10,7 @@ from beyond_the_loop.models.prompts import Prompt
 
 from pydantic import BaseModel, ConfigDict
 
-from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_
+from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_, String
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
 from sqlalchemy import cast
@@ -76,7 +76,7 @@ class Model(Base):
         An optional pointer to the actual model that should be used when proxying requests.
     """
 
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     """
         The human-readable display name of the model.
     """
@@ -91,9 +91,9 @@ class Model(Base):
         Holds a JSON encoded blob of metadata, see `ModelMeta`.
     """
 
-    user_id = Column(Text, nullable=True)
+    user_id = Column(Text, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
 
-    company_id = Column(Text, nullable=True)
+    company_id = Column(Text, nullable=False)
 
     access_control = Column(JSON, nullable=True)  # Controls data access levels.
     # Defines access control rules for this entry.
@@ -112,10 +112,10 @@ class Model(Base):
     #      }
     #   }
 
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, nullable=False, default=True)
 
-    updated_at = Column(BigInteger)
-    created_at = Column(BigInteger)
+    updated_at = Column(BigInteger, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
 
     bookmarking_users = relationship(
         "User",
@@ -444,6 +444,29 @@ class ModelsTable:
     def get_models_by_knowledge_id(self, knowledge_id: str):
         with get_db() as db:
             return db.query(Model).filter(cast(Model.meta, JSONB)["knowledge"].contains([{"id": knowledge_id}])).all()
+
+    def get_models_owned_by_user(self, user_id: str, company_id: str) -> list[ModelModel]:
+        with get_db() as db:
+            rows = db.query(Model).filter(
+                Model.user_id == user_id,
+                Model.company_id == company_id,
+            ).all()
+            return [ModelModel.model_validate(r) for r in rows]
+
+    def transfer_models_to_user(self, model_ids: list[str], new_user_id: str, company_id: str) -> bool:
+        if not model_ids:
+            return True
+        try:
+            with get_db() as db:
+                db.query(Model).filter(
+                    Model.id.in_(model_ids),
+                    Model.company_id == company_id,
+                ).update({"user_id": new_user_id}, synchronize_session=False)
+                db.commit()
+            return True
+        except Exception as e:
+            log.error(f"Error transferring models to user {new_user_id}: {e}")
+            return False
 
 
 Models = ModelsTable()

@@ -4,11 +4,17 @@ import random
 import uuid
 from typing import Optional
 
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
+from beyond_the_loop.models.files import Files
 from beyond_the_loop.models.groups import Groups, GroupForm
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.chats import Chats
+from beyond_the_loop.models.models import Models
+from beyond_the_loop.models.prompts import Prompts
+from beyond_the_loop.models.knowledge import Knowledges
 from beyond_the_loop.models.users import (
     UserModel,
     UserRoleUpdateForm,
@@ -20,7 +26,7 @@ from beyond_the_loop.models.users import (
 )
 
 
-from beyond_the_loop.socket.main import get_active_status_by_user_id
+from beyond_the_loop.socket.main import get_active_status_by_user_id, COMPANY_CONFIG_CACHE, STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -31,6 +37,8 @@ from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
+
+from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -554,26 +562,191 @@ async def update_user_by_id(
 
 
 ############################
+# GetUserEntities
+############################
+
+
+class EntityItem(BaseModel):
+    id: str
+    name: str
+
+
+class UserEntitiesResponse(BaseModel):
+    models: list[EntityItem]
+    prompts: list[EntityItem]
+    knowledge: list[EntityItem]
+
+
+class TransferItem(BaseModel):
+    entity_type: str  # "model" | "prompt" | "knowledge"
+    entity_id: str
+    new_user_id: str
+
+
+class TransferEntitiesForm(BaseModel):
+    assignments: list[TransferItem]
+
+
+@router.get("/{user_id}/entities", response_model=UserEntitiesResponse)
+async def get_user_entities(user_id: str, user=Depends(get_verified_user)):
+    target_user = Users.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.USER_NOT_FOUND)
+
+    if user.id != user_id:
+        if user.role != "admin" or target_user.company_id != user.company_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACTION_PROHIBITED)
+
+    company_id = target_user.company_id
+
+    models = [EntityItem(id=m.id, name=m.name) for m in Models.get_models_owned_by_user(user_id, company_id)]
+    prompts = [EntityItem(id=p.command, name=p.title) for p in Prompts.get_prompts_owned_by_user(user_id, company_id)]
+    knowledge = [EntityItem(id=k.id, name=k.name) for k in Knowledges.get_knowledge_owned_by_user(user_id, company_id)]
+
+    return UserEntitiesResponse(models=models, prompts=prompts, knowledge=knowledge)
+
+
+@router.post("/{user_id}/transfer-entities", response_model=bool)
+async def transfer_user_entities(user_id: str, form_data: TransferEntitiesForm, user=Depends(get_verified_user)):
+    target_user = Users.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.USER_NOT_FOUND)
+
+    if user.id != user_id:
+        if user.role != "admin" or target_user.company_id != user.company_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACTION_PROHIBITED)
+
+    company_id = target_user.company_id
+
+    model_assignments: dict[str, list[str]] = {}
+    prompt_assignments: dict[str, list[str]] = {}
+    knowledge_assignments: dict[str, list[str]] = {}
+
+    for assignment in form_data.assignments:
+        if assignment.entity_type == "model":
+            model_assignments.setdefault(assignment.new_user_id, []).append(assignment.entity_id)
+        elif assignment.entity_type == "prompt":
+            prompt_assignments.setdefault(assignment.new_user_id, []).append(assignment.entity_id)
+        elif assignment.entity_type == "knowledge":
+            knowledge_assignments.setdefault(assignment.new_user_id, []).append(assignment.entity_id)
+
+    for new_user_id, ids in model_assignments.items():
+        Models.transfer_models_to_user(ids, new_user_id, company_id)
+
+    for new_user_id, commands in prompt_assignments.items():
+        Prompts.transfer_prompts_to_user(commands, new_user_id, company_id)
+
+    for new_user_id, ids in knowledge_assignments.items():
+        Knowledges.transfer_knowledge_to_user(ids, new_user_id, company_id)
+
+    return True
+
+
+############################
 # DeleteUserById
 ############################
 
 
 @router.delete("/{user_id}", response_model=bool)
-async def delete_user_by_id(user_id: str, user=Depends(get_admin_user)):
-    if user.id != user_id:
-        result = Auths.delete_auth_by_id(user_id, user.company_id)
-
-        if result:
-            return True
-
+async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
+    target_user = Users.get_user_by_id(user_id)
+    if not target_user:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ERROR_MESSAGES.DELETE_USER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.USER_NOT_FOUND,
         )
 
+    # A regular user may only delete themselves.
+    # An admin may delete any user within the same company.
+    if user.id != user_id:
+        if user.role != "admin" or target_user.company_id != user.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ERROR_MESSAGES.ACTION_PROHIBITED,
+            )
+
+    company_id = target_user.company_id
+
+    # Always fetch files before deletion for storage cleanup
+    user_files = Files.get_files_by_user_id(user_id)
+
+    def _cleanup_files():
+        for file in user_files:
+            collection_name = f"file-{file.id}"
+            if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+                VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+            Storage.delete_file(file.path)
+
+    # ------------------------------------------------------------------
+    # Last-user check: if this is the only user left in the company,
+    # cancel the Stripe subscription and delete the entire company
+    # (PG cascades handle user + all dependent rows).
+    # ------------------------------------------------------------------
+    total_users = Users.count_users_by_company_id(company_id)
+    if total_users == 1:
+        _cleanup_files()
+        payments_service.cancel_company_subscription(company_id)
+        STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
+        STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
+        if company_id in COMPANY_CONFIG_CACHE:
+            del COMPANY_CONFIG_CACHE[company_id]
+        if not Companies.delete_company_by_id(company_id):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=ERROR_MESSAGES.DELETE_USER_ERROR,
+            )
+        return True
+
+    # ------------------------------------------------------------------
+    # Last-admin check: if this is the only admin left, promote a random
+    # non-pending user. If ALL remaining users are pending there is nobody
+    # to promote — treat it as "last active user" and delete the company.
+    # ------------------------------------------------------------------
+    if target_user.role == "admin":
+        admin_users = Users.get_admin_users_by_company(company_id)
+        if len(admin_users) == 1:
+            all_company_users = Users.get_users_by_company_id(company_id)
+            candidate = next(
+                (
+                    u for u in all_company_users
+                    if u.id != user_id
+                    and u.invite_token is None
+                    and u.registration_code is None
+                ),
+                None,
+            )
+            if candidate:
+                Users.update_user_role_by_id(candidate.id, "admin")
+                log.info(
+                    f"Promoted user {candidate.id} to admin after last admin "
+                    f"{user_id} was deleted in company {company_id}"
+                )
+            else:
+                # Only pending invites remain — no one can ever log in.
+                # Delete the company (cascades through everything).
+                _cleanup_files()
+                payments_service.cancel_company_subscription(company_id)
+                STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
+                STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
+                if company_id in COMPANY_CONFIG_CACHE:
+                    del COMPANY_CONFIG_CACHE[company_id]
+                if not Companies.delete_company_by_id(company_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=ERROR_MESSAGES.DELETE_USER_ERROR,
+                    )
+                return True
+
+    success = Users.delete_user_by_id(user_id)
+
+    if success:
+        _cleanup_files()
+        payments_service.update_premium_seat_count(company_id)
+        return True
+
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail=ERROR_MESSAGES.ACTION_PROHIBITED,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=ERROR_MESSAGES.DELETE_USER_ERROR,
     )
 
 
