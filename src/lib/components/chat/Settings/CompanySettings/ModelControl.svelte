@@ -318,7 +318,7 @@
 										N/A
 									{/if}
 								{:else}
-									{#if $modelsInfo?.[model?.name]?.category}
+									{#if $modelsInfo?.[model?.name]?.costFactor}
 										{$modelsInfo?.[model?.name]?.costFactor}/5
 									{:else}
 										N/A
