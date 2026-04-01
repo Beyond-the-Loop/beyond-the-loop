@@ -62,6 +62,7 @@ async def _get_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(
             trust_env=True,
             timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
+            read_bufsize=10 * 1024 * 1024,  # 10 MB
             connector=aiohttp.TCPConnector(
                 limit=200,
                 enable_cleanup_closed=True, # proactively detects stale connections
@@ -479,6 +480,7 @@ async def generate_chat_completion(
 
             async def insert_completion_if_streaming_is_done():
                 full_response = ""
+
                 async for chunk in r.content:
                     chunk_str = chunk.decode()
                     if chunk_str.startswith('data: '):

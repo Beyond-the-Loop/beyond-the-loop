@@ -35,7 +35,15 @@
       "Bash(backend/venv/bin/python scripts/check_model_capabilities.py 2>&1)",
       "Bash(xxd)",
       "Bash(python:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(grep -r \"Tool Executed\\\\|tool_call\\\\|toolCall\\\\|tool_calls\" /Users/philszalay/Documents/code/beyond-the-loop/src --include=*.svelte --include=*.ts -l)",
+      "Bash(grep -r \"Tool Executed\\\\|tool_call\\\\|toolCall\\\\|tool_calls\" /Users/philszalay/Documents/code/beyond-the-loop/src -r --include=*.js --include=*.ts --include=*.svelte)",
+      "Bash(xargs kill:*)",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "Bash(git checkout:*)",
+      "Bash(sed -i '' '106s/codeInterpreterEnabled = false/codeInterpreterEnabled = true/' \"/Users/philszalay/Documents/code/beyond-the-loop/src/lib/components/chat/Chat.svelte\")",
+      "Bash(sed -i '' '632s/codeInterpreterEnabled = false/codeInterpreterEnabled = true/' \"/Users/philszalay/Documents/code/beyond-the-loop/src/lib/components/chat/Chat.svelte\")"
     ]
   }
 }

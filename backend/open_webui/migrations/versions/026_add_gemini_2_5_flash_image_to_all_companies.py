@@ -1,7 +1,7 @@
-"""Add Nano Banana model to all companies
+"""Add Gemini 2.5 Flash Image model to all companies
 
-Revision ID: 025
-Revises: 024
+Revision ID: 026
+Revises: 025
 Create Date: 2026-03-31 00:00:00.000000
 
 """
@@ -15,13 +15,13 @@ import json
 
 
 # revision identifiers, used by Alembic.
-revision: str = '025'
-down_revision: Union[str, None] = '024'
+revision: str = '026'
+down_revision: Union[str, None] = '025'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-NEW_MODEL = "Nano Banana"
+NEW_MODEL = "Gemini 2.5 Flash Image"
 
 
 def upgrade() -> None:

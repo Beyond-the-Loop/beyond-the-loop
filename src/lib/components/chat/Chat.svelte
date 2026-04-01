@@ -101,9 +101,9 @@
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
 
 	let selectedToolIds = [];
-	let imageGenerationEnabled = false;
-	let webSearchEnabled = false;
-	let codeInterpreterEnabled = false;
+	let imageGenerationEnabled = true;
+	let webSearchEnabled = true;
+	let codeInterpreterEnabled = true;
 	let autoToolsEnabled = true;
 	let chat = null;
 	let tags = [];
@@ -151,7 +151,7 @@
 			prompt = '';
 			files = [];
 			selectedToolIds = [];
-			webSearchEnabled = false;
+			webSearchEnabled = true;
 			imageGenerationEnabled = false;
 
 			if (chatIdProp && (await loadChat())) {
@@ -406,8 +406,8 @@
 				prompt = '';
 				files = [];
 				selectedToolIds = [];
-				webSearchEnabled = false;
-				imageGenerationEnabled = false;
+				webSearchEnabled = true;
+				imageGenerationEnabled = true;
 				autoToolsEnabled = true;
 			}
 		}
@@ -627,9 +627,9 @@
 		chatFiles = [];
 		params = {};
 
-		webSearchEnabled = false;
-		imageGenerationEnabled = false;
-		codeInterpreterEnabled = false;
+		webSearchEnabled = true;
+		imageGenerationEnabled = true;
+		codeInterpreterEnabled = true;
 		autoToolsEnabled = true;
 
 		if ($page.url.searchParams.get('youtube')) {

@@ -727,6 +727,26 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     return form_data, metadata, events, model
 
 
+def _content_parts_to_markdown(parts: list) -> str:
+    """Convert a multimodal content array to a markdown string.
+    Handles text parts and image_url parts (e.g. from Gemini/GPT-4o image generation).
+    Raw base64 strings are wrapped in a data URI automatically."""
+    result = []
+    for part in parts:
+        print("das ist der part typ", part.get("type"))
+        if part.get("type") == "text":
+            text = part.get("text", "").strip()
+            if text:
+                result.append(text)
+        elif part.get("type") == "image_url":
+            url = part.get("image_url", {}).get("url", "")
+            print("EY WAS GEHT URL")
+            if url:
+                print("EY WAS GEHT URL2")
+                result.append(f"![generated image]({url})")
+    return "\n\n".join(result)
+
+
 async def process_chat_response(
         request, response, form_data, user, events, metadata, tasks, model
 ):
@@ -800,6 +820,9 @@ async def process_chat_response(
 
             if response.get("choices", [])[0].get("message", {}).get("content"):
                 content = response["choices"][0]["message"]["content"]
+                if isinstance(content, list):
+                    content = _content_parts_to_markdown(content)
+                    response["choices"][0]["message"]["content"] = content
 
                 if content:
 
@@ -1188,8 +1211,6 @@ async def process_chat_response(
                         try:
                             data = json.loads(data)
 
-                            print(f"[LITELLM CHUNK] {json.dumps(data)}", flush=True)
-
                             if data.get("id") and generating_response:
                                 await event_emitter(
                                     {
@@ -1362,6 +1383,8 @@ async def process_chat_response(
                                                         })
 
                                 value = delta.get("content")
+                                if isinstance(value, list):
+                                    value = _content_parts_to_markdown(value)
 
                                 if value:
                                     content = f"{content}{value}"
