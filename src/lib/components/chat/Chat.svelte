@@ -1366,6 +1366,12 @@
 					let userContext = null;
 					if ($settings?.memory ?? false) {
 						if (userContext === null) {
+							responseMessage.statusHistory = [
+								{ action: 'querying_memory', description: 'Searching memories...', done: false }
+							];
+							history.messages[responseMessageId] = responseMessage;
+							await tick();
+
 							const res = await queryMemory(localStorage.token, prompt).catch((error) => {
 								toast.error(`${error}`);
 								return null;
@@ -1382,6 +1388,11 @@
 								}
 							}
 						}
+
+						responseMessage.statusHistory = [
+							{ action: 'querying_memory', description: 'Searching memories...', done: true }
+						];
+						history.messages[responseMessageId] = responseMessage;
 					}
 					responseMessage.userContext = userContext;
 
