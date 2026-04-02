@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import WorkspaceStep from '$lib/components/signup/WorkspaceStep.svelte';
 	import InviteStep from '$lib/components/signup/InviteStep.svelte';
 	import SignupTestimonials from '$lib/components/signup/shared/SignupTestimonials.svelte';
@@ -19,6 +19,7 @@
 	import { getSessionUser, userSignIn } from '$lib/apis/auths';
 	import { getBackendConfig } from '$lib/apis';
 	import { generateInitialsImage } from '$lib/utils';
+	import { fetchLogoByEmail } from '$lib/utils/logo';
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import { toast } from 'svelte-sonner';
 	import { getCompanyDetails, getCompanyConfig } from '$lib/apis/auths';
@@ -31,6 +32,12 @@
 	let subdomain = '';
 	let billing_country = 'Deutschland';
 	let company_profile_image_url = '';
+
+	onMount(() => {
+		if ($user?.email) {
+			fetchLogoByEmail($user.email).then((logo) => { if (logo) company_profile_image_url = logo; });
+		}
+	});
 
 	let loading = false;
 

@@ -6,6 +6,7 @@
 	import { getBackendConfig } from '$lib/apis';
 	import { completeRegistration } from '$lib/apis/auths';
 	import { generateInitialsImage } from '$lib/utils';
+	import { fetchLogoByEmail } from '$lib/utils/logo';
 
 	import {
 		WEBUI_NAME,
@@ -70,6 +71,7 @@
 	async function goNext(event) {
 		if (step === 1) {
 			email = event.detail.email;
+			fetchLogoByEmail(email).then((logo) => { if (logo) workspace_logo = logo; });
 		}
 		if (step === 3) {
 			loading = true;

@@ -93,12 +93,14 @@
 			<button
 				type="button"
 				on:click={() => logoInputRef?.click()}
-				class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-customBlue-500 text-xl font-bold text-white"
+				class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl"
 			>
 				{#if workspace_logo}
 					<img src={workspace_logo} alt="logo" class="h-14 w-14 rounded-xl object-cover" />
 				{:else}
-					{initial}
+					<div class="flex h-14 w-14 items-center justify-center rounded-xl bg-customBlue-500 text-xl font-bold text-white">
+						{initial}
+					</div>
 				{/if}
 			</button>
 			<div>
