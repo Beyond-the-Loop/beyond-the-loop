@@ -973,7 +973,8 @@
 			selected_model_id,
 			model: updatedModel,
 			error,
-			usage
+			usage,
+			files
 		} = data;
 
 		if (error) {
@@ -1100,6 +1101,10 @@
 
 			message.done = true;
 			message.content = content;
+
+			if (files && files.length > 0) {
+				message.files = [...(message.files ?? []), ...files];
+			}
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
@@ -1421,6 +1426,15 @@
 			params?.stream_response ??
 			true;
 
+		const historyMessages = createMessagesList(_history, responseMessageId).map((message) => ({
+			...message,
+			content: removeDetails(message.content, ['reasoning', 'code_interpreter'])
+		}));
+
+		const lastAssistantWithImages = [...historyMessages]
+			.reverse()
+			.find((m) => m.role === 'assistant' && m.files?.some((f) => f.type === 'image'));
+
 		const messages = [
 			!model.base_model_id && (params?.system || $settings.system || (responseMessage?.userContext ?? null))
 				? {
@@ -1438,36 +1452,46 @@
 					}`
 				}
 				: undefined,
-			...createMessagesList(_history, responseMessageId).map((message) => ({
-				...message,
-				content: removeDetails(message.content, ['reasoning', 'code_interpreter'])
-			}))
+			...historyMessages
 		]
 			.filter((message) => message?.content?.trim())
-			.map((message, idx, arr) => ({
-				role: message.role,
-				...((message.files?.filter((file) => file.type === 'image').length > 0 ?? false) &&
-				message.role === 'user'
-					? {
-						content: [
-							{
-								type: 'text',
-								text: message?.merged?.content ?? message.content
-							},
-							...message.files
-								.filter((file) => file.type === 'image')
-								.map((file) => ({
+			.map((message, idx, arr) => {
+				const ownImages =
+					(message.role === 'user' || message === lastAssistantWithImages)
+						? (message.files?.filter((f) => f.type === 'image') ?? [])
+						: [];
+
+				// For user messages: also include generated images from the immediately preceding assistant turn
+				const prevMsg = arr[idx - 1];
+				const precedingGeneratedImages =
+					message.role === 'user' && prevMsg?.role === 'assistant' && prevMsg?.files?.some((f) => f.type === 'image')
+						? prevMsg.files.filter((f) => f.type === 'image')
+						: [];
+
+				const imageFiles = [...ownImages, ...precedingGeneratedImages];
+
+				return {
+					role: message.role,
+					...(imageFiles.length > 0
+						? {
+							content: [
+								{
+									type: 'text',
+									text: message?.merged?.content ?? message.content
+								},
+								...imageFiles.map((file) => ({
 									type: 'image_url',
 									image_url: {
 										url: file.url
 									}
 								}))
-						]
-					}
-					: {
-						content: message?.merged?.content ?? message.content
-					})
-			}));
+							]
+						}
+						: {
+							content: message?.merged?.content ?? message.content
+						})
+				};
+			});
 
 		currentRequestController = new AbortController();
 

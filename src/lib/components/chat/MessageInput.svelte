@@ -283,11 +283,11 @@
 				}
 				let reader = new FileReader();
 				reader.onload = async (event) => {
-					let imageUrl = event.target.result;
-
 					const maxWidth = 1568;
 					const maxHeight = 1568;
-					imageUrl = await compressImage(imageUrl, maxWidth, maxHeight);
+					console.log(event.target?.result);
+					let imageUrl = await compressImage(event.target?.result, maxWidth, maxHeight);
+					console.log("IMAGEEEEEE URL", imageUrl);
 
 					files = [
 						...files,

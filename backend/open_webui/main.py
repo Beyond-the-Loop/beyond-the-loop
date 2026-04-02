@@ -147,7 +147,6 @@ from open_webui.env import (
 )
 from open_webui.internal.db import Session
 from open_webui.routers import (
-    images,
     tasks,
     channels,
     memories,
@@ -484,7 +483,6 @@ app.mount("/ws", socket_app)
 app.include_router(litellm.router, prefix="/openai", tags=["openai"])
 
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
-app.include_router(images.router, prefix="/api/v1/images", tags=["images"])
 app.include_router(audio.router, prefix="/api/v1/audio", tags=["audio"])
 app.include_router(retrieval.router, prefix="/api/v1/retrieval", tags=["retrieval"])
 

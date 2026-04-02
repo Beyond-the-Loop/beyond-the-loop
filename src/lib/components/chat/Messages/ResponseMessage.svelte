@@ -544,18 +544,6 @@
 			</Name>
 
 			<div>
-				{#if message?.files && message.files?.filter((f) => f.type === 'image').length > 0}
-					<div class="my-2.5 w-full flex overflow-x-auto gap-2 flex-wrap">
-						{#each message.files as file}
-							<div>
-								{#if file.type === 'image'}
-									<Image src={file.url} alt={message.content} />
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-
 				<div
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
@@ -776,6 +764,18 @@
 							</div>
 						{/if}
 					</div>
+
+					{#if message?.files && message.files?.filter((f) => f.type === 'image').length > 0}
+						<div class="my-2.5 w-full flex overflow-x-auto gap-2 flex-wrap">
+							{#each message.files as file}
+								<div>
+									{#if file.type === 'image'}
+										<Image src={file.url} alt={message.content} />
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
 				{#if !edit}

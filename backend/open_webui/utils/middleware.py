@@ -4,9 +4,12 @@ import sys
 import os
 import re
 import asyncio
+import io
 import random
 import json
 import html
+import base64
+import uuid
 import ast
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import Request
@@ -727,26 +730,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     return form_data, metadata, events, model
 
 
-def _content_parts_to_markdown(parts: list) -> str:
-    """Convert a multimodal content array to a markdown string.
-    Handles text parts and image_url parts (e.g. from Gemini/GPT-4o image generation).
-    Raw base64 strings are wrapped in a data URI automatically."""
-    result = []
-    for part in parts:
-        print("das ist der part typ", part.get("type"))
-        if part.get("type") == "text":
-            text = part.get("text", "").strip()
-            if text:
-                result.append(text)
-        elif part.get("type") == "image_url":
-            url = part.get("image_url", {}).get("url", "")
-            print("EY WAS GEHT URL")
-            if url:
-                print("EY WAS GEHT URL2")
-                result.append(f"![generated image]({url})")
-    return "\n\n".join(result)
-
-
 async def process_chat_response(
         request, response, form_data, user, events, metadata, tasks, model
 ):
@@ -820,9 +803,6 @@ async def process_chat_response(
 
             if response.get("choices", [])[0].get("message", {}).get("content"):
                 content = response["choices"][0]["message"]["content"]
-                if isinstance(content, list):
-                    content = _content_parts_to_markdown(content)
-                    response["choices"][0]["message"]["content"] = content
 
                 if content:
 
@@ -1145,6 +1125,7 @@ async def process_chat_response(
                     "content": content,
                 }
             ]
+            response_images = []
 
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
@@ -1188,6 +1169,7 @@ async def process_chat_response(
                 async def stream_body_handler(response):
                     nonlocal content
                     nonlocal content_blocks
+                    nonlocal response_images
 
                     response_tool_calls = []
 
@@ -1267,6 +1249,15 @@ async def process_chat_response(
                                     continue
 
                                 delta = choices[0].get("delta", {})
+
+                                delta_images = delta.get("images", None)
+
+                                if delta_images:
+                                    for delta_image in delta_images:
+                                        image_base64 = delta_image['image_url']["url"]
+
+                                        response_images.append({"type": "image", "url": image_base64})
+
                                 delta_tool_calls = delta.get("tool_calls", None)
 
                                 if delta_tool_calls:
@@ -1349,6 +1340,7 @@ async def process_chat_response(
                                                 seen_urls.add(url)
                                                 if sources is None:
                                                     sources = []
+
                                                 sources.append({
                                                     "source": {"name": title},
                                                     "document": [url],
@@ -1383,8 +1375,6 @@ async def process_chat_response(
                                                         })
 
                                 value = delta.get("content")
-                                if isinstance(value, list):
-                                    value = _content_parts_to_markdown(value)
 
                                 if value:
                                     content = f"{content}{value}"
@@ -1638,6 +1628,9 @@ async def process_chat_response(
                     "title": title,
                 }
 
+                if response_images:
+                    data["files"] = response_images
+
                 if not ENABLE_REALTIME_CHAT_SAVE:
                     # Save message in the database
                     message = {
@@ -1652,6 +1645,9 @@ async def process_chat_response(
                                 "sources": sources,
                             },
                         })
+
+                    if response_images:
+                        message["files"] = response_images
 
                     Chats.upsert_message_to_chat_by_id_and_message_id(
                         metadata["chat_id"],

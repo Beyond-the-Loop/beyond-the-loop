@@ -816,6 +816,7 @@ model_list:
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
     model_info:
+      intelligence_score: 1
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       supports_image_generation: true
