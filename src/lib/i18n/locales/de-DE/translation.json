@@ -1023,6 +1023,7 @@
 	"Searched \"{{count}}\" sites": "Inhalte von {{count}} Web-Quellen analysiert",
 	"Searching \"{{searchQuery}}\"": "Durchsucht das Web nach \"{{searchQuery}}\"",
 	"Searching Knowledge for \"{{searchQuery}}\"": "Suche im Wissen nach \"{{searchQuery}}\"",
+	"Searching memories...": "Durchsuche Erinnerungen...",
 	"Searxng Query URL": "Searxng-Abfrage-URL",
 	"Seats": "Plätze",
 	"See readme.md for instructions": "Anleitung in readme.md anzeigen",

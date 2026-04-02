@@ -618,6 +618,16 @@
 												{$i18n.t("Analyzing results")}
 											</div>
 										</div>
+									{:else if status?.action === 'querying_memory'}
+										<div class="flex flex-col justify-center -space-y-0.5">
+											<div
+												class="{status?.done === false
+													? 'shimmer'
+													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+											>
+												{$i18n.t('Searching memories...')}
+											</div>
+										</div>
 									{:else if status?.action === 'generating_response'}
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div
