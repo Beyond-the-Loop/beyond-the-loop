@@ -44,7 +44,8 @@
       "Bash(git checkout:*)",
       "Bash(sed -i '' '106s/codeInterpreterEnabled = false/codeInterpreterEnabled = true/' \"/Users/philszalay/Documents/code/beyond-the-loop/src/lib/components/chat/Chat.svelte\")",
       "Bash(sed -i '' '632s/codeInterpreterEnabled = false/codeInterpreterEnabled = true/' \"/Users/philszalay/Documents/code/beyond-the-loop/src/lib/components/chat/Chat.svelte\")",
-      "Bash(grep -n \"smart\\\\|Smart\\\\|route\\\\|Route\\\\|image_gen\\\\|image gen\" /Users/philszalay/Documents/code/beyond-the-loop/backend/beyond_the_loop/routers/*.py)"
+      "Bash(grep -n \"smart\\\\|Smart\\\\|route\\\\|Route\\\\|image_gen\\\\|image gen\" /Users/philszalay/Documents/code/beyond-the-loop/backend/beyond_the_loop/routers/*.py)",
+      "WebFetch(domain:hackmd.io)"
     ]
   }
 }

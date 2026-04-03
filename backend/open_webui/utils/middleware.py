@@ -613,27 +613,34 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if model_files:
                 files.extend(model_files)
 
-    # First, decide if this is a RAG task or content extraction task
-    try:
-        has_user_collections = any(f.get("type") == "collection" for f in files)
+    # For code interpreter: skip RAG and text extraction entirely.
+    # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
+    code_interpreter_enabled = form_data.get("metadata", {}).get("code_interpreter_enabled", False)
 
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data,
-                                                                         user) if not model_knowledge and not has_user_collections else (
-            form_data, True)
-    except Exception as e:
-        log.exception(f"Error in file intent decision: {e}")
-        is_rag_task = True  # Fallback to RAG
+    # First, decide if this is a RAG task or content extraction task
+    if not code_interpreter_enabled:
+        try:
+            has_user_collections = any(f.get("type") == "collection" for f in files)
+
+            form_data, is_rag_task = await chat_file_intent_decision_handler(form_data,
+                                                                             user) if not model_knowledge and not has_user_collections else (
+                form_data, True)
+        except Exception as e:
+            log.exception(f"Error in file intent decision: {e}")
+            is_rag_task = True  # Fallback to RAG
+    else:
+        is_rag_task = False  # Will be skipped below since code_interpreter_enabled
 
     await check_disconnect(request)
 
-    if is_rag_task:
+    if not code_interpreter_enabled and is_rag_task:
         # Proceed with normal RAG processing
         try:
             form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params)
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
-    else:
+    elif not code_interpreter_enabled:
         # Handle non-RAG task: extract file content and append to user prompt
         try:
             file_contents = []

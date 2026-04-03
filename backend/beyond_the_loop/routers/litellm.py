@@ -92,6 +92,50 @@ async def cleanup_response(
         response.close()
 
 
+def _build_file_content_blocks(files: list) -> list:
+    """Read files from local storage and return inline base64 content blocks
+    for use with the OpenAI Responses API. Files are automatically made available
+    to the code interpreter container without a pre-upload step."""
+    import base64
+    from beyond_the_loop.models.files import Files
+    from beyond_the_loop.storage.provider import Storage
+
+    blocks = []
+    for file_item in files:
+        if not isinstance(file_item, dict):
+            continue
+        # File objects may be flat {"id": "..."} or nested {"type": "file", "file": {"id": "..."}}
+        nested = file_item.get("file")
+        file_id = file_item.get("id") or (nested.get("id") if isinstance(nested, dict) else None)
+        if not file_id:
+            continue
+        try:
+            file_record = Files.get_file_by_id(file_id)
+            if not file_record or not file_record.path:
+                continue
+
+            local_path = Storage.get_file(file_record.path)
+
+            with open(local_path, "rb") as f:
+                file_bytes = f.read()
+
+            content_type = (
+                file_record.meta.get("content_type", "application/octet-stream")
+                if file_record.meta
+                else "application/octet-stream"
+            )
+            b64 = base64.b64encode(file_bytes).decode("utf-8")
+            blocks.append({
+                "type": "input_file",
+                "filename": file_record.filename,
+                "file_data": f"data:{content_type};base64,{b64}",
+            })
+        except Exception as e:
+            log.warning(f"Failed to build file content block for file {file_id}: {e}")
+
+    return blocks
+
+
 ##########################################
 #
 # Model management functions
@@ -274,6 +318,27 @@ async def generate_chat_completion(
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
             tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
+            file_blocks = _build_file_content_blocks(metadata.get("files", []))
+            if file_blocks:
+                # Inject files into the last user message so OpenAI automatically
+                # makes them available in the code interpreter container
+                messages = payload.get("messages", [])
+                last_user_idx = next(
+                    (i for i in range(len(messages) - 1, -1, -1) if messages[i].get("role") == "user"),
+                    None,
+                )
+                if last_user_idx is not None:
+                    content = messages[last_user_idx]["content"]
+                    if isinstance(content, str):
+                        content = [{"type": "input_text", "text": content}]
+                    else:
+                        # Normalize any "text" types to "input_text" for Responses API
+                        content = [
+                            {**item, "type": "input_text"} if item.get("type") == "text" else item
+                            for item in content
+                        ]
+                    messages[last_user_idx]["content"] = file_blocks + content
+                    payload["messages"] = messages
         else:
             tools.append({"codeExecution": {}})
 
@@ -350,6 +415,8 @@ async def generate_chat_completion(
             if use_responses_api
             else f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions"
         )
+
+        print("das ist der payload", payload)
 
         r = await s.request(
             method="POST",
