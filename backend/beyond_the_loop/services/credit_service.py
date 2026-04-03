@@ -205,8 +205,36 @@ class CreditService:
                     detail=f"Insufficient credits. No credits left.",
                 )
 
+    async def record_completion(
+        self,
+        user: UserModel,
+        response,
+        model_name: str,
+        assistant: str | None = None,
+        agent_or_task_prompt: bool = False,
+        subscription: dict | None = None,
+        should_subtract_credits: bool = True,
+    ) -> float:
+        """Subtract credits (if applicable) and insert a Completions record.
+
+        Args:
+            subscription: Pass the subscription dict to apply free/premium plan check.
+                          Pass None to always subtract (e.g. API key usage).
+            should_subtract_credits: Set to False to skip credit subtraction but still record the completion.
+        """
+        from beyond_the_loop.models.completions import Completions
+
+        credit_cost = 0.0
+
+        if should_subtract_credits and (subscription is None or subscription.get("plan") not in ("free", "premium")):
+            credit_cost = await self.subtract_credit_cost_by_user_and_response(user, response)
+
+        Completions.insert_new_completion(user.id, model_name, credit_cost, assistant, agent_or_task_prompt)
+        return credit_cost
+
     @staticmethod
     async def subtract_credit_cost_by_user_and_response(user: UserModel, response):
+        print("DAS SIND DIE KOSTEN", response.get('usage', {}))
         model_name = response.get("model")
 
         litellm_model = LITELLM_MODEL_MAP.get(model_name, "")
@@ -235,16 +263,13 @@ class CreditService:
 
         # input_cost_per_query is a custom field not in LiteLLM's pricing table
         search_query_cost = 0
+
         if "Perplexity" in model_name:
             pricing = litellm.model_cost.get(litellm_model) or LITELLM_MODEL_CONFIG.get(model_name, {})
             search_query_cost = pricing.get("input_cost_per_query", 0)
 
         total_costs = (token_cost_usd + search_query_cost) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
 
-        input_tokens = response.get('usage', {}).get('prompt_tokens', 0)
-        output_tokens = response.get('usage', {}).get('completion_tokens', 0)
-        completion_tokens_details = response.get('usage', {}).get('completion_tokens_details') or {}
-        reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
 
         return await credit_service._subtract_credits_by_user_and_credits(user, total_costs)
 

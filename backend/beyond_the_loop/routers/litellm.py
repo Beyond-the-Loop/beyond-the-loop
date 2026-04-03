@@ -15,7 +15,6 @@ from fastapi.responses import FileResponse, StreamingResponse, Response
 from starlette.background import BackgroundTask
 from openai import OpenAI
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.models.completions import Completions
 
 
 from beyond_the_loop.config import (
@@ -416,8 +415,6 @@ async def generate_chat_completion(
             else f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions"
         )
 
-        print("das ist der payload", payload)
-
         r = await s.request(
             method="POST",
             url=api_url,
@@ -490,7 +487,6 @@ async def generate_chat_completion(
                                     elif event == "response.completed":
                                         resp = data.get("response", {})
                                         usage = resp.get("usage", {})
-                                        credit_cost_streaming = 0
                                         usage_openai_format = {
                                             "model": model_name,
                                             "usage": {
@@ -499,9 +495,13 @@ async def generate_chat_completion(
                                                 "total_tokens": usage.get("total_tokens", usage.get("input_tokens", 0) + usage.get("output_tokens", 0)),
                                             }
                                         }
-                                        if has_chat_id and subscription.get("plan") not in ("free", "premium"):
-                                            credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response(user, usage_openai_format)
-                                        Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
+                                        await credit_service.record_completion(
+                                            user, usage_openai_format, model_name,
+                                            assistant=model.name if model.base_model_id else None,
+                                            agent_or_task_prompt=agent_or_task_prompt,
+                                            subscription=subscription,
+                                            should_subtract_credits=has_chat_id,
+                                        )
                                         if annotations:
                                             file_refs = [
                                                 {
@@ -546,25 +546,21 @@ async def generate_chat_completion(
                 ), model
 
             async def insert_completion_if_streaming_is_done():
-                full_response = ""
-
                 async for chunk in r.content:
                     chunk_str = chunk.decode()
                     if chunk_str.startswith('data: '):
                         try:
                             data = json.loads(chunk_str[6:])
-                            delta = data.get('choices', [{}])[0].get('delta', {}).get('content', '')
-                            if delta:  # Only use it if there's actual content
-                                full_response += delta
-                            elif data.get('usage'):
+                            if data.get('usage'):
                                 # End of stream
                                 # Add completion to completion table if it's a chat message from the user
-                                credit_cost_streaming = 0
-
-                                if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response(user, data)
-
-                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
+                                await credit_service.record_completion(
+                                    user, data, model_name,
+                                    assistant=model.name if model.base_model_id else None,
+                                    agent_or_task_prompt=agent_or_task_prompt,
+                                    subscription=subscription,
+                                    should_subtract_credits=has_chat_id,
+                                )
                         except json.JSONDecodeError:
                             log.debug(f"JSON decode error for chunk: {chunk_str}")
 
@@ -574,9 +570,7 @@ async def generate_chat_completion(
                 insert_completion_if_streaming_is_done(),
                 status_code=r.status,
                 headers=dict(r.headers),
-                background=BackgroundTask(
-                    cleanup_response, response=r
-                ),
+                background=BackgroundTask(cleanup_response, response=r),
             ), model
         else:
             try:
@@ -614,12 +608,13 @@ async def generate_chat_completion(
 
                 return await generate_chat_completion(form_data, user, model)
 
-            credit_cost = 0
-
-            if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(user, response)
-
-            Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
+            await credit_service.record_completion(
+                user, response, model_name,
+                assistant=model.name if model.base_model_id else None,
+                agent_or_task_prompt=agent_or_task_prompt,
+                subscription=subscription,
+                should_subtract_credits=has_chat_id,
+            )
 
             return response, model
     except Exception as e:

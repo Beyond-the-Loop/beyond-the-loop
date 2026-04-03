@@ -13,7 +13,6 @@ import instructor
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
@@ -129,12 +128,11 @@ async def structured_completion(
     if user is not None:
         try:
             subscription = payments_service.get_subscription(user.company_id)
-            credit_cost = 0.0
-            if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(
-                    user, completion.model_dump()
-                )
-            Completions.insert_new_completion(user.id, model.name, credit_cost, None, True)
+            await credit_service.record_completion(
+                user, completion.model_dump(), model.name,
+                agent_or_task_prompt=True,
+                subscription=subscription,
+            )
         except Exception:
             log.warning("Failed to track credits for structured completion", exc_info=True)
 
