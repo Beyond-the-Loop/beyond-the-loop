@@ -20,7 +20,7 @@
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
 	import HidePassIcon from '$lib/components/icons/HidePassIcon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
-	import SignupTestimonials from '$lib/components/signup/shared/SignupTestimonials.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 	import { theme, systemTheme } from '$lib/stores';
 
 	const i18n = getContext('i18n');
@@ -345,6 +345,6 @@
 	</div>
 
 	<div class="hidden lg:block lg:w-1/2">
-		<SignupTestimonials />
+		<SignupBanner />
 	</div>
 </div>

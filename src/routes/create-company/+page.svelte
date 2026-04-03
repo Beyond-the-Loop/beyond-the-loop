@@ -2,7 +2,7 @@
 	import { getContext, onMount } from 'svelte';
 	import WorkspaceStep from '$lib/components/signup/WorkspaceStep.svelte';
 	import InviteStep from '$lib/components/signup/InviteStep.svelte';
-	import SignupTestimonials from '$lib/components/signup/shared/SignupTestimonials.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 	import { createCompany } from '$lib/apis/auths';
 	import {
 		WEBUI_NAME,
@@ -105,6 +105,6 @@
 	</div>
 
 	<div class="hidden lg:block lg:w-1/2">
-		<SignupTestimonials />
+		<SignupBanner />
 	</div>
 </div>

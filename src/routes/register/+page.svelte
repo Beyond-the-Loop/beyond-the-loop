@@ -10,7 +10,7 @@
 
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
-	import SignupTestimonials from '$lib/components/signup/shared/SignupTestimonials.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 	import { generateInitialsImage } from '$lib/utils';
 
 	const i18n = getContext('i18n');
@@ -356,6 +356,6 @@
 	</div>
 
 	<div class="hidden lg:block lg:w-1/2">
-		<SignupTestimonials />
+		<SignupBanner />
 	</div>
 </div>

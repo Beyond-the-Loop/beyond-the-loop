@@ -25,7 +25,7 @@
 	import PersonalStep from '$lib/components/signup/PersonalStep.svelte';
 	import WorkspaceStep from '$lib/components/signup/WorkspaceStep.svelte';
 	import InviteStep from '$lib/components/signup/InviteStep.svelte';
-	import SignupTestimonials from '$lib/components/signup/shared/SignupTestimonials.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 
 	let step = 1;
 
@@ -162,6 +162,6 @@
 
 	<!-- Right: Testimonials (hidden on mobile) -->
 	<div class="hidden lg:block lg:w-1/2">
-		<SignupTestimonials />
+		<SignupBanner />
 	</div>
 </div>

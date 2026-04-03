@@ -429,17 +429,14 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
         raise HTTPException(404, detail=ERROR_MESSAGES.LINK_EXPIRED)
 
     try:
-        password = form_data.password
-        if password:
-            if not validate_password(password):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Password must be 8+ characters, with a number, capital letter, and symbol."
-                )
-        else:
-            password = generate_secure_password()
+        # Validate the password
+        if not validate_password(form_data.password):
+            raise HTTPException(
+                status_code=400,
+                detail="Password must be 8+ characters, with a number, capital letter, and symbol."
+            )
 
-        hashed_password = get_password_hash(password)
+        hashed_password = get_password_hash(form_data.password)
 
         user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url, position=form_data.position, phone=form_data.phone)
 

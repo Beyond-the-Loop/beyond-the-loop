@@ -101,11 +101,11 @@ class ResetPasswordForm(BaseModel):
 class SignupForm(BaseModel):
     first_name: str
     last_name: str
-    password: Optional[str] = None
+    password: str
     signup_token: str
-    profile_image_url: Optional[str] = "/user.png"
+    profile_image_url: str
     is_invited: bool = False
-    position: Optional[str] = None
+    position: str
     phone: Optional[str] = None
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None

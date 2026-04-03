@@ -97,22 +97,22 @@ export const SUPPORTED_FILE_EXTENSIONS = [
 export const PASTED_TEXT_CHARACTER_LIMIT = 1000;
 
 export const POSITION_OPTIONS = [
-	'Gründer / Geschäftsführer',
-	'Leiter IT / CTO',
-	'Leiter Produktion / Betrieb',
-	'Leiter Vertrieb / Sales',
-	'Leiter Marketing / Kommunikation',
-	'Prozessoptimierung / Qualitätsmanagement',
-	'IT-Administrator / Systemadministrator',
-	'Projektmanager',
+	'Founder / CEO',
+	'Head of IT / CTO',
+	'Head of Production / Operations',
+	'Head of Sales',
+	'Head of Marketing / Communications',
+	'Process Optimization / Quality Management',
+	'IT Administrator / System Administrator',
+	'Project Manager',
 	'Business Developer',
-	'Fachbereichsleiter',
+	'Department Head',
 	'Business Analyst',
-	'Kaufmännischer Leiter / CFO',
-	'Personalleiter / HR',
-	'Technischer Sachbearbeiter',
-	'Consultant / Berater',
-	'Sonstige'
+	'CFO / Finance Director',
+	'Head of HR',
+	'Technical Specialist',
+	'Consultant / Advisor',
+	'Other'
 ] as const;
 
 export const BILLING_COUNTRY_OPTIONS = [
