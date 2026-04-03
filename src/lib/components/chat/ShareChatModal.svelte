@@ -13,17 +13,21 @@
 
 	let chat = null;
 	let shareUrl = null;
+	let shareWithBtl = false;
 	const i18n = getContext('i18n');
 
 	const shareLocalChat = async () => {
-		const _chat = chat;
-
-		const sharedChat = await shareChatById(localStorage.token, chatId);
+		const sharedChat = await shareChatById(localStorage.token, chatId, shareWithBtl);
 		shareUrl = `${window.location.origin}/s/${sharedChat.id}`;
-		console.log(shareUrl);
 		chat = await getChatById(localStorage.token, chatId);
 
 		return shareUrl;
+	};
+
+	const updateBtlVisibility = async () => {
+		if (!chat?.share_id) return;
+		await shareChatById(localStorage.token, chatId, shareWithBtl);
+		chat = await getChatById(localStorage.token, chatId);
 	};
 
 	const shareChat = async () => {
@@ -71,9 +75,11 @@
 				const _chat = await getChatById(localStorage.token, chatId);
 				if (isDifferentChat(_chat)) {
 					chat = _chat;
+					shareWithBtl = _chat?.meta?.btl_visible ?? false;
 				}
 			} else {
 				chat = null;
+				shareWithBtl = false;
 				console.log(chat);
 			}
 		})();
@@ -130,6 +136,18 @@
 						)}
 					{/if}
 				</div>
+
+				{#if $config?.btl_sharing_enabled}
+					<label class="flex items-center gap-2 mt-3 cursor-pointer select-none text-sm dark:text-gray-300">
+						<input
+							type="checkbox"
+							bind:checked={shareWithBtl}
+							on:change={updateBtlVisibility}
+							class="w-4 h-4 rounded accent-blue-500"
+						/>
+						{$i18n.t('Also visible to Beyond the Loop')}
+					</label>
+				{/if}
 
 				<div class="flex justify-end">
 					<div class="flex flex-col items-end space-x-1 mt-3">
