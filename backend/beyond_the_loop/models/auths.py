@@ -103,8 +103,10 @@ class SignupForm(BaseModel):
     last_name: str
     password: str
     signup_token: str
-    profile_image_url: Optional[str] = "/user.png"
+    profile_image_url: str
     is_invited: bool = False
+    position: str
+    phone: Optional[str] = None
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
     utm_campaign: Optional[str] = None

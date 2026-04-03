@@ -243,7 +243,56 @@ def validate_email_format(email: str) -> bool:
     if email.endswith("@localhost"):
         return True
 
-    return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
+    if not re.match(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$", email):
+        return False
+
+    domain = email.split("@")[-1]
+    try:
+        import dns.exception
+        import dns.resolver
+    except Exception as exc:
+        log.warning(f"Email DNS validation unavailable for domain '{domain}': {exc}")
+        return False
+
+    resolver = dns.resolver.Resolver()
+
+    # Prefer MX as primary deliverability signal.
+    try:
+        mx_records = resolver.resolve(domain, "MX")
+        if len(mx_records) > 0:
+            return True
+    except dns.resolver.NoAnswer:
+        pass
+    except (
+        dns.resolver.NXDOMAIN,
+        dns.resolver.NoNameservers,
+        dns.exception.Timeout,
+    ):
+        return False
+    except Exception as exc:
+        log.warning(f"Email MX lookup failed for domain '{domain}': {exc}")
+        return False
+
+    # RFC-compatible fallback: domains without MX can still receive mail via A/AAAA.
+    for record_type in ("A", "AAAA"):
+        try:
+            records = resolver.resolve(domain, record_type)
+            if len(records) > 0:
+                return True
+        except (
+            dns.resolver.NoAnswer,
+            dns.resolver.NXDOMAIN,
+            dns.resolver.NoNameservers,
+            dns.exception.Timeout,
+        ):
+            continue
+        except Exception as exc:
+            log.warning(
+                f"Email {record_type} lookup failed for domain '{domain}': {exc}"
+            )
+            return False
+
+    return False
 
 
 BLOCKED_EMAIL_DOMAINS = {
