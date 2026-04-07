@@ -2,7 +2,7 @@
 	import { getContext, onMount } from 'svelte';
 	import { onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import { updateUserRole, getUsers, deleteUserById } from '$lib/apis/users';
+	import { updateUserRole, getUsers } from '$lib/apis/users';
 	import { mobile } from '$lib/stores';
 	import Pagination from '$lib/components/common/Pagination.svelte';
 	import { WEBUI_BASE_URL } from '$lib/constants';
@@ -14,7 +14,7 @@
 	import GroupSelect from './GroupSelect.svelte';
 	import { getGroups } from '$lib/apis/groups';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
+	import DeleteUserModal from '$lib/components/common/DeleteUserModal.svelte';
 	import { user as currentUser } from '$lib/stores';
 
 	const i18n = getContext('i18n');
@@ -152,35 +152,23 @@
 	let showDeleteConfirm = false;
 	let userToDelete = null;
 
-	const deleteHandler = async (id) => {
-		const res = await deleteUserById(localStorage.token, id).catch((error) => {
-			toast.error(`${error}`);
-			return null;
-		});
-
-		if (res) {
-			toast.success($i18n.t('User deleted successfully'));
-			getUsersHandler();
-			getSubscription();
-		}
+	const deleteHandler = () => {
+		toast.success($i18n.t('User deleted successfully'));
+		getUsersHandler();
+		getSubscription();
+		userToDelete = null;
 	};
 </script>
 
-<DeleteConfirmDialog
+<DeleteUserModal
 	bind:show={showDeleteConfirm}
-	title={`${$i18n.t('Delete user')}?`}
-	on:confirm={() => {
-		deleteHandler(userToDelete?.id);
-		userToDelete = null;
-	}}
+	userId={userToDelete?.id ?? ''}
+	userName={[userToDelete?.first_name, userToDelete?.last_name].filter(Boolean).join(' ') || userToDelete?.email}
+	on:confirm={deleteHandler}
 	on:cancel={() => {
 		userToDelete = null;
 	}}
->
-	<div class=" text-sm text-gray-500 flex-1 line-clamp-3">
-		{$i18n.t('This will delete')} <span class="  font-semibold">{userToDelete?.email}</span>.
-	</div>
-</DeleteConfirmDialog>
+/>
 
 <div class="pb-6 min-h-[32rem]">
 	<div

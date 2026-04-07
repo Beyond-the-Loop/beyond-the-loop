@@ -18,10 +18,10 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 class File(Base):
     __tablename__ = "file"
     id = Column(String, primary_key=True)
-    user_id = Column(String)
+    user_id = Column(String, nullable=False)
     hash = Column(Text, nullable=True)
 
-    filename = Column(Text)
+    filename = Column(Text, nullable=False)
     path = Column(Text, nullable=True)
 
     data = Column(JSON, nullable=True)
@@ -29,8 +29,8 @@ class File(Base):
 
     access_control = Column(JSON, nullable=True)
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class FileModel(BaseModel):

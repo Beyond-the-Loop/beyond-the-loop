@@ -28,9 +28,9 @@ class Knowledge(Base):
     __tablename__ = "knowledge"
 
     id = Column(Text, unique=True, primary_key=True)
-    user_id = Column(Text)
+    user_id = Column(Text, nullable=False)
 
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     description = Column(Text)
 
     data = Column(JSON, nullable=True)
@@ -55,8 +55,8 @@ class Knowledge(Base):
     #      }
     #   }
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class KnowledgeModel(BaseModel):
@@ -223,6 +223,30 @@ class KnowledgeTable:
                 db.commit()
                 return True
         except Exception:
+            return False
+
+
+    def get_knowledge_owned_by_user(self, user_id: str, company_id: str) -> list[KnowledgeModel]:
+        with get_db() as db:
+            rows = db.query(Knowledge).filter(
+                Knowledge.user_id == user_id,
+                Knowledge.company_id == company_id,
+            ).all()
+            return [KnowledgeModel.model_validate(r) for r in rows]
+
+    def transfer_knowledge_to_user(self, knowledge_ids: list[str], new_user_id: str, company_id: str) -> bool:
+        if not knowledge_ids:
+            return True
+        try:
+            with get_db() as db:
+                db.query(Knowledge).filter(
+                    Knowledge.id.in_(knowledge_ids),
+                    Knowledge.company_id == company_id,
+                ).update({"user_id": new_user_id}, synchronize_session=False)
+                db.commit()
+            return True
+        except Exception as e:
+            log.error(f"Error transferring knowledge to user {new_user_id}: {e}")
             return False
 
 

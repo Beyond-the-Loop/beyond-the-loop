@@ -18,18 +18,18 @@ class Channel(Base):
     __tablename__ = "channel"
 
     id = Column(Text, primary_key=True)
-    user_id = Column(Text)
+    user_id = Column(Text, nullable=False)
     type = Column(Text, nullable=True)
 
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
 
     data = Column(JSON, nullable=True)
     meta = Column(JSON, nullable=True)
     access_control = Column(JSON, nullable=True)
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class ChannelModel(BaseModel):

@@ -23,15 +23,15 @@ class User(Base):
     __tablename__ = "user"
 
     id = Column(String, primary_key=True)
-    first_name = Column(String)
-    last_name = Column(String)
-    email = Column(String)
-    role = Column(String)
-    profile_image_url = Column(Text)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    profile_image_url = Column(Text, nullable=False)
 
-    last_active_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
-    created_at = Column(BigInteger)
+    last_active_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
 
     api_key = Column(String, nullable=True, unique=True)
     settings = Column(JSONField, nullable=True)
@@ -417,18 +417,12 @@ class UsersTable:
         try:
             # Remove User from Groups
             Groups.remove_user_from_all_groups(id)
-
-            # Delete User Chats
-            result = Chats.delete_chats_by_user_id(id)
-            if result:
-                with get_db() as db:
+            with get_db() as db:
                     # Delete User
                     db.query(User).filter_by(id=id).delete()
                     db.commit()
 
-                return True
-            else:
-                return False
+            return True
         except Exception:
             return False
 
