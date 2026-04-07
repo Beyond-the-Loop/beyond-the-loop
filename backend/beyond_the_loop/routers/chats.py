@@ -46,24 +46,6 @@ async def get_session_user_chat_list(
         return Chats.get_chat_title_id_list_by_user_id(user.id)
 
 
-############################
-# DeleteAllChats
-############################
-
-
-@router.delete("/", response_model=bool)
-async def delete_all_user_chats(request: Request, user=Depends(get_verified_user)):
-
-    if user.role == "user" and not has_permission(
-        user.id, "chat.delete"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
-
-    result = Chats.delete_chats_by_user_id(user.id)
-    return result
-
 
 ############################
 # CreateNewChat

@@ -15,8 +15,8 @@
 	import CameraIcon from '$lib/components/icons/CameraIcon.svelte';
 	import DeleteIcon from '$lib/components/icons/DeleteIcon.svelte';
 	import { updateUserPassword } from '$lib/apis/auths';
-	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import DOMPurify from 'dompurify';
+	import DeleteUserModal from '$lib/components/common/DeleteUserModal.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -122,10 +122,10 @@
 		}
 	};
 
-	const deleteUserHandler = async () => {
-		const userId = $user.id;
-		await deleteUserProfile(localStorage.token, userId);
-	}
+	const deleteUserHandler = () => {
+		toast.success($i18n.t('Account deleted successfully'));
+		window.location.href = '/';
+	};
 
 	onMount(async () => {
 		firstName = $user?.first_name ? $user?.first_name : '';
@@ -142,20 +142,12 @@
 </script>
 
 <!-- space-y-3 overflow-y-scroll max-h-[28rem] lg:max-h-full -->
-<DeleteConfirmDialog
+<DeleteUserModal
 	bind:show={showDeleteConfirm}
-	title={$i18n.t('Are you sure you want to delete account?')}
-	on:confirm={() => {
-		deleteUserHandler();
-	}}
-	confirmLabel={$i18n.t('Delete Account')}
-	>
-	<div class=" text-sm text-gray-700 dark:text-gray-300 flex-1 line-clamp-3">
-		{@html DOMPurify.sanitize(
-			$i18n.t('This action is permanent and cannot be undone. All your data will be lost.')
-		)}
-	</div>
-</DeleteConfirmDialog>
+	userId={$user?.id ?? ''}
+	userName={[$user?.first_name, $user?.last_name].filter(Boolean).join(' ') || $user?.email}
+	on:confirm={deleteUserHandler}
+/>
 <div class="flex flex-col justify-between text-sm pt-5">
 	<div class=" ">
 		<input
@@ -607,11 +599,18 @@
 		{/if} -->
 	</div>
 
-	<div class="flex justify-end pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
+	<div class="flex justify-between pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
 		<button
-			class=" text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg {loading
-				? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border border-lightGray-400 dark:border-customGray-700'
-				: 'bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border border-lightGray-400 dark:border-customGray-700'} flex justify-center items-center"
+			type="button"
+			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 hover:text-red-500 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 dark:hover:text-red-400 border dark:border-customGray-700 flex justify-center items-center"
+			on:click={() => {
+						showDeleteConfirm = true;
+					}}
+		>
+			{$i18n.t('Delete account')}
+		</button>
+		<button
+			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700 flex justify-center items-center"
 			type="submit"
 			disabled={loading}
 			on:click={async () => {

@@ -26,16 +26,16 @@ class Chat(Base):
     __tablename__ = "chat"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String)
-    title = Column(Text)
-    chat = Column(JSON)
+    user_id = Column(String, nullable=False)
+    title = Column(Text, nullable=False)
+    chat = Column(JSON, nullable=False)
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
     share_id = Column(Text, unique=True, nullable=True)
-    archived = Column(Boolean, default=False)
-    pinned = Column(Boolean, default=False, nullable=True)
+    archived = Column(Boolean, nullable=False, default=False)
+    pinned = Column(Boolean, nullable=False, default=False)
 
     meta = Column(JSON, server_default="{}")
     folder_id = Column(Text, nullable=True)
@@ -277,13 +277,13 @@ class ChatTable:
             chat = db.get(Chat, chat_id)
             # Check if the chat is already shared
             if chat.share_id:
-                return self.get_chat_by_id_and_user_id(chat.share_id, "shared")
+                return self.get_chat_by_id(chat.share_id)
             # Create a new chat with the same data, but with a new ID
             shared_meta = {"share_company_id": share_company_id} if share_company_id else {}
             shared_chat = ChatModel(
                 **{
                     "id": str(uuid.uuid4()),
-                    "user_id": f"shared-{chat_id}",
+                    "user_id": "system",
                     "title": chat.title,
                     "chat": chat.chat,
                     "created_at": chat.created_at,
@@ -312,7 +312,7 @@ class ChatTable:
             with get_db() as db:
                 chat = db.get(Chat, chat_id)
                 shared_chat = (
-                    db.query(Chat).filter_by(user_id=f"shared-{chat_id}").first()
+                    db.get(Chat, chat.share_id) if chat and chat.share_id else None
                 )
 
                 if shared_chat is None:
@@ -341,10 +341,11 @@ class ChatTable:
     def delete_shared_chat_by_chat_id(self, chat_id: str) -> bool:
         try:
             with get_db() as db:
-                db.query(Chat).filter_by(user_id=f"shared-{chat_id}").delete()
+                chat = db.get(Chat, chat_id)
+                if chat and chat.share_id:
+                    db.query(Chat).filter_by(id=chat.share_id).delete()
 
                 # Clear btl_visible from the original chat's meta
-                chat = db.get(Chat, chat_id)
                 if chat:
                     original_meta = dict(chat.meta or {})
                     original_meta.pop("btl_visible", None)
@@ -907,17 +908,6 @@ class ChatTable:
         except Exception:
             return False
 
-    def delete_chats_by_user_id(self, user_id: str) -> bool:
-        try:
-            with get_db() as db:
-                self.delete_shared_chats_by_user_id(user_id)
-
-                db.query(Chat).filter_by(user_id=user_id).delete()
-                db.commit()
-
-                return True
-        except Exception:
-            return False
 
     def delete_chats_by_user_id_and_folder_id(
         self, user_id: str, folder_id: str
@@ -925,19 +915,6 @@ class ChatTable:
         try:
             with get_db() as db:
                 db.query(Chat).filter_by(user_id=user_id, folder_id=folder_id).delete()
-                db.commit()
-
-                return True
-        except Exception:
-            return False
-
-    def delete_shared_chats_by_user_id(self, user_id: str) -> bool:
-        try:
-            with get_db() as db:
-                chats_by_user = db.query(Chat).filter_by(user_id=user_id).all()
-                shared_chat_ids = [f"shared-{chat.id}" for chat in chats_by_user]
-
-                db.query(Chat).filter(Chat.user_id.in_(shared_chat_ids)).delete()
                 db.commit()
 
                 return True
