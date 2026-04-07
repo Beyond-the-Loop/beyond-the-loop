@@ -625,7 +625,7 @@
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
-												{$i18n.t('Searching memories')}
+												{$i18n.t('Searching memories...')}
 											</div>
 										</div>
 									{:else if status?.action === 'generating_response'}
