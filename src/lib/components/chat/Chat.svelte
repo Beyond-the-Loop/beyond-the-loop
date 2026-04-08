@@ -209,16 +209,26 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
+
 		if (event.chat_id === $chatId) {
 			await tick();
 			let message = history.messages[event.message_id];
 
 			if (message) {
 				// Ignore all backend events for messages that are already done (e.g. stopped by user)
-				if (message.done) return;
-
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
+
+				if (type === 'chat:title') {
+					chatTitle.set(data);
+					currentChatPage.set(1);
+					tick();
+					await chats.set(await getChatList(localStorage.token, $currentChatPage));
+				} else if (type === 'chat:tags') {
+					chat = await getChatById(localStorage.token, $chatId);
+					allTags.set(await getAllTags(localStorage.token));
+				} 
+				if (message.done) return;
 
 				if (type === 'status') {
 					if (message?.statusHistory) {
@@ -254,13 +264,6 @@
 					}
 				} else if (type === 'chat:completion') {
 					chatCompletionEventHandler(data, message, event.chat_id);
-				} else if (type === 'chat:title') {
-					chatTitle.set(data);
-					currentChatPage.set(1);
-					await chats.set(await getChatList(localStorage.token, $currentChatPage));
-				} else if (type === 'chat:tags') {
-					chat = await getChatById(localStorage.token, $chatId);
-					allTags.set(await getAllTags(localStorage.token));
 				} else if (type === 'message') {
 					message.content += data.content;
 				} else if (type === 'replace') {
@@ -436,6 +439,11 @@
 	});
 
 	onDestroy(() => {
+		if (bufferedResponse) {
+			bufferedResponse.stop();
+			bufferedResponse = null;
+		}
+
 		chatIdUnsubscriber?.();
 		window.removeEventListener('message', onMessageHandler);
 		$socket?.off('chat-events', chatEventHandler);
@@ -666,6 +674,11 @@
 	};
 
 	const loadChat = async () => {
+		if (bufferedResponse) {
+			bufferedResponse.stop();
+			bufferedResponse = null;
+		}
+
 		chatId.set(chatIdProp);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
@@ -705,9 +718,6 @@
 				autoScroll = true;
 				await tick();
 
-				if (history.currentId) {
-					history.messages[history.currentId].done = true;
-				}
 				await tick();
 
 				return true;
@@ -1681,6 +1691,8 @@
 		if (autoScroll) {
 			scrollToBottom();
 		}
+
+		saveChatHandler($chatId, history);
 	};
 
 	const submitMessage = async (parentId, prompt) => {

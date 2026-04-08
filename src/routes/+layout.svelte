@@ -43,7 +43,8 @@
  import { WEBUI_BASE_URL } from '$lib/constants';
 	import i18n, { initI18n, getLanguages } from '$lib/i18n';
 	import { bestMatchingLanguage } from '$lib/utils';
-	import { getAllTags, getChatList } from '$lib/apis/chats';
+	import { getAllTags, getChatById, getChatList, updateChatById } from '$lib/apis/chats';
+	import { createMessagesList } from '$lib/utils';
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
 	import AppSidebar from '$lib/components/app/AppSidebar.svelte';
 
@@ -115,6 +116,24 @@
 				const { done, content, title } = data;
 
 				if (done) {
+					// Save completed response to DB for background chats
+					if (content !== undefined) {
+						const bgChat = await getChatById(localStorage.token, event.chat_id).catch(() => null);
+						if (bgChat?.chat?.history) {
+							const bgHistory = bgChat.chat.history;
+							const bgMessage = bgHistory.messages[event.message_id];
+							if (bgMessage && !bgMessage.done) {
+								bgMessage.done = true;
+								bgMessage.content = content;
+								bgHistory.messages[event.message_id] = bgMessage;
+								await updateChatById(localStorage.token, event.chat_id, {
+									history: bgHistory,
+									messages: createMessagesList(bgHistory, bgHistory.currentId)
+								});
+							}
+						}
+					}
+
 					if ($isLastActiveTab) {
 						if ($settings?.notificationEnabled ?? false) {
 							new Notification(`${title} | Open WebUI`, {
