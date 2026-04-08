@@ -10,6 +10,7 @@
 	export let onClick: Function = () => {};
 	export let title: string = 'HI';
 	export let content: string;
+	export let modelIconUrl: string = '';
 
 	onMount(() => {
 		if (!navigator.userActivation.hasBeenActive) {
@@ -37,8 +38,14 @@
 		dispatch('closeToast');
 	}}
 >
-	<div class="flex-shrink-0 self-top -translate-y-0.5">
-		<img src={$company?.profile_image_url} alt="favicon" class="size-7 rounded-full" />
+	<div class="flex-shrink-0 flex flex-col justify-center items-center">
+		{#if modelIconUrl && modelIconUrl.length < 3}
+			<div class="text-2xl">
+				{modelIconUrl}
+			</div>
+		{:else}
+			<img src={modelIconUrl || $company?.profile_image_url} alt="favicon" class="size-7 rounded-full" />
+		{/if}
 	</div>
 
 	<div>
