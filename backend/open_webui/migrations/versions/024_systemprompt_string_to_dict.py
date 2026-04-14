@@ -1,12 +1,13 @@
 """Migrate user.settings ui.system from string to dict
+
 Revision ID: 024
 Revises: 023
 Create Date: 2026-03-24 12:00:00.000000
+
 """
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-import open_webui.internal.db
 
 # revision identifiers, used by Alembic.
 revision: str = '024'

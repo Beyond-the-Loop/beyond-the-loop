@@ -1351,7 +1351,13 @@
 					let userContext = null;
 					if ($settings?.memory ?? false) {
 						if (userContext === null) {
-							const res = await queryMemory(localStorage.token, prompt).catch((error) => {
+							const res = await queryMemory(
+								localStorage.token,
+								prompt,
+								_chatId,
+								responseMessageId,
+								$socket?.id
+							).catch((error) => {
 								toast.error(`${error}`);
 								return null;
 							});

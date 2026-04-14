@@ -295,7 +295,7 @@
 
 			<div class="text-xs text-[#8A8B8D] dark:text-customGray-300 mb-4">
 				{$i18n.t(
-					'Password must be at least 8 characters with a number, capital letter, and symbol.'
+					'Password must be 8+ characters, with a number, capital letter, and symbol.'
 				)}
 			</div>
 
@@ -306,7 +306,7 @@
 				type="submit"
 				disabled={loading}
 			>
-				{isPasswordReset ? $i18n.t('Reset Password') : $i18n.t('Done')}
+				{isPasswordReset ? $i18n.t('Reset password') : $i18n.t('Done')}
 				{#if loading}
 					<div class="ml-1.5 self-center">
 						<LoaderIcon />

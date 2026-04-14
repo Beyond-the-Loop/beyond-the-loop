@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { toast } from 'svelte-sonner';
-
 	import { onMount, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -10,41 +8,67 @@
 
 	import { WEBUI_NAME, config, user, socket, toastVisible, toastMessage, toastType, showToast, company, companyConfig } from '$lib/stores';
 
-	import Plus from '$lib/components/icons/Plus.svelte';
-	import UserIcon from '$lib/components/icons/UserIcon.svelte';
-	import ShowPassIcon from '$lib/components/icons/ShowPassIcon.svelte';
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
-	import HidePassIcon from '$lib/components/icons/HidePassIcon.svelte';
-	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	import InfoIcon from '$lib/components/icons/InfoIcon.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 	import { generateInitialsImage } from '$lib/utils';
-	import { theme, systemTheme } from '$lib/stores';
 
 	const i18n = getContext('i18n');
+
+	const INPUT_CLASSES =
+		'h-12 w-full rounded-lg border border-gray-200 bg-[#F1F1F1] px-4 text-sm text-[#16181D] outline-none transition focus:border-customBlue-500 focus:ring-1 focus:ring-customBlue-500 dark:border-customGray-700 dark:bg-customGray-900 dark:text-white';
 
 	let firstName = '';
 	let lastName = '';
 	let password = '';
-	let showPassword = false;
 	let confirmPassword = '';
-	let showConfirmPassword = '';
+	let showPassword = false;
+	let showConfirmPassword = false;
+	let profileImageUrl = '';
+	let profileImageInputRef: HTMLInputElement;
+
+	let firstNameError = '';
+	let lastNameError = '';
+	let passwordError = '';
+	let confirmPasswordError = '';
 
 	let inviteToken = '';
-
-	let profileImageUrl = '';
-
-	let profileImageInputElement;
-
 	let loading = false;
+
+	function handleProfileImageUpload(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		if (file.size > 10 * 1024 * 1024) {
+			showToast('error', $i18n.t('File must be under 10MB.'));
+			return;
+		}
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			const img = new Image();
+			img.src = event.target?.result as string;
+			img.onload = () => {
+				const canvas = document.createElement('canvas');
+				const ctx = canvas.getContext('2d');
+				const size = 250;
+				canvas.width = size;
+				canvas.height = size;
+				const scale = Math.max(size / img.width, size / img.height);
+				const x = (size - img.width * scale) / 2;
+				const y = (size - img.height * scale) / 2;
+				ctx?.drawImage(img, x, y, img.width * scale, img.height * scale);
+				profileImageUrl = canvas.toDataURL('image/jpeg');
+			};
+		};
+		reader.readAsDataURL(file);
+	}
 
 	onMount(() => {
 		if ($page.url.searchParams.get('inviteToken')) {
-			inviteToken = $page.url.searchParams.get('inviteToken')
-		}else{
-			goto('/signup')
+			inviteToken = $page.url.searchParams.get('inviteToken');
+		} else {
+			goto('/signup');
 		}
-	})
+	});
 
 	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
@@ -55,320 +79,283 @@
 			$socket.emit('user-join', { auth: { token: sessionUser.token } });
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
-			// goto('/');
 		}
 	};
 
 	const completeInviteHandler = async () => {
-		if (password !== confirmPassword) {
-			showToast('error', `The passwords you entered don't quite match. Please double-check and try again.`);
-			return;
-		}
-		const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+		firstNameError = lastNameError = passwordError = confirmPasswordError = '';
 
-		if (!strongPasswordRegex.test(password)) {
-			showToast('error', "Password must be 8+ characters, with a number, capital letter, and symbol.");
+		if (!firstName.trim()) {
+			firstNameError = $i18n.t('First name is required.');
 			return;
 		}
+		if (!lastName.trim()) {
+			lastNameError = $i18n.t('Last name is required.');
+			return;
+		}
+
+		const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+		if (!strongPasswordRegex.test(password)) {
+			passwordError = $i18n.t('Password must be 8+ characters, with a number, capital letter, and symbol.');
+			return;
+		}
+
+		if (password !== confirmPassword) {
+			confirmPasswordError = $i18n.t('Passwords do not match.');
+			return;
+		}
+
 		loading = true;
-		const sessionUser = await completeInvite(firstName, lastName, password, inviteToken, profileImageUrl ? profileImageUrl : generateInitialsImage(`${firstName} ${lastName}`)).catch(
-			(error) => {
-				toast.error(`${error}`);
-				loading = false;
-				return null;
-			}
-		);
+		const sessionUser = await completeInvite(
+			firstName,
+			lastName,
+			password,
+			inviteToken,
+			profileImageUrl || generateInitialsImage(`${firstName} ${lastName}`)
+		).catch((error) => {
+			showToast('error', `${error}`);
+			loading = false;
+			return null;
+		});
+
+		if (!sessionUser) return;
+
 		await setSessionUser(sessionUser);
-		
+
 		const [companyInfo, companyConfigInfo] = await Promise.all([
 			getCompanyDetails(sessionUser.token).catch((error) => {
-				toast.error(`${error}`);
+				showToast('error', `${error}`);
 				return null;
 			}),
 			getCompanyConfig(sessionUser.token).catch((error) => {
-				toast.error(`${error}`);
+				showToast('error', `${error}`);
 				return null;
 			})
 		]);
 
 		if (companyInfo && companyConfigInfo) {
-			showToast('success', `You're now logged in.`);
+			showToast('success', $i18n.t(`You're now logged in.`));
 			company.set(companyInfo);
 			companyConfig.set(companyConfigInfo);
 			goto('/');
 		}
-		loading = false;	
-	}
-
-	onMount(async () => {});
-	let logoSrc = '/logo_light.png';
-
-	onMount(() => {
-		const theme = $theme === "system" ? $systemTheme : $theme;
-		const isDark = theme === 'dark';
-		logoSrc = isDark ? '/logo_dark_transparent.png' : '/logo_light_transparent.png';
-	});
-
-	$: console.log($WEBUI_NAME);
+		loading = false;
+	};
 </script>
 
 <svelte:head>
-	<title>
-		{`${$WEBUI_NAME}`}
-	</title>
+	<title>{$WEBUI_NAME}</title>
 </svelte:head>
 
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
-<div
-	class="flex flex-col justify-center w-full h-screen max-h-[100dvh] px-4 text-lightGray-100 dark:text-white relative bg-lightGray-300 dark:bg-customGray-900"
->
-	<form
-		class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-8 md:px-24"
-		on:submit={(e) => {
-			e.preventDefault();
-			completeInviteHandler();
-		}}
-	>
-		<div class="font-medium self-center flex flex-col items-center mb-5">
-			<div>
-				<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
-			</div>
-			<div>{$i18n.t('Welcome to')} Beyond Chat</div>
-		</div>
-		<input
-			id="profile-image-input"
-			bind:this={profileImageInputElement}
-			type="file"
-			hidden
-			accept="image/*"
-			on:change={(e) => {
-				const files = profileImageInputElement.files ?? [];
-				let reader = new FileReader();
-				reader.onload = (event) => {
-					let originalImageUrl = `${event.target.result}`;
 
-					const img = new Image();
-					img.src = originalImageUrl;
+<div class="flex min-h-screen bg-white dark:bg-customGray-900">
+	<div class="flex w-full flex-col items-center px-6 sm:px-8 lg:w-1/2 lg:px-12 xl:px-16">
+		<div class="flex-[2]"></div>
+		<div class="w-full max-w-[25rem] lg:max-w-[clamp(20rem,31.5vw,28rem)]">
+			<input bind:this={profileImageInputRef} type="file" hidden accept="image/png,image/jpeg" on:change={handleProfileImageUpload} />
 
-					img.onload = function () {
-						const canvas = document.createElement('canvas');
-						const ctx = canvas.getContext('2d');
+			<form on:submit|preventDefault={completeInviteHandler}>
+				<div class="mb-6">
+					<h1 class="text-2xl font-semibold text-[#16181D] dark:text-customGray-100">
+						{$i18n.t('Complete your registration')}
+					</h1>
+					<p class="mt-2 text-base text-[#6B7280] dark:text-customGray-300">
+						{$i18n.t('Set up your account to get started.')}
+					</p>
+				</div>
 
-						// Calculate the aspect ratio of the image
-						const aspectRatio = img.width / img.height;
-
-						// Calculate the new width and height to fit within 250x250
-						let newWidth, newHeight;
-						if (aspectRatio > 1) {
-							newWidth = 250 * aspectRatio;
-							newHeight = 250;
-						} else {
-							newWidth = 250;
-							newHeight = 250 / aspectRatio;
-						}
-
-						// Set the canvas size
-						canvas.width = 250;
-						canvas.height = 250;
-
-						// Calculate the position to center the image
-						const offsetX = (250 - newWidth) / 2;
-						const offsetY = (250 - newHeight) / 2;
-
-						// Draw the image on the canvas
-						ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
-
-						// Get the base64 representation of the compressed image
-						const compressedSrc = canvas.toDataURL('image/jpeg');
-
-						// Display the compressed image
-						profileImageUrl = compressedSrc;
-
-						profileImageInputElement.files = null;
-					};
-				};
-
-				if (
-					files.length > 0 &&
-					['image/gif', 'image/webp', 'image/jpeg', 'image/png'].includes(files[0]['type'])
-				) {
-					reader.readAsDataURL(files[0]);
-				}
-			}}
-		/>
-		<div class="self-center flex justify-center flex-shrink-0">
-			<div class="self-center">
-				<button
-					class="rounded-xl flex flex-shrink-0 items-center shadow-xl group relative"
-					type="button"
-					on:click={() => {
-						profileImageInputElement.click();
-					}}
-				>
-					{#if profileImageUrl}
-						<img
-							src={profileImageUrl}
-							alt="model profile"
-							class="rounded-lg size-16 object-cover shrink-0"
-						/>
-					{:else}
-						<div class="rounded-lg size-16 shrink-0 bg-lightGray-400 text-white dark:bg-customGray-900 dark:text-customGray-800">
-							<UserIcon className="size-16"/>
-						</div>
-					{/if}
-
-					<div class="absolute bottom-0 right-0 z-10">
-						<div class="-m-2">
-							<div
-								class="p-1 rounded-lg border border-lightGray-1200 dark:bg-customGray-900 bg-lightGray-300 text-lightGray-1200 transition dark:border-customGray-700 dark:text-white"
+				<div class="mb-6">
+					<span class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
+						{$i18n.t('Profile photo')}
+					</span>
+					<div class="flex items-center gap-4">
+						<button
+							type="button"
+							on:click={() => profileImageInputRef?.click()}
+							class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-customBlue-500 text-xl font-bold text-white"
+						>
+							{#if profileImageUrl}
+								<img src={profileImageUrl} alt="profile" class="h-14 w-14 rounded-xl object-cover" />
+							{:else}
+								{firstName ? firstName.charAt(0).toUpperCase() : ''}
+							{/if}
+						</button>
+						<div>
+							<button
+								type="button"
+								on:click={() => profileImageInputRef?.click()}
+								class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-[#16181D] transition hover:bg-gray-50 dark:border-customGray-700 dark:text-customGray-200 dark:hover:bg-customGray-800"
 							>
-								<Plus className="size-3" />
-							</div>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+									<path d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z" />
+									<path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+								</svg>
+								{$i18n.t('Upload image')}
+							</button>
+							<p class="mt-1 text-xs text-[#6B7280] dark:text-customGray-300">
+								PNG, JPG {$i18n.t('up to')} 10MB, {$i18n.t('min.')} 400x400px
+							</p>
 						</div>
-						<div class="text-xs -top-1 left-5 text-[#8A8B8D] font-medium dark:text-customGray-200 absolute whitespace-nowrap">{$i18n.t('Add a photo')}</div>
 					</div>
-				</button>
-			</div>
-		</div>
-		<div class="text-xs text-[#8A8B8D] font-medium dark:text-customGray-100/50 mb-2.5 mt-5">{$i18n.t('We only support PNGs, JPEGs and GIFs under 10MB')}</div>
-		<div class="flex-1 mb-2.5">
-			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
-				{#if firstName}
-					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-						{$i18n.t('First name')}
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="first-name" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
+							{$i18n.t('First name')}
+						</label>
+						<input
+							id="first-name"
+							class="{INPUT_CLASSES} placeholder:text-gray-400 dark:placeholder:text-customGray-300{firstNameError ? ' border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+							placeholder="Max"
+							bind:value={firstName}
+							autocomplete="given-name"
+							on:input={() => (firstNameError = '')}
+						/>
+						{#if firstNameError}
+							<p class="mt-1.5 text-xs text-red-500">{firstNameError}</p>
+						{/if}
 					</div>
-				{/if}
-				<input
-					class={`px-2.5 text-sm ${firstName ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-					placeholder={$i18n.t('First name')}
-					bind:value={firstName}
-					required
-				/>
-			</div>
-		</div>
-		<div class="flex-1 mb-2.5">
-			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
-				{#if lastName}
-					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-						{$i18n.t('Last name')}
+					<div>
+						<label for="last-name" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
+							{$i18n.t('Last name')}
+						</label>
+						<input
+							id="last-name"
+							class="{INPUT_CLASSES} placeholder:text-gray-400 dark:placeholder:text-customGray-300{lastNameError ? ' border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+							placeholder="Mustermann"
+							bind:value={lastName}
+							autocomplete="family-name"
+							on:input={() => (lastNameError = '')}
+						/>
+						{#if lastNameError}
+							<p class="mt-1.5 text-xs text-red-500">{lastNameError}</p>
+						{/if}
 					</div>
-				{/if}
-				<input
-					class={`px-2.5 text-sm ${lastName ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-					placeholder={$i18n.t('Last name')}
-					bind:value={lastName}
-					required
-				/>
-			</div>
-		</div>
-		<div class="relative flex flex-col w-full mb-2.5">
-			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
-				{#if password}
-					<div class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50">
-						{$i18n.t('Create Password')}
+				</div>
+
+				<div class="mt-4">
+					<label for="register-password" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
+						{$i18n.t('Password')}
+					</label>
+					<div class="relative">
+						{#if showPassword}
+							<input
+								id="register-password"
+								class="{INPUT_CLASSES} placeholder:text-gray-400 dark:placeholder:text-customGray-300 pr-12{passwordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+								type="text"
+								placeholder={$i18n.t('Create password')}
+								bind:value={password}
+								autocomplete="new-password"
+								on:input={() => (passwordError = '')}
+							/>
+						{:else}
+							<input
+								id="register-password"
+								class="{INPUT_CLASSES} placeholder:text-gray-400 dark:placeholder:text-customGray-300 pr-12{passwordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+								type="password"
+								placeholder={$i18n.t('Create password')}
+								bind:value={password}
+								autocomplete="new-password"
+								on:input={() => (passwordError = '')}
+							/>
+						{/if}
+						<button
+							type="button"
+							class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+							on:click={() => (showPassword = !showPassword)}
+						>
+							{#if showPassword}
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+								</svg>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+								</svg>
+							{/if}
+						</button>
 					</div>
-				{/if}
-				{#if showPassword}
-					<input
-						class={`px-2.5 text-sm ${password ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
-						type="text"
-						bind:value={password}
-						placeholder={$i18n.t('Create Password')}
-						autocomplete="new-password"
-						required
-					/>
-				{:else}
-					<input
-						class={`px-2.5 text-sm ${password ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
-						type="password"
-						bind:value={password}
-						placeholder={$i18n.t('Create Password')}
-						autocomplete="new-password"
-						required
-					/>
-				{/if}
+					{#if passwordError}
+						<p class="mt-1.5 text-xs text-red-500">{passwordError}</p>
+					{/if}
+				</div>
+
+				<div class="mt-4">
+					<label for="confirm-password" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
+						{$i18n.t('Confirm password')}
+					</label>
+					<div class="relative">
+						{#if showConfirmPassword}
+							<input
+								id="confirm-password"
+								class="{INPUT_CLASSES} placeholder:text-gray-400 dark:placeholder:text-customGray-300 pr-12{confirmPasswordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+								type="text"
+								placeholder={$i18n.t('Confirm password')}
+								bind:value={confirmPassword}
+								autocomplete="new-password"
+								on:input={() => (confirmPasswordError = '')}
+							/>
+						{:else}
+							<input
+								id="confirm-password"
+								class="{INPUT_CLASSES} placeholder:text-gray-400 dark:placeholder:text-customGray-300 pr-12{confirmPasswordError ? ' border-red-500 focus:border-red-500 focus:ring-red-500' : ''}"
+								type="password"
+								placeholder={$i18n.t('Confirm password')}
+								bind:value={confirmPassword}
+								autocomplete="new-password"
+								on:input={() => (confirmPasswordError = '')}
+							/>
+						{/if}
+						<button
+							type="button"
+							class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+							on:click={() => (showConfirmPassword = !showConfirmPassword)}
+						>
+							{#if showConfirmPassword}
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+								</svg>
+							{:else}
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+								</svg>
+							{/if}
+						</button>
+					</div>
+					{#if confirmPasswordError}
+						<p class="mt-1.5 text-xs text-red-500">{confirmPasswordError}</p>
+					{/if}
+				</div>
 
 				<button
-					type="button"
-					class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-white"
-					on:click={() => (showPassword = !showPassword)}
-					tabindex="-1"
-				>	
-					{#if showPassword}
-						<HidePassIcon/>
-					{:else}
-						<ShowPassIcon/>
+					class="mt-6 flex h-12 w-full items-center justify-center rounded-lg bg-[#F1F1F1] text-sm font-medium text-[#16181D] transition hover:bg-[#E8E8E8] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-customGray-900 dark:text-customGray-200 dark:hover:bg-customGray-950"
+					type="submit"
+					disabled={loading}
+				>
+					{$i18n.t('Register')}
+					{#if loading}
+						<div class="ml-1.5">
+							<LoaderIcon />
+						</div>
 					{/if}
 				</button>
-			</div>
-			<Tooltip className="absolute -right-5 md:-right-6 top-3 cursor-pointer" content={$i18n.t('Password must be 8+ characters, with a number, capital letter, and symbol.')}>
-				<div class="flex justify-center items-center w-[18px] h-[18px] rounded-full bg-customBlue-600 text-white dark:text-customGray-100 dark:bg-customGray-700">
-					<InfoIcon className="size-6"/>
-				</div>
-			</Tooltip> 
-		</div>
-		<div class="flex flex-col w-full mb-2.5">
-			<div class="relative w-full text-lightGray-100/50 bg-lightGray-300 dark:bg-customGray-900 rounded-md">
-				{#if confirmPassword}
-					<div class="text-xs absolute left-2.5 top-1 dark:text-customGray-100/50">
-						{$i18n.t('Confirm password')}
-					</div>
-				{/if}
-				{#if showConfirmPassword}
-					<input
-						class={`px-2.5 text-sm ${confirmPassword ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
-						type="text"
-						bind:value={confirmPassword}
-						placeholder={$i18n.t('Confirm password')}
-						autocomplete="new-password"
-						required
-					/>
-				{:else}
-					<input
-						class={`px-2.5 text-sm ${confirmPassword ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none pr-10`}
-						type="password"
-						bind:value={confirmPassword}
-						placeholder={$i18n.t('Confirm password')}
-						autocomplete="new-password"
-						required
-					/>
-				{/if}
 
-				<button
-					type="button"
-					class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-white"
-					on:click={() => (showConfirmPassword = !showConfirmPassword)}
-					tabindex="-1"
-				>
-				{#if showConfirmPassword}
-					<HidePassIcon/>
-				{:else}
-					<ShowPassIcon/>
-				{/if}
-				</button>
-			</div>
+				<p class="mt-6 text-center text-sm leading-relaxed text-[#6B7280] dark:text-customGray-300">
+					{$i18n.t('By signing up, I confirm the')}
+					<a href="https://beyondtheloop.ai/tscs" target="_blank" rel="noopener noreferrer"
+						class="font-medium text-customBlue-500 hover:underline">{$i18n.t('Terms of Use')}</a>
+					{$i18n.t('and that I am ordering as a business and not as a consumer within the meaning of § 13 BGB.')}
+				</p>
+			</form>
 		</div>
-		<button
-			class=" text-xs w-full h-10 px-3 font-medium py-2 transition rounded-lg {loading
-				? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border border-lightGray-400 dark:border-customGray-700'
-				: 'bg-lightGray-300 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border border-lightGray-400 dark:border-customGray-700'} flex justify-center items-center"
-			type="submit"
-			disabled={loading}
-		>
-			{$i18n.t('Register')}
-			{#if loading}
-				<div class="ml-1.5 self-center">
-					<LoaderIcon/>
-				</div>
-			{/if}
-		</button>
-		<div class="self-center text-xs text-lightGray-100 dark:text-customGray-300 mt-5 text-center">
-			{$i18n.t('By using this service, you agree to our')}
-			<a
-				href="https://beyondtheloop.ai/tscs"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>{#if $i18n.language === "de-DE"}{" "}zu.{:else}.{/if}
-		</div>
-	</form>
+		<div class="flex-[3]"></div>
+	</div>
+
+	<div class="hidden lg:block lg:w-1/2">
+		<SignupBanner />
+	</div>
 </div>
