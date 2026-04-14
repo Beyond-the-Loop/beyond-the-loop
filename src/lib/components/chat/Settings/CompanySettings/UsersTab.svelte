@@ -16,6 +16,7 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import { user as currentUser } from '$lib/stores';
+	import { translateInviteError } from '$lib/utils/invite-error';
 
 	const i18n = getContext('i18n');
 
@@ -117,14 +118,7 @@
 			existingGroupsIds,
 			newGroupNames
 		).catch((error) => {
-			const translated = typeof error === 'string'
-				? error
-					.replace('No invitees provided', $i18n.t('No invitees provided'))
-					.replace('No users were invited. The following emails have issues:', $i18n.t('No users were invited. The following emails have issues:'))
-					.replace(/ is invalid\. /g, ` ${$i18n.t('is invalid.')} `)
-					.replace(/ is already associated with another company\./g, ` ${$i18n.t('is already associated with another company.')}`)
-					.replace(/Please use your business email address\./g, $i18n.t('Please use your business email address.'))
-				: error;
+			const translated = translateInviteError(error, (key) => $i18n.t(key));
 			toast.error(`${translated}`);
 		});
 		if (res?.success) {
