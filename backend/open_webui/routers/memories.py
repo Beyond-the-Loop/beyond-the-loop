@@ -5,6 +5,7 @@ from typing import Optional
 
 from open_webui.models.memories import Memories, MemoryModel
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.socket.main import get_event_emitter
 from open_webui.utils.auth import get_verified_user
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -74,17 +75,53 @@ async def add_memory(
 class QueryMemoryForm(BaseModel):
     content: str
     k: Optional[int] = 10
+    chat_id: Optional[str] = None
+    message_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 @router.post("/query")
 async def query_memory(
     request: Request, form_data: QueryMemoryForm, user=Depends(get_verified_user)
 ):
+    event_emitter = None
+    if form_data.chat_id and form_data.message_id and form_data.session_id:
+        event_emitter = get_event_emitter(
+            {
+                "user_id": user.id,
+                "chat_id": form_data.chat_id,
+                "message_id": form_data.message_id,
+                "session_id": form_data.session_id,
+            }
+        )
+
+    if event_emitter:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "querying_memory",
+                    "done": False,
+                },
+            }
+        )
+
     results = VECTOR_DB_CLIENT.search(
         collection_name=f"user-memory-{user.id}",
         vectors=[request.app.state.EMBEDDING_FUNCTION(form_data.content, user)],
         limit=form_data.k,
     )
+
+    if event_emitter:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "querying_memory",
+                    "done": True,
+                },
+            }
+        )
 
     return results
 

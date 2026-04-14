@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { getContext, onMount } from 'svelte';
-	import ProgressIndicator from '$lib/components/company-register/ProgressIndicator.svelte';
-	import Step1Email from '$lib/components/company-register/Step1Email.svelte';
-	import Step2Verify from '$lib/components/company-register/Step2Verify.svelte';
-	import Step3Personal from '$lib/components/company-register/Step3Personal.svelte';
-	import Step4Company from '$lib/components/company-register/Step4Company.svelte';
-	import Step5Invite from '$lib/components/company-register/Step5Invite.svelte';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+
+	import { getBackendConfig } from '$lib/apis';
 	import { completeRegistration } from '$lib/apis/auths';
-	import { COMPANY_SIZE_OPTIONS, INDUSTRY_OPTIONS, TEAM_FUNCTION_OPTIONS } from '$lib/constants';
+	import { generateInitialsImage } from '$lib/utils';
+	import { fetchLogoByEmail } from '$lib/utils/logo';
+
 	import {
 		WEBUI_NAME,
 		config,
@@ -16,37 +16,44 @@
 		toastVisible,
 		toastMessage,
 		toastType,
-		showToast,
-		company,
-		companyConfig
+		showToast
 	} from '$lib/stores';
-	import { getSessionUser, userSignIn } from '$lib/apis/auths';
-	import { getBackendConfig } from '$lib/apis';
-	import { generateInitialsImage } from '$lib/utils';
+
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
-	import { toast } from 'svelte-sonner';
-	import { getCompanyDetails, getCompanyConfig } from '$lib/apis/auths';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import EmailStep from '$lib/components/signup/EmailStep.svelte';
+	import VerifyStep from '$lib/components/signup/VerifyStep.svelte';
+	import PersonalStep from '$lib/components/signup/PersonalStep.svelte';
+	import WorkspaceStep from '$lib/components/signup/WorkspaceStep.svelte';
+	import InviteStep from '$lib/components/signup/InviteStep.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 
 	let step = 1;
-
-	const i18n = getContext('i18n');
 
 	let email = '';
 	let first_name = '';
 	let last_name = '';
-	let registration_code = '';
 	let password = '';
-	let profile_image_url = '';
+	let registration_code = '';
+	let position = '';
+	let phone = '';
+	let workspace_name = '';
+	let workspace_logo = '';
+	let subdomain = '';
+	let billing_country = 'Deutschland';
 
 	let loading = false;
 
 	onMount(() => {
+		document.documentElement.style.setProperty('overflow-y', 'auto', 'important');
+
 		const emailFromUrl = $page.url.searchParams.get('email');
 		if (emailFromUrl) {
 			email = emailFromUrl;
 		}
+
+		return () => {
+			document.documentElement.style.removeProperty('overflow-y');
+		};
 	});
 
 	const setSessionUser = async (sessionUser) => {
@@ -64,8 +71,9 @@
 	async function goNext(event) {
 		if (step === 1) {
 			email = event.detail.email;
+			fetchLogoByEmail(email).then((logo) => { if (logo) workspace_logo = logo; });
 		}
-		if(step === 3) {
+		if (step === 3) {
 			loading = true;
 			const utm_source = (document.getElementById('utm_source') as HTMLInputElement)?.value ?? '';
 			const utm_medium = (document.getElementById('utm_medium') as HTMLInputElement)?.value ?? '';
@@ -74,22 +82,24 @@
 			const utm_term = (document.getElementById('utm_term') as HTMLInputElement)?.value ?? '';
 			const utm_gclid = (document.getElementById('utm_gclid') as HTMLInputElement)?.value ?? '';
 
-			const user = await completeRegistration(
+			const registeredUser = await completeRegistration(
 				first_name,
 				last_name,
 				registration_code?.trim(),
-				password,
-				profile_image_url ? profile_image_url : generateInitialsImage(`${first_name} ${last_name}`),
+				password || null,
+				generateInitialsImage(`${first_name} ${last_name}`),
+				position,
+				phone,
 				{ utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_gclid },
-			).catch(error => showToast('error', error));
-			console.log(user)
-			if(user) {
-				await setSessionUser(user);
+			).catch((error) => showToast('error', error));
+
+			if (registeredUser) {
+				await setSessionUser(registeredUser);
 				goto('/create-company');
 			}
 			loading = false;
 		}
-		if (step < 3) step += 1;
+		if (step < 5) step += 1;
 	}
 
 	const goBack = () => {
@@ -97,7 +107,9 @@
 	};
 </script>
 
-<CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
+<svelte:head>
+	<title>{$WEBUI_NAME}</title>
+</svelte:head>
 
 <!-- Hidden UTM fields — populated by GTM from first-party cookies -->
 <input type="hidden" id="utm_source" name="utm_source" />
@@ -107,27 +119,49 @@
 <input type="hidden" id="utm_term" name="utm_term" />
 <input type="hidden" id="utm_gclid" name="utm_gclid" />
 
-<div
-	class="flex flex-col justify-between w-full h-screen max-h-[100dvh]  px-4 text-white relative bg-lightGray-300 dark:bg-customGray-900"
->
-	<div></div>
-	{#if step === 1}
-		<Step1Email on:next={goNext} bind:email />
-	{:else if step === 2}
-		<Step2Verify {email} on:next={goNext} on:back={goBack} bind:registration_code />
-	{:else if step === 3}
-		<Step3Personal
-			on:next={goNext}
-			on:back={goBack}
-			bind:profile_image_url
-			bind:first_name
-			bind:last_name
-			bind:password
-			{loading}
-		/>
-	{/if}
+<CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
 
-	<div class="flex flex-col justify-center">
-		<ProgressIndicator {step} />
+<div class="flex min-h-screen bg-white dark:bg-customGray-900">
+	<!-- Left: Auth Form -->
+	<div class="flex w-full flex-col items-center px-6 sm:px-8 lg:w-1/2 lg:px-12 xl:px-16">
+		<div class="flex-[2]"></div>
+		<div class="w-full max-w-[25rem] lg:max-w-[clamp(20rem,31.5vw,28rem)]">
+			{#if step === 1}
+				<EmailStep on:next={goNext} bind:email />
+			{:else if step === 2}
+				<VerifyStep {email} on:next={goNext} on:back={goBack} bind:registration_code />
+			{:else if step === 3}
+				<PersonalStep
+					on:next={goNext}
+					on:back={goBack}
+					bind:first_name
+					bind:last_name
+					bind:password
+					bind:position
+					bind:phone
+				/>
+			{:else if step === 4}
+				<WorkspaceStep
+					on:next={goNext}
+					bind:workspace_name
+					bind:workspace_logo
+					bind:subdomain
+					bind:billing_country
+					showBack={false}
+				/>
+			{:else if step === 5}
+				<InviteStep
+					on:next={goNext}
+					on:back={goBack}
+					{loading}
+				/>
+			{/if}
+		</div>
+		<div class="flex-[3]"></div>
+	</div>
+
+	<!-- Right: Testimonials (hidden on mobile) -->
+	<div class="hidden lg:block lg:w-1/2">
+		<SignupBanner />
 	</div>
 </div>

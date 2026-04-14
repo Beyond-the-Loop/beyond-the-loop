@@ -1363,15 +1363,6 @@
 																	return;
 																}
 
-																if ($config.audio.stt.engine === 'web') {
-																	toast.error(
-																		$i18n.t(
-																			'Call feature is not supported when using Web STT engine'
-																		)
-																	);
-
-																	return;
-																}
 																// check if user has access to getUserMedia
 																try {
 																	let stream = await navigator.mediaDevices.getUserMedia({

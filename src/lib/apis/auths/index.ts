@@ -897,6 +897,8 @@ export const completeRegistration = async (
 	registration_code: string,
 	password: string,
 	profile_image_url: string,
+	position: string,
+	phone: string,
 	utm_params?: { utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string; utm_gclid?: string },
 ) => {
 	let error = null;
@@ -914,6 +916,8 @@ export const completeRegistration = async (
 			signup_token: registration_code,
 			profile_image_url: profile_image_url?.length ? profile_image_url : null,
 			is_invited: false,
+			position,
+			phone,
 			...(utm_params && Object.fromEntries(Object.entries(utm_params).filter(([, v]) => v)))
 		})
 	})
@@ -937,10 +941,9 @@ export const completeRegistration = async (
 export const createCompany = async (
 	token: string,
 	company_name: string,
-    company_size: string,
-    company_industry: string,
-    company_team_function: string,
-    company_profile_image_url: string,
+	subdomain: string | null = null,
+	billing_country: string,
+	company_profile_image_url: string = '',
 ) => {
 	let error = null;
 
@@ -953,9 +956,8 @@ export const createCompany = async (
 		// credentials: 'include',
 		body: JSON.stringify({
 			company_name,
-			company_size,
-			company_industry,
-			company_team_function,
+			subdomain: subdomain || null,
+			billing_country,
 			company_profile_image_url
 		})
 	})
