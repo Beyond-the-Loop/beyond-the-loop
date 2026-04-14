@@ -29,9 +29,8 @@ class Company(Base):
     credit_balance = Column(Float, default=0)
     flex_credit_balance = Column(Float, nullable=True)
     auto_recharge = Column(Boolean, default=False)
-    size = Column(String, nullable=True)
-    industry = Column(String, nullable=True)
-    team_function = Column(String, nullable=True)
+    subdomain = Column(String, nullable=True)
+    billing_country = Column(String, nullable=True)
     stripe_customer_id = Column(String, nullable=True)
     budget_mail_80_sent = Column(Boolean, nullable=True)
     budget_mail_100_sent = Column(Boolean, nullable=True)
@@ -48,9 +47,8 @@ class CompanyModel(BaseModel):
     credit_balance: Optional[float] = 0
     flex_credit_balance: Optional[float] = None
     auto_recharge: Optional[bool] = False
-    size: Optional[str] = None
-    industry: Optional[str] = None
-    team_function: Optional[str] = None
+    subdomain: Optional[str] = None
+    billing_country: Optional[str] = None
     stripe_customer_id: Optional[str] = None
     budget_mail_80_sent: Optional[bool] = False
     budget_mail_100_sent: Optional[bool] = False
@@ -75,9 +73,8 @@ class CompanyForm(BaseModel):
 class CreateCompanyForm(BaseModel):
     """Request model for creating a new company"""
     company_name: str
-    company_size: str
-    company_industry: str
-    company_team_function: str
+    subdomain: Optional[str] = None
+    billing_country: Optional[str] = None
     company_profile_image_url: Optional[str] = "/user.png"
 
 class UpdateCompanyForm(BaseModel):
@@ -138,6 +135,8 @@ class CompanyTable:
         try:
             with get_db() as db:
                 company = db.query(Company).filter_by(id=company_id).first()
+                if company is None:
+                    return None
                 return CompanyModel.model_validate(company)
         except Exception as e:
             log.error(f"Error getting company: {e}")
@@ -286,7 +285,7 @@ class CompanyTable:
                 return True
             return False
 
-    def subtract_credit_balance(self, company_id: str, credits_to_subtract: int) -> bool:
+    def subtract_credit_balance(self, company_id: str, credits_to_subtract: int):
         """Subtract credits from company's balance"""
         with get_db() as db:
             company = db.query(Company).filter(Company.id == company_id).first()

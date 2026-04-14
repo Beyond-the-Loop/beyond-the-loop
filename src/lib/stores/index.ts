@@ -54,6 +54,7 @@ export const pinnedChats = writable([]);
 export const tags = writable([]);
 
 export const models: Writable<Model[]> = writable([]);
+export const modelsInfo: Writable<Record<string, any>> = writable({});
 
 export const prompts: Writable<null | Prompt[]> = writable(null);
 export const knowledge: Writable<null | Document[]> = writable(null);
@@ -150,6 +151,12 @@ type OllamaModelDetails = {
 	quantization_level: string;
 };
 
+export type PromptStyle = 'concise' | 'explaining' | 'default' | 'formal';
+export interface SystemPromptConfig {
+  promptStyle: PromptStyle;
+  customInstruction?: string;
+}
+
 type Settings = {
 	models?: string[];
 	conversationMode?: boolean;
@@ -162,7 +169,7 @@ type Settings = {
 	splitLargeDeltas?: boolean;
 	chatDirection: 'LTR' | 'RTL';
 
-	system?: string;
+	system?: SystemPromptConfig;
 	requestFormat?: string;
 	keepAlive?: string;
 	seed?: number;

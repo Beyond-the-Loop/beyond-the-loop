@@ -88,7 +88,9 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
                 continue
 
             # Reject personal/consumer email domains
-            if not is_business_email(email):
+            # Exception: some companies are allowed to invite non-business emails
+            COMPANIES_ALLOWED_NON_BUSINESS_EMAILS = {"1f62d141-5b4f-4ebf-8468-83bab4765c1b", "bed374b4-bd32-42f6-8cd0-0767bbe7fdc5"}
+            if user.company_id not in COMPANIES_ALLOWED_NON_BUSINESS_EMAILS and not is_business_email(email):
                 validation_errors.append({"reason": f"{email} is invalid. {ERROR_MESSAGES.NOT_BUSINESS_EMAIL}"})
                 continue
 
@@ -376,7 +378,12 @@ async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin
 async def get_user_settings_by_session_user(user=Depends(get_verified_user)):
     user = Users.get_user_by_id(user.id)
     if user:
-        return user.settings
+        settings = user.settings or UserSettings()
+        ui = settings.ui if isinstance(settings.ui, dict) else {}
+        if not isinstance(ui.get("system"), dict):
+            ui["system"] = {"promptStyle": "default"}
+            settings.ui = ui
+        return settings
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

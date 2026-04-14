@@ -39,7 +39,7 @@
 				<button
 					type="button"
 					class="p-[3px] transition rounded-md focus:outline-none hover:bg-gray-100 dark:hover:bg-customGray-900 {isActive
-						? 'text-blue-500 dark:text-blue-400'
+						? 'text-customBlue-500 dark:text-blue-400'
 						: 'text-customGray-900 dark:text-customGray-100'}"
 					aria-label={$i18n.t('Tools')}
 				>

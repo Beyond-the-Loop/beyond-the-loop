@@ -1,6 +1,7 @@
 <script lang="ts">
 	export let rating: number = 0;
 	export let max: number = 5;
+    export let tokens_per_second: number = 0;
 
 	$: fullStars = Math.floor(rating);
 	$: hasPartial = rating % 1 !== 0;
@@ -69,7 +70,8 @@
         {/each}
     </div>
     <p class="text-xs text-lightGray-100 dark:text-white">
-        {rating.toFixed(1)}/5
+        <!-- {rating.toFixed(1)}/5 -->
+        {tokens_per_second}
     </p>
 </div>
 

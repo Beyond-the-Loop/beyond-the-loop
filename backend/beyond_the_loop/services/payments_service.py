@@ -72,6 +72,8 @@ class PaymentsService:
         self.stripe_price_id_business_yearly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_YEARLY',
                                                               "price_1RglAcBBwyxb4MZjRYcvp9dr")
 
+        self.stripe_price_id_business_yearly_alternative = os.environ.get('STRIPE_PRICE_ID_BUSINESS_YEARLY_ALTERNATIVE', 'price_1TGetuBBwyxb4MZjf9wbbyig')
+
         self.stripe_price_id_business_21_monthly = os.environ.get('STRIPE_PRICE_ID_BUSINESS_21_MONTHLY',
                                                                   "price_1TBbLoBBwyxb4MZjbmP6X9oj")
 
@@ -133,8 +135,14 @@ class PaymentsService:
                 "stripe_price_id": self.stripe_price_id_business_yearly,
                 "seats": 100
             },
+            "business_yearly_alternative": {
+                "price": 511900,  # 5.119,00€ in cents
+                "credits_per_month": 150,
+                "stripe_price_id": self.stripe_price_id_business_yearly_alternative,
+                "seats": 100
+            },
             "business_21_monthly": {
-                "price": 357600, # 3,576€ in cents
+                "price": 593880, # 5.938,80€ in cents
                 "credits_per_month": 150,
                 "stripe_price_id": self.stripe_price_id_business_21_monthly,
                 "seats": 100

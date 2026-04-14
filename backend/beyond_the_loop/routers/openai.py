@@ -15,13 +15,11 @@ from starlette.background import BackgroundTask
 
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.completions import Completions
-from litellm.utils import trim_messages
-
 
 from beyond_the_loop.config import (
     CACHE_DIR,
+    LITELLM_MODEL_MAP,
 )
-from beyond_the_loop.config import DEFAULT_AGENT_MODEL
 from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
@@ -97,7 +95,7 @@ async def cleanup_response(
 #
 ##########################################
 
-async def get_all_models():
+async def get_all_models_from_litellm():
     """
     Fetch all available models from the litellm server.
     Returns the models in OpenAI API format.
@@ -205,6 +203,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
     except ValueError:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
+
 async def generate_chat_completion(
         form_data: dict,
         user,
@@ -238,7 +237,16 @@ async def generate_chat_completion(
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
     if model.base_model_id:
-        model_name = model.base_model_id if model.user_id == "system" else Models.get_model_by_id(model.base_model_id).name
+        if model.user_id == "system":
+            model_name = model.base_model_id
+        else:
+            base_model = Models.get_model_by_id(model.base_model_id)
+            if base_model is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Base model '{model.base_model_id}' not found for assistant '{model.name}'.",
+                )
+            model_name = base_model.name
     else:
         model_name = model.name
 
@@ -279,35 +287,6 @@ async def generate_chat_completion(
 
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
-
-    # History shortening (TODO: Find a better place for this)
-    # Mapping internal model names to provider/base models
-    MODEL_MAPPING = {
-        "Claude 4.5 Haiku": "vertex_ai/claude-haiku-4-5@20251001",
-        "Claude Sonnet 4.5": "vertex_ai/claude-sonnet-4-5@20250929",
-        "Google 2.5 Flash": "gemini-2.5-flash",
-        "Google 2.5 Pro": "gemini-2.5-pro",
-        "GPT o3": "azure/o3",
-        "GPT o4-mini": "azure/o4-mini",
-        "GPT-5": "azure/gpt-5",
-        "GPT-5 mini": "azure/gpt-5-mini",
-        "GPT-5 nano": "azure/gpt-5-nano",
-        "Grok 4": "xai/grok-4",
-        "Mistral Large 2": "vertex_ai/mistral-large-2411@001",
-        "Perplexity Sonar Deep Research": "perplexity/sonar-deep-research",
-        "Perplexity Sonar Pro": "perplexity/sonar-pro",
-        "Perplexity Sonar Reasoning Pro": "perplexity/sonar-reasoning-pro",
-        "GPT-5.1 instant": "azure/gpt-5.1-chat",
-        "GPT-5.1 thinking": "azure/gpt-5.1",
-    }
-
-    try:
-        payload["messages"] = trim_messages(payload["messages"], MODEL_MAPPING[model_name])
-    except Exception:
-        log.warning("Error trimming messages, continuing with the original messages...")
-
-    # Extract last user message before serializing
-    last_user_message = next((msg['content'] for msg in reversed(payload['messages']) if msg['role'] == 'user'), '')
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -383,7 +362,7 @@ async def generate_chat_completion(
                                 credit_cost_streaming = 0
 
                                 if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, data, model_name)
+                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response(user, data)
 
                                 Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
                         except json.JSONDecodeError:
@@ -398,7 +377,7 @@ async def generate_chat_completion(
                 background=BackgroundTask(
                     cleanup_response, response=r
                 ),
-            )
+            ), model
         else:
             try:
                 response = await r.json()
@@ -413,7 +392,7 @@ async def generate_chat_completion(
                 if agent_or_task_prompt:
                     raise e
 
-                model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+                model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
                 form_data = {
                     "messages": [
@@ -437,15 +416,12 @@ async def generate_chat_completion(
 
             credit_cost = 0
 
-            # Add completion to completion table
-            response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
-
             if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(user, response, model_name)
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(user, response)
 
             Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
 
-            return response
+            return response, model
     except Exception as e:
         log.error(f"Error in generate_chat_completion: {e}")
 
@@ -467,7 +443,7 @@ async def generate_chat_completion(
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
-    model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+    model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
     payload = {
         "messages": [
@@ -488,6 +464,6 @@ async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):
         "temperature": 0.0
     }
 
-    message = await generate_chat_completion(payload, user, model)
+    message, _ = await generate_chat_completion(payload, user, model)
 
     return message['choices'][0]['message']['content']
