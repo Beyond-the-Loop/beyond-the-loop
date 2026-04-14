@@ -31,12 +31,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    conn = op.get_bind()
-
-    conn.execute(
-        sa.text("""
-                ALTER TABLE "user"
-                    DROP COLUMN IF EXISTS position,
-                    DROP COLUMN IF EXISTS phone;
-                """)
-    )
+    pass
