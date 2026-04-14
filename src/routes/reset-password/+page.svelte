@@ -28,6 +28,7 @@
 	import CustomToast from '$lib/components/common/CustomToast.svelte';
 	import LoaderIcon from '$lib/components/icons/LoaderIcon.svelte';
 	import ArrowLeft from '$lib/components/icons/ArrowLeft.svelte';
+	import SignupBanner from '$lib/components/signup/shared/SignupBanner.svelte';
 	import { theme, systemTheme } from '$lib/stores';
 
 	const i18n = getContext('i18n');
@@ -66,75 +67,73 @@
 </svelte:head>
 
 <CustomToast message={$toastMessage} type={$toastType} visible={$toastVisible} />
-<a
-	href="/login"
-	class="bg-transparent flex items-center text-xs font-medium text-lightGray-100 dark:text-customGray-200 w-fit fixed z-30 top-4 left-4"
->
-	<ArrowLeft className="size-3 mr-1" />
-	Back to Login</a
->
-<div
-	class="flex flex-col justify-center w-full h-screen max-h-[100dvh] px-4 text-white relative bg-lightGray-300 dark:bg-customGray-900"
->
-	<form
-		class="flex flex-col self-center bg-lightGray-800 dark:bg-customGray-800 rounded-2xl w-full md:w-[31rem] px-5 py-5 md:py-8 md:px-24"
-		on:submit={(e) => {
-			e.preventDefault();
-			resetPassword();
-		}}
-	>
-		<div class="self-center flex flex-col items-center mb-5">
-			<div>
-				<img width="40" height="40" crossorigin="anonymous" src={logoSrc} class=" w-10 mb-5" alt="logo" />
-			</div>
-			<div class="mb-2.5 font-medium text-lightGray-100 dark:text-customGray-100">
-				{$i18n.t('Reset password')}
-			</div>
-			<div class="font-medium text-center text-xs text-[#8A8B8D] dark:text-customGray-300">
-				{$i18n.t('Enter your email to get a reset link')}
-			</div>
-		</div>
-		<div class="flex-1 mb-2.5">
-			<div class="relative w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md">
-				{#if email}
-					<div
-						class="text-xs absolute left-2.5 top-1 text-lightGray-100/50 dark:text-customGray-100/50"
+<div class="flex min-h-screen bg-white dark:bg-customGray-900">
+	<div class="flex w-full flex-col items-center px-6 sm:px-8 lg:w-1/2 lg:px-12 xl:px-16">
+		<div class="flex-[2]"></div>
+		<div class="w-full max-w-[25rem] lg:max-w-[clamp(20rem,31.5vw,28rem)]">
+			<form
+				on:submit={(e) => {
+					e.preventDefault();
+					resetPassword();
+				}}
+			>
+				<div class="mb-6">
+					<a
+						href="/login"
+						class="flex h-8 w-8 items-center justify-center rounded-lg text-[#16181D] transition hover:bg-gray-100 dark:text-customGray-100 dark:hover:bg-customGray-800"
 					>
-						{$i18n.t('Email address')}
-					</div>
-				{/if}
-				<input
-					class={`px-2.5 text-sm ${email ? 'pt-2' : 'pt-0'} w-full h-12 bg-transparent text-lightGray-100 placeholder:text-lightGray-100 dark:text-white dark:placeholder:text-customGray-100 outline-none`}
-					placeholder={$i18n.t('Email address')}
-					bind:value={email}
-					type="email"
-					autocomplete="email"
-					name="email"
-					required
-				/>
-			</div>
-		</div>
-		<button
-			class="font-medium text-xs w-full h-10 px-3 py-2 transition rounded-lg {loading
-				? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-700 hover:bg-gray-900 text-lightGray-100 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border border-lightGray-400 dark:border-customGray-700'
-				: 'bg-lightGray-300 hover:bg-lightGray-700 hover:bg-gray-900 text-lightGray-100 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border border-lightGray-400 dark:border-customGray-700'} flex justify-center items-center"
-			type="submit"
-			disabled={loading}
-		>
-			{$i18n.t('Send')}
-			{#if loading}
-				<div class="ml-1.5 self-center">
-					<LoaderIcon />
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+							<path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+						</svg>
+					</a>
 				</div>
-			{/if}
-		</button>
-		<div class="self-center text-xs text-lightGray-100 dark:text-customGray-300 mt-5 text-center">
-			{$i18n.t('By using this service, you agree to our')}
-			<a
-				href="https://beyondtheloop.ai/tscs"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>{#if $i18n.language === "de-DE"}{" "}zu.{:else}.{/if}
+
+				<h1 class="text-2xl font-semibold text-[#16181D] dark:text-customGray-100">
+					{$i18n.t('Reset password')}
+				</h1>
+				<p class="mt-2 mb-6 text-base text-[#6B7280] dark:text-customGray-300">
+					{$i18n.t('Enter your email to get a reset link')}
+				</p>
+
+				<div class="mb-4">
+					<label for="reset-email" class="mb-1.5 block text-sm font-normal text-[#16181D] dark:text-customGray-200">
+						{$i18n.t('Email address')}
+					</label>
+					<input
+						id="reset-email"
+						class="h-12 w-full rounded-lg border border-gray-200 bg-[#F1F1F1] px-4 text-sm text-[#16181D] outline-none transition focus:border-customBlue-500 focus:ring-1 focus:ring-customBlue-500 dark:border-customGray-700 dark:bg-customGray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-customGray-300"
+						placeholder={$i18n.t('Email address')}
+						bind:value={email}
+						type="email"
+						autocomplete="email"
+						name="email"
+						required
+					/>
+				</div>
+
+				<button
+					class="flex h-12 w-full items-center justify-center rounded-lg bg-[#F1F1F1] text-sm font-medium text-[#16181D] transition hover:bg-[#E8E8E8] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-customGray-900 dark:text-customGray-200 dark:hover:bg-customGray-950"
+					type="submit"
+					disabled={loading}
+				>
+					{$i18n.t('Send')}
+					{#if loading}
+						<div class="ml-1.5">
+							<LoaderIcon />
+						</div>
+					{/if}
+				</button>
+
+				<p class="mt-6 text-center text-xs text-[#6B7280] dark:text-customGray-300">
+					{$i18n.t('By using this service, you agree to our')}
+					<a href="https://beyondtheloop.ai/tscs" target="_blank" rel="noopener noreferrer" class="underline text-customBlue-500 font-medium">{$i18n.t('Terms and Conditions')}</a>{#if $i18n.language === "de-DE"}{" "}zu.{:else}.{/if}
+				</p>
+			</form>
 		</div>
-	</form>
+		<div class="flex-[3]"></div>
+	</div>
+
+	<div class="hidden lg:block lg:w-1/2">
+		<SignupBanner />
+	</div>
 </div>

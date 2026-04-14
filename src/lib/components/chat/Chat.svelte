@@ -35,7 +35,6 @@
 		socket,
 		tags as allTags,
 		temporaryChatEnabled,
-		tools,
 		user,
 		WEBUI_NAME
 	} from '$lib/stores';
@@ -48,21 +47,13 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import {
-		createNewChat,
-		getAllTags,
-		getChatById,
-		getChatList,
-		getTagsById,
-		updateChatById
-	} from '$lib/apis/chats';
+	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
-	import { chatCompleted, chatAction, generateMoACompletion, stopTask } from '$lib/apis';
-	import { getTools } from '$lib/apis/tools';
+	import { chatAction, chatCompleted, generateMoACompletion, stopTask } from '$lib/apis';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
@@ -112,6 +103,7 @@
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
 	let codeInterpreterEnabled = false;
+	let autoToolsEnabled = true;
 	let chat = null;
 	let tags = [];
 	let alert: Alert;
@@ -122,6 +114,7 @@
 	};
 
 	let taskId = null;
+	let currentRequestController: AbortController | null = null;
 
 	// Chat Input
 	let prompt = '';
@@ -130,6 +123,25 @@
 	let params = {};
 	let isMagicLoading = false;
 	let initNewChatCompleted = false;
+
+	const getDefaultModels = (): string[] => {
+		const defaultModelIds = $companyConfig?.config?.models?.default_models?.split(',');
+		const validDefaults = defaultModelIds?.filter((id) => $models.some((m) => m.id === id));
+
+		if (validDefaults?.length > 0) {
+			return validDefaults;
+		}
+
+		return ['Smart Router'];
+	};
+
+	$: if (
+		!chatIdProp &&
+		$models.length > 0 &&
+		(selectedModels.length === 0 || selectedModels.every((id) => !id || !$models.some((m) => m.id === id)))
+	) {
+		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
+	}
 
 	$: if (chatIdProp) {
 		(async () => {
@@ -154,7 +166,9 @@
 						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-					} catch (e) {}
+						autoToolsEnabled = input.autoToolsEnabled ?? true;
+					} catch (e) {
+					}
 				}
 
 				window.setTimeout(() => scrollToBottom(), 0);
@@ -166,25 +180,7 @@
 		})();
 	}
 
-	$: if (selectedModels) {
-		setToolIds();
-	}
-
-	const setToolIds = async () => {
-		if (!$tools) {
-			tools.set(await getTools(localStorage.token));
-		}
-
-		if (selectedModels.length !== 1) {
-			return;
-		}
-		const model = $models.find((m) => m.id === selectedModels[0]);
-		if (model) {
-			selectedToolIds = (model?.info?.meta?.toolIds ?? []).filter((id) =>
-				$tools.find((t) => t.id === id)
-			);
-		}
-	};
+	
 
 	const showMessage = async (message) => {
 		const _chatId = JSON.parse(JSON.stringify($chatId));
@@ -218,6 +214,9 @@
 			let message = history.messages[event.message_id];
 
 			if (message) {
+				// Ignore all backend events for messages that are already done (e.g. stopped by user)
+				if (message.done) return;
+
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
 
@@ -396,12 +395,14 @@
 				selectedToolIds = input.selectedToolIds;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
+				autoToolsEnabled = input.autoToolsEnabled ?? true;
 			} catch (e) {
 				prompt = '';
 				files = [];
 				selectedToolIds = [];
 				webSearchEnabled = false;
 				imageGenerationEnabled = false;
+				autoToolsEnabled = true;
 			}
 		}
 
@@ -428,7 +429,8 @@
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
 
-		chats.subscribe(() => {});
+		chats.subscribe(() => {
+		});
 
 		alert = await getAlert();
 	});
@@ -595,54 +597,7 @@
 	//////////////////////////
 
 	const initNewChat = async () => {
-		if ($page.url.searchParams.get('models')) {
-			selectedModels = $page.url.searchParams.get('models')?.split(',');
-		} else if ($page.url.searchParams.get('model')) {
-			const urlModels = $page.url.searchParams.get('model')?.split(',');
-
-			if (urlModels.length === 1) {
-				const m = $models.find((m) => m.id === urlModels[0]);
-				if (!m) {
-					const modelSelectorButton = document.getElementById('model-selector-0-button');
-					if (modelSelectorButton) {
-						modelSelectorButton.click();
-						await tick();
-
-						const modelSelectorInput = document.getElementById('model-search-input');
-						if (modelSelectorInput) {
-							modelSelectorInput.focus();
-							modelSelectorInput.value = urlModels[0];
-							modelSelectorInput.dispatchEvent(new Event('input'));
-						}
-					}
-				} else {
-					selectedModels = urlModels;
-				}
-			} else {
-				selectedModels = urlModels;
-			}
-		} else {
-			if ($settings?.models) {
-				selectedModels = $settings?.models;
-			} else if ($companyConfig?.config?.models?.default_models) {
-				const ids = $companyConfig?.config?.models?.default_models?.split(',');
-				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
-				const isActive = $models?.some((model) => ids?.includes(model.id));
-				selectedModels = isActive ? ids : gptDefault ? [gptDefault?.id] : [];
-			} else {
-				const gptDefault = $models?.find((item) => item.name === 'GPT-5 mini');
-				selectedModels = [gptDefault?.id];
-			}
-		}
-
-		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
-		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
-			if ($models.length > 0) {
-				selectedModels = [$models[0].id];
-			} else {
-				selectedModels = [''];
-			}
-		}
+		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
 
 		await showControls.set(false);
 		await showCallOverlay.set(false);
@@ -669,6 +624,7 @@
 		webSearchEnabled = false;
 		imageGenerationEnabled = false;
 		codeInterpreterEnabled = false;
+		autoToolsEnabled = true;
 
 		if ($page.url.searchParams.get('youtube')) {
 			uploadYoutubeTranscription(
@@ -681,20 +637,6 @@
 
 		if ($page.url.searchParams.get('image-generation') === 'true') {
 			imageGenerationEnabled = true;
-		}
-
-		if ($page.url.searchParams.get('tools')) {
-			selectedToolIds = $page.url.searchParams
-				.get('tools')
-				?.split(',')
-				.map((id) => id.trim())
-				.filter((id) => id);
-		} else if ($page.url.searchParams.get('tool-ids')) {
-			selectedToolIds = $page.url.searchParams
-				.get('tool-ids')
-				?.split(',')
-				.map((id) => id.trim())
-				.filter((id) => id);
 		}
 
 		if ($page.url.searchParams.get('call') === 'true') {
@@ -710,10 +652,6 @@
 				submitPrompt(prompt);
 			}
 		}
-
-		selectedModels = selectedModels.map((modelId) =>
-			$models.map((m) => m.id).includes(modelId) ? modelId : ''
-		);
 
 		const userSettings = await getUserSettings(localStorage.token);
 
@@ -1027,16 +965,13 @@
 			type,
 			sources,
 			selected_model_id,
+			model: updatedModel,
 			error,
 			usage
 		} = data;
 
 		if (error) {
 			await handleOpenAIError(error, message);
-		}
-
-		if (taskId == null) {
-			return;
 		}
 
 		if (sources) {
@@ -1141,6 +1076,10 @@
 		if (selected_model_id) {
 			message.selectedModelId = selected_model_id;
 			message.arena = true;
+		}
+
+		if (updatedModel && !choices) {
+			message.model = updatedModel;
 		}
 
 		if (usage) {
@@ -1412,7 +1351,13 @@
 					let userContext = null;
 					if ($settings?.memory ?? false) {
 						if (userContext === null) {
-							const res = await queryMemory(localStorage.token, prompt).catch((error) => {
+							const res = await queryMemory(
+								localStorage.token,
+								prompt,
+								_chatId,
+								responseMessageId,
+								$socket?.id
+							).catch((error) => {
 								toast.error(`${error}`);
 								return null;
 							});
@@ -1477,21 +1422,21 @@
 			true;
 
 		const messages = [
-			params?.system || $settings.system || (responseMessage?.userContext ?? null)
+			!model.base_model_id && (params?.system || $settings.system || (responseMessage?.userContext ?? null))
 				? {
-						role: 'system',
-						content: `${promptTemplate(
-							params?.system ?? $settings?.system ?? '',
-							`${$user.first_name} ${$user.last_name}`,
-							$settings?.userLocation
-								? await getAndUpdateUserLocation(localStorage.token)
-								: undefined
-						)}${
-							(responseMessage?.userContext ?? null)
-								? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
-								: ''
-						}`
-					}
+					role: 'system',
+					content: `${promptTemplate(
+						params?.system ?? $settings?.system ?? '',
+						`${$user.first_name} ${$user.last_name}`,
+						$settings?.userLocation
+							? await getAndUpdateUserLocation(localStorage.token)
+							: undefined, model.name
+					)}${
+						(responseMessage?.userContext ?? null)
+							? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
+							: ''
+					}`
+				}
 				: undefined,
 			...createMessagesList(_history, responseMessageId).map((message) => ({
 				...message,
@@ -1504,25 +1449,27 @@
 				...((message.files?.filter((file) => file.type === 'image').length > 0 ?? false) &&
 				message.role === 'user'
 					? {
-							content: [
-								{
-									type: 'text',
-									text: message?.merged?.content ?? message.content
-								},
-								...message.files
-									.filter((file) => file.type === 'image')
-									.map((file) => ({
-										type: 'image_url',
-										image_url: {
-											url: file.url
-										}
-									}))
-							]
-						}
+						content: [
+							{
+								type: 'text',
+								text: message?.merged?.content ?? message.content
+							},
+							...message.files
+								.filter((file) => file.type === 'image')
+								.map((file) => ({
+									type: 'image_url',
+									image_url: {
+										url: file.url
+									}
+								}))
+						]
+					}
 					: {
-							content: message?.merged?.content ?? message.content
-						})
+						content: message?.merged?.content ?? message.content
+					})
 			}));
+
+		currentRequestController = new AbortController();
 
 		const res = await generateOpenAIChatCompletion(
 			localStorage.token,
@@ -1539,30 +1486,51 @@
 					stop:
 						(params?.stop ?? $settings?.params?.stop ?? undefined)
 							? (params?.stop.split(',').map((token) => token.trim()) ?? $settings.params.stop).map(
-									(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
-								)
+								(str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
+							)
 							: undefined
 				},
 
 				files: (files?.length ?? 0) > 0 ? files : undefined,
 				tool_ids: selectedToolIds.length > 0 ? selectedToolIds : undefined,
 
-				features: {
-					image_generation:
-						$config?.features?.enable_image_generation &&
-						($user.role === 'admin' || $user?.permissions?.features?.image_generation)
-							? imageGenerationEnabled
-							: false,
-					code_interpreter:
-						$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
-							? codeInterpreterEnabled
-							: false,
-					web_search:
-						$config?.features?.enable_web_search &&
-						($user.role === 'admin' || $user?.permissions?.features?.web_search)
-							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
-							: false
-				},
+				features: autoToolsEnabled
+					? {}
+					: {
+						image_generation:
+							$config?.features?.enable_image_generation &&
+							($user.role === 'admin' || $user?.permissions?.features?.image_generation)
+								? imageGenerationEnabled
+								: false,
+						code_interpreter:
+							$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
+								? codeInterpreterEnabled
+								: false,
+						web_search:
+							$config?.features?.enable_web_search &&
+							($user.role === 'admin' || $user?.permissions?.features?.web_search)
+								? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
+								: false
+					},
+
+				auto_tools: autoToolsEnabled
+					? [
+						...($companyConfig?.config?.rag?.web?.search?.enable &&
+						($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
+						(model?.meta?.capabilities?.websearch ?? true)
+							? ['web_search']
+							: []),
+						...($companyConfig?.config?.image_generation?.enable &&
+						($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
+						(model?.meta?.capabilities?.image_generation ?? true)
+							? ['image_generation']
+							: []),
+						...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
+						(model?.meta?.capabilities?.code_interpreter ?? true)
+							? ['code_interpreter']
+							: [])
+					]
+					: undefined,
 
 				session_id: $socket?.id,
 				chat_id: _chatId,
@@ -1575,28 +1543,29 @@
 						messages.at(1)?.role === 'user')) &&
 				selectedModels[0] === model.id
 					? {
-							background_tasks: {
-								title_generation: $settings?.title?.auto ?? true,
-								tags_generation: $settings?.autoTags ?? true
-							}
+						background_tasks: {
+							title_generation: $settings?.title?.auto ?? true,
+							tags_generation: $settings?.autoTags ?? true
 						}
+					}
 					: {}),
 
 				...(stream && (model.info?.meta?.capabilities?.usage ?? false)
 					? {
-							stream_options: {
-								include_usage: true
-							}
+						stream_options: {
+							include_usage: true
 						}
+					}
 					: {})
 			},
-			`${WEBUI_BASE_URL}/api`
+			`${WEBUI_BASE_URL}/api`,
+			currentRequestController.signal
 		)
 			.catch((error) => {
 				if (!error?.includes('402')) {
 					if (error?.includes('ContentPolicyViolationError')) {
 						toast.error(
-							"The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry."
+							'The response was filtered due to the prompt triggering Azure OpenAI\'s content management policy. Please modify your prompt and retry.'
 						);
 					} else {
 						toast.error(`${error}`);
@@ -1612,6 +1581,8 @@
 				history.currentId = responseMessageId;
 				return null;
 			});
+
+		currentRequestController = null;
 
 		if (res) {
 			taskId = res.task_id;
@@ -1661,31 +1632,54 @@
 	};
 
 	const stopResponse = () => {
+		// Abort the in-flight HTTP request (covers websearch/RAG preprocessing phase)
+		if (currentRequestController) {
+			currentRequestController.abort();
+			currentRequestController = null;
+		}
+
 		if (taskId) {
-			const res = stopTask(localStorage.token, taskId).catch((error) => {
-				return null;
+			stopTask(localStorage.token, taskId).catch((error) => {
+				console.error('Failed to stop task:', error);
 			});
+			taskId = null;
+		}
 
-			if (res) {
-				taskId = null;
+		if (bufferedResponse) {
+			bufferedResponse.stop();
+			bufferedResponse = null;
+		}
 
-				const responseMessage = history.messages[history.currentId];
+		const responseMessage = history.messages[history.currentId];
+		if (responseMessage && !responseMessage.done) {
+			const visibleContent = (responseMessage.content ?? '')
+				.replace(/<details\s+type="reasoning"[^>]*>[\s\S]*?(<\/details>|$)/g, '')
+				.trim();
+			const hasContent = visibleContent !== '';
+
+			if (hasContent) {
 				responseMessage.done = true;
+				responseMessage.statusHistory = [];
 				responseMessage.content = responseMessage.content.replaceAll(
 					'<details type="reasoning" done="false">',
 					'<details type="reasoning" done="true">'
 				);
-
 				history.messages[history.currentId] = responseMessage;
-
-				if (autoScroll) {
-					scrollToBottom();
+			} else {
+				const parentId = responseMessage.parentId;
+				if (parentId && history.messages[parentId]) {
+					history.messages[parentId].childrenIds = history.messages[parentId].childrenIds.filter(
+						(id) => id !== history.currentId
+					);
+					history.messages[parentId].done = true;
 				}
+				delete history.messages[history.currentId];
+				history.currentId = parentId;
 			}
 		}
-		if (bufferedResponse) {
-			bufferedResponse?.stop();
-			bufferedResponse = null;
+
+		if (autoScroll) {
+			scrollToBottom();
 		}
 	};
 
@@ -1957,15 +1951,14 @@
 						<div class=" pb-[1rem] max-w-[980px] mx-auto w-full">
 							<div class="px-3 mb-2.5 flex items-center justify-between">
 								<ModelSelector
-									{initNewChatCompleted}
 									bind:selectedModels
-									showSetDefault={!history.currentId}
 								/>
 								<button
 									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
 									on:click={() => showLibrary.set(!$showLibrary)}
 								>
-									<BookIcon /> <span>{$i18n.t('Library')}</span>
+									<BookIcon />
+									<span>{$i18n.t('Library')}</span>
 								</button>
 							</div>
 							<div class="mb-4">
@@ -1980,6 +1973,7 @@
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
+									bind:autoToolsEnabled
 									bind:atSelectedModel
 									{isMagicLoading}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}
@@ -2057,6 +2051,7 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
+								bind:autoToolsEnabled
 								bind:atSelectedModel
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}

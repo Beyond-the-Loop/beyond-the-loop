@@ -39,6 +39,7 @@
 	export let imageGenerationEnabled = false;
 	export let codeInterpreterEnabled = false;
 	export let webSearchEnabled = false;
+	export let autoToolsEnabled = false;
 	export let isMagicLoading;
 	export let initNewChatCompleted;
 
@@ -215,9 +216,7 @@
 				{/if}
 				<div class="px-2.5 mb-2.5 flex justify-between">
 					<ModelSelector
-						{initNewChatCompleted}
 						bind:selectedModels
-						showSetDefault={!history.currentId}
 					/>
 					<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
 						<BookIcon /> <span>{$i18n.t('Library')}</span>
@@ -233,6 +232,7 @@
 					bind:imageGenerationEnabled
 					bind:codeInterpreterEnabled
 					bind:webSearchEnabled
+					bind:autoToolsEnabled
 					bind:atSelectedModel
 					{transparentBackground}
 					{stopResponse}

@@ -305,7 +305,8 @@ export const chatCompletion = async (
 export const generateOpenAIChatCompletion = async (
 	token: string = '',
 	body: object,
-	url: string = `${WEBUI_BASE_URL}/api`
+	url: string = `${WEBUI_BASE_URL}/api`,
+	signal?: AbortSignal
 ) => {
 	let error = null;
 
@@ -315,13 +316,17 @@ export const generateOpenAIChatCompletion = async (
 			Authorization: `Bearer ${token}`,
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify(body)
+		body: JSON.stringify(body),
+		signal
 	})
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();
 			return res.json();
 		})
 		.catch((err) => {
+			if (err?.name === 'AbortError') {
+				return null;
+			}
 			error = `${err?.detail ?? err}`;
 			return null;
 		});
@@ -364,34 +369,3 @@ export const generateMagicPrompt = async (
 	return res;
 };
 
-export const synthesizeOpenAISpeech = async (
-	token: string = '',
-	speaker: string = 'alloy',
-	text: string = '',
-	model: string = 'tts-1'
-) => {
-	let error = null;
-
-	const res = await fetch(`${OPENAI_API_BASE_URL}/audio/speech`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${token}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: model,
-			input: text,
-			voice: speaker
-		})
-	}).catch((err) => {
-		console.log(err);
-		error = err;
-		return null;
-	});
-
-	if (error) {
-		throw error;
-	}
-
-	return res;
-};

@@ -28,6 +28,7 @@
 	import { PASTED_TEXT_CHARACTER_LIMIT, WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 
 	import InputMenu from './MessageInput/InputMenu.svelte';
+	import ToolsMenu from './MessageInput/ToolsMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
 	import FilesOverlay from './MessageInput/FilesOverlay.svelte';
 	import Commands from './MessageInput/Commands.svelte';
@@ -38,9 +39,6 @@
 	import Image from '../common/Image.svelte';
 
 	import XMark from '../icons/XMark.svelte';
-	import WebSearchIcon from '../icons/WebSearchIcon.svelte';
-	import CodeInterpreterIcon from '../icons/CodeInterpreterIcon.svelte';
-	import ImageGenerateIcon from '../icons/ImageGenerateIcon.svelte';
 	import InputMenuIcon from '../icons/InputMenuIcon.svelte';
 	import VoiceRecorderIcon from '../icons/VoiceRecorderIcon.svelte';
 	import CallIcon from '../icons/CallIcon.svelte';
@@ -53,7 +51,8 @@
 
 	export let transparentBackground = false;
 
-	export let onChange: Function = () => {};
+	export let onChange: Function = () => {
+	};
 	export let createMessagePair: Function;
 	export let stopResponse: Function;
 
@@ -77,13 +76,15 @@
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
+	export let autoToolsEnabled = false;
 
 	$: onChange({
 		prompt,
 		files,
 		selectedToolIds,
 		imageGenerationEnabled,
-		webSearchEnabled
+		webSearchEnabled,
+		autoToolsEnabled
 	});
 
 	let loaded = false;
@@ -105,6 +106,19 @@
 	$: visionCapableModels = [...(atSelectedModel ? [atSelectedModel] : selectedModels)].filter(
 		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.vision ?? true
 	);
+
+	// Magic prompt button — derived state
+	$: isMagicPromptDisabled = prompt.trim() === '' || isMagicLoading;
+
+	$: magicPromptButtonClass = [
+		'text-customGray-900 dark:text-customGray-100',
+		'text-xs leading-none',
+		'transition rounded-md py-[3px] px-[5px] mr-0.5 self-center',
+		'disabled:opacity-40 disabled:cursor-not-allowed',
+		isMagicLoading
+			? 'dark:bg-customBlue-700/60'
+			: 'hover:text-gray-700 dark:hover:text-white dark:hover:bg-customGray-900'
+	].join(' ');
 
 	const scrollToBottom = () => {
 		const element = document.getElementById('messages-container');
@@ -1192,7 +1206,7 @@
 									{/if}
 								</div>
 
-								<div class=" flex justify-between mt-1.5 mb-5 mx-4 max-w-full">
+								<div class=" flex justify-between mt-1.5 mb-5 mx-4 max-w-full items-center">
 									<div class="ml-1 self-end gap-0.5 flex items-center flex-1 max-w-[80%]">
 										<InputMenu
 											bind:selectedToolIds
@@ -1252,85 +1266,24 @@
 											</button>
 										</InputMenu>
 
-										<div class="flex gap-1 items-center overflow-x-auto scrollbar-none flex-1">
-											{#if $_user}
-												{#if $companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (customModel?.meta?.capabilities?.websearch ?? true)}
-													<Tooltip content={$i18n.t('Search the internet')} placement="top">
-														<button
-															on:click|preventDefault={() => {
-																webSearchEnabled = !webSearchEnabled;
-																imageGenerationEnabled = false;
-																codeInterpreterEnabled = false;
-															}}
-															type="button"
-															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {webSearchEnabled ||
-															($settings?.webSearch ?? false) === 'always'
-																? 'bg-blue-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
-																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900'}"
-														>
-															<WebSearchIcon />
-															{#if webSearchEnabled || ($settings?.webSearch ?? false) === 'always'}
-																<span
-																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Web Search')}</span
-																>
-															{/if}
-														</button>
-													</Tooltip>
-												{/if}
+										{#if $_user}
+											{@const
+												canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (customModel?.meta?.capabilities?.websearch ?? true))}
+											{@const
+												canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (customModel?.meta?.capabilities?.image_generation ?? true))}
+											{@const
+												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true))}
 
-												{#if $companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (customModel?.meta?.capabilities?.image_generation ?? true)}
-													<Tooltip content={$i18n.t('Generate an image')} placement="top">
-														<button
-															on:click|preventDefault={() => {
-																imageGenerationEnabled = !imageGenerationEnabled;
-																codeInterpreterEnabled = false;
-																webSearchEnabled = false;
-															}}
-															type="button"
-															class="p-[3px] flex gap-1.5 items-center text-xs rounded-md font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {imageGenerationEnabled
-																? 'bg-blue-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
-																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900 '}"
-														>
-															<ImageGenerateIcon />
-															{#if imageGenerationEnabled}
-																<span
-																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Image')}</span
-																>
-															{/if}
-														</button>
-													</Tooltip>
-												{/if}
-
-												{#if ($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true)}
-													<Tooltip content={$i18n.t('Execute code for analysis')} placement="top">
-														<button
-															on:click|preventDefault={() => {
-																codeInterpreterEnabled = !codeInterpreterEnabled;
-																imageGenerationEnabled = false;
-																webSearchEnabled = false;
-															}}
-															type="button"
-															class="p-[3px] flex gap-1.5 items-center text-xs rounded-lg font-medium transition-colors duration-300 focus:outline-none max-w-full overflow-hidden {codeInterpreterEnabled
-																? 'bg-gray-100 dark:bg-customBlue-700/60 text-blue-500 dark:text-white'
-																: 'bg-transparent text-customGray-900 dark:text-customGray-100 border-gray-200 hover:bg-gray-100 dark:hover:bg-customGray-900 '}"
-														>
-															<CodeInterpreterIcon />
-															{#if codeInterpreterEnabled}
-																<span
-																	class="hidden @sm:block whitespace-nowrap overflow-hidden text-ellipsis mr-0.5"
-																	>{$i18n.t('Code Interpreter')}
-																</span>
-																<span class="text-[0.5rem] leading-[11px] ml-[-5px] self-start">
-																	Beta
-																</span>
-															{/if}
-														</button>
-													</Tooltip>
-												{/if}
-											{/if}
-										</div>
+											<ToolsMenu
+												{canWebSearch}
+												{canImageGen}
+												{canCodeInterpreter}
+												bind:webSearchEnabled
+												bind:imageGenerationEnabled
+												bind:codeInterpreterEnabled
+												bind:autoToolsEnabled
+											/>
+										{/if}
 									</div>
 
 									<div class="self-end flex space-x-1 mr-1 flex-shrink-0">
@@ -1338,18 +1291,18 @@
 											<Tooltip content={$i18n.t('Magic prompt')}>
 												<button
 													id="magic-search-button"
-													class={`${isMagicLoading ? 'dark:bg-customBlue-700/60' : ''} text-customGray-900 dark:text-customGray-100 text-xs leading-none hover:text-gray-700 dark:hover:text-white ${!isMagicLoading ? 'dark:hover:bg-customGray-900' : ''}  transition rounded-md py-[3px] px-[5px] mr-0.5 self-center`}
+													class={magicPromptButtonClass}
 													type="button"
 													aria-label="Magic Prompt"
-													disabled={prompt === '' || isMagicLoading}
+													disabled={isMagicPromptDisabled}
 													on:click|preventDefault={() => {
 														dispatch('magicPrompt', prompt);
 													}}
 												>
 													{#if isMagicLoading}
 														<span class="flex items-center"
-															><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
-															></span
+														><LoadingIcon /><span class="ml-1">{$i18n.t('Magic prompt')}</span
+														></span
 														>
 													{:else}
 														<MagicSearch />
@@ -1410,15 +1363,6 @@
 																	return;
 																}
 
-																if ($config.audio.stt.engine === 'web') {
-																	toast.error(
-																		$i18n.t(
-																			'Call feature is not supported when using Web STT engine'
-																		)
-																	);
-
-																	return;
-																}
 																// check if user has access to getUserMedia
 																try {
 																	let stream = await navigator.mediaDevices.getUserMedia({

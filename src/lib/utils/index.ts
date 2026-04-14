@@ -15,6 +15,13 @@ dayjs.extend(localizedFormat);
 
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { TTS_RESPONSE_SPLIT } from '$lib/types';
+import type { SystemPromptConfig, PromptStyle } from '$lib/stores';
+import { concise_prompt } from '$lib/utils/default_prompts/concise';
+import { formal_prompt } from '$lib/utils/default_prompts/formal';
+import { explaining_prompt } from '$lib/utils/default_prompts/explaining';
+import { default_prompt } from '$lib/utils/default_prompts/default';
+import { get } from 'svelte/store';
+import { modelsInfo } from '$lib/stores';
 //////////////////////////
 // Helper functions
 //////////////////////////
@@ -66,6 +73,21 @@ export const replaceTokens = (content, sourceIds, char, user) => {
 			content = content.replace(sourceRegex, `<source_id data="${sourceId}" />`);
 		});
 	}
+
+	// Fallback: replace any remaining [https://...] or [http://...] patterns that were not
+	// covered by sourceIds (e.g. missing sources, adjacent brackets, or semicolon-separated URLs).
+	// This prevents Marked's GFM autolink from consuming the ] as part of the URL.
+	content = content.replace(/\[(https?:\/\/[^\]]*;[^\]]*)\]/g, (_, inner) => {
+		// Handle semicolon-separated URLs in one bracket: [url1; url2] → two source_id tags
+		return inner
+			.split(/;\s*/)
+			.filter((u) => u.trim().startsWith('http'))
+			.map((u) => `<source_id data="${u.trim()}" />`)
+			.join(' ');
+	});
+	content = content.replace(/\[(https?:\/\/[^\]]+)\]/g, (_, url) => {
+		return `<source_id data="${url}" />`;
+	});
 
 	return content;
 };
@@ -972,14 +994,22 @@ export const blobToFile = (blob, fileName) => {
 	return file;
 };
 
+export const templates: Record<PromptStyle, string> = {
+  concise: concise_prompt,
+  formal: formal_prompt,
+  explaining: explaining_prompt,
+  default: default_prompt
+}
+
 /**
- * @param {string} template - The template string containing placeholders.
+ * @param {string} instruction - The instruction dict containing promptStyle and customInstruction.
  * @returns {string} The template string with the placeholders replaced by the prompt.
  */
 export const promptTemplate = (
-	template: string,
+	instruction: SystemPromptConfig,
 	user_name?: string,
-	user_location?: string
+	user_location?: string,
+	modelName?: string
 ): string => {
 	// Get the current date
 	const currentDate = new Date();
@@ -1009,11 +1039,30 @@ export const promptTemplate = (
 	// Get the user's language
 	const userLanguage = localStorage.getItem('locale') || 'en-US';
 
-	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
-	template = template.replace('{{CURRENT_DATETIME}}', `${formattedDate} ${currentTime}`);
+	let template = templates[instruction.promptStyle];
 
 	// Replace {{CURRENT_DATE}} in the template with the formatted date
-	template = template.replace('{{CURRENT_DATE}}', formattedDate);
+	template = template.replace('{{CURRENT_DATE}}', currentWeekday + ' ' + formattedDate);
+
+	template = template.replace('{{YEAR}}', currentDate.getFullYear().toString());
+
+	template = template.replace('{{USER_CUSTOM_INSTRUCTIONS}}', instruction.customInstruction ?? '');
+
+	template = template.replace('{{MODEL}}', modelName ?? '');
+
+	if (modelName == "Smart Router")
+	{
+		template = template.replace('{{ORGANIZATION}}', "Beyond the Loop");
+	}else
+	{
+		const currentModelsInfo = get(modelsInfo);
+		template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? ''].organization ?? '');
+	}
+
+
+	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
+	template = template.replace('{{CURRENT_DATETIME}}', `${formattedDate} ${currentTime}`);
+	
 
 	// Replace {{CURRENT_TIME}} in the template with the formatted time
 	template = template.replace('{{CURRENT_TIME}}', currentTime);
@@ -1267,7 +1316,11 @@ export function getModelIcon(label: string): string {
 	const isDark = localStorage.getItem('theme') === 'dark';
 	const lower = label.toLowerCase();
 
-	if (lower.includes('perplexity')) {
+	if (lower.includes('nano banana')) {
+		return '/google-gemini-icon.svg';
+	} else if (lower.includes('router')) {
+		return '/smart-router.svg';
+	} else if (lower.includes('perplexity')) {
 		return '/perplexity-ai-icon.svg';
 	} else if (lower.includes('gpt')) {
 		return '/chatgpt-icon.svg';

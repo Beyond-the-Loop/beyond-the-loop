@@ -1,11 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep:*)",
-      "Bash(node -e:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(python3:*)"
+      "Bash(cat \"/Users/philszalay/Documents/code/beyond-the-loop/src/routes/\\(app\\)/+layout.svelte\")",
+      "Bash(ls:*)",
+      "Bash(grep -n \"$page\\\\|reactive\\\\|selectedModels = \\\\|models\\\\[0\\\\]\" /Users/philszalay/Documents/code/beyond-the-loop/src/lib/components/chat/Chat.svelte)",
+      "Bash(grep -n \"^\\\\s*$:\" /Users/philszalay/Documents/code/beyond-the-loop/src/lib/components/chat/Chat.svelte)",
+      "Bash(grep -rn \"$page.url.searchParams.get.*models\\\\|get.*models.*string\" /Users/philszalay/Documents/code/beyond-the-loop/src/)",
+      "Bash(grep -A 15 \"page.subscribe\\\\|^\\\\s*$:\" /Users/philszalay/Documents/code/beyond-the-loop/src/routes/\\\\\\(app\\\\\\)/+layout.svelte)",
+      "Bash(grep -rn atSelectedModels*= /Users/philszalay/Documents/code/beyond-the-loop/src/lib)",
+      "Bash(grep:*)"
     ]
   }
 }

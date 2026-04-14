@@ -19,8 +19,6 @@
 	let durationSeconds = 0;
 	let durationCounter = null;
 
-	let transcription = '';
-
 	const startDurationCounter = () => {
 		durationCounter = setInterval(() => {
 			durationSeconds++;
@@ -46,8 +44,6 @@
 	};
 
 	let stream;
-	let speechRecognition;
-
 	let mediaRecorder;
 	let audioChunks = [];
 
@@ -177,88 +173,23 @@
 		mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
 		mediaRecorder.onstop = async () => {
 			console.log('Recording stopped');
-			if ($config.audio.stt.engine === 'web' || ($settings?.audio?.stt?.engine ?? '') === 'web') {
-				audioChunks = [];
-			} else {
-				if (confirmed) {
-					const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+			if (confirmed) {
+				const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
 
-					await transcribeHandler(audioBlob);
+				await transcribeHandler(audioBlob);
 
-					confirmed = false;
-					loading = false;
-				}
-				audioChunks = [];
-				recording = false;
+				confirmed = false;
+				loading = false;
 			}
+			audioChunks = [];
+			recording = false;
 		};
 		mediaRecorder.start();
-		if ($config.audio.stt.engine === 'web' || ($settings?.audio?.stt?.engine ?? '') === 'web') {
-			if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-				// Create a SpeechRecognition object
-				speechRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-
-				// Set continuous to true for continuous recognition
-				speechRecognition.continuous = true;
-
-				// Set the timeout for turning off the recognition after inactivity (in milliseconds)
-				const inactivityTimeout = 2000; // 3 seconds
-
-				let timeoutId;
-				// Start recognition
-				speechRecognition.start();
-
-				// Event triggered when speech is recognized
-				speechRecognition.onresult = async (event) => {
-					// Clear the inactivity timeout
-					clearTimeout(timeoutId);
-
-					// Handle recognized speech
-					console.log(event);
-					const transcript = event.results[Object.keys(event.results).length - 1][0].transcript;
-
-					transcription = `${transcription}${transcript}`;
-
-					await tick();
-					document.getElementById('chat-input')?.focus();
-
-					// Restart the inactivity timeout
-					timeoutId = setTimeout(() => {
-						console.log('Speech recognition turned off due to inactivity.');
-						speechRecognition.stop();
-					}, inactivityTimeout);
-				};
-
-				// Event triggered when recognition is ended
-				speechRecognition.onend = function () {
-					// Restart recognition after it ends
-					console.log('recognition ended');
-
-					confirmRecording();
-					dispatch('confirm', { text: transcription });
-					confirmed = false;
-					loading = false;
-				};
-
-				// Event triggered when an error occurs
-				speechRecognition.onerror = function (event) {
-					console.log(event);
-					toast.error($i18n.t(`Speech recognition error: {{error}}`, { error: event.error }));
-					dispatch('cancel');
-
-					stopRecording();
-				};
-			}
-		}
 	};
 
 	const stopRecording = async () => {
 		if (recording && mediaRecorder) {
 			await mediaRecorder.stop();
-		}
-
-		if (speechRecognition) {
-			speechRecognition.stop();
 		}
 
 		stopDurationCounter();

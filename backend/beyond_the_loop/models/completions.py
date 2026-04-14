@@ -2,7 +2,7 @@ import logging
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float, Boolean
+from sqlalchemy import String, Column, BigInteger, Text, ForeignKey, Float, Boolean, func
 
 import uuid
 import time
@@ -25,6 +25,7 @@ class Completion(Base):
     created_at = Column(BigInteger)
     assistant = Column(Text)
     from_agent = Column(Boolean, default=False)
+    is_image_generation = Column(Boolean, default=False)
 
 class CompletionModel(BaseModel):
     id: str
@@ -34,12 +35,13 @@ class CompletionModel(BaseModel):
     created_at: int  # timestamp in epoch
     assistant: Optional[str]
     from_agent: Optional[bool]
+    is_image_generation: Optional[bool]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent, is_image_generation: bool = False) -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
@@ -48,7 +50,8 @@ class CompletionTable:
                 "model": model,
                 "credits_used": credits_used,
                 "assistant": assistant,
-                "from_agent": from_agent
+                "from_agent": from_agent,
+                "is_image_generation": is_image_generation,
             }
         )
 
@@ -91,6 +94,32 @@ class CompletionTable:
         except Exception as e:
             log.error(f"Error fetching completions for usage count: {e}")
             return 0
+
+    def get_completions_count_last_three_hours_by_user_and_models(
+            self,
+            user_id: str,
+            model_names: list[str],
+    ) -> dict[str, int]:
+        """Returns a dict of {model_name: count} for the last 3 hours in a single query."""
+        try:
+            now = int(time.time())
+            three_hours_ago = now - (3 * 60 * 60)
+
+            with get_db() as db:
+                rows = (
+                    db.query(Completion.model, func.count(Completion.id).label("cnt"))
+                    .filter(
+                        Completion.user_id == user_id,
+                        Completion.model.in_(model_names),
+                        Completion.created_at >= three_hours_ago,
+                    )
+                    .group_by(Completion.model)
+                    .all()
+                )
+                return {row.model: row.cnt for row in rows}
+        except Exception as e:
+            log.error(f"Error fetching completions count by models: {e}")
+            return {}
 
 
 def calculate_saved_time_in_seconds(last_message, response_message):

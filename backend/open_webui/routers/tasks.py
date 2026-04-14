@@ -8,7 +8,6 @@ import logging
 import re
 
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.routers.openai import generate_chat_completion
 from open_webui.utils.task import (
     title_generation_template,
     query_generation_template,
@@ -24,6 +23,13 @@ from beyond_the_loop.config import (
     WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE,
     RAG_QUERY_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE
+)
+from beyond_the_loop.utils.structured_completion import (
+    structured_completion,
+    ChatTitleResponse,
+    ImagePromptResponse,
+    SearchQueriesResponse,
+    RagQueriesResponse,
 )
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -138,19 +144,14 @@ async def generate_title(
         },
     )
 
-    payload = {
-        "messages": [{"role": "user", "content": content}],
-        "stream": False,
-        "metadata": {
-            "task": str(TASKS.TITLE_GENERATION),
-            "task_body": form_data,
-            "chat_id": form_data.get("chat_id", None),
-            "agent_or_task_prompt": True
-        },
-    }
-
     try:
-        return await generate_chat_completion(form_data=payload, user=user, model=task_model)
+        result = await structured_completion(
+            messages=[{"role": "user", "content": content}],
+            response_model=ChatTitleResponse,
+            model=task_model,
+            user=user,
+        )
+        return {"title": result.title}
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -183,19 +184,13 @@ async def generate_image_prompt(
         },
     )
 
-    payload = {
-        "messages": [{"role": "user", "content": content}],
-        "stream": False,
-        "metadata": {
-            "task": str(TASKS.IMAGE_PROMPT_GENERATION),
-            "task_body": form_data,
-            "chat_id": form_data.get("chat_id", None),
-            "agent_or_task_prompt": True
-        },
-    }
-
     try:
-        return await generate_chat_completion(form_data=payload, user=user, model=task_model)
+        result = await structured_completion(
+            messages=[{"role": "user", "content": content}],
+            response_model=ImagePromptResponse,
+            model=task_model,
+        )
+        return {"prompt": result.prompt}
     except Exception as e:
         log.error("Exception occurred", exc_info=True)
         return JSONResponse(
@@ -211,61 +206,21 @@ async def generate_queries(query_type: str, messages: list[dict], chat_id: str|N
         f"generating {query_type} queries using model {task_model.id} for user {user.email}"
     )
 
-    response_format = None
-
     if query_type == "web_search":
         template = WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE
-
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "search_queries",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "queries": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "query": {
-                                        "type": "string",
-                                        "description": "Search query text"
-                                    },
-                                    "result_limit": {
-                                        "type": "integer",
-                                        "description": "Maximum number of results to retrieve"
-                                    }
-                                },
-                                "required": ["query", "result_limit"],
-                                "additionalProperties": False
-                            }
-                        }
-                    },
-                    "required": ["queries"],
-                    "additionalProperties": False
-                }
-            }
-        }
+        content = query_generation_template(template, messages)
+        result = await structured_completion(
+            messages=[{"role": "user", "content": content}],
+            response_model=SearchQueriesResponse,
+            model=task_model,
+        )
+        return {"queries": [q.model_dump() for q in result.queries]}
     else:
         template = RAG_QUERY_GENERATION_PROMPT_TEMPLATE
-
-    content = query_generation_template(template, messages)
-
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": content
-            }
-        ],
-        "stream": False,
-        "response_format": response_format,
-        "metadata": {
-            "chat_id": chat_id,
-            "task": str(TASKS.QUERY_GENERATION),
-            "agent_or_task_prompt": True
-        }
-    }
-
-    return await generate_chat_completion(form_data=payload, user=user, model=task_model)
+        content = query_generation_template(template, messages)
+        result = await structured_completion(
+            messages=[{"role": "user", "content": content}],
+            response_model=RagQueriesResponse,
+            model=task_model,
+        )
+        return {"queries": result.queries}

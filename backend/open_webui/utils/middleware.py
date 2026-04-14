@@ -6,6 +6,7 @@ import base64
 import re
 import mimetypes
 import asyncio
+import random
 from io import BytesIO
 
 import httpx
@@ -20,7 +21,25 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
-from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT
+from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT, CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT
+from beyond_the_loop.prompts import (
+    IMAGE_EDIT_DECISION_MESSAGE,
+    FILE_INTENT_DECISION_PROMPT,
+    KNOWLEDGE_INTENT_DECISION_PROMPT,
+    WEB_SEARCH_CONTEXT_MESSAGE,
+    IMAGE_GENERATED_CONTEXT,
+    IMAGE_ERROR_CONTEXT,
+    AUTO_TOOL_SELECTION_PROMPT,
+    SMART_ROUTER_PROMPT,
+)
+from beyond_the_loop.utils.structured_completion import (
+    structured_completion,
+    ImageEditDecision,
+    FileIntentDecision,
+    KnowledgeUseDecision,
+    ToolSelectionDecision,
+    SmartRouterDecision,
+)
 from beyond_the_loop.models.files import FileForm
 from beyond_the_loop.socket.main import (
     get_event_call,
@@ -28,6 +47,7 @@ from beyond_the_loop.socket.main import (
     get_active_status_by_user_id,
 )
 from beyond_the_loop.models.knowledge import Knowledges
+from beyond_the_loop.models.models import ModelMeta, ModelParams
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
@@ -56,7 +76,7 @@ from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     CACHE_DIR,
     CODE_INTERPRETER_PROMPT,
-    DEFAULT_AGENT_MODEL,
+    LITELLM_MODEL_CONFIG,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -66,7 +86,9 @@ from open_webui.env import (
 from open_webui.constants import TASKS
 from open_webui.routers.retrieval import process_file, ProcessFileForm
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.utils.chat_compression import maybe_compress_chat
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -116,16 +138,11 @@ async def chat_web_search_handler(
             user
         )
 
-        content = res["choices"][0]["message"]["content"]
-
-        try:
-            all_queries = json.loads(content).get("queries", [])
-            search_queries = [
-                q for q in all_queries
-                if not q.get("query", "").startswith(("http://", "https://", "www."))
-            ]
-        except json.JSONDecodeError:
-            search_queries = []
+        all_queries = res.get("queries", [])
+        search_queries = [
+            q for q in all_queries
+            if not q.get("query", "").startswith(("http://", "https://", "www."))
+        ]
     except Exception as e:
         log.exception(e)
         # Only fall back to the raw message if there are no URLs to scrape either
@@ -261,7 +278,7 @@ async def chat_web_search_handler(
     if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
         await credit_service.subtract_credits_by_user_for_web_search(user)
 
-    system_message_content = "<context>You are a websearch agent and the websearch is done now. Answer the user's question with the web search results. IMPORTANT: Don't ask any questions, just answer the question.</context>"
+    system_message_content = WEB_SEARCH_CONTEXT_MESSAGE
 
     form_data["messages"] = add_or_update_system_message(
         system_message_content, form_data["messages"]
@@ -295,29 +312,12 @@ async def chat_image_generation_handler(
     edit_last_image = False
 
     if len(already_generated_images) > 0:
-        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
+        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
         decision_messages = messages.copy()
-        decision_messages.append({
-            "role": "user",
-            "content": "Please decide if the user wants to edit the last image generated. IMPORTANT: Only respond with 'yes' or 'no' and nothing else."
-        })
-
-        decision_form_data = {
-            "messages": decision_messages,
-            "stream": False,
-            "metadata": {
-                "chat_id": None,
-                "agent_or_task_prompt": True
-            },
-            "temperature": 0.0
-        }
-
-        response = await generate_chat_completion(decision_form_data, user, model)
-
-        response_message = response.get('choices', [{}])[0].get('message', {}).get('content', '')
-
-        edit_last_image = response_message.lower().strip() == 'yes'
+        decision_messages.append({"role": "user", "content": IMAGE_EDIT_DECISION_MESSAGE})
+        result = await structured_completion(decision_messages, ImageEditDecision, model)
+        edit_last_image = result.decision == "yes"
 
     if not edit_last_image:
         try:
@@ -329,22 +329,7 @@ async def chat_image_generation_handler(
                 },
                 user,
             )
-
-            response = res["choices"][0]["message"]["content"]
-
-            try:
-                bracket_start = response.find("{")
-                bracket_end = response.rfind("}") + 1
-
-                if bracket_start == -1 or bracket_end == -1:
-                    raise Exception("No JSON object found in the response")
-
-                response = response[bracket_start:bracket_end]
-                response = json.loads(response)
-                prompt = response.get("prompt", [])
-            except Exception as e:
-                prompt = user_message
-
+            prompt = res.get("prompt") or user_message
         except Exception as e:
             log.exception(e)
             prompt = user_message
@@ -380,7 +365,7 @@ async def chat_image_generation_handler(
                 }
             )
 
-        system_message_content = "<context>An image has been generated and displayed above. Do not generate any image markdown. Acknowledge that the image has been generated and tell the user in his language,that you can edit the image if he asks you to do so.</context>"
+        system_message_content = IMAGE_GENERATED_CONTEXT
 
     except Exception as e:
         log.exception(e)
@@ -394,7 +379,7 @@ async def chat_image_generation_handler(
             }
         )
 
-        system_message_content = "<context>Unable to generate an image, tell the user that an error occured</context>"
+        system_message_content = IMAGE_ERROR_CONTEXT
 
     if system_message_content:
         form_data["messages"] = add_or_update_system_message(
@@ -450,38 +435,19 @@ async def chat_file_intent_decision_handler(
         return form_data, True  # No user message, proceed with RAG
     
     try:
-        model = Models.get_model_by_name_and_company(DEFAULT_AGENT_MODEL.value, user.company_id)
-        if not model:
-            log.warning(f"DEFAULT_AGENT_MODEL {DEFAULT_AGENT_MODEL.value} not found for company {user.company_id}")
-            return form_data, True  # Fallback to RAG
-        
-        # Create decision prompt
-        decision_messages = [
-            {
-                "role": "system",
-                "content": "You are an AI assistant that determines user intent. The user has attached non-image files to their message. Analyze their message and determine:\n\nFor the user's intent, is it necessary to use the ENTIRE content of the document?\n\nExamples that need ENTIRE content:\n- Translation tasks\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n\nExamples that can use RAG (partial content):\n- Answering specific questions about the document\n- Finding particular information or facts\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'FULL' or 'RAG' - nothing else."
-            },
-            {
-                "role": "user",
-                "content": f"User message: {user_message}\n\nFile names: {', '.join([f.get('name', 'unknown') for f in non_image_files])}\n\nWhat is the user's intent?"
-            }
-        ]
-        
-        decision_form_data = {
-            "messages": decision_messages,
-            "stream": False,
-            "metadata": {
-                "chat_id": None,
-                "agent_or_task_prompt": True
-            },
-            "temperature": 0.0
-        }
-        
-        response = await generate_chat_completion(decision_form_data, user, model)
-        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
-        
-        is_rag_task = response_content == 'RAG'
-        log.debug(f"File intent decision: {response_content} -> is_rag_task: {is_rag_task}")
+        result = await structured_completion(
+            messages=[
+                {"role": "system", "content": FILE_INTENT_DECISION_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"User message: {user_message}\n\nFile names: {', '.join([f.get('name', 'unknown') for f in non_image_files])}\n\nWhat is the user's intent?"
+                }
+            ],
+            response_model=FileIntentDecision,
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+        )
+        is_rag_task = result.intent == "RAG"
+        log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
 
         return form_data, is_rag_task
         
@@ -555,20 +521,6 @@ async def chat_completion_files_handler(
                 form_data.get("chat_id", None),
                 user
             )
-
-            queries_response = queries_response["choices"][0]["message"]["content"]
-
-            try:
-                bracket_start = queries_response.find("{")
-                bracket_end = queries_response.rfind("}") + 1
-
-                if bracket_start == -1 or bracket_end == -1:
-                    raise Exception("No JSON object found in the response")
-
-                queries_response = queries_response[bracket_start:bracket_end]
-                queries_response = json.loads(queries_response)
-            except Exception as e:
-                queries_response = {"queries": [queries_response]}
 
             queries = queries_response.get("queries", [])
         except Exception as e:
@@ -654,6 +606,136 @@ def apply_params_to_form_data(form_data):
     return form_data
 
 
+class ClientDisconnectedError(Exception):
+    """Raised when the client has disconnected during request processing."""
+    pass
+
+
+async def check_disconnect(request):
+    """Check if the client has disconnected and raise if so."""
+    if await request.is_disconnected():
+        raise ClientDisconnectedError("Client disconnected")
+
+
+SMART_ROUTER_MODEL = ModelModel(
+                id="Smart Router",
+                name="Smart Router",
+                meta=ModelMeta(),
+                params=ModelParams(),
+                is_active=True,
+                updated_at=int(time.time()),
+                created_at=int(time.time()),
+                user_id=None,
+                company_id="",
+                base_model_id=None,
+                access_control=None,
+            )
+
+
+async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelModel | None, dict | None]:
+    """
+    Score the user message complexity (1–5) via structured completion, then pick
+    the best model from all candidates whose intelligence_score >= that score.
+    Among qualifying models, rank by efficiency: costFactor (60%, lower=better)
+    + speed (40%, higher=better), both normalized 0-1 within the candidate set.
+    Returns (None, None) if no suitable model can be found.
+    """
+    try:
+        agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+
+        decision = await structured_completion(
+            messages=[{"role": "user", "content": SMART_ROUTER_PROMPT.replace("{{USER_MESSAGE}}", user_message)}],
+            response_model=SmartRouterDecision,
+            model=agent_model,
+        )
+
+        target_score = max(1.0, min(5.0, decision.intelligence_score))
+
+        # Lazy import to avoid circular dependency (main.py imports middleware.py)
+        from open_webui.main import get_active_models
+
+        active_models_result = await get_active_models(user=user)
+
+        routable_models = [
+            m for m in active_models_result["data"]
+            if m.base_model_id is None                              # no assistants
+            and m.name != SMART_ROUTER_MODEL.name                  # not Smart Router itself
+            and m.is_active                                         # active (e.g. not locked in free plan)
+            and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
+        ]
+
+        # Filter to models meeting the minimum intelligence requirement
+        candidates = []
+
+        for m in routable_models:
+            cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
+            score = cfg.get("intelligence_score")
+            if score is not None and score >= target_score:
+                candidates.append(m)
+
+        if not candidates:
+            return None, None
+
+        # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
+        cost_values = {
+            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor")
+            for m in candidates
+        }
+
+        speed_values = {
+            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed")
+            for m in candidates
+        }
+
+        valid_costs = [v for v in cost_values.values() if v is not None]
+        valid_speeds = [v for v in speed_values.values() if v is not None]
+
+        min_cost, max_cost = (min(valid_costs), max(valid_costs)) if valid_costs else (None, None)
+        min_speed, max_speed = (min(valid_speeds), max(valid_speeds)) if valid_speeds else (None, None)
+
+        def efficiency_score(model_name: str) -> float:
+            cost = cost_values.get(model_name)
+            speed = speed_values.get(model_name)
+
+            cost_score = None
+
+            if cost is not None and min_cost is not None and max_cost is not None:
+                if max_cost == min_cost:
+                    cost_score = 1.0
+                else:
+                    cost_score = 1.0 - (cost - min_cost) / (max_cost - min_cost)
+
+            speed_score = None
+
+            if speed is not None and min_speed is not None and max_speed is not None:
+                if max_speed == min_speed:
+                    speed_score = 1.0
+                else:
+                    speed_score = (speed - min_speed) / (max_speed - min_speed)
+
+            if cost_score is not None and speed_score is not None:
+                return 0.6 * cost_score + 0.4 * speed_score
+            elif cost_score is not None:
+                return cost_score
+            elif speed_score is not None:
+                return speed_score
+            return 0.0
+
+        scored_candidates = sorted(
+            candidates, key=lambda m: efficiency_score(m.name), reverse=True
+        )
+
+        top_candidates = scored_candidates[:3]
+        best_model = random.choice(top_candidates)
+
+        cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
+
+        return best_model
+    except Exception as e:
+        log.exception(f"Smart Router model selection failed: {e}")
+        return None
+
+
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
 
@@ -661,10 +743,23 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data.pop("variables", None)
     form_data.pop("tool_ids", None)
 
-    log.debug(f"form_data: {form_data}")
-
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
+
+    try:
+        chat_id = metadata.get("chat_id")
+
+        if chat_id:
+            form_data = await maybe_compress_chat(
+                form_data=form_data,
+                model=model,
+                chat_id=chat_id,
+                event_emitter=event_emitter,
+            )
+    except Exception as e:
+        log.exception(f"[chat_compression] failed, continuing without compression: {e}")
+
+    log.debug(f"form_data: {form_data}")
 
     extra_params = {
         "__event_emitter__": event_emitter,
@@ -683,9 +778,120 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     events = []
     sources = []
 
-    features = form_data.pop("features", None)
+    features = form_data.pop("features", {})
+    auto_tools = form_data.pop("auto_tools", [])
 
     user_message = get_last_user_message(form_data["messages"])
+
+    if model.name == SMART_ROUTER_MODEL.name and user_message:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": False,
+                },
+            }
+        )
+
+        routed_model = await _smart_router_model_selection(user_message, user)
+
+        if routed_model:
+            model = routed_model
+            form_data["model"] = routed_model.id
+        else:
+            # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
+            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            form_data["model"] = model.id
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": True,
+                    "hidden": True,
+                },
+            }
+        )
+
+    elif model.base_model_id == SMART_ROUTER_MODEL.id and user_message:
+        # Assistant whose base model is "Smart Router": run routing but keep the
+        # assistant's system prompt and params by only swapping out base_model_id.
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": False,
+                },
+            }
+        )
+
+        routed_model = await _smart_router_model_selection(user_message, user)
+
+        if routed_model:
+            model = model.model_copy(update={"base_model_id": routed_model.id})
+        else:
+            fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            if fallback:
+                model = model.model_copy(update={"base_model_id": fallback.id})
+
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "smart_router",
+                    "description": "Selecting the most suitable model",
+                    "done": True,
+                    "hidden": True,
+                },
+            }
+        )
+
+    if auto_tools and user_message:
+        try:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "tool_selection",
+                        "description": "Auto-selecting tools",
+                        "done": False,
+                    },
+                }
+            )
+            prompt = AUTO_TOOL_SELECTION_PROMPT.replace("{{USER_MESSAGE}}", user_message)
+
+            decision = await structured_completion(
+                messages=[{"role": "user", "content": prompt}],
+                response_model=ToolSelectionDecision,
+                model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
+            )
+            selected_tool = decision.tool
+
+            if selected_tool != "none" and selected_tool in auto_tools:
+                features = {selected_tool: True}
+                log.debug(f"Auto tool selection: {selected_tool}")
+
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "tool_selection",
+                        "description": "Auto-selecting tools",
+                        "done": True,
+                        "hidden": True,
+                    },
+                }
+            )
+        except Exception as e:
+            log.exception(f"Auto tool selection failed: {e}")
+
+    metadata["features"] = features
 
     model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
@@ -720,32 +926,19 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
-        # Create decision prompt
-        decision_messages = [
-            {
-                "role": "system",
-                "content": "You are an AI assistant that determines user intent. The user has attached a knowledge base and/or single files to the prompt. Analyze their message and determine:\n\nFor the user's intent, is it necessary to search the knowledge or the files?\n\nExamples that need the knowledge/files:\n- Summarization of the whole document\n- Editing/proofreading the entire document\n- Content analysis requiring full context\n- Format conversion\n- Complete document review\n- Answering specific questions about the document\n- Finding particular information or facts in the knowledge base\n- Searching for specific topics or sections\n- Comparing specific parts\n\nRespond with ONLY 'YES' or 'NO' - nothing else. Return no only, of you know that you don't need extra knowledge to answer the question."
-            },
-            {
-                "role": "user",
-                "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
-            }
-        ]
-
-        decision_form_data = {
-            "messages": decision_messages,
-            "stream": False,
-            "metadata": {
-                "chat_id": None,
-                "agent_or_task_prompt": True
-            },
-            "temperature": 0.0
-        }
-
-        response = await generate_chat_completion(decision_form_data, user, model)
-        response_content = response.get('choices', [{}])[0].get('message', {}).get('content', '').strip().upper()
-
-        use_model_knowledge_or_files = response_content == 'YES'
+        await check_disconnect(request)
+        knowledge_result = await structured_completion(
+            messages=[
+                {"role": "system", "content": KNOWLEDGE_INTENT_DECISION_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
+                }
+            ],
+            response_model=KnowledgeUseDecision,
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+        )
+        use_model_knowledge_or_files = knowledge_result.needs_knowledge == "YES"
 
         if use_model_knowledge_or_files:
             await event_emitter(
@@ -765,11 +958,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if model_files:
                 files.extend(model_files)
 
-    web_search_active = features and features.get("web_search")
+    web_search_active = features.get("web_search")
     web_search_queries = None
 
     # Include web search files before deciding task intent and building RAG context
     if web_search_active:
+        await check_disconnect(request)
         web_search_files, web_search_queries = await chat_web_search_handler(
             request, form_data, extra_params, user
         )
@@ -784,6 +978,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         is_rag_task = True  # Fallback to RAG
+
+    await check_disconnect(request)
 
     if is_rag_task:
         # Proceed with normal RAG processing
@@ -859,7 +1055,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-        if not ("code_interpreter" in features and features["code_interpreter"]):
+        if not features.get("code_interpreter", False):
             form_data["messages"] = add_or_update_system_message(
                 rag_template(
                     request.app.state.config.RAG_TEMPLATE, context_string, prompt
@@ -891,77 +1087,80 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    if features:
-        form_data["metadata"]["images"] = []
+    form_data["metadata"]["images"] = []
 
-        # Add images to form_data metadata
+    # Add images to form_data metadata
+    for message in form_data["messages"]:
+        if "content" in message and isinstance(message["content"], list):
+            for c in message["content"]:
+                if c.get("type") == "image_url":
+                    url = c.get("image_url", {}).get("url")
+
+                    if url:
+                        ext = get_extension_from_base64(url)
+                        filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
+
+                        parts = url.split(',')
+                        if len(parts) > 1:
+                            url = parts[1]
+                        else:
+                            url = parts[0]
+
+                        form_data["metadata"]["images"].append({
+                            "name": filename,
+                            "content": url
+                        })
+
+    use_images_as_tool_input = (
+        features.get("image_generation") or features.get("code_interpreter")
+    )
+
+    if use_images_as_tool_input and form_data["metadata"]["images"]:
+        # Strip image_url blocks from messages — images are forwarded via metadata
+        # to the respective tool handler, so the LLM doesn't need them inline
         for message in form_data["messages"]:
             if "content" in message and isinstance(message["content"], list):
-                for c in message["content"]:
-                    if c.get("type") == "image_url":
-                        url = c.get("image_url", {}).get("url")
+                text_items = [c for c in message["content"] if c.get("type") != "image_url"]
+                if len(text_items) == 1 and text_items[0].get("type") == "text":
+                    message["content"] = text_items[0]["text"]
+                elif text_items:
+                    message["content"] = text_items
+                else:
+                    message["content"] = ""
 
-                        if url:
-                            ext = get_extension_from_base64(url)
-                            filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                            parts = url.split(',')
-                            if len(parts) > 1:
-                                url = parts[1]
-                            else:
-                                url = parts[0]
-
-                            form_data["metadata"]["images"].append({
-                                "name": filename,
-                                "content": url
-                            })
-
-        use_images_as_tool_input = (
-            features.get("image_generation") or features.get("code_interpreter")
+    if features.get("image_generation", False):
+        await check_disconnect(request)
+        form_data = await chat_image_generation_handler(
+            request, form_data, extra_params, user
         )
-        if use_images_as_tool_input and form_data["metadata"]["images"]:
-            # Strip image_url blocks from messages — images are forwarded via metadata
-            # to the respective tool handler, so the LLM doesn't need them inline
-            for message in form_data["messages"]:
-                if "content" in message and isinstance(message["content"], list):
-                    text_items = [c for c in message["content"] if c.get("type") != "image_url"]
-                    if len(text_items) == 1 and text_items[0].get("type") == "text":
-                        message["content"] = text_items[0]["text"]
-                    elif text_items:
-                        message["content"] = text_items
-                    else:
-                        message["content"] = ""
 
-        if "image_generation" in features and features["image_generation"]:
-            form_data = await chat_image_generation_handler(
-                request, form_data, extra_params, user
-            )
+    if features.get("code_interpreter", False):
+        form_data["messages"] = add_or_update_system_message(
+            CODE_INTERPRETER_PROMPT, form_data["messages"]
+        )
 
-        if "code_interpreter" in features and features["code_interpreter"]:
-            form_data["messages"] = add_or_update_system_message(
-                CODE_INTERPRETER_PROMPT, form_data["messages"]
-            )
+        # Store original model for display; use code interpreter model only for the LLM call
+        metadata["display_model_id"] = model.id
+        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
+        form_data["model"] = model.id
 
-            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
-            form_data["model"] = model.id
+        code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
+        form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
 
-            code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
-            form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
+        non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
 
-            non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
+        # Inform the LLM about available uploaded files so it can reference them in generated code
+        if code_interpreter_files or non_knowledge_files or form_data["metadata"]["images"]:
+            # Build a concise instruction listing accessible filenames (non-image, non-collection)
+            file_list_str = ", ".join(f["file"]["filename"] for f in non_knowledge_files) + ", ".join(
+                image["name"] for image in form_data["metadata"]["images"]) + ", ".join(
+                file["name"] for file in code_interpreter_files)
 
-            # Inform the LLM about available uploaded files so it can reference them in generated code
-            if code_interpreter_files or non_knowledge_files or form_data["metadata"]["images"]:
-                # Build a concise instruction listing accessible filenames (non-image, non-collection)
-                file_list_str = ", ".join(f["file"]["filename"] for f in non_knowledge_files) + ", ".join(
-                    image["name"] for image in form_data["metadata"]["images"]) + ", ".join(
-                    file["name"] for file in code_interpreter_files)
+            code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
+            form_data["messages"] = add_or_update_user_message(
+                code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
 
-                code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
-                form_data["messages"] = add_or_update_user_message(
-                    code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
-
-    return form_data, metadata, events
+    return form_data, metadata, events, model
 
 
 async def process_chat_response(
@@ -988,29 +1187,7 @@ async def process_chat_response(
                         )
 
                         if res and isinstance(res, dict):
-                            if len(res.get("choices", [])) == 1:
-                                title_string = (
-                                    res.get("choices", [])[0]
-                                    .get("message", {})
-                                    .get("content", message.get("content", "New chat"))
-                                )
-                            else:
-                                title_string = ""
-
-                            title_string = title_string[
-                                title_string.find("{") : title_string.rfind("}") + 1
-                            ]
-
-                            try:
-                                title = json.loads(title_string).get(
-                                    "title", "New chat"
-                                )
-                            except Exception as e:
-                                title = ""
-
-                            if not title:
-                                title = messages[0].get("content", "New chat")
-
+                            title = res.get("title", "") or messages[0].get("content", "New chat")
                             Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
                             await event_emitter(
@@ -1125,7 +1302,7 @@ async def process_chat_response(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": model.id,
+                "model": metadata.get("display_model_id", model.id),
             },
         )
 
@@ -1252,13 +1429,8 @@ async def process_chat_response(
                                 match.end() :
                             ]  # Content after opening tag
 
-                            # Remove the start tag from the currently handling text block
-                            content_blocks[-1]["content"] = content_blocks[-1][
-                                "content"
-                            ].replace(match.group(0), "")
-
-                            if before_tag:
-                                content_blocks[-1]["content"] = before_tag
+                            # Text block should contain only what came BEFORE the start tag
+                            content_blocks[-1]["content"] = before_tag
 
                             if not content_blocks[-1]["content"]:
                                 content_blocks.pop()
@@ -1275,7 +1447,38 @@ async def process_chat_response(
                             )
 
                             if after_tag:
-                                content_blocks[-1]["content"] = after_tag
+                                # Check if the end tag is already in after_tag
+                                # (start + end arrived in the same streaming chunk)
+                                end_tag_pattern_inline = rf"</{tag}>"
+                                if re.search(end_tag_pattern_inline, after_tag):
+                                    end_tag_regex_inline = re.compile(end_tag_pattern_inline, re.DOTALL)
+                                    split_inline = end_tag_regex_inline.split(after_tag, maxsplit=1)
+                                    block_content_inline = split_inline[0].strip()
+                                    leftover_inline = split_inline[1].strip() if len(split_inline) > 1 else ""
+
+                                    if block_content_inline:
+                                        content_blocks[-1]["content"] = block_content_inline
+                                        content_blocks[-1]["ended_at"] = time.time()
+                                        content_blocks[-1]["duration"] = int(
+                                            content_blocks[-1]["ended_at"] - content_blocks[-1]["started_at"]
+                                        )
+                                    else:
+                                        content_blocks.pop()
+
+                                    content_blocks.append({"type": "text", "content": leftover_inline})
+
+                                    # Clean the accumulated content string so subsequent calls
+                                    # don't re-detect the already-processed tags
+                                    content = re.sub(
+                                        rf"<{tag}(.*?)>(.|\n)*?</{tag}>",
+                                        "",
+                                        content,
+                                        flags=re.DOTALL,
+                                    )
+
+                                    end_flag = True
+                                else:
+                                    content_blocks[-1]["content"] = after_tag
 
                             break
                 elif content_blocks[-1]["type"] == content_type:
@@ -1379,6 +1582,7 @@ async def process_chat_response(
 
             # We might want to disable this by default
             detect_reasoning = True
+
             detect_code_interpreter = metadata.get("features", {}).get(
                 "code_interpreter", False
             )
@@ -1393,6 +1597,13 @@ async def process_chat_response(
             ]
 
             code_interpreter_tags = ["code_interpreter"]
+
+            await event_emitter(
+                {
+                    "type": "chat:completion",
+                    "data": {"model": metadata.get("display_model_id", model.id)},
+                }
+            )
 
             try:
                 for event in events:
@@ -1800,6 +2011,17 @@ async def process_chat_response(
                         break
 
                 if detect_code_interpreter:
+                    # Defensive cleanup: strip any leftover closing tags from code_interpreter
+                    # blocks whose end tag arrived in the same chunk as the start tag and
+                    # therefore wasn't processed by tag_content_handler in a later call.
+                    for _block in content_blocks:
+                        if _block.get("type") == "code_interpreter" and "content" in _block:
+                            _tag = _block.get("tag", "code_interpreter")
+                            _end_re = re.compile(rf"</{re.escape(_tag)}>", re.DOTALL)
+                            _parts = _end_re.split(_block["content"], maxsplit=1)
+                            if len(_parts) > 1:
+                                _block["content"] = _parts[0].strip()
+
                     max_retries = 3
                     retries = 0
 
@@ -2020,9 +2242,21 @@ async def process_chat_response(
 
                         # After code execution completes, call the LLM again to summarize the result
                         try:
-                            # Build follow-up messages
+                            # Replace the full CODE_INTERPRETER_PROMPT system message with a
+                            # minimal follow-up system message — avoids verbose preamble while
+                            # still teaching the tag format for potential retries.
+                            followup_non_system = [
+                                m for m in form_data["messages"] if m.get("role") != "system"
+                            ]
+                            followup_base_messages = [
+                                {"role": "system", "content": CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT},
+                                *followup_non_system,
+                            ]
+
+                            followup_instruction = CODE_INTERPRETER_SUMMARY_PROMPT if retries < max_retries else CODE_INTERPRETER_FAIL_PROMPT
+
                             followup_messages = [
-                                *form_data["messages"],
+                                *followup_base_messages,
                                 {
                                     "role": "assistant",
                                     "content": serialize_content_blocks(content_blocks, raw=True),
@@ -2030,34 +2264,32 @@ async def process_chat_response(
                                 {
                                     "role": "user",
                                     "content": json.dumps({
-                                        "instruction": CODE_INTERPRETER_SUMMARY_PROMPT
-                                    }),
-                                }
-                            ] if retries < max_retries else [
-                                *form_data["messages"],
-                                {
-                                    "role": "assistant",
-                                    "content": serialize_content_blocks(content_blocks, raw=True),
-                                },
-                                {
-                                    "role": "user",
-                                    "content": json.dumps({
-                                        "instruction": CODE_INTERPRETER_FAIL_PROMPT
+                                        "instruction": followup_instruction
                                     }),
                                 }
                             ]
 
-                            res = await generate_chat_completion({
+                            # Use the user's originally selected model for the summary,
+                            # falling back to the code interpreter model if unavailable.
+                            display_model_id = metadata.get("display_model_id")
+                            summary_model = (
+                                Models.get_model_by_id(display_model_id)
+                                if display_model_id
+                                else None
+                            ) or Models.get_model_by_name_and_company(
+                                os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id
+                            )
+
+                            res, _ = await generate_chat_completion({
                                 "stream": True,
                                 "messages": followup_messages,
                                 "metadata": {
                                     "agent_or_task_prompt": True
                                 }
-                            }, user, Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id))
+                            }, user, summary_model)
 
                             if isinstance(res, StreamingResponse):
                                 await stream_body_handler(res)
-
 
                         except Exception as follow_err:
                             log.error(f"Follow-up LLM generation failed: {follow_err}")

@@ -182,7 +182,7 @@
 		</div>
 	{:else if token.type === 'blockquote'}
 		<blockquote>
-			<svelte:self id={`${id}-${tokenIdx}`} tokens={token.tokens} />
+			<svelte:self id={`${id}-${tokenIdx}`} tokens={token.tokens} {onSourceClick} />
 		</blockquote>
 	{:else if token.type === 'list'}
 		{#if token.ordered}
@@ -193,6 +193,7 @@
 							id={`${id}-${tokenIdx}-${itemIdx}`}
 							tokens={item.tokens}
 							top={token.loose}
+							{onSourceClick}
 						/>
 					</li>
 				{/each}
@@ -205,14 +206,15 @@
 							id={`${id}-${tokenIdx}-${itemIdx}`}
 							tokens={item.tokens}
 							top={token.loose}
+							{onSourceClick}
 						/>
 					</li>
 				{/each}
 			</ul>
 		{/if}
 	{:else if token.type === 'details'}
-		<Collapsible title={token.summary} attributes={token?.attributes} className="w-full space-y-1">
-			<div class=" mb-1.5" slot="content">
+		<Collapsible title={token.summary} attributes={token?.attributes} className="w-full space-y-1 select-none">
+			<div class=" mb-1.5 select-text" slot="content">
 				<svelte:self
 					id={`${id}-${tokenIdx}-d`}
 					tokens={marked.lexer(token.text)}

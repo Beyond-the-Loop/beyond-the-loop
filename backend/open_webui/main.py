@@ -34,19 +34,7 @@ from beyond_the_loop.config import (
     ENABLE_IMAGE_GENERATION,
 
     # Audio
-    AUDIO_STT_ENGINE,
-    AUDIO_STT_MODEL,
-    AUDIO_STT_OPENAI_API_BASE_URL,
-    AUDIO_STT_OPENAI_API_KEY,
-    AUDIO_TTS_API_KEY,
-    AUDIO_TTS_ENGINE,
-    AUDIO_TTS_MODEL,
-    AUDIO_TTS_OPENAI_API_BASE_URL,
-    AUDIO_TTS_OPENAI_API_KEY,
-    AUDIO_TTS_SPLIT_ON,
     AUDIO_TTS_VOICE,
-    AUDIO_TTS_AZURE_SPEECH_REGION,
-    AUDIO_TTS_AZURE_SPEECH_OUTPUT_FORMAT,
     WHISPER_MODEL,
     # Retrieval
     RAG_TEMPLATE,
@@ -59,8 +47,6 @@ from beyond_the_loop.config import (
     RAG_RELEVANCE_THRESHOLD,
     RAG_FILE_MAX_COUNT,
     RAG_FILE_MAX_SIZE,
-    RAG_OPENAI_API_BASE_URL,
-    RAG_OPENAI_API_KEY,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     CONTENT_EXTRACTION_ENGINE,
@@ -119,8 +105,8 @@ from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.alert import Alerts
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.files import Files
-from beyond_the_loop.models.model_costs import ModelCosts
-from beyond_the_loop.models.models import Models
+from beyond_the_loop.config import LITELLM_MODEL_CONFIG
+from beyond_the_loop.models.models import Models, ModelMeta, ModelParams, ModelResponse
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import analytics
 from beyond_the_loop.routers import auths
@@ -139,16 +125,17 @@ from beyond_the_loop.routers.files import upload_file
 from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
 from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 from beyond_the_loop.services.credit_service import credit_service
+from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.socket.main import (
     app as socket_app,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
+from beyond_the_loop.models.models import ModelModel
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
     SAFE_MODE,
-    SRC_LOG_LEVELS,
     VERSION,
     WEBUI_SECRET_KEY,
     WEBUI_SESSION_COOKIE_SAME_SITE,
@@ -185,8 +172,9 @@ from open_webui.utils.auth import get_current_api_key_user
 from open_webui.utils.chat import (
     chat_completed as chat_completed_handler
 )
-from open_webui.utils.middleware import process_chat_payload, process_chat_response
+from open_webui.utils.middleware import process_chat_payload, process_chat_response, ClientDisconnectedError
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
+from open_webui.utils.middleware import SMART_ROUTER_MODEL
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -334,9 +322,6 @@ app.state.config.RAG_EMBEDDING_BATCH_SIZE = RAG_EMBEDDING_BATCH_SIZE
 app.state.config.RAG_RERANKING_MODEL = RAG_RERANKING_MODEL
 app.state.config.RAG_TEMPLATE = RAG_TEMPLATE
 
-app.state.config.RAG_OPENAI_API_BASE_URL = RAG_OPENAI_API_BASE_URL
-app.state.config.RAG_OPENAI_API_KEY = RAG_OPENAI_API_KEY
-
 app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = ENABLE_GOOGLE_DRIVE_INTEGRATION
 
 app.state.EMBEDDING_FUNCTION = None
@@ -381,23 +366,9 @@ app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
 #
 ########################################
 
-app.state.config.STT_OPENAI_API_BASE_URL = AUDIO_STT_OPENAI_API_BASE_URL
-app.state.config.STT_OPENAI_API_KEY = AUDIO_STT_OPENAI_API_KEY
-app.state.config.STT_ENGINE = AUDIO_STT_ENGINE
-app.state.config.STT_MODEL = AUDIO_STT_MODEL
-
 app.state.config.WHISPER_MODEL = WHISPER_MODEL
 
-app.state.config.TTS_OPENAI_API_BASE_URL = AUDIO_TTS_OPENAI_API_BASE_URL
-app.state.config.TTS_OPENAI_API_KEY = AUDIO_TTS_OPENAI_API_KEY
-app.state.config.TTS_ENGINE = AUDIO_TTS_ENGINE
-app.state.config.TTS_MODEL = AUDIO_TTS_MODEL
 app.state.config.TTS_VOICE = AUDIO_TTS_VOICE
-app.state.config.TTS_API_KEY = AUDIO_TTS_API_KEY
-app.state.config.TTS_SPLIT_ON = AUDIO_TTS_SPLIT_ON
-
-app.state.config.TTS_AZURE_SPEECH_REGION = AUDIO_TTS_AZURE_SPEECH_REGION
-app.state.config.TTS_AZURE_SPEECH_OUTPUT_FORMAT = AUDIO_TTS_AZURE_SPEECH_OUTPUT_FORMAT
 
 app.state.faster_whisper_model = None
 app.state.speech_synthesiser = None
@@ -576,12 +547,15 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     subscription = payments_service.get_subscription(user.company_id)
 
-    if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
-        all_models = [model for model in all_models if
-                      model_base_model_names[model.id] in ModelCosts.get_allowed_model_names_premium()]
+    plan = subscription.get("plan")
 
-        if subscription.get("plan") == "free":
-            allowed = set(ModelCosts.get_allowed_model_names_free())
+    if plan == "free" or plan == "premium":
+        allowed_premium = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_premium")}
+        all_models = [model for model in all_models if
+                      model_base_model_names[model.id] in allowed_premium]
+
+        if plan == "free":
+            allowed = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_free")}
 
             for model in all_models:
                 # Set models to inactive if they are not allowed in free plan but send them with the response to show them in the frontend
@@ -595,7 +569,38 @@ async def get_active_models(user=Depends(get_verified_user)):
                                                                    "Perplexity Sonar Deep Research",
                                                                    "Perplexity Sonar Reasoning Pro")]
 
+        # Check fair usage limits in a single batch query
+        unique_base_names = list({name for name in model_base_model_names.values() if name})
+        limit_reached = fair_model_usage_service.get_fair_usage_limit_reached_models(user, unique_base_names, plan)
+
+        all_models = [
+            ModelResponse(
+                **model.model_dump(),
+                fair_usage_limit_reached=model_base_model_names.get(model.id) in limit_reached
+            )
+            for model in all_models
+        ]
+
+    all_models = [SMART_ROUTER_MODEL] + list(all_models)
+
     return {"data": all_models}
+
+
+_DISPLAY_METADATA_FIELDS = {
+    'context_window', 'category', 'costFactor', 'description', 'hosted_in',
+    'intelligence_score', 'knowledge_cutoff', 'multimodal', 'organization',
+    'reasoning', 'research', 'speed', 'tokens_per_second', 'zdr'
+}
+
+
+@app.get("/api/models/metadata")
+async def get_models_metadata(user=Depends(get_verified_user)):
+    result = {}
+    for model_name, cfg in LITELLM_MODEL_CONFIG.items():
+        model_meta = {k: v for k, v in cfg.items() if k in _DISPLAY_METADATA_FIELDS}
+        if model_meta:
+            result[model_name] = model_meta
+    return result
 
 
 @app.get("/api/models/base")
@@ -605,15 +610,19 @@ async def get_base_models(user=Depends(get_admin_user)):
     subscription = payments_service.get_subscription(user.company_id)
 
     if subscription.get("plan") == "free":
-        base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_free()]
+        allowed_free = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_free")}
+        base_models = [model for model in base_models if model.name in allowed_free]
     elif subscription.get("plan") == "premium":
-        base_models = [model for model in base_models if model.name in ModelCosts.get_allowed_model_names_premium()]
+        allowed_premium = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_premium")}
+        base_models = [model for model in base_models if model.name in allowed_premium]
 
         # Allow Perplexity models only for Creditreform Hamburg von der Decken KG
         if user.company_id not in ("c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4", "995d24a9-fc30-43b3-b88b-e8650586d938"):
             base_models = [model for model in base_models if
                            model.name not in ("Perplexity Sonar Pro", "Perplexity Sonar Deep Research",
                                               "Perplexity Sonar Reasoning Pro")]
+
+    base_models = [SMART_ROUTER_MODEL] + list(base_models)
 
     return {"data": base_models}
 
@@ -664,8 +673,8 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
 
             # Try to deduct credits and record completion
             try:
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response_and_model(
-                    user, response, request.get("model")
+                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(
+                    user, response
                 )
                 Completions.insert_new_completion(user.id, request.get("model"), credit_cost, None, False)
             except Exception as err:
@@ -727,7 +736,10 @@ async def chat_completion(
     try:
         model_id = form_data.get("model", None)
 
-        model = Models.get_model_by_id(model_id)
+        if model_id == SMART_ROUTER_MODEL.id:
+            model = SMART_ROUTER_MODEL
+        else:
+            model = Models.get_model_by_id(model_id)
 
         metadata = {
             "user_id": user.id,
@@ -740,10 +752,16 @@ async def chat_completion(
 
         form_data["metadata"] = metadata
 
-        form_data, metadata, events = await process_chat_payload(
+        form_data, metadata, events, model = await process_chat_payload(
             request, form_data, metadata, user, model
         )
 
+    except ClientDisconnectedError:
+        log.info("Client disconnected during chat payload processing")
+        return JSONResponse(
+            status_code=499,
+            content={"detail": "Client disconnected"},
+        )
     except Exception as e:
         log.error(f"Error processing chat payload: {e}")
         raise HTTPException(
@@ -752,7 +770,7 @@ async def chat_completion(
         )
 
     try:
-        response = await chat_completion_handler(form_data, user, model)
+        response, model = await chat_completion_handler(form_data, user, model)
 
         return await process_chat_response(
             request, response, form_data, user, events, metadata, tasks, model
@@ -858,13 +876,8 @@ async def get_app_config(request: Request):
                 "default_prompt_suggestions": app.state.config.DEFAULT_PROMPT_SUGGESTIONS,
                 "audio": {
                     "tts": {
-                        "engine": app.state.config.TTS_ENGINE,
                         "voice": app.state.config.TTS_VOICE,
-                        "split_on": app.state.config.TTS_SPLIT_ON,
-                    },
-                    "stt": {
-                        "engine": app.state.config.STT_ENGINE,
-                    },
+                    }
                 },
                 "file": {
                     "max_size": app.state.config.FILE_MAX_SIZE,
@@ -874,6 +887,7 @@ async def get_app_config(request: Request):
                     "client_id": GOOGLE_DRIVE_CLIENT_ID.value,
                     "api_key": GOOGLE_DRIVE_API_KEY.value,
                 },
+                "btl_sharing_enabled": bool(os.environ.get("BTL_COMPANY_ID", "")),
             }
             if user is not None
             else {}
