@@ -1317,6 +1317,7 @@
 	"Voice": "Stimme",
 	"Voice for audio output": "Stimme für Audioausgabe",
 	"Voice input": "Spracheingabe",
+	"Response stopped": "Antwort gestoppt",
 	"Waiting for model response": "Warten auf Antwort des Modells",
 	"Warning": "Warnung",
 	"Warning: Enabling this will allow users to upload arbitrary code on the server.": "Warnung: Wenn Sie dies aktivieren, können Benutzer beliebigen Code auf dem Server hochladen.",

@@ -53,7 +53,7 @@
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
-	import { chatAction, chatCompleted, generateMoACompletion, stopTask } from '$lib/apis';
+	import { chatAction, chatCompleted, generateMoACompletion, stopTaskByMessageId } from '$lib/apis';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
@@ -113,7 +113,6 @@
 		currentId: null
 	};
 
-	let taskId = null;
 	let currentRequestController: AbortController | null = null;
 
 	// Chat Input
@@ -214,11 +213,32 @@
 			let message = history.messages[event.message_id];
 
 			if (message) {
-				// Ignore all backend events for messages that are already done (e.g. stopped by user)
-				if (message.done) return;
-
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
+
+				if (type === 'task-cancelled') {
+					message.done = true;
+					message.statusHistory = [
+						{
+							done: true,
+							action: 'stopped',
+							description: 'Response stopped'
+						}
+					];
+					message.content = (message.content ?? '').replaceAll(
+						'<details type="reasoning" done="false">',
+						'<details type="reasoning" done="true">'
+					);
+
+					history.messages[event.message_id] = message;
+					saveChatHandler(event.chat_id, history).catch((error) => {
+						console.error('Failed to save stopped message state:', error);
+					});
+					return;
+				}
+
+				// Ignore all backend events for messages that are already done (e.g. stopped by user)
+				if (message.done) return;
 
 				if (type === 'status') {
 					if (message?.statusHistory) {
@@ -705,9 +725,6 @@
 				autoScroll = true;
 				await tick();
 
-				if (history.currentId) {
-					history.messages[history.currentId].done = true;
-				}
 				await tick();
 
 				return true;
@@ -1471,7 +1488,7 @@
 
 		currentRequestController = new AbortController();
 
-		const res = await generateOpenAIChatCompletion(
+		await generateOpenAIChatCompletion(
 			localStorage.token,
 			{
 				stream: stream,
@@ -1584,10 +1601,6 @@
 
 		currentRequestController = null;
 
-		if (res) {
-			taskId = res.task_id;
-		}
-
 		await tick();
 		scrollToBottom();
 	};
@@ -1638,11 +1651,10 @@
 			currentRequestController = null;
 		}
 
-		if (taskId) {
-			stopTask(localStorage.token, taskId).catch((error) => {
+		if (history.currentId) {
+			stopTaskByMessageId(localStorage.token, history.currentId).catch((error) => {
 				console.error('Failed to stop task:', error);
 			});
-			taskId = null;
 		}
 
 		if (bufferedResponse) {
@@ -1652,34 +1664,29 @@
 
 		const responseMessage = history.messages[history.currentId];
 		if (responseMessage && !responseMessage.done) {
-			const visibleContent = (responseMessage.content ?? '')
-				.replace(/<details\s+type="reasoning"[^>]*>[\s\S]*?(<\/details>|$)/g, '')
-				.trim();
-			const hasContent = visibleContent !== '';
-
-			if (hasContent) {
-				responseMessage.done = true;
-				responseMessage.statusHistory = [];
-				responseMessage.content = responseMessage.content.replaceAll(
-					'<details type="reasoning" done="false">',
-					'<details type="reasoning" done="true">'
-				);
-				history.messages[history.currentId] = responseMessage;
-			} else {
-				const parentId = responseMessage.parentId;
-				if (parentId && history.messages[parentId]) {
-					history.messages[parentId].childrenIds = history.messages[parentId].childrenIds.filter(
-						(id) => id !== history.currentId
-					);
-					history.messages[parentId].done = true;
+			responseMessage.done = true;
+			responseMessage.statusHistory = [
+				{
+					done: true,
+					action: 'stopped',
+					description: 'Response stopped'
 				}
-				delete history.messages[history.currentId];
-				history.currentId = parentId;
-			}
+			];
+			responseMessage.content = (responseMessage.content ?? '').replaceAll(
+				'<details type="reasoning" done="false">',
+				'<details type="reasoning" done="true">'
+			);
+			history.messages[history.currentId] = responseMessage;
 		}
 
 		if (autoScroll) {
 			scrollToBottom();
+		}
+
+		if ($chatId) {
+			saveChatHandler($chatId, history).catch((error) => {
+				console.error('Failed to persist stop state:', error);
+			});
 		}
 	};
 

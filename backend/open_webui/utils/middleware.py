@@ -1265,6 +1265,7 @@ async def process_chat_response(
                         metadata["message_id"],
                         {
                             "content": content,
+                            "done": True,
                         },
                     )
 
@@ -2306,6 +2307,7 @@ async def process_chat_response(
                     # Save message in the database
                     message = {
                         "content": serialize_content_blocks(content_blocks),
+                        "done": True,
                     }
                     if sources:  # Use the stored sources
                         message["sources"] = sources
@@ -2349,11 +2351,22 @@ async def process_chat_response(
             except asyncio.CancelledError:
                 log.warning("Task was cancelled!")
                 await event_emitter({"type": "task-cancelled"})
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "stopped",
+                            "done": True,
+                            "description": "Response stopped",
+                        },
+                    }
+                )
 
                 if not ENABLE_REALTIME_CHAT_SAVE:
                     # Save message in the database
                     message = {
                         "content": serialize_content_blocks(content_blocks),
+                        "done": True,
                     }
                     if sources:  # Use the stored sources‚
                         message["sources"] = sources
@@ -2375,7 +2388,11 @@ async def process_chat_response(
                 await response.background()
 
         # background_tasks.add_task(post_response_handler, response, events)
-        task_id, _ = create_task(post_response_handler(response, events))
+        task_id, _ = create_task(
+            post_response_handler(response, events),
+            message_id=metadata.get("message_id"),
+            user_id=metadata.get("user_id"),
+        )
         return {"status": True, "task_id": task_id}
 
     else:
