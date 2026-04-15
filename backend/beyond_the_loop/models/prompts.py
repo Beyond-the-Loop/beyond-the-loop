@@ -83,8 +83,7 @@ class PromptModel(BaseModel):
 
     meta: Optional[PromptMeta] = None
     description: Optional[str] = None
-    prebuilt: Optional[bool] = None
-    # bookmarked: Optional[bool] = None
+    prebuilt: Optional[bool] = False
 
 ####################
 # Forms
