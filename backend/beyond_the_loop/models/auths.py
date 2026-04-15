@@ -105,7 +105,7 @@ class SignupForm(BaseModel):
     signup_token: str
     profile_image_url: str
     is_invited: bool = False
-    position: str
+    position: Optional[str] = None
     phone: Optional[str] = None
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
