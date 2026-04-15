@@ -1,7 +1,7 @@
 """Add ON DELETE CASCADE FK from model.user_id to user
 
-Revision ID: 030
-Revises: 029
+Revision ID: 033
+Revises: 032
 Create Date: 2026-04-01 00:00:00.000000
 
 Why: model.user_id was a plain TEXT column with no referential integrity.
@@ -13,8 +13,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = '030'
-down_revision: Union[str, None] = '029'
+revision: str = '033'
+down_revision: Union[str, None] = '032'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

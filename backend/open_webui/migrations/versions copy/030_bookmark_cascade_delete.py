@@ -1,15 +1,15 @@
 """Add ON DELETE CASCADE FK constraints to bookmark join tables
 
-Revision ID: 027
-Revises: 026
+Revision ID: 030
+Revises: 029
 Create Date: 2026-04-01 00:00:00.000000
 """
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = '027'
-down_revision: Union[str, None] = '026'
+revision: str = '030'
+down_revision: Union[str, None] = '029'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,7 +1,7 @@
 """Add sentinel 'system' user and ON DELETE CASCADE foreign keys
 
-Revision ID: 026
-Revises: 025
+Revision ID: 028
+Revises: 027
 Create Date: 2026-03-24 12:00:00.000000
 """
 from typing import Sequence, Union
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 import open_webui.internal.db
 
 # revision identifiers, used by Alembic.
-revision: str = '026'
-down_revision: Union[str, None] = '025'
+revision: str = '028'
+down_revision: Union[str, None] = '027'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

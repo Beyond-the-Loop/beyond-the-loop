@@ -1,7 +1,7 @@
 """Enforce NOT NULL on all columns that are semantically required
 
-Revision ID: 029
-Revises: 028
+Revision ID: 031
+Revises: 030
 Create Date: 2026-04-01 00:00:00.000000
 
 All Column() definitions without explicit nullable=False default to nullable=True
@@ -13,8 +13,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = '029'
-down_revision: Union[str, None] = '028'
+revision: str = '031'
+down_revision: Union[str, None] = '030'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
