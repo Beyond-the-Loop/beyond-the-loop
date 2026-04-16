@@ -561,7 +561,6 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{message.done}
 						{#if !message.done}
 								<div class="status-description flex items-center gap-2">
 									{#if !message.content}
