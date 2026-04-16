@@ -51,9 +51,10 @@ async def stop_task(task_id: str):
         raise ValueError(f"Task with ID {task_id} not found.")
 
     task.cancel()  # Request task cancellation
+
     try:
         await task  # Wait for the task to handle the cancellation
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as e:
         # Task successfully canceled
         tasks.pop(task_id, None)  # Remove it from the dictionary
         return {"status": True, "message": f"Task {task_id} successfully stopped."}

@@ -43,7 +43,7 @@
  import { WEBUI_BASE_URL } from '$lib/constants';
 	import i18n, { initI18n, getLanguages } from '$lib/i18n';
 	import { bestMatchingLanguage } from '$lib/utils';
-	import { getAllTags, getChatList } from '$lib/apis/chats';
+	import { getAllTags, getChatById, getChatList, updateChatById } from '$lib/apis/chats';
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
 	import AppSidebar from '$lib/components/app/AppSidebar.svelte';
 
@@ -117,12 +117,21 @@
 				if (done) {
 					if ($isLastActiveTab) {
 						if ($settings?.notificationEnabled ?? false) {
-							new Notification(`${title} | Open WebUI`, {
+							new Notification(`${title} | Beyond the Loop`, {
 								body: content,
 								icon: `${WEBUI_BASE_URL}/favicon-icon.png`
 							});
 						}
 					}
+
+					const chat = await getChatById(localStorage.token, event.chat_id).catch(async () => {
+						await goto('/');
+						return;
+					});
+
+					chat.chat.history.messages[event.message_id].done = true;
+					chat.history = chat.chat.history;
+					await updateChatById(localStorage.token, event.chat_id, chat);
 
 					toast.custom(NotificationToast, {
 						componentProps: {

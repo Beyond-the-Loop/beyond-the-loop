@@ -154,6 +154,7 @@
 	let generatingImage = false;
 
 	let showRateComment = false;
+
 	$: statusList = message?.statusHistory ?? [...(message?.status ? [message?.status] : [])];
 	$: status = statusList.length > 0 ? statusList.at(-1) : null
 
@@ -560,9 +561,9 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{#if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
+						{#if !message.done}
 								<div class="status-description flex items-center gap-2">
-									{#if message.content === '' && !message.error}
+									{#if !message.content}
 										<div class="py-1">
 											<Spinner className="size-4" />
 										</div>

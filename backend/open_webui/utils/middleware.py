@@ -2371,6 +2371,8 @@ async def process_chat_response(
                         message
                     )
 
+                raise
+
             if response.background is not None:
                 await response.background()
 
