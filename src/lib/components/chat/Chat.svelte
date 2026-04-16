@@ -214,9 +214,6 @@
 			let message = history.messages[event.message_id];
 
 			if (message) {
-				// Ignore all backend events for messages that are already done (e.g. stopped by user)
-				if (message.done) return;
-
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
 
