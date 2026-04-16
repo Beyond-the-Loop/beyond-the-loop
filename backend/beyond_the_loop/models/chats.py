@@ -106,6 +106,53 @@ class ChatTitleIdResponse(BaseModel):
 
 
 class ChatTable:
+    @staticmethod
+    def _status_is_stopped(status: Optional[dict]) -> bool:
+        return isinstance(status, dict) and status.get("action") == "stopped"
+
+    @classmethod
+    def _message_is_cancelled(cls, message: Optional[dict]) -> bool:
+        if not isinstance(message, dict):
+            return False
+
+        if message.get("cancelled") is True:
+            return True
+
+        status_history = message.get("statusHistory", [])
+        if not isinstance(status_history, list):
+            status_history = []
+
+        status = message.get("status")
+        statuses = [*status_history, status]
+        return any(cls._status_is_stopped(item) for item in statuses)
+
+    @classmethod
+    def _preserve_cancelled_messages(cls, current_chat: dict, incoming_chat: dict) -> dict:
+        current_messages = (
+            (current_chat or {}).get("history", {}).get("messages", {})
+        )
+        incoming_history = (incoming_chat or {}).get("history")
+
+        if not isinstance(current_messages, dict) or not isinstance(incoming_history, dict):
+            return incoming_chat
+
+        incoming_messages = incoming_history.get("messages", {})
+        if not isinstance(incoming_messages, dict):
+            return incoming_chat
+
+        for message_id, current_message in current_messages.items():
+            incoming_message = incoming_messages.get(message_id)
+            if (
+                incoming_message is not None
+                and cls._message_is_cancelled(current_message)
+                and not cls._message_is_cancelled(incoming_message)
+            ):
+                incoming_messages[message_id] = current_message
+
+        incoming_history["messages"] = incoming_messages
+        incoming_chat["history"] = incoming_history
+        return incoming_chat
+
     def insert_new_chat(self, user_id: str, form_data: ChatForm) -> Optional[ChatModel]:
         with get_db() as db:
             id = str(uuid.uuid4())
@@ -164,6 +211,7 @@ class ChatTable:
             with get_db() as db:
                 chat_item = db.get(Chat, id)
 
+                chat = self._preserve_cancelled_messages(chat_item.chat, chat)
                 chat_item.chat = chat
                 chat_item.title = chat["title"] if "title" in chat else "New chat"
                 chat_item.updated_at = int(time.time())
@@ -237,18 +285,58 @@ class ChatTable:
 
         chat = chat.chat
         history = chat.get("history", {})
+        messages = history.setdefault("messages", {})
+        existing_message = messages.get(message_id)
 
-        if message_id in history.get("messages", {}):
-            history["messages"][message_id] = {
-                **history["messages"][message_id],
+        if self._message_is_cancelled(existing_message) and not self._message_is_cancelled(message):
+            return self.get_chat_by_id(id)
+
+        if message_id in messages:
+            messages[message_id] = {
+                **messages[message_id],
                 **message,
             }
         else:
-            history["messages"][message_id] = message
+            messages[message_id] = message
 
         history["currentId"] = message_id
 
         chat["history"] = history
+        return self.update_chat_by_id(id, chat)
+
+    def mark_message_as_cancelled_by_id_and_message_id(
+        self, id: str, message_id: str
+    ) -> Optional[ChatModel]:
+        chat = self.get_chat_by_id(id)
+        if chat is None:
+            return None
+
+        chat = chat.chat
+        history = chat.get("history", {})
+        messages = history.setdefault("messages", {})
+        message = messages.get(message_id, {"id": message_id, "content": ""})
+        if not isinstance(message, dict):
+            message = {"id": message_id, "content": ""}
+
+        status_history = message.get("statusHistory", [])
+        if not isinstance(status_history, list):
+            status_history = []
+        status_history = [
+            status for status in status_history if not self._status_is_stopped(status)
+        ]
+
+        message["done"] = True
+        message["cancelled"] = True
+        message["statusHistory"] = status_history
+        message["content"] = (message.get("content") or "").replace(
+            '<details type="reasoning" done="false">',
+            '<details type="reasoning" done="true">',
+        )
+
+        messages[message_id] = message
+        history["currentId"] = message_id
+        chat["history"] = history
+
         return self.update_chat_by_id(id, chat)
 
     def add_message_status_to_chat_by_id_and_message_id(
@@ -260,11 +348,25 @@ class ChatTable:
 
         chat = chat.chat
         history = chat.get("history", {})
+        messages = history.setdefault("messages", {})
 
-        if message_id in history.get("messages", {}):
-            status_history = history["messages"][message_id].get("statusHistory", [])
+        if message_id in messages:
+            message = messages[message_id]
+            if self._message_is_cancelled(message):
+                return self.get_chat_by_id(id)
+
+            if self._status_is_stopped(status):
+                message["done"] = True
+                message["cancelled"] = True
+                chat["history"] = history
+                return self.update_chat_by_id(id, chat)
+
+            status_history = message.get("statusHistory", [])
+            if not isinstance(status_history, list):
+                status_history = []
             status_history.append(status)
-            history["messages"][message_id]["statusHistory"] = status_history
+
+            message["statusHistory"] = status_history
 
         chat["history"] = history
         return self.update_chat_by_id(id, chat)

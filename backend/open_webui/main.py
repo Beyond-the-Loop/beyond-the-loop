@@ -7,6 +7,7 @@ import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 from urllib.parse import urlencode, parse_qs, urlparse
 
 import aiohttp
@@ -103,6 +104,7 @@ from beyond_the_loop.config import (
 )
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.alert import Alerts
+from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG
@@ -162,7 +164,7 @@ from open_webui.routers.retrieval import (
     get_ef,
     get_rf,
 )
-from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
+from open_webui.tasks import stop_task, stop_task_by_message_id, list_tasks
 from open_webui.utils.auth import (
     decode_token,
     get_admin_user,
@@ -804,7 +806,28 @@ async def chat_completed(
 @app.post("/api/tasks/stop/{task_id}")
 async def stop_task_endpoint(task_id: str, user=Depends(get_verified_user)):
     try:
-        result = await stop_task(task_id)  # Use the function from tasks.py
+        result = await stop_task(task_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@app.post("/api/tasks/stop/message/{message_id}")
+async def stop_task_by_message_endpoint(
+    message_id: str,
+    chat_id: Optional[str] = None,
+    user=Depends(get_verified_user),
+):
+    try:
+        if chat_id:
+            try:
+                chat = Chats.get_chat_by_id_and_user_id(chat_id, user.id)
+                if chat:
+                    Chats.mark_message_as_cancelled_by_id_and_message_id(chat_id, message_id)
+            except Exception:
+                log.exception("Failed to persist cancelled message state")
+
+        result = await stop_task_by_message_id(message_id, user.id)
         return result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -812,7 +835,7 @@ async def stop_task_endpoint(task_id: str, user=Depends(get_verified_user)):
 
 @app.get("/api/tasks")
 async def list_tasks_endpoint(user=Depends(get_verified_user)):
-    return {"tasks": list_tasks()}  # Use the function from tasks.py
+    return {"tasks": list_tasks()}
 
 
 ##################################

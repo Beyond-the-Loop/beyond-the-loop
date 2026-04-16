@@ -72,6 +72,7 @@
 			query?: string;
 		};
 		done: boolean;
+		cancelled?: boolean;
 		error?: boolean | { content: string };
 		sources?: string[];
 		code_executions?: {
@@ -154,7 +155,13 @@
 	let generatingImage = false;
 
 	let showRateComment = false;
-	$: statusList = message?.statusHistory ?? [...(message?.status ? [message?.status] : [])];
+	$: rawStatusList = [
+		...(Array.isArray(message?.statusHistory) ? message.statusHistory : []),
+		...(message?.status ? [message.status] : [])
+	];
+	$: isCancelled =
+		message?.cancelled === true || rawStatusList.some((status) => status?.action === 'stopped');
+	$: statusList = rawStatusList.filter((status) => status?.action !== 'stopped');
 	$: status = statusList.length > 0 ? statusList.at(-1) : null
 
 	const copyToClipboard = async (text, sources) => {
@@ -560,9 +567,17 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{#if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
-								<div class="status-description flex items-center gap-2">
-									{#if !message.done && (status?.done === false || !status)}
+						{#if isCancelled}
+							<div class="status-description flex items-center gap-2">
+								<div class="flex flex-col justify-center -space-y-0.5">
+									<div class="text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap">
+										{$i18n.t('Response stopped')}
+									</div>
+								</div>
+							</div>
+						{:else if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
+							<div class="status-description flex items-center gap-2">
+									{#if !message.done && !message.content}
 										<div class="py-1">
 											<Spinner className="size-4" />
 										</div>
