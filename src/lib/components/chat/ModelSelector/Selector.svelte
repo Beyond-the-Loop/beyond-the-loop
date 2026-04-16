@@ -56,13 +56,23 @@
 			}))
 			.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'));
 
-		const baseItems = allItems?.filter((item) => item.model?.base_model_id == null) ?? [];
-		const hasNonSmartRouterBase = baseItems.some((item) => item?.model?.name !== 'Smart Router');
+		let items;
+		if ($user?.permissions?.chat?.assistants_only) {
+			// Assistants-only mode: show only assistants whose base model is active, no Smart Router
+			items = allItems.filter((item) =>
+				item.model?.base_model_id != null &&
+				item.model?.is_active !== false &&
+				item.model?.name !== 'Smart Router'
+			) ?? [];
+		} else {
+			const baseItems = allItems?.filter((item) => item.model?.base_model_id == null) ?? [];
+			const hasNonSmartRouterBase = baseItems.some((item) => item?.model?.name !== 'Smart Router');
 
-		// Fall back to assistants when no base models are available
-		const items = hasNonSmartRouterBase
-			? baseItems
-			: (allItems?.filter((item) => item.model?.base_model_id != null) ?? []);
+			// Fall back to assistants when no base models are available
+			items = hasNonSmartRouterBase
+				? baseItems
+				: (allItems?.filter((item) => item.model?.base_model_id != null) ?? []);
+		}
 
 		const hasNonSmartRouter = items.some((item) => item?.model?.name !== 'Smart Router');
 		return items
@@ -77,6 +87,14 @@
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
 		: filteredSourceItems;
+
+	// In assistants-only mode: auto-select the first assistant if current value is missing/invalid
+	$: if ($user?.permissions?.chat?.assistants_only && filteredSourceItems.length > 0) {
+		const currentValid = filteredSourceItems.some((item) => item.value === value);
+		if (!currentValid) {
+			value = filteredSourceItems[0].value;
+		}
+	}
 
 	let hoveredItem = null;
 	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;

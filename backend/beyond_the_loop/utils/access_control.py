@@ -7,17 +7,20 @@ import json
 DEFAULT_USER_PERMISSIONS = {
     "workspace": {
         "view_knowledge": True,
-        "edit_knowledge": False,
+        "edit_knowledge": True,
         "view_prompts": True,
-        "edit_prompts": False,
+        "edit_prompts": True,
         "view_assistants": True,
-        "edit_assistants": False,
+        "edit_assistants": True,
         "tools": True,
     },
     "features": {
         "web_search": True,
         "image_generation": True,
         "code_interpreter": True,
+    },
+    "chat": {
+        "assistants_only": False,
     },
 }
 
@@ -78,6 +81,22 @@ def get_permissions(
 
         if group_permissions:
             permissions = combine_permissions(permissions, group_permissions)
+
+    # assistants_only is a restriction: if ANY group has it enabled, enforce it
+    if any(
+        group.permissions and group.permissions.get("chat", {}).get("assistants_only", False)
+        for group in user_groups
+    ):
+        permissions.setdefault("chat", {})["assistants_only"] = True
+        # When assistants_only is active, disable all workspace permissions
+        permissions.setdefault("workspace", {}).update({
+            "view_assistants": False,
+            "edit_assistants": False,
+            "view_prompts": False,
+            "edit_prompts": False,
+            "view_knowledge": False,
+            "edit_knowledge": False,
+        })
 
     # Ensure all fields from default_permissions are present and filled in
     permissions = fill_missing_permissions(permissions, DEFAULT_USER_PERMISSIONS)

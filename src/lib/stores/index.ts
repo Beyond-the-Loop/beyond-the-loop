@@ -229,5 +229,8 @@ type SessionUser = {
 			view_prompts?: boolean;
 			edit_prompts?: boolean;
 		};
+		chat?: {
+			assistants_only?: boolean;
+		};
 	};
 };

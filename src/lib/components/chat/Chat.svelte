@@ -125,6 +125,15 @@
 	let initNewChatCompleted = false;
 
 	const getDefaultModels = (): string[] => {
+		// In assistants-only mode, always return the first assistant
+		if ($user?.permissions?.chat?.assistants_only) {
+			const firstAssistant = $models.find((m) => m.base_model_id != null);
+			if (firstAssistant) {
+				return [firstAssistant.id];
+			}
+			return [];
+		}
+
 		const defaultModelIds = $companyConfig?.config?.models?.default_models?.split(',');
 		const validDefaults = defaultModelIds?.filter((id) => $models.some((m) => m.id === id));
 
@@ -154,6 +163,19 @@
 		(selectedModels.length === 0 || selectedModels.every((id) => !id || !$models.some((m) => m.id === id)))
 	) {
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
+	}
+
+	// When $user loads after $models (assistants-only): correct selection if a non-assistant is selected
+	$: if (
+		!chatIdProp &&
+		$user?.permissions?.chat?.assistants_only &&
+		$models.length > 0 &&
+		!selectedModels.some((id) => $models.some((m) => m.id === id && m.base_model_id != null))
+	) {
+		const firstAssistant = $models.find((m) => m.base_model_id != null);
+		if (firstAssistant) {
+			selectedModels = [firstAssistant.id];
+		}
 	}
 
 	$: if (chatIdProp) {

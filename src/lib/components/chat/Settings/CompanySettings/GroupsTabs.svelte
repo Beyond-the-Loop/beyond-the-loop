@@ -34,6 +34,9 @@
 			web_search: true,
 			image_generation: true,
 			code_interpreter: true
+		},
+		chat: {
+			assistants_only: false
 		}
 	};
 
@@ -229,7 +232,9 @@
 									edit_prompts: e.detail.edit_prompts,
 									view_knowledge: e.detail.view_knowledge,
 									edit_knowledge: e.detail.edit_knowledge
-                                }}
+                                }, chat: {
+									assistants_only: e.detail.assistants_only ?? false
+								}}
 							});
 						}}
 					>
