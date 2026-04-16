@@ -218,13 +218,7 @@
 
 				if (type === 'task-cancelled') {
 					message.done = true;
-					message.statusHistory = [
-						{
-							done: true,
-							action: 'stopped',
-							description: 'Response stopped'
-						}
-					];
+					message.cancelled = true;
 					message.content = (message.content ?? '').replaceAll(
 						'<details type="reasoning" done="false">',
 						'<details type="reasoning" done="true">'
@@ -237,10 +231,20 @@
 					return;
 				}
 
-				// Ignore all backend events for messages that are already done (e.g. stopped by user)
-				if (message.done) return;
+				// Ignore late backend events for cancelled responses.
+				if (message.cancelled) return;
 
 				if (type === 'status') {
+					if (data?.action === 'stopped') {
+						message.done = true;
+						message.cancelled = true;
+						history.messages[event.message_id] = message;
+						saveChatHandler(event.chat_id, history).catch((error) => {
+							console.error('Failed to save stopped message state:', error);
+						});
+						return;
+					}
+
 					if (message?.statusHistory) {
 						message.statusHistory.push(data);
 					} else {
@@ -1652,7 +1656,7 @@
 		}
 
 		if (history.currentId) {
-			stopTaskByMessageId(localStorage.token, history.currentId).catch((error) => {
+			stopTaskByMessageId(localStorage.token, history.currentId, $chatId).catch((error) => {
 				console.error('Failed to stop task:', error);
 			});
 		}
@@ -1665,13 +1669,7 @@
 		const responseMessage = history.messages[history.currentId];
 		if (responseMessage && !responseMessage.done) {
 			responseMessage.done = true;
-			responseMessage.statusHistory = [
-				{
-					done: true,
-					action: 'stopped',
-					description: 'Response stopped'
-				}
-			];
+			responseMessage.cancelled = true;
 			responseMessage.content = (responseMessage.content ?? '').replaceAll(
 				'<details type="reasoning" done="false">',
 				'<details type="reasoning" done="true">'
@@ -1738,9 +1736,12 @@
 
 	const continueResponse = async () => {
 		const _chatId = JSON.parse(JSON.stringify($chatId));
+		const responseMessage = history.messages[history.currentId];
+		const responseCancelled =
+			responseMessage?.cancelled === true ||
+			responseMessage?.statusHistory?.some((status) => status?.action === 'stopped');
 
-		if (history.currentId && history.messages[history.currentId].done == true) {
-			const responseMessage = history.messages[history.currentId];
+		if (history.currentId && responseMessage?.done == true && !responseCancelled) {
 			responseMessage.done = false;
 			await tick();
 

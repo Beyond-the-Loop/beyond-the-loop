@@ -160,11 +160,13 @@ export const stopTask = async (token: string, id: string) => {
 	return res;
 };
 
-export const stopTaskByMessageId = async (token: string, messageId: string) => {
+export const stopTaskByMessageId = async (token: string, messageId: string, chatId?: string) => {
 	let error = null;
+	const query = chatId && chatId !== 'local' ? `?chat_id=${encodeURIComponent(chatId)}` : '';
 
-	const res = await fetch(`${WEBUI_BASE_URL}/api/tasks/stop/message/${messageId}`, {
+	const res = await fetch(`${WEBUI_BASE_URL}/api/tasks/stop/message/${messageId}${query}`, {
 		method: 'POST',
+		keepalive: true,
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',

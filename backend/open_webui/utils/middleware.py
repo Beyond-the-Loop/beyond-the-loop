@@ -2351,16 +2351,6 @@ async def process_chat_response(
             except asyncio.CancelledError:
                 log.warning("Task was cancelled!")
                 await event_emitter({"type": "task-cancelled"})
-                await event_emitter(
-                    {
-                        "type": "status",
-                        "data": {
-                            "action": "stopped",
-                            "done": True,
-                            "description": "Response stopped",
-                        },
-                    }
-                )
 
                 if not ENABLE_REALTIME_CHAT_SAVE:
                     # Save message in the database

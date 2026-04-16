@@ -7,6 +7,7 @@ import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 from urllib.parse import urlencode, parse_qs, urlparse
 
 import aiohttp
@@ -103,6 +104,7 @@ from beyond_the_loop.config import (
 )
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.alert import Alerts
+from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG
@@ -811,8 +813,20 @@ async def stop_task_endpoint(task_id: str, user=Depends(get_verified_user)):
 
 
 @app.post("/api/tasks/stop/message/{message_id}")
-async def stop_task_by_message_endpoint(message_id: str, user=Depends(get_verified_user)):
+async def stop_task_by_message_endpoint(
+    message_id: str,
+    chat_id: Optional[str] = None,
+    user=Depends(get_verified_user),
+):
     try:
+        if chat_id:
+            try:
+                chat = Chats.get_chat_by_id_and_user_id(chat_id, user.id)
+                if chat:
+                    Chats.mark_message_as_cancelled_by_id_and_message_id(chat_id, message_id)
+            except Exception:
+                log.exception("Failed to persist cancelled message state")
+
         result = await stop_task_by_message_id(message_id, user.id)
         return result
     except ValueError as e:
