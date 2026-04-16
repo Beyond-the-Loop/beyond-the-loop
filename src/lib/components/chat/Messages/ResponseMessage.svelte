@@ -562,7 +562,7 @@
 					<div>
 						{#if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
 								<div class="status-description flex items-center gap-2">
-									{#if !message.done && (status?.done === false || !status)}
+									{#if message.content === '' && !message.error}
 										<div class="py-1">
 											<Spinner className="size-4" />
 										</div>
