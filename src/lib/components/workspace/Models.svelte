@@ -475,6 +475,7 @@
 						/>
 					{/if}
 				</div>
+				{#if $user?.permissions?.workspace?.edit_assistants}
 				<div>
 					<a
 						class=" px-2 py-2.5 md:w-[220px] rounded-lg leading-none border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-200 dark:hover:text-white transition font-medium text-xs flex items-center justify-center space-x-1"
@@ -484,6 +485,7 @@
 						<span class="">{$i18n.t('Create new')}</span>
 					</a>
 				</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -669,6 +671,7 @@
 								</div>
 							</div>
 							
+							{#if $user?.permissions?.workspace?.edit_assistants}
 							<div
 								class="{hoveredModel === model.id || menuIdOpened === model.id
 									? 'md:visible'
@@ -710,6 +713,7 @@
 									</button>
 								</ModelMenu>
 							</div>
+							{/if}
 						</div>
 						<div class="flex gap-4 mb-2.5">
 							<div class=" w-[56px]">

@@ -14,13 +14,6 @@ DEFAULT_USER_PERMISSIONS = {
         "edit_assistants": False,
         "tools": True,
     },
-    "chat": {
-        "controls": True,
-        "file_upload": True,
-        "delete": True,
-        "edit": True,
-        "temporary": True,
-    },
     "features": {
         "web_search": True,
         "image_generation": True,

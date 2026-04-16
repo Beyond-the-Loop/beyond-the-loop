@@ -48,18 +48,31 @@
 	$: desiredOrder = Object.values(modelGroups).flat();
 	$: orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 	let filteredSourceItems = []
-	$: filteredSourceItems = $models.map((model) => ({
-			value: model.id,
-			label: model.name,
-			model: model
-		}))
-		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
-		?.filter((item) => item.model?.base_model_id == null)
-		.sort((a, b) => {
-		if (a?.model?.name === 'Smart Router') return -1;
-		if (b?.model?.name === 'Smart Router') return 1;
-		return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
-	});
+	$: filteredSourceItems = (() => {
+		const allItems = $models.map((model) => ({
+				value: model.id,
+				label: model.name,
+				model: model
+			}))
+			.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'));
+
+		const baseItems = allItems?.filter((item) => item.model?.base_model_id == null) ?? [];
+		const hasNonSmartRouterBase = baseItems.some((item) => item?.model?.name !== 'Smart Router');
+
+		// Fall back to assistants when no base models are available
+		const items = hasNonSmartRouterBase
+			? baseItems
+			: (allItems?.filter((item) => item.model?.base_model_id != null) ?? []);
+
+		const hasNonSmartRouter = items.some((item) => item?.model?.name !== 'Smart Router');
+		return items
+			.filter((item) => item?.model?.name !== 'Smart Router' || hasNonSmartRouter)
+			.sort((a, b) => {
+				if (a?.model?.name === 'Smart Router') return -1;
+				if (b?.model?.name === 'Smart Router') return 1;
+				return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
+			});
+	})();
 
 	$: filteredItems = searchValue
 		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))

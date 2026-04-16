@@ -300,14 +300,6 @@ class WorkspacePermissions(BaseModel):
     edit_prompts: bool
 
 
-class ChatPermissions(BaseModel):
-    controls: bool
-    file_upload: bool
-    delete: bool
-    edit: bool
-    temporary: bool
-
-
 class FeaturesPermissions(BaseModel):
     web_search: bool
     image_generation: bool
@@ -316,7 +308,6 @@ class FeaturesPermissions(BaseModel):
 
 class UserPermissions(BaseModel):
     workspace: WorkspacePermissions
-    chat: ChatPermissions
     features: FeaturesPermissions
 
 
@@ -325,9 +316,6 @@ async def get_user_permissions(user=Depends(get_admin_user)):
     return {
         "workspace": WorkspacePermissions(
             **DEFAULT_USER_PERMISSIONS.get("workspace", {})
-        ),
-        "chat": ChatPermissions(
-            **DEFAULT_USER_PERMISSIONS.get("chat", {})
         ),
         "features": FeaturesPermissions(
             **DEFAULT_USER_PERMISSIONS.get("features", {})

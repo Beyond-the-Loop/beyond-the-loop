@@ -132,7 +132,20 @@
 			return validDefaults;
 		}
 
-		return ['Smart Router'];
+		// Only consider base models (not assistants) when deciding whether to use Smart Router
+		const baseModels = $models.filter((m) => m.base_model_id == null);
+		const hasNonSmartRouterBase = baseModels.some((m) => m.name !== 'Smart Router');
+		if (hasNonSmartRouterBase && baseModels.some((m) => m.name === 'Smart Router')) {
+			return ['Smart Router'];
+		}
+
+		// Fall back to first assistant when no base models are available
+		const firstAssistant = $models.find((m) => m.base_model_id != null);
+		if (firstAssistant) {
+			return [firstAssistant.id];
+		}
+
+		return [];
 	};
 
 	$: if (

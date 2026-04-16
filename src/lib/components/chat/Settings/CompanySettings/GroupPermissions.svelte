@@ -63,15 +63,25 @@
 	function setPermission(key, checked) {
 		permissions[key] = checked;
 
-		// if (key.startsWith('edit_') && checked) {
-		// const viewKey = 'view_' + key.slice(5);
-		// permissions[viewKey] = true;
-		// }
+		if (key.startsWith('edit_') && checked) {
+			const viewKey = 'view_' + key.slice(5);
+			permissions[viewKey] = true;
+		}
 
-		// if (key.startsWith('view_') && !checked) {
-		// const editKey = 'edit_' + key.slice(5);
-		// permissions[editKey] = false;
-		// }
+		if (key.startsWith('view_') && !checked) {
+			const editKey = 'edit_' + key.slice(5);
+			permissions[editKey] = false;
+		}
+
+		// Editing assistants requires viewing knowledge (knowledge bases are selectable in the editor)
+		if (key === 'edit_assistants' && checked) {
+			permissions.view_knowledge = true;
+		}
+
+		// Turning off view_knowledge while edit_assistants is on must also turn off edit_assistants
+		if (key === 'view_knowledge' && !checked && permissions.edit_assistants) {
+			permissions.edit_assistants = false;
+		}
 
 		permissions = { ...permissions };
 
@@ -308,9 +318,7 @@
 								showPermissionsSubmenu = false;
 							}}
 						>
-							{#each Object.keys(permissions).filter(
-								p => !['view_assistants', 'view_prompts', "view_knowledge"].includes(p)
-							) as permission}
+							{#each Object.keys(permissions) as permission}
 								<div
 									role="button"
 									tabindex="0"

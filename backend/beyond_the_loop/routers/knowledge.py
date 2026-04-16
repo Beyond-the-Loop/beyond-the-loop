@@ -145,7 +145,7 @@ async def create_new_knowledge(
 ):
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
-    if is_free_user or not has_permission(user.id, "workspace.view_prompts"):
+    if is_free_user or not has_permission(user.id, "workspace.edit_knowledge"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,

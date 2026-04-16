@@ -603,7 +603,7 @@
 		</div>
 
 		<div class="px-2">
-			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_assistants}
+			{#if $user?.permissions?.workspace?.view_assistants}
 			<div
 				class="{$page.url.pathname.startsWith('/workspace/models')
 						? 'dark:bg-customGray-900 bg-lightGray-700'
@@ -629,7 +629,7 @@
 			</div>
 			{/if}
 
-			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_knowledge}
+			{#if $user?.permissions?.workspace?.view_knowledge}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/knowledge')
 							? 'dark:bg-customGray-900 bg-lightGray-700'
@@ -655,7 +655,7 @@
 				</div>
 			{/if}
 
-			{#if $user?.role === 'admin' || $user?.permissions?.workspace?.view_prompts}
+			{#if $user?.permissions?.workspace?.view_prompts}
 				<div
 					class="{$page.url.pathname.startsWith('/workspace/prompts')
 						? 'dark:bg-customGray-900 bg-lightGray-700'

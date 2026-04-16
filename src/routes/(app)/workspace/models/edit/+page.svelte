@@ -6,7 +6,7 @@
 	const i18n = getContext('i18n');
 
 	import { page } from '$app/stores';
-	import { models } from '$lib/stores';
+	import { models, user } from '$lib/stores';
 
 	import { getModelById, updateModelById } from '$lib/apis/models';
 
@@ -16,6 +16,11 @@
 	let model = null;
 
 	onMount(async () => {
+		if (!$user?.permissions?.workspace?.edit_assistants) {
+			goto('/workspace/models');
+			return;
+		}
+
 		const _id = $page.url.searchParams.get('id');
 		if (_id) {
 			model = await getModelById(localStorage.token, _id).catch((e) => {

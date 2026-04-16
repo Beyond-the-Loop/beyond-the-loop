@@ -14,13 +14,16 @@ def normalize_workspace_permissions(form_data: GroupForm) -> None:
     Ensures that edit permissions automatically grant corresponding view permissions.
     If a user has edit_prompts permission, they also get view_prompts permission.
     If a user has edit_assistants permission, they also get view_assistants permission.
+    If a user has edit_assistants permission, they also get view_knowledge permission
+    (knowledge bases are selectable when editing an assistant).
     """
     if form_data.permissions:
         if form_data.permissions.get("workspace", {}).get("edit_prompts", False):
             form_data.permissions["workspace"]["view_prompts"] = True
-            
+
         if form_data.permissions.get("workspace", {}).get("edit_assistants", False):
             form_data.permissions["workspace"]["view_assistants"] = True
+            form_data.permissions["workspace"]["view_knowledge"] = True
 
         if form_data.permissions.get("workspace", {}).get("edit_knowledge", False):
             form_data.permissions["workspace"]["view_knowledge"] = True

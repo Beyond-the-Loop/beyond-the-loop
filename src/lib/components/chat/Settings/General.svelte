@@ -318,10 +318,9 @@
 </div>
 </div>
 
-{#if $user.role === 'admin' || $user?.permissions.chat?.controls}
-	<div
-		class="flex w-full justify-between items-center pb-1 pt-3 border-t border-lightGray-400 dark:border-customGray-700 mt-6"
-	>
+<div
+	class="flex w-full justify-between items-center pb-1 pt-3 border-t border-lightGray-400 dark:border-customGray-700 mt-6"
+>
 		<div class="flex w-full justify-between items-center">
 			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Tone')}</div>
 		</div>
@@ -405,7 +404,6 @@
 			{$i18n.t('Manage')}
 		</button>
 	</div>
-{/if}
 </div>
 
 <div class="flex justify-end pt-3 text-sm font-medium">

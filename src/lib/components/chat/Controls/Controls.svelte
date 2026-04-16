@@ -28,8 +28,7 @@
 		</button>
 	</div>
 
-	{#if $user.role === 'admin' || $user?.permissions.chat?.controls}
-		<div class=" dark:text-gray-200 text-sm font-primary py-0.5 px-0.5">
+	<div class=" dark:text-gray-200 text-sm font-primary py-0.5 px-0.5">
 			{#if chatFiles.length > 0}
 				<Collapsible title={$i18n.t('Files')} open={true} buttonClassName="w-full">
 					<div class="flex flex-col gap-1 mt-1.5" slot="content">
@@ -84,9 +83,4 @@
 				</div>
 			</Collapsible>
 		</div>
-	{:else}
-		<div class="text-sm dark:text-gray-300 text-center py-2 px-10">
-			{$i18n.t('You do not have permission to access this feature.')}
-		</div>
-	{/if}
 </div>
