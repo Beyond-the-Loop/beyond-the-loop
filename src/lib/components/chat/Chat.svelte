@@ -113,9 +113,6 @@
 		currentId: null
 	};
 
-	let taskId = null;
-	let currentRequestController: AbortController | null = null;
-
 	// Chat Input
 	let prompt = '';
 	let chatFiles = [];
@@ -700,11 +697,6 @@
 				chatFiles = chatContent?.files ?? [];
 
 				autoScroll = true;
-				await tick();
-
-				if (history.currentId) {
-					history.messages[history.currentId].done = true;
-				}
 				await tick();
 
 				return true;
@@ -1466,8 +1458,6 @@
 					})
 			}));
 
-		currentRequestController = new AbortController();
-
 		const res = await generateOpenAIChatCompletion(
 			localStorage.token,
 			{
@@ -1555,9 +1545,7 @@
 					}
 					: {})
 			},
-			`${WEBUI_BASE_URL}/api`,
-			currentRequestController.signal
-		)
+			`${WEBUI_BASE_URL}/api`)
 			.catch((error) => {
 				if (!error?.includes('402')) {
 					if (error?.includes('ContentPolicyViolationError')) {
@@ -1579,14 +1567,25 @@
 				return null;
 			});
 
-		currentRequestController = null;
-
 		if (res) {
-			taskId = res.task_id;
-		}
+			const taskId = res.task_id;
 
-		await tick();
-		scrollToBottom();
+			const responseMessage = history.messages[history.currentId];
+
+			if (responseMessage && responseMessage.done) {
+				stopTask(localStorage.token, res.task_id).catch((error) => {
+					console.error('Failed to stop task:', error);
+				});
+			}
+
+			if (autoScroll) {
+				await tick();
+				scrollToBottom();
+			}
+		} else {
+			await tick();
+			scrollToBottom();
+		}
 	};
 
 	const handleOpenAIError = async (error, responseMessage) => {
@@ -1628,55 +1627,14 @@
 		history.messages[responseMessage.id] = responseMessage;
 	};
 
-	const stopResponse = () => {
-		// Abort the in-flight HTTP request (covers websearch/RAG preprocessing phase)
-		if (currentRequestController) {
-			currentRequestController.abort();
-			currentRequestController = null;
-		}
-
-		if (taskId) {
-			stopTask(localStorage.token, taskId).catch((error) => {
-				console.error('Failed to stop task:', error);
-			});
-			taskId = null;
-		}
-
-		if (bufferedResponse) {
-			bufferedResponse.stop();
-			bufferedResponse = null;
-		}
-
+	const stopResponse = async () => {
+		const _chatId = JSON.parse(JSON.stringify($chatId));
 		const responseMessage = history.messages[history.currentId];
+
 		if (responseMessage && !responseMessage.done) {
-			const visibleContent = (responseMessage.content ?? '')
-				.replace(/<details\s+type="reasoning"[^>]*>[\s\S]*?(<\/details>|$)/g, '')
-				.trim();
-			const hasContent = visibleContent !== '';
-
-			if (hasContent) {
-				responseMessage.done = true;
-				responseMessage.statusHistory = [];
-				responseMessage.content = responseMessage.content.replaceAll(
-					'<details type="reasoning" done="false">',
-					'<details type="reasoning" done="true">'
-				);
-				history.messages[history.currentId] = responseMessage;
-			} else {
-				const parentId = responseMessage.parentId;
-				if (parentId && history.messages[parentId]) {
-					history.messages[parentId].childrenIds = history.messages[parentId].childrenIds.filter(
-						(id) => id !== history.currentId
-					);
-					history.messages[parentId].done = true;
-				}
-				delete history.messages[history.currentId];
-				history.currentId = parentId;
-			}
-		}
-
-		if (autoScroll) {
-			scrollToBottom();
+			responseMessage.done = true;
+			history.messages[history.currentId] = responseMessage;
+			await saveChatHandler(_chatId, history);
 		}
 	};
 
