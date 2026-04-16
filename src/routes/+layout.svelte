@@ -26,6 +26,7 @@
 		appData,
 		company,
 		companyConfig,
+		models,
 		systemTheme
 	} from '$lib/stores';
 	import { goto } from '$app/navigation';
@@ -42,8 +43,9 @@
 
  import { WEBUI_BASE_URL } from '$lib/constants';
 	import i18n, { initI18n, getLanguages } from '$lib/i18n';
-	import { bestMatchingLanguage } from '$lib/utils';
-	import { getAllTags, getChatList } from '$lib/apis/chats';
+	import { bestMatchingLanguage, getModelIcon } from '$lib/utils';
+	import { getAllTags, getChatById, getChatList, updateChatById } from '$lib/apis/chats';
+	import { createMessagesList } from '$lib/utils';
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
 	import AppSidebar from '$lib/components/app/AppSidebar.svelte';
 
@@ -115,6 +117,41 @@
 				const { done, content, title } = data;
 
 				if (done) {
+					const bgChat = await getChatById(localStorage.token, event.chat_id).catch(() => null);
+
+					// Save completed response to DB for background chats
+					if (content !== undefined) {
+						if (bgChat?.chat?.history) {
+							const bgHistory = bgChat.chat.history;
+							const bgMessage = bgHistory.messages[event.message_id];
+							if (bgMessage && !bgMessage.done) {
+								bgMessage.done = true;
+								bgMessage.content = content;
+								bgHistory.messages[event.message_id] = bgMessage;
+								await updateChatById(localStorage.token, event.chat_id, {
+									history: bgHistory,
+									messages: createMessagesList(bgHistory, bgHistory.currentId)
+								});
+							}
+						}
+					}
+
+					// Resolve model icon for the notification
+					let modelIconUrl = '';
+					if (bgChat?.chat?.history) {
+						const modelId = bgChat.chat.history.messages[event.message_id]?.model;
+						if (modelId) {
+							const model = $models.find((m) => m.id === modelId);
+							if (model) {
+								if (!model.base_model_id) {
+									modelIconUrl = getModelIcon(model.name);
+								} else if (model.meta?.profile_image_url) {
+									modelIconUrl = model.meta.profile_image_url;
+								}
+							}
+						}
+					}
+
 					if ($isLastActiveTab) {
 						if ($settings?.notificationEnabled ?? false) {
 							new Notification(`${title} | Open WebUI`, {
@@ -130,7 +167,8 @@
 								goto(`/c/${event.chat_id}`);
 							},
 							content: content,
-							title: title
+							title: title,
+							modelIconUrl: modelIconUrl
 						},
 						duration: 15000,
 						unstyled: true
