@@ -231,5 +231,19 @@ class FilesTable:
             except Exception:
                 return False
 
+    def transfer_files_to_user(self, file_ids: list[str], new_user_id: str) -> bool:
+        if not file_ids:
+            return True
+        try:
+            with get_db() as db:
+                db.query(File).filter(File.id.in_(file_ids)).update(
+                    {"user_id": new_user_id}, synchronize_session=False
+                )
+                db.commit()
+            return True
+        except Exception as e:
+            log.error(f"Error transferring files to user {new_user_id}: {e}")
+            return False
+
 
 Files = FilesTable()

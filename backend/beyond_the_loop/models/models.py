@@ -7,6 +7,7 @@ from open_webui.env import SRC_LOG_LEVELS
 
 from beyond_the_loop.models.users import UserResponse, Users
 from beyond_the_loop.models.prompts import Prompt
+from beyond_the_loop.models.files import Files
 
 from pydantic import BaseModel, ConfigDict
 
@@ -458,11 +459,27 @@ class ModelsTable:
             return True
         try:
             with get_db() as db:
+                model_rows = db.query(Model).filter(
+                    Model.id.in_(model_ids),
+                    Model.company_id == company_id,
+                ).all()
+
+                file_ids = []
+                for m in model_rows:
+                    if m.meta and isinstance(m.meta, dict):
+                        for f in (m.meta.get("files") or []):
+                            if isinstance(f, dict) and f.get("id"):
+                                file_ids.append(f["id"])
+
                 db.query(Model).filter(
                     Model.id.in_(model_ids),
                     Model.company_id == company_id,
                 ).update({"user_id": new_user_id}, synchronize_session=False)
                 db.commit()
+
+            if file_ids:
+                Files.transfer_files_to_user(file_ids, new_user_id)
+
             return True
         except Exception as e:
             log.error(f"Error transferring models to user {new_user_id}: {e}")

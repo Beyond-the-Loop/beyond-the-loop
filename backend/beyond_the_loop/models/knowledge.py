@@ -7,7 +7,7 @@ from beyond_the_loop.models.models import ModelModel
 from open_webui.internal.db import Base, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
-from beyond_the_loop.models.files import FileMetadataResponse
+from beyond_the_loop.models.files import FileMetadataResponse, Files
 from beyond_the_loop.models.users import Users, UserResponse
 
 
@@ -239,11 +239,25 @@ class KnowledgeTable:
             return True
         try:
             with get_db() as db:
+                knowledge_rows = db.query(Knowledge).filter(
+                    Knowledge.id.in_(knowledge_ids),
+                    Knowledge.company_id == company_id,
+                ).all()
+
+                file_ids = []
+                for kb in knowledge_rows:
+                    if kb.data:
+                        file_ids.extend(kb.data.get("file_ids", []))
+
                 db.query(Knowledge).filter(
                     Knowledge.id.in_(knowledge_ids),
                     Knowledge.company_id == company_id,
                 ).update({"user_id": new_user_id}, synchronize_session=False)
                 db.commit()
+
+            if file_ids:
+                Files.transfer_files_to_user(file_ids, new_user_id)
+
             return True
         except Exception as e:
             log.error(f"Error transferring knowledge to user {new_user_id}: {e}")
