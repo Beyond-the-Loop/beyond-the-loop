@@ -84,6 +84,8 @@
 
 	let navbarElement;
 
+	let taskId;
+
 	let showEventConfirmation = false;
 	let eventConfirmationTitle = '';
 	let eventConfirmationMessage = '';
@@ -698,7 +700,7 @@
 		chatId.set(chatIdProp);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
-			return null;
+			return;
 		});
 
 		if (chat) {
@@ -1603,14 +1605,18 @@
 			});
 
 		if (res) {
-			const taskId = res.task_id;
+			taskId = res.task_id;
 
 			const responseMessage = history.messages[history.currentId];
 
-			if (responseMessage && responseMessage.done) {
-				stopTask(localStorage.token, res.task_id).catch((error) => {
-					console.error('Failed to stop task:', error);
-				});
+			if (responseMessage) {
+
+				// If responseMessage is already done it means that itx was stopped
+				if (responseMessage.done) {
+					stopTask(localStorage.token, taskId).catch((error) => {
+						console.error('Failed to stop task:', error);
+					});
+				}
 			}
 
 			if (autoScroll) {
@@ -1651,6 +1657,7 @@
 		responseMessage.error = {
 			content: $i18n.t(`Uh-oh! There was an issue with the response.`) + '\n' + errorMessage
 		};
+
 		responseMessage.done = true;
 
 		if (responseMessage.statusHistory) {
@@ -1667,6 +1674,22 @@
 		const responseMessage = history.messages[history.currentId];
 
 		if (responseMessage && !responseMessage.done) {
+			if (taskId) {
+				await stopTask(localStorage.token, taskId).catch((error) => {
+					console.error('Failed to stop task:', error);
+				});
+
+				responseMessage.content = responseMessage.content.replaceAll(
+					'<details type="reasoning" done="false">',
+					'<details type="reasoning" done="true">'
+				);
+
+				if (bufferedResponse) {
+					bufferedResponse.stop();
+					bufferedResponse = null;
+				}
+			}
+
 			responseMessage.done = true;
 			history.messages[history.currentId] = responseMessage;
 			await saveChatHandler(_chatId, history);
