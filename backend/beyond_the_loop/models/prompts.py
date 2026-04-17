@@ -30,11 +30,11 @@ class Prompt(Base):
     command = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
     company_id = Column(String, nullable=False)
-    title = Column(Text)
+    title = Column(Text, nullable=False)
     content = Column(Text)
-    timestamp = Column(BigInteger)
+    timestamp = Column(BigInteger, nullable=False)
     description = Column(Text)
-    prebuilt = Column(Boolean)
+    prebuilt = Column(Boolean, nullable=False)
 
     access_control = Column(JSON, nullable=True)  # Controls data access levels.
     # Defines access control rules for this entry.
@@ -83,8 +83,7 @@ class PromptModel(BaseModel):
 
     meta: Optional[PromptMeta] = None
     description: Optional[str] = None
-    prebuilt: Optional[bool] = None
-    # bookmarked: Optional[bool] = None
+    prebuilt: Optional[bool] = False
 
 ####################
 # Forms
@@ -316,4 +315,29 @@ class PromptsTable:
         except Exception as e:
             log.error(f"Error in get_system_and_user_tags: {e}")
             return []
+    def get_prompts_owned_by_user(self, user_id: str, company_id: str) -> list[PromptModel]:
+        with get_db() as db:
+            rows = db.query(Prompt).filter(
+                Prompt.user_id == user_id,
+                Prompt.company_id == company_id,
+                Prompt.prebuilt.isnot(True),
+            ).all()
+            return [PromptModel.model_validate(r) for r in rows]
+
+    def transfer_prompts_to_user(self, prompt_commands: list[str], new_user_id: str, company_id: str) -> bool:
+        if not prompt_commands:
+            return True
+        try:
+            with get_db() as db:
+                db.query(Prompt).filter(
+                    Prompt.command.in_(prompt_commands),
+                    Prompt.company_id == company_id,
+                ).update({"user_id": new_user_id}, synchronize_session=False)
+                db.commit()
+            return True
+        except Exception as e:
+            log.error(f"Error transferring prompts to user {new_user_id}: {e}")
+            return False
+
+
 Prompts = PromptsTable()

@@ -21,14 +21,14 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 class Feedback(Base):
     __tablename__ = "feedback"
     id = Column(Text, primary_key=True)
-    user_id = Column(Text)
-    version = Column(BigInteger, default=0)
-    type = Column(Text)
+    user_id = Column(Text, nullable=False)
+    version = Column(BigInteger, nullable=False, default=0)
+    type = Column(Text, nullable=False)
     data = Column(JSON, nullable=True)
     meta = Column(JSON, nullable=True)
     snapshot = Column(JSON, nullable=True)
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class FeedbackModel(BaseModel):

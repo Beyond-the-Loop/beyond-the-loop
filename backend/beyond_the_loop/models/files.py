@@ -18,10 +18,10 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 class File(Base):
     __tablename__ = "file"
     id = Column(String, primary_key=True)
-    user_id = Column(String)
+    user_id = Column(String, nullable=False)
     hash = Column(Text, nullable=True)
 
-    filename = Column(Text)
+    filename = Column(Text, nullable=False)
     path = Column(Text, nullable=True)
 
     data = Column(JSON, nullable=True)
@@ -29,8 +29,8 @@ class File(Base):
 
     access_control = Column(JSON, nullable=True)
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class FileModel(BaseModel):
@@ -230,6 +230,20 @@ class FilesTable:
                 return True
             except Exception:
                 return False
+
+    def transfer_files_to_user(self, file_ids: list[str], new_user_id: str) -> bool:
+        if not file_ids:
+            return True
+        try:
+            with get_db() as db:
+                db.query(File).filter(File.id.in_(file_ids)).update(
+                    {"user_id": new_user_id}, synchronize_session=False
+                )
+                db.commit()
+            return True
+        except Exception as e:
+            log.error(f"Error transferring files to user {new_user_id}: {e}")
+            return False
 
 
 Files = FilesTable()
