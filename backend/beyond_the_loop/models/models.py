@@ -201,12 +201,12 @@ class ModelsTable:
 
     def get_all_models_by_company(self, company_id: str) -> list[ModelModel]:
         with get_db() as db:
-            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.user_id == "system")).all()]
+            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.company_id == "system")).all()]
 
     def get_assistants(self) -> list[ModelUserResponse]:
         with get_db() as db:
             model_rows = db.query(Model).filter(
-                or_(Model.base_model_id != None, Model.user_id == "system")
+                Model.base_model_id != None
             ).all()
 
             # Batch-fetch all users in one query instead of N+1 individual queries
