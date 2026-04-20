@@ -643,18 +643,31 @@ async def download_container_file(
     filename: Optional[str] = None,
     user=Depends(get_verified_user),
 ):
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    url = f"{azure_endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
+    endpoints = [
+        (os.getenv("AZURE_OPENAI_ENDPOINT"), os.getenv("AZURE_OPENAI_API_KEY")),
+        (os.getenv("AZURE_OPENAI_ALTERNATIVE_ENDPOINT"), os.getenv("AZURE_OPENAI_ALTERNATIVE_API_KEY")),
+        (os.getenv("AZURE_OPENAI_GERMANY_WEST_ENDPOINT"), os.getenv("AZURE_OPENAI_GERMANY_WEST_API_KEY")),
+    ]
 
     s = await _get_session()
-    async with s.get(url, headers={"api-key": azure_api_key}) as r:
-        if r.status != 200:
-            body = await r.text()
-            raise HTTPException(status_code=r.status, detail=body)
-        content = await r.read()
+    content = None
+    last_status, last_body = 502, "No Azure endpoint available"
+
+    for endpoint, api_key in endpoints:
+        if not endpoint or not api_key:
+            continue
+        url = f"{endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
+        async with s.get(url, headers={"api-key": api_key}) as r:
+            if r.status == 200:
+                content = await r.read()
+                break
+            last_status, last_body = r.status, await r.text()
+
+    if content is None:
+        raise HTTPException(status_code=last_status, detail=last_body)
 
     disposition_filename = filename or file_id
+
     return Response(
         content=content,
         media_type="application/octet-stream",
