@@ -1,7 +1,7 @@
 """Add Gemini 2.5 Flash Image model to all companies
 
-Revision ID: 026
-Revises: 025
+Revision ID: 034
+Revises: 033
 Create Date: 2026-03-31 00:00:00.000000
 
 """
@@ -15,8 +15,8 @@ import json
 
 
 # revision identifiers, used by Alembic.
-revision: str = '026'
-down_revision: Union[str, None] = '025'
+revision: str = '034'
+down_revision: Union[str, None] = '033'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
