@@ -41,7 +41,7 @@ def upgrade() -> None:
             rows.append(
                 {
                     "id": str(uuid.uuid4()),
-                    "user_id": None,
+                    "user_id": "system",
                     "base_model_id": None,
                     "name": NEW_MODEL,
                     "meta": json.dumps({}),

@@ -258,7 +258,7 @@
 				</div>
 				<div class="flex items-center justify-end w-full mr-3">
 					<DropdownMenu.Root>
-						<DropdownMenu.Trigger class="flex items-center cursor-pointer p-[2px] hover:bg-gray-100 rounded-md">
+						<DropdownMenu.Trigger class="flex items-center cursor-pointer p-[2px] hover:bg-gray-100 dark:hover:bg-customGray-950 rounded-md">
 							<Tooltip content={$i18n.t('Filter')} placement="top">
 								<AdjustmentsHorizontal className="size-5 {webSearchFilter || codeExecutionFilter || imageGenFilter ? 'text-blue-500': 'text-gray-500'}" />
 							</Tooltip>
@@ -382,7 +382,7 @@
 								</div>
 							{/if}
 							{#if $modelsInfo?.[item?.label]?.hosted_in == 'EU'}
-								<div class="w-3 ml-auto opacity-80">
+								<div class="w-3 ml-auto opacity-80 dark:opacity-100">
 										<EuIcon className="size-3"/>
 								</div>
 							{/if}
@@ -424,42 +424,42 @@
 								<div class="mb-1.5 text-lightGray-900 dark:text-white/50 tracking-wide text-2xs">{$i18n.t('MODALITIES')}</div>
 								<div class="flex items-center gap-2">
 									<Tooltip content={$i18n.t('Text')} placement="bottom">
-										<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 text-[0.9em] font-serif flex items-center justify-center">T</div>
+										<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700  dark:bg-customGray-800 dark:text-lightGray-200 text-[0.9em] font-serif flex items-center justify-center">T</div>
 									</Tooltip>
 									{#if m?.supports_document_input}
 										<Tooltip content={$i18n.t('Documents')} placement="bottom">
-											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 text-xs flex items-center justify-center"> <Document className="size-4"/></div>
+											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700 dark:bg-customGray-800 dark:text-lightGray-200 text-xs flex items-center justify-center"> <Document className="size-4"/></div>
 										</Tooltip>
 									{/if}
 									{#if m?.supports_image_input}
 										<Tooltip content={$i18n.t('Images')} placement="bottom">
-											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
+											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700 dark:bg-customGray-800 dark:text-lightGray-200 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
 										</Tooltip>
 									{/if}
 								</div>
 							</div>
-							<div class="border-l border-lightGray-400">
+							<div class="border-l border-lightGray-400 dark:border-customGray-700">
 								<div class="flex flex-col items-center mb-3">
 									<div class="mb-1.5 text-lightGray-900 dark:text-white/50 tracking-wide text-2xs">{$i18n.t('TOOLS')}</div>
 									<div class="flex items-center gap-2">
 										{#if m?.supports_web_search}
 										<Tooltip content={$i18n.t('Web Search')} placement="bottom">
-											<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <WebSearchIcon className="size-4"/></div>
+											<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <WebSearchIcon className="size-4"/></div>
 										</Tooltip>
 										{/if}
 										{#if m?.supports_image_generation}
 											<Tooltip content={$i18n.t('Image Generation')} placement="bottom">
-												<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
+												<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
 											</Tooltip>
 										{/if}
 										{#if m?.supports_code_execution}
 											<Tooltip content={$i18n.t('Code execution')} placement="bottom">
-												<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <CodeInterpreterIcon className="size-4"/></div>
+												<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <CodeInterpreterIcon className="size-4"/></div>
 											</Tooltip>
 										{/if}
 										{#if m?.reasoning}
 											<Tooltip content={$i18n.t('Reasoning')} placement="bottom">
-												<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <LightBlub className="size-4"/></div>
+												<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <LightBlub className="size-4"/></div>
 											</Tooltip>
 										{/if}
 									</div>
