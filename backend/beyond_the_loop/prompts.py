@@ -191,7 +191,7 @@ Use intermediate values (e.g. 2.5, 3.5) when the request falls between two level
 
 ### Tool Detection Rules:
 - needs_web_search: true if the request requires current/real-time information, news, live data, recent events, or facts that may change over time. false for general knowledge, reasoning, or static tasks.
-- needs_code_execution: true if the request explicitly requires running code, calculating results programmatically, data analysis with execution, or producing verified computational output. false for writing or explaining code without execution.
+- needs_code_execution: true if the request explicitly requires running code, calculating results programmatically, generating or editing documents, data analysis with execution, or producing verified computational output. false for writing or explaining code without execution.
 - needs_image_generation: true if the request asks to create, draw, generate, or produce an image/picture/illustration. false for describing, analyzing, or discussing images.
 
 ### Intelligence Rules:
