@@ -11,8 +11,6 @@ from sqlalchemy import Boolean, Column, String, Text
 from open_webui.utils.auth import verify_password
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
-import stripe
-
 from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
@@ -27,9 +25,9 @@ class Auth(Base):
     __tablename__ = "auth"
 
     id = Column(String, primary_key=True)
-    email = Column(String)
+    email = Column(String, nullable=False)
     password = Column(Text)
-    active = Column(Boolean)
+    active = Column(Boolean, nullable=False)
 
 
 class AuthModel(BaseModel):
@@ -103,8 +101,10 @@ class SignupForm(BaseModel):
     last_name: str
     password: str
     signup_token: str
-    profile_image_url: Optional[str] = "/user.png"
+    profile_image_url: str
     is_invited: bool = False
+    position: Optional[str] = None
+    phone: Optional[str] = None
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
     utm_campaign: Optional[str] = None
@@ -143,19 +143,7 @@ class AuthsTable:
             db.refresh(result)
 
             if company_id not in ["NEW", "NO_COMPANY"]:
-                subscription = payments_service.get_subscription(user.company_id)
-
-                try:
-                    if subscription.get("plan") == "premium":
-                        stripe.Subscription.modify(
-                            subscription.get("subscription_id"),
-                            items=[{
-                                "id": subscription.get("subscription_item_id"),
-                                "quantity": Users.get_num_active_users_by_company_id(user.company_id)
-                            }]
-                        )
-                except Exception as e:
-                    log.error(f"Failed to update subscription on signup (insert new auth): {e}")
+                payments_service.update_premium_seat_count(user.company_id)
 
                 try:
                         loops_service.create_or_update_loops_contact(user)
@@ -182,19 +170,7 @@ class AuthsTable:
             if user.company_id != "NEW":
                 company = Companies.get_company_by_id(user.company_id)
 
-                subscription = payments_service.get_subscription(user.company_id)
-
-                try:
-                    if subscription.get("plan") == "premium":
-                        stripe.Subscription.modify(
-                            subscription.get("subscription_id"),
-                            items=[{
-                                "id": subscription.get("subscription_item_id"),
-                                "quantity": Users.get_num_active_users_by_company_id(user.company_id)
-                            }]
-                        )
-                except Exception as e:
-                    log.error(f"Failed to update subscription on signup (insert new auth for existing user): {e}")
+                payments_service.update_premium_seat_count(user.company_id)
 
                 try:
                     loops_service.create_or_update_loops_contact(user)
@@ -252,36 +228,6 @@ class AuthsTable:
                 result = db.query(Auth).filter_by(id=id).update({"email": email})
                 db.commit()
                 return True if result == 1 else False
-        except Exception:
-            return False
-
-    def delete_auth_by_id(self, id: str, company_id: str) -> bool:
-        try:
-            with get_db() as db:
-                # Delete User
-                result = Users.delete_user_by_id(id)
-
-                if result:
-                    db.query(Auth).filter_by(id=id).delete()
-                    db.commit()
-
-                    subscription = payments_service.get_subscription(company_id)
-
-                    try:
-                        if subscription.get("plan") == "premium":
-                            stripe.Subscription.modify(
-                                subscription.get("subscription_id"),
-                                items=[{
-                                    "id": subscription.get("subscription_item_id"),
-                                    "quantity": Users.get_num_active_users_by_company_id(company_id)
-                                }]
-                            )
-                    except Exception as e:
-                        log.error(f"Failed to update subscription on signup (insert new auth): {e}")
-
-                    return True
-                else:
-                    return False
         except Exception:
             return False
 

@@ -20,7 +20,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 class Tag(Base):
     __tablename__ = "tag"
     id = Column(String)
-    name = Column(String)
+    name = Column(String, nullable=False)
     user_id = Column(String)
     meta = Column(JSON, nullable=True)
 

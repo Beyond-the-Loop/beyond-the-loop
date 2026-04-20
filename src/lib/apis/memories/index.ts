@@ -90,7 +90,13 @@ export const updateMemoryById = async (token: string, id: string, content: strin
 	return res;
 };
 
-export const queryMemory = async (token: string, content: string) => {
+export const queryMemory = async (
+	token: string,
+	content: string,
+	chatId?: string,
+	messageId?: string,
+	sessionId?: string
+) => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/memories/query`, {
@@ -101,7 +107,10 @@ export const queryMemory = async (token: string, content: string) => {
 			authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify({
-			content: content
+			content: content,
+			chat_id: chatId,
+			message_id: messageId,
+			session_id: sessionId
 		})
 	})
 		.then(async (res) => {

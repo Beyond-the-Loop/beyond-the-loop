@@ -7,10 +7,11 @@ from open_webui.env import SRC_LOG_LEVELS
 
 from beyond_the_loop.models.users import UserResponse, Users
 from beyond_the_loop.models.prompts import Prompt
+from beyond_the_loop.models.files import Files
 
 from pydantic import BaseModel, ConfigDict
 
-from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_
+from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, Table, ForeignKey, or_, String
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
 from sqlalchemy import cast
@@ -76,7 +77,7 @@ class Model(Base):
         An optional pointer to the actual model that should be used when proxying requests.
     """
 
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     """
         The human-readable display name of the model.
     """
@@ -91,9 +92,9 @@ class Model(Base):
         Holds a JSON encoded blob of metadata, see `ModelMeta`.
     """
 
-    user_id = Column(Text, nullable=True)
+    user_id = Column(Text, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
 
-    company_id = Column(Text, nullable=True)
+    company_id = Column(Text, nullable=False)
 
     access_control = Column(JSON, nullable=True)  # Controls data access levels.
     # Defines access control rules for this entry.
@@ -112,10 +113,10 @@ class Model(Base):
     #      }
     #   }
 
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, nullable=False, default=True)
 
-    updated_at = Column(BigInteger)
-    created_at = Column(BigInteger)
+    updated_at = Column(BigInteger, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
 
     bookmarking_users = relationship(
         "User",
@@ -201,12 +202,12 @@ class ModelsTable:
 
     def get_all_models_by_company(self, company_id: str) -> list[ModelModel]:
         with get_db() as db:
-            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.user_id == "system")).all()]
+            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.company_id == "system")).all()]
 
     def get_assistants(self) -> list[ModelUserResponse]:
         with get_db() as db:
             model_rows = db.query(Model).filter(
-                or_(Model.base_model_id != None, Model.user_id == "system")
+                Model.base_model_id != None
             ).all()
 
             # Batch-fetch all users in one query instead of N+1 individual queries
@@ -444,6 +445,45 @@ class ModelsTable:
     def get_models_by_knowledge_id(self, knowledge_id: str):
         with get_db() as db:
             return db.query(Model).filter(cast(Model.meta, JSONB)["knowledge"].contains([{"id": knowledge_id}])).all()
+
+    def get_models_owned_by_user(self, user_id: str, company_id: str) -> list[ModelModel]:
+        with get_db() as db:
+            rows = db.query(Model).filter(
+                Model.user_id == user_id,
+                Model.company_id == company_id,
+            ).all()
+            return [ModelModel.model_validate(r) for r in rows]
+
+    def transfer_models_to_user(self, model_ids: list[str], new_user_id: str, company_id: str) -> bool:
+        if not model_ids:
+            return True
+        try:
+            with get_db() as db:
+                model_rows = db.query(Model).filter(
+                    Model.id.in_(model_ids),
+                    Model.company_id == company_id,
+                ).all()
+
+                file_ids = []
+                for m in model_rows:
+                    if m.meta and isinstance(m.meta, dict):
+                        for f in (m.meta.get("files") or []):
+                            if isinstance(f, dict) and f.get("id"):
+                                file_ids.append(f["id"])
+
+                db.query(Model).filter(
+                    Model.id.in_(model_ids),
+                    Model.company_id == company_id,
+                ).update({"user_id": new_user_id}, synchronize_session=False)
+                db.commit()
+
+            if file_ids:
+                Files.transfer_files_to_user(file_ids, new_user_id)
+
+            return True
+        except Exception as e:
+            log.error(f"Error transferring models to user {new_user_id}: {e}")
+            return False
 
 
 Models = ModelsTable()

@@ -53,18 +53,41 @@
 	$: desiredOrder = Object.values(modelGroups).flat();
 	$: orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 	let filteredSourceItems = []
-	$: filteredSourceItems = $models.map((model) => ({
-			value: model.id,
-			label: model.name,
-			model: model
-		}))
-		.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'))
-		?.filter((item) => item.model?.base_model_id == null)
-		.sort((a, b) => {
-		if (a?.model?.name === 'Smart Router') return -1;
-		if (b?.model?.name === 'Smart Router') return 1;
-		return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
-	});
+	$: filteredSourceItems = (() => {
+		const allItems = $models.map((model) => ({
+				value: model.id,
+				label: model.name,
+				model: model
+			}))
+			.filter?.((item) => !item?.model?.name?.toLowerCase()?.includes('arena'));
+
+		let items;
+		if ($user?.permissions?.chat?.assistants_only) {
+			// Assistants-only mode: show only assistants whose base model is active, no Smart Router
+			items = allItems.filter((item) =>
+				item.model?.base_model_id != null &&
+				item.model?.is_active !== false &&
+				item.model?.name !== 'Smart Router'
+			) ?? [];
+		} else {
+			const baseItems = allItems?.filter((item) => item.model?.base_model_id == null) ?? [];
+			const hasNonSmartRouterBase = baseItems.some((item) => item?.model?.name !== 'Smart Router');
+
+			// Fall back to assistants when no base models are available
+			items = hasNonSmartRouterBase
+				? baseItems
+				: (allItems?.filter((item) => item.model?.base_model_id != null) ?? []);
+		}
+
+		const hasNonSmartRouter = items.some((item) => item?.model?.name !== 'Smart Router');
+		return items
+			.filter((item) => item?.model?.name !== 'Smart Router' || hasNonSmartRouter)
+			.sort((a, b) => {
+				if (a?.model?.name === 'Smart Router') return -1;
+				if (b?.model?.name === 'Smart Router') return 1;
+				return (orderMap.get(a?.model?.name) ?? Infinity) - (orderMap.get(b?.model?.name) ?? Infinity);
+			});
+	})();
 
 	$: filteredItems = (() => {
 		let items = filteredSourceItems;
@@ -97,6 +120,14 @@
 	let webSearchFilter = false;
 	let codeExecutionFilter = false;
 	let imageGenFilter = false;
+
+	// In assistants-only mode: auto-select the first assistant if current value is missing/invalid
+	$: if ($user?.permissions?.chat?.assistants_only && filteredSourceItems.length > 0) {
+		const currentValid = filteredSourceItems.some((item) => item.value === value);
+		if (!currentValid) {
+			value = filteredSourceItems[0].value;
+		}
+	}
 
 	let hoveredItem = null;
 	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;

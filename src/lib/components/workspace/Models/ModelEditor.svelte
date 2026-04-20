@@ -264,9 +264,16 @@
 	let dropdownRef;
 	let temperatureDropdownRef;
 
-	console.log("DAS IST DIE INFIIIIII", info);
 
 	$: selectedModel = $models.find((m) => m.id === info.base_model_id);
+
+	$: baseModelOptions = (() => {
+		const filtered = $models
+			?.filter((m) => !m.base_model_id)
+			?.filter((m) => (model ? m.id !== model.id : true) && !m?.preset && m?.owned_by !== 'arena') ?? [];
+		const hasNonSmartRouter = filtered.some((m) => m.name !== 'Smart Router');
+		return filtered.filter((m) => m.name !== 'Smart Router' || hasNonSmartRouter);
+	})();
 	let disableCreativity = false;
 
 	let showTemperatureDropdown = false;
@@ -787,7 +794,7 @@
 													>{$i18n.t('Model selection')}</span
 												>
 												<div class="flex items-center gap-2">
-													{#if info.base_model_id}
+													{#if info.base_model_id && selectedModel}
 														<div
 															class="flex items-center gap-2 text-xs text-lightGray-100/50 dark:text-customGray-100/50"
 														>
@@ -812,7 +819,7 @@
 													/>
 													<div class="px-1">
 
-														{#each $models?.filter(item => !item.base_model_id)?.filter((m) => (model ? m.id !== model.id : true) && !m?.preset && m?.owned_by !== 'arena')?.sort((a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)) as model}
+														{#each baseModelOptions?.sort((a, b) => (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)) as model}
 
 															<button
 																class="px-3 py-2 flex items-center gap-2 w-full rounded-xl text-sm hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-100 cursor-pointer"
@@ -898,7 +905,7 @@
 										? ' cursor-not-allowed bg-lightGray-300 hover:bg-lightGray-500 text-lightGray-100 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border dark:border-customGray-700'
 										: 'bg-lightGray-300 hover:bg-lightGray-500 text-lightGray-100 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 border dark:border-customGray-700'} flex justify-center"
 									type="submit"
-									disabled={loading}
+									disabled={loading || !info.base_model_id}
 								>
 									<div class=" self-center">
 										{#if edit}

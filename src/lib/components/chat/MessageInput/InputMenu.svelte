@@ -43,7 +43,6 @@
 	}
 
 	let fileUploadEnabled = true;
-	$: fileUploadEnabled = $user.role === 'admin' || $user?.permissions?.chat?.file_upload;
 
 
 	const loadKnowledge = async () => {

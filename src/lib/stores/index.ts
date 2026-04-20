@@ -101,13 +101,13 @@ export function showToast(type: 'success' | 'error', message: string, duration =
 }
 
 
-export type Model = OpenAIModel | OllamaModel;
+export type Model = OpenAIModel;
 
 type BaseModel = {
 	id: string;
 	name: string;
 	info?: ModelConfig;
-	owned_by: 'ollama' | 'openai' | 'arena';
+	owned_by: 'openai' | 'arena';
 };
 
 export interface OpenAIModel extends BaseModel {
@@ -116,40 +116,6 @@ export interface OpenAIModel extends BaseModel {
 	source?: string;
 }
 
-export interface OllamaModel extends BaseModel {
-	owned_by: 'ollama';
-	details: OllamaModelDetails;
-	size: number;
-	description: string;
-	model: string;
-	modified_at: string;
-	digest: string;
-	ollama?: {
-		name?: string;
-		model?: string;
-		modified_at: string;
-		size?: number;
-		digest?: string;
-		details?: {
-			parent_model?: string;
-			format?: string;
-			family?: string;
-			families?: string[];
-			parameter_size?: string;
-			quantization_level?: string;
-		};
-		urls?: number[];
-	};
-}
-
-type OllamaModelDetails = {
-	parent_model: string;
-	format: string;
-	family: string;
-	families: string[] | null;
-	parameter_size: string;
-	quantization_level: string;
-};
 
 export type PromptStyle = 'concise' | 'explaining' | 'default' | 'formal';
 export interface SystemPromptConfig {
@@ -262,6 +228,9 @@ type SessionUser = {
 			edit_assistants?: boolean;
 			view_prompts?: boolean;
 			edit_prompts?: boolean;
+		};
+		chat?: {
+			assistants_only?: boolean;
 		};
 	};
 };

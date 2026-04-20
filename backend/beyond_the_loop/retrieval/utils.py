@@ -282,15 +282,14 @@ def get_sources_from_files(
                 search_tasks.append((file, None))
                 continue
 
-            # Extract collection name(s) from the file object.
-            # Files can carry a single "collection_name" string, a list under
-            # "collection_names", or (for type=="collection") use the "id" field.
             if file.get("collection_names"):
                 collection_names = set(file["collection_names"])
             elif file.get("collection_name"):
                 collection_names = {file["collection_name"]}
             elif file.get("type") == "collection" and file.get("id"):
                 collection_names = {file["id"]}
+            elif file.get("meta", {}).get("collection_name"):
+                collection_names = {file["meta"]["collection_name"]}
             else:
                 continue
 

@@ -2,7 +2,7 @@
 	import { v4 as uuidv4 } from 'uuid';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { models } from '$lib/stores';
+	import { models, user } from '$lib/stores';
 
 	import { onMount, tick, getContext } from 'svelte';
 	import { createNewModel, getModelById } from '$lib/apis/models';
@@ -52,6 +52,11 @@
 	let model = null;
 
 	onMount(async () => {
+		if (!$user?.permissions?.workspace?.edit_assistants) {
+			goto('/workspace/models');
+			return;
+		}
+
 		window.addEventListener('message', async (event) => {
 			if (
 				!['https://openwebui.com', 'https://www.openwebui.com', 'http://localhost:5173'].includes(

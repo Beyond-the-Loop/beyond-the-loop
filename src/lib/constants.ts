@@ -7,7 +7,6 @@ export const WEBUI_HOSTNAME = browser ? (dev ? `localhost:8080` : ``) : '';
 export const WEBUI_BASE_URL = browser ? (dev ? `http://${WEBUI_HOSTNAME}` : ``) : ``;
 export const WEBUI_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1`;
 
-export const OLLAMA_API_BASE_URL = `${WEBUI_BASE_URL}/ollama`;
 export const OPENAI_API_BASE_URL = `${WEBUI_BASE_URL}/openai`;
 export const AUDIO_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1/audio`;
 export const IMAGES_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1/images`;
@@ -96,33 +95,31 @@ export const SUPPORTED_FILE_EXTENSIONS = [
 
 export const PASTED_TEXT_CHARACTER_LIMIT = 1000;
 
-export const INDUSTRY_OPTIONS = [
-	'Technology',
-	'Healthcare',
-	'Finance',
-	'Education',
-	'Retail',
-	'Manufacturing',
-	'Real Estate',
-	'Transportation',
-	'Marketing & Advertising',
-	'Legal'
-];
+export const POSITION_OPTIONS = [
+	'Founder / CEO',
+	'Head of IT / CTO',
+	'Head of Production / Operations',
+	'Head of Sales',
+	'Head of Marketing / Communications',
+	'Process Optimization / Quality Management',
+	'IT Administrator / System Administrator',
+	'Project Manager',
+	'Business Developer',
+	'Department Head',
+	'Business Analyst',
+	'CFO / Finance Director',
+	'Head of HR',
+	'Technical Specialist',
+	'Consultant / Advisor',
+	'Other'
+] as const;
 
-export const TEAM_FUNCTION_OPTIONS = [
-	'Sales',
-	'Marketing',
-	'Customer Support',
-	'Product Management',
-	'Engineering',
-	'Design',
-	'Human Resources',
-	'Operations',
-	'Finance',
-	'Legal'
-];
-
-export const COMPANY_SIZE_OPTIONS = ['1-10', '11–50', '51–200', '201–500', '501–1,000', '1,001–5,000', '5,001–10,000', '10,000+'];
+export const BILLING_COUNTRY_OPTIONS = [
+	'Deutschland', 'Österreich', 'Schweiz', 'Belgien', 'Dänemark',
+	'Finnland', 'Frankreich', 'Griechenland', 'Irland', 'Italien',
+	'Luxemburg', 'Niederlande', 'Norwegen', 'Polen', 'Portugal',
+	'Schweden', 'Spanien', 'Tschechien', 'Vereinigtes Königreich'
+] as const;
 
 // Source: https://kit.svelte.dev/docs/modules#$env-static-public
 // This feature, akin to $env/static/private, exclusively incorporates environment variables

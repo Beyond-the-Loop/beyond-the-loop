@@ -243,7 +243,56 @@ def validate_email_format(email: str) -> bool:
     if email.endswith("@localhost"):
         return True
 
-    return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
+    if not re.match(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$", email):
+        return False
+
+    domain = email.split("@")[-1]
+    try:
+        import dns.exception
+        import dns.resolver
+    except Exception as exc:
+        log.warning(f"Email DNS validation unavailable for domain '{domain}': {exc}")
+        return False
+
+    resolver = dns.resolver.Resolver()
+
+    # Prefer MX as primary deliverability signal.
+    try:
+        mx_records = resolver.resolve(domain, "MX")
+        if len(mx_records) > 0:
+            return True
+    except dns.resolver.NoAnswer:
+        pass
+    except (
+        dns.resolver.NXDOMAIN,
+        dns.resolver.NoNameservers,
+        dns.exception.Timeout,
+    ):
+        return False
+    except Exception as exc:
+        log.warning(f"Email MX lookup failed for domain '{domain}': {exc}")
+        return False
+
+    # RFC-compatible fallback: domains without MX can still receive mail via A/AAAA.
+    for record_type in ("A", "AAAA"):
+        try:
+            records = resolver.resolve(domain, record_type)
+            if len(records) > 0:
+                return True
+        except (
+            dns.resolver.NoAnswer,
+            dns.resolver.NXDOMAIN,
+            dns.resolver.NoNameservers,
+            dns.exception.Timeout,
+        ):
+            continue
+        except Exception as exc:
+            log.warning(
+                f"Email {record_type} lookup failed for domain '{domain}': {exc}"
+            )
+            return False
+
+    return False
 
 
 BLOCKED_EMAIL_DOMAINS = {
@@ -345,103 +394,3 @@ def parse_duration(duration: str) -> Optional[timedelta]:
 
     return total_duration
 
-
-def parse_ollama_modelfile(model_text):
-    parameters_meta = {
-        "mirostat": int,
-        "mirostat_eta": float,
-        "mirostat_tau": float,
-        "num_ctx": int,
-        "repeat_last_n": int,
-        "repeat_penalty": float,
-        "temperature": float,
-        "seed": int,
-        "tfs_z": float,
-        "num_predict": int,
-        "top_k": int,
-        "top_p": float,
-        "num_keep": int,
-        "typical_p": float,
-        "presence_penalty": float,
-        "frequency_penalty": float,
-        "penalize_newline": bool,
-        "numa": bool,
-        "num_batch": int,
-        "num_gpu": int,
-        "main_gpu": int,
-        "low_vram": bool,
-        "f16_kv": bool,
-        "vocab_only": bool,
-        "use_mmap": bool,
-        "use_mlock": bool,
-        "num_thread": int,
-    }
-
-    data = {"base_model_id": None, "params": {}}
-
-    # Parse base model
-    base_model_match = re.search(
-        r"^FROM\s+(\w+)", model_text, re.MULTILINE | re.IGNORECASE
-    )
-    if base_model_match:
-        data["base_model_id"] = base_model_match.group(1)
-
-    # Parse template
-    template_match = re.search(
-        r'TEMPLATE\s+"""(.+?)"""', model_text, re.DOTALL | re.IGNORECASE
-    )
-    if template_match:
-        data["params"] = {"template": template_match.group(1).strip()}
-
-    # Parse stops
-    stops = re.findall(r'PARAMETER stop "(.*?)"', model_text, re.IGNORECASE)
-    if stops:
-        data["params"]["stop"] = stops
-
-    # Parse other parameters from the provided list
-    for param, param_type in parameters_meta.items():
-        param_match = re.search(rf"PARAMETER {param} (.+)", model_text, re.IGNORECASE)
-        if param_match:
-            value = param_match.group(1)
-
-            try:
-                if param_type is int:
-                    value = int(value)
-                elif param_type is float:
-                    value = float(value)
-                elif param_type is bool:
-                    value = value.lower() == "true"
-            except Exception as e:
-                log.error(f"Error parsing parameter value: {e}")
-                continue
-
-            data["params"][param] = value
-
-    # Parse adapter
-    adapter_match = re.search(r"ADAPTER (.+)", model_text, re.IGNORECASE)
-    if adapter_match:
-        data["params"]["adapter"] = adapter_match.group(1)
-
-    # Parse system description
-    system_desc_match = re.search(
-        r'SYSTEM\s+"""(.+?)"""', model_text, re.DOTALL | re.IGNORECASE
-    )
-    system_desc_match_single = re.search(
-        r"SYSTEM\s+([^\n]+)", model_text, re.IGNORECASE
-    )
-
-    if system_desc_match:
-        data["params"]["system"] = system_desc_match.group(1).strip()
-    elif system_desc_match_single:
-        data["params"]["system"] = system_desc_match_single.group(1).strip()
-
-    # Parse messages
-    messages = []
-    message_matches = re.findall(r"MESSAGE (\w+) (.+)", model_text, re.IGNORECASE)
-    for role, content in message_matches:
-        messages.append({"role": role, "content": content})
-
-    if messages:
-        data["params"]["messages"] = messages
-
-    return data

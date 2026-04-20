@@ -85,6 +85,8 @@
 
 	let navbarElement;
 
+	let taskId;
+
 	let showEventConfirmation = false;
 	let eventConfirmationTitle = '';
 	let eventConfirmationMessage = '';
@@ -114,9 +116,6 @@
 		currentId: null
 	};
 
-	let taskId = null;
-	let currentRequestController: AbortController | null = null;
-
 	// Chat Input
 	let prompt = '';
 	let chatFiles = [];
@@ -126,6 +125,15 @@
 	let initNewChatCompleted = false;
 
 	const getDefaultModels = (): string[] => {
+		// In assistants-only mode, always return the first assistant
+		if ($user?.permissions?.chat?.assistants_only) {
+			const firstAssistant = $models.find((m) => m.base_model_id != null);
+			if (firstAssistant) {
+				return [firstAssistant.id];
+			}
+			return [];
+		}
+
 		const defaultModelIds = $companyConfig?.config?.models?.default_models?.split(',');
 		const validDefaults = defaultModelIds?.filter((id) => $models.some((m) => m.id === id));
 
@@ -133,7 +141,20 @@
 			return validDefaults;
 		}
 
-		return ['Smart Router'];
+		// Only consider base models (not assistants) when deciding whether to use Smart Router
+		const baseModels = $models.filter((m) => m.base_model_id == null);
+		const hasNonSmartRouterBase = baseModels.some((m) => m.name !== 'Smart Router');
+		if (hasNonSmartRouterBase && baseModels.some((m) => m.name === 'Smart Router')) {
+			return ['Smart Router'];
+		}
+
+		// Fall back to first assistant when no base models are available
+		const firstAssistant = $models.find((m) => m.base_model_id != null);
+		if (firstAssistant) {
+			return [firstAssistant.id];
+		}
+
+		return [];
 	};
 
 	$: if (
@@ -142,6 +163,19 @@
 		(selectedModels.length === 0 || selectedModels.every((id) => !id || !$models.some((m) => m.id === id)))
 	) {
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
+	}
+
+	// When $user loads after $models (assistants-only): correct selection if a non-assistant is selected
+	$: if (
+		!chatIdProp &&
+		$user?.permissions?.chat?.assistants_only &&
+		$models.length > 0 &&
+		!selectedModels.some((id) => $models.some((m) => m.id === id && m.base_model_id != null))
+	) {
+		const firstAssistant = $models.find((m) => m.base_model_id != null);
+		if (firstAssistant) {
+			selectedModels = [firstAssistant.id];
+		}
 	}
 
 	$: if (chatIdProp) {
@@ -215,9 +249,6 @@
 			let message = history.messages[event.message_id];
 
 			if (message) {
-				// Ignore all backend events for messages that are already done (e.g. stopped by user)
-				if (message.done) return;
-
 				const type = event?.data?.type ?? null;
 				const data = event?.data?.data ?? null;
 
@@ -675,7 +706,7 @@
 		chatId.set(chatIdProp);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
-			return null;
+			return;
 		});
 
 		if (chat) {
@@ -709,11 +740,6 @@
 				chatFiles = chatContent?.files ?? [];
 
 				autoScroll = true;
-				await tick();
-
-				if (history.currentId) {
-					history.messages[history.currentId].done = true;
-				}
 				await tick();
 
 				return true;
@@ -1362,7 +1388,13 @@
 					let userContext = null;
 					if ($settings?.memory ?? false) {
 						if (userContext === null) {
-							const res = await queryMemory(localStorage.token, prompt).catch((error) => {
+							const res = await queryMemory(
+								localStorage.token,
+								prompt,
+								_chatId,
+								responseMessageId,
+								$socket?.id
+							).catch((error) => {
 								toast.error(`${error}`);
 								return null;
 							});
@@ -1493,8 +1525,6 @@
 				};
 			});
 
-		currentRequestController = new AbortController();
-
 		const res = await generateOpenAIChatCompletion(
 			localStorage.token,
 			{
@@ -1585,9 +1615,7 @@
 					}
 					: {})
 			},
-			`${WEBUI_BASE_URL}/api`,
-			currentRequestController.signal
-		)
+			`${WEBUI_BASE_URL}/api`)
 			.catch((error) => {
 				if (!error?.includes('402')) {
 					if (error?.includes('ContentPolicyViolationError')) {
@@ -1609,14 +1637,29 @@
 				return null;
 			});
 
-		currentRequestController = null;
-
 		if (res) {
 			taskId = res.task_id;
-		}
 
-		await tick();
-		scrollToBottom();
+			const responseMessage = history.messages[history.currentId];
+
+			if (responseMessage) {
+
+				// If responseMessage is already done it means that itx was stopped
+				if (responseMessage.done) {
+					stopTask(localStorage.token, taskId).catch((error) => {
+						console.error('Failed to stop task:', error);
+					});
+				}
+			}
+
+			if (autoScroll) {
+				await tick();
+				scrollToBottom();
+			}
+		} else {
+			await tick();
+			scrollToBottom();
+		}
 	};
 
 	const handleOpenAIError = async (error, responseMessage) => {
@@ -1647,6 +1690,7 @@
 		responseMessage.error = {
 			content: $i18n.t(`Uh-oh! There was an issue with the response.`) + '\n' + errorMessage
 		};
+
 		responseMessage.done = true;
 
 		if (responseMessage.statusHistory) {
@@ -1658,55 +1702,30 @@
 		history.messages[responseMessage.id] = responseMessage;
 	};
 
-	const stopResponse = () => {
-		// Abort the in-flight HTTP request (covers websearch/RAG preprocessing phase)
-		if (currentRequestController) {
-			currentRequestController.abort();
-			currentRequestController = null;
-		}
-
-		if (taskId) {
-			stopTask(localStorage.token, taskId).catch((error) => {
-				console.error('Failed to stop task:', error);
-			});
-			taskId = null;
-		}
-
-		if (bufferedResponse) {
-			bufferedResponse.stop();
-			bufferedResponse = null;
-		}
-
+	const stopResponse = async () => {
+		const _chatId = JSON.parse(JSON.stringify($chatId));
 		const responseMessage = history.messages[history.currentId];
-		if (responseMessage && !responseMessage.done) {
-			const visibleContent = (responseMessage.content ?? '')
-				.replace(/<details\s+type="reasoning"[^>]*>[\s\S]*?(<\/details>|$)/g, '')
-				.trim();
-			const hasContent = visibleContent !== '';
 
-			if (hasContent) {
-				responseMessage.done = true;
-				responseMessage.statusHistory = [];
+		if (responseMessage && !responseMessage.done) {
+			if (taskId) {
+				await stopTask(localStorage.token, taskId).catch((error) => {
+					console.error('Failed to stop task:', error);
+				});
+
 				responseMessage.content = responseMessage.content.replaceAll(
 					'<details type="reasoning" done="false">',
 					'<details type="reasoning" done="true">'
 				);
-				history.messages[history.currentId] = responseMessage;
-			} else {
-				const parentId = responseMessage.parentId;
-				if (parentId && history.messages[parentId]) {
-					history.messages[parentId].childrenIds = history.messages[parentId].childrenIds.filter(
-						(id) => id !== history.currentId
-					);
-					history.messages[parentId].done = true;
-				}
-				delete history.messages[history.currentId];
-				history.currentId = parentId;
-			}
-		}
 
-		if (autoScroll) {
-			scrollToBottom();
+				if (bufferedResponse) {
+					bufferedResponse.stop();
+					bufferedResponse = null;
+				}
+			}
+
+			responseMessage.done = true;
+			history.messages[history.currentId] = responseMessage;
+			await saveChatHandler(_chatId, history);
 		}
 	};
 

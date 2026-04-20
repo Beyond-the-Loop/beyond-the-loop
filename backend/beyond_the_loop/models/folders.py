@@ -22,13 +22,13 @@ class Folder(Base):
     __tablename__ = "folder"
     id = Column(Text, primary_key=True)
     parent_id = Column(Text, nullable=True)
-    user_id = Column(Text)
-    name = Column(Text)
+    user_id = Column(Text, nullable=False)
+    name = Column(Text, nullable=False)
     items = Column(JSON, nullable=True)
     meta = Column(JSON, nullable=True)
-    is_expanded = Column(Boolean, default=False)
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    is_expanded = Column(Boolean, nullable=False, default=False)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class FolderModel(BaseModel):

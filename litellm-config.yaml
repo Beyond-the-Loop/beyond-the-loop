@@ -568,7 +568,7 @@ model_list:
 
   - model_name: "Grok 4.1 Fast Reasoning"
     litellm_params:
-      model: "azure/grok-4-1-fast-reasoning"
+      model: "azure/grok-4-fast-reasoning"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
     model_info:

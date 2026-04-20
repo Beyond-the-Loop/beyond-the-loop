@@ -154,6 +154,7 @@
 	let generatingImage = false;
 
 	let showRateComment = false;
+
 	$: statusList = message?.statusHistory ?? [...(message?.status ? [message?.status] : [])];
 	$: status = statusList.length > 0 ? statusList.at(-1) : null
 
@@ -548,9 +549,9 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{#if (status && !status?.hidden) || (message.content === '' && !message.error && !message.done)}
+						{#if !message.done}
 								<div class="status-description flex items-center gap-2">
-									{#if !message.done && (status?.done === false || !status)}
+									{#if !message.content}
 										<div class="py-1">
 											<Spinner className="size-4" />
 										</div>
@@ -604,6 +605,16 @@
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
 												{$i18n.t("Analyzing results")}
+											</div>
+										</div>
+									{:else if status?.action === 'querying_memory'}
+										<div class="flex flex-col justify-center -space-y-0.5">
+											<div
+												class="{status?.done === false
+													? 'shimmer'
+													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+											>
+												{$i18n.t('Searching memories')}
 											</div>
 										</div>
 									{:else if status?.action === 'generating_response'}

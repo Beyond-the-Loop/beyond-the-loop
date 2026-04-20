@@ -432,13 +432,13 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
         # Validate the password
         if not validate_password(form_data.password):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="Password must be 8+ characters, with a number, capital letter, and symbol."
             )
 
         hashed_password = get_password_hash(form_data.password)
 
-        user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url)
+        user = Users.complete_by_id(user.id, form_data.first_name, form_data.last_name, form_data.profile_image_url, position=form_data.position, phone=form_data.phone)
 
         utm_params = {k: v for k, v in {
             "utm_source": form_data.utm_source,

@@ -115,7 +115,6 @@
 				'documents',
 				'rag',
 				'models',
-				'ollama',
 				'openai',
 				'users'
 			]

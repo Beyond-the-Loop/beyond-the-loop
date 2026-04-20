@@ -24,7 +24,7 @@ class Group(Base):
     id = Column(Text, unique=True, primary_key=True)
     company_id = Column(Text, nullable=False)
 
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     description = Column(Text)
 
     data = Column(JSON, nullable=True)
@@ -33,8 +33,8 @@ class Group(Base):
     permissions = Column(JSON, nullable=True)
     user_ids = Column(JSON, nullable=True)
 
-    created_at = Column(BigInteger)
-    updated_at = Column(BigInteger)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
 
 
 class GroupModel(BaseModel):

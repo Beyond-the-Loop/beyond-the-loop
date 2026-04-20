@@ -168,10 +168,6 @@ async def get_embedding_config(request: Request, user=Depends(get_admin_user)):
             "url": request.app.state.config.RAG_OPENAI_API_BASE_URL,
             "key": request.app.state.config.RAG_OPENAI_API_KEY,
         },
-        "ollama_config": {
-            "url": request.app.state.config.RAG_OLLAMA_BASE_URL,
-            "key": request.app.state.config.RAG_OLLAMA_API_KEY,
-        },
     }
 
 
@@ -188,14 +184,8 @@ class OpenAIConfigForm(BaseModel):
     key: str
 
 
-class OllamaConfigForm(BaseModel):
-    url: str
-    key: str
-
-
 class EmbeddingModelUpdateForm(BaseModel):
     openai_config: Optional[OpenAIConfigForm] = None
-    ollama_config: Optional[OllamaConfigForm] = None
     embedding_engine: str
     embedding_model: str
     embedding_batch_size: Optional[int] = 1

@@ -40,8 +40,8 @@ def _validate_model_write_access(model: ModelModel, user):
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    # Avoid editing prebuilt models
-    if model.user_id == "system":
+    # Non-admins cannot edit system/prebuilt models
+    if model.user_id == "system" and user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -49,14 +49,18 @@ def _validate_model_write_access(model: ModelModel, user):
 
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
-    if (is_free_user
-        or user.role != "admin"
-        and model.user_id != user.id
-        and (not has_access(user.id, "write", model.access_control) or not has_permission(user.id, "workspace.edit_assistants"))):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
-        )
+    if user.role != "admin":
+        if is_free_user or not has_permission(user.id, "workspace.edit_assistants"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+            )
+
+        if model.user_id != user.id and not has_access(user.id, "write", model.access_control):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+            )
 
 def _validate_model_read_access(model: ModelModel, user):
     if not model:
@@ -85,7 +89,7 @@ def _validate_model_read_access(model: ModelModel, user):
 async def get_models(user=Depends(get_verified_user)):
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
-    if is_free_user:
+    if is_free_user or not has_permission(user.id, "workspace.view_assistants"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -106,7 +110,7 @@ async def create_new_model(
 ):
     is_free_user = payments_service.get_subscription(user.company_id).get("plan") == "free"
 
-    if is_free_user or not has_permission(user.id, "workspace.view_assistants"):
+    if is_free_user or not has_permission(user.id, "workspace.edit_assistants"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,
