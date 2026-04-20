@@ -389,7 +389,7 @@
 						</button>
 					{:else}
 						<div>
-							<div class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-100">
+							<div class="block px-3 py-2 text-xs text-gray-700 dark:text-gray-100">
 								{$i18n.t('No results found')}
 							</div>
 						</div>
@@ -461,6 +461,9 @@
 											<Tooltip content={$i18n.t('Reasoning')} placement="bottom">
 												<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <LightBlub className="size-4"/></div>
 											</Tooltip>
+										{/if}
+										{#if !(m?.supports_web_search  | m?.supports_image_generation | m?.supports_code_execution | m?.reasoning)}
+											<div class="size-7 text-xs flex items-center justify-center text-lightGray-100/80 dark:text-lightGray-200">N/A</div>
 										{/if}
 									</div>
 								</div>
