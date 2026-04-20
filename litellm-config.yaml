@@ -875,6 +875,10 @@ model_list:
       organization: 'Google'
       hosted_in: 'Global'
       speed: 3
+      category: 4
+      context_window: '1M'
+      knowledge_cutoff: '2025-01-01'
+      tokens_per_second: 197
       supports_image_generation: true
       supports_document_input: true
       supports_image_input: true
