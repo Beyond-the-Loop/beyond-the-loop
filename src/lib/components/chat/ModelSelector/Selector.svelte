@@ -15,10 +15,16 @@
 	import SpeedRating from './SpeedRating.svelte';
 	import { mapModelsToOrganizations } from '../../../../data/modelsInfo';
 	import { getModelIcon } from '$lib/utils';
-	import CheckmarkIcon from '$lib/components/icons/CheckmarkIcon.svelte';
 	import CostRating from './CostRating.svelte';
 	import { subscription, modelsInfo } from '$lib/stores';
 	import { DropdownMenu } from 'bits-ui';
+	import WebSearchIcon from '$lib/components/icons/WebSearchIcon.svelte';
+	import ImageGenerateIcon from '$lib/components/icons/ImageGenerateIcon.svelte';
+	import LightBlub from '$lib/components/icons/LightBlub.svelte';
+	import Document from '$lib/components/icons/Document.svelte';
+	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
+	import EuIcon from '$lib/components/icons/EuIcon.svelte';
+	import AdjustmentsHorizontal from '$lib/components/icons/AdjustmentsHorizontal.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -28,7 +34,6 @@
 	export let searchEnabled = true;
 	export let searchPlaceholder = $i18n.t('Search a model');
 
-	export let className = '180px';
 	export let triggerClassName = 'text-xs';
 
 	let show = false;
@@ -84,9 +89,37 @@
 			});
 	})();
 
-	$: filteredItems = searchValue
-		? filteredSourceItems?.filter(item => item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase()))
-		: filteredSourceItems;
+	$: filteredItems = (() => {
+		let items = filteredSourceItems;
+
+		if (searchValue) {
+			items = items.filter(item =>
+				item?.model?.name?.toLowerCase()?.includes(searchValue?.toLowerCase())
+			);
+		}
+		if (webSearchFilter) {
+			items = items.filter(item =>
+				$modelsInfo?.[item.label]?.supports_web_search
+			);
+		}
+		if (codeExecutionFilter) {
+			items = items.filter(item =>
+				$modelsInfo?.[item.label]?.supports_code_execution
+			);
+		}
+		if (imageGenFilter) {
+			items = items.filter(item =>
+				$modelsInfo?.[item.label]?.supports_image_generation
+			);
+		}
+
+		return items;
+	})();
+
+
+	let webSearchFilter = false;
+	let codeExecutionFilter = false;
+	let imageGenFilter = false;
 
 	// In assistants-only mode: auto-select the first assistant if current value is missing/invalid
 	$: if ($user?.permissions?.chat?.assistants_only && filteredSourceItems.length > 0) {
@@ -185,13 +218,14 @@
 	<DropdownMenu.Content
 		class=" z-40 {$mobile
 			? `w-[15rem]`
-			: `${className}`} w-[180px] justify-start rounded-xl border dark:border-customGray-700 bg-lightGray-550 border-lightGray-400 dark:bg-customGray-900 dark:text-white shadow-lg  outline-none"
+			: ``} justify-start rounded-xl border dark:border-customGray-700 bg-lightGray-550 border-lightGray-400 dark:bg-customGray-900 dark:text-white shadow-lg  outline-none"
 		transition={flyAndScale}
 		side={$mobile ? 'bottom' : 'bottom-start'}
 		sideOffset={5}
 	>
 		<slot>
 			{#if searchEnabled}
+			<div class="flex items-center">
 				<div class="flex items-center relative gap-2.5 px-2.5 mt-2.5 mb-3">
 					<div class="absolute left-5 text-customGray-300">
 						<Search className="size-3" strokeWidth="2.5" />
@@ -200,7 +234,7 @@
 					<input
 						id="model-search-input"
 						bind:value={searchValue}
-						class="w-full text-xs bg-transparent outline-none pl-7 h-[25px] rounded-lg border border-lightGray-400 dark:border-customGray-700 placeholder:text-xs"
+						class="max-w-[142px] text-xs bg-transparent outline-none pl-7 h-[25px] rounded-lg border border-lightGray-400 dark:border-customGray-700 placeholder:text-xs"
 						placeholder={searchPlaceholder}
 						autocomplete="off"
 						on:keydown={(e) => {
@@ -222,97 +256,149 @@
 						}}
 					/>
 				</div>
+				<div class="flex items-center justify-end w-full mr-3">
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger class="flex items-center cursor-pointer p-[2px] hover:bg-gray-100 rounded-md">
+							<Tooltip content={$i18n.t('Filter')} placement="top">
+								<AdjustmentsHorizontal className="size-5 {webSearchFilter || codeExecutionFilter || imageGenFilter ? 'text-blue-500': 'text-gray-500'}" />
+							</Tooltip>
+						</DropdownMenu.Trigger>
+
+						<DropdownMenu.Content
+							class="flex items-center gap-2 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 shadow-lg z-50"
+							transition={flyAndScale}
+							side="bottom"
+							sideOffset={0}
+						>
+							<Tooltip content={$i18n.t('Web Search')} placement="top">
+							<button
+								class={webSearchFilter ? 'text-blue-500' : 'text-gray-500'}
+								on:click={() => {
+								webSearchFilter = !webSearchFilter;
+								}}
+							>
+								<WebSearchIcon className="size-4" />
+							</button>
+							</Tooltip>
+							<Tooltip content={$i18n.t('Code Interpreter')} placement="top">
+                                <button class="{codeExecutionFilter ? 'text-blue-500' : 'text-gray-500'}"
+                                    on:click={() => {
+                                        codeExecutionFilter = !codeExecutionFilter;
+                                    }}
+                                >
+                                    <CodeInterpreterIcon className="size-4" />
+                                </button>
+                            </Tooltip>
+                            <Tooltip content={$i18n.t('Image Generation')} placement="top">
+                                <button class="{imageGenFilter ? 'text-blue-500' : 'text-gray-500'}"
+                                    on:click={() => {
+                                        imageGenFilter = !imageGenFilter;
+                                    }}
+                                >
+                                    <ImageGenerateIcon className="size-4" />
+                                </button>
+                            </Tooltip>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+				</div>
+				
+			</div>
 			{/if}
 
-			<div class="px-[3px] my-2 max-h-[234px] overflow-y-auto">
-				{#each filteredItems as item, index}
-					<button
-						aria-label="model-item"
-						class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm outline-none transition-all duration-75 rounded-lg
-       				{value === item.value ? 'bg-lightGray-700 dark:bg-customGray-950' : ''}
-       				{!item.model?.is_active || item.model?.fair_usage_limit_reached ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
+			<div class="px-[3px] my-2 h-[280px] overflow-y-auto">
+					{#each filteredItems as item, index}
+						<button
+							aria-label="model-item"
+							class="flex w-full text-left line-clamp-1 select-none items-center rounded-button py-[5px] px-2 text-sm outline-none transition-all duration-75 rounded-lg
+						{value === item.value ? 'bg-lightGray-700 dark:bg-customGray-950' : ''}
+						{!item.model?.is_active || item.model?.fair_usage_limit_reached ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-400 dark:text-gray-600' : 'text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white'}"
 
-						data-arrow-selected={index === selectedModelIdx}
-						on:mouseenter={() => {
-							hoveredItem = item;
-							if(hoverTimeout)
-							{
-								clearTimeout(hoverTimeout); 
-								hoverTimeout = null;
-							}
+							data-arrow-selected={index === selectedModelIdx}
+							on:mouseenter={() => {
+								hoveredItem = item;
+								if(hoverTimeout)
+								{
+									clearTimeout(hoverTimeout); 
+									hoverTimeout = null;
+								}
+								}}
+							on:mouseleave={setHoverTimeout}
+							on:click={() => {
+								value = item.value;
+								selectedModelIdx = index;
+
+								show = false;
 							}}
-						on:mouseleave={setHoverTimeout}
-						on:click={() => {
-							value = item.value;
-							selectedModelIdx = index;
-
-							show = false;
-						}}
-						disabled={!item.model?.is_active || item.model?.fair_usage_limit_reached}
-					>
-						<div class="flex flex-col">
-							{#if $mobile && (item?.model?.meta?.tags ?? []).length > 0}
-								<div class="flex gap-0.5 self-start h-full mb-1.5 -translate-x-1">
-									{#each item.model?.meta.tags as tag}
-										<div
-											class=" text-xs font-bold px-1 rounded uppercase line-clamp-1 bg-gray-500/20 text-gray-700 dark:text-gray-200"
-										>
-											{tag.name}
-										</div>
-									{/each}
-								</div>
-							{/if}
-							<div class="flex items-center gap-2">
-								<div class="flex items-center min-w-fit">
-									<div class="line-clamp-1">
-										<div class="flex items-center min-w-fit">
-											<img
-												src={getModelIcon(item.label)}
-												alt="Model"
-												class="rounded-full size-5 flex items-center mr-2"
-											/>
-											<div class="text-xs">
-												<span>{item.label}</span>
-												{#if !item.model?.is_active}
-													<span class="text-[0.4rem] ml-[-2px] align-super">Premium</span>
-												{:else if item.model?.fair_usage_limit_reached}
-													<span class="text-[0.4rem] ml-[-2px] align-super">Limit reached</span>
-												{/if}
+							disabled={!item.model?.is_active || item.model?.fair_usage_limit_reached}
+						>
+							<div class="flex flex-col">
+								{#if $mobile && (item?.model?.meta?.tags ?? []).length > 0}
+									<div class="flex gap-0.5 self-start h-full mb-1.5 -translate-x-1">
+										{#each item.model?.meta.tags as tag}
+											<div
+												class=" text-xs font-bold px-1 rounded uppercase line-clamp-1 bg-gray-500/20 text-gray-700 dark:text-gray-200"
+											>
+												{tag.name}
+											</div>
+										{/each}
+									</div>
+								{/if}
+								<div class="flex items-center gap-2">
+									<div class="flex items-center min-w-fit">
+										<div class="line-clamp-1">
+											<div class="flex items-center min-w-fit">
+												<img
+													src={getModelIcon(item.label)}
+													alt="Model"
+													class="rounded-full size-5 flex items-center mr-2"
+												/>
+												<div class="text-xs w-[112px]">
+													<span>{item.label}</span>
+													{#if !item.model?.is_active}
+														<span class="text-[0.4rem] ml-[-2px] align-super">Premium</span>
+													{:else if item.model?.fair_usage_limit_reached}
+														<span class="text-[0.4rem] ml-[-2px] align-super">Limit reached</span>
+													{/if}
+												</div>
 											</div>
 										</div>
 									</div>
 								</div>
 							</div>
-						</div>
-
-						{#if value === item.value}
-							<div class="ml-auto pl-2 pr-2 md:pr-0 text-lightGray-100 dark:text-customGray-100">
-								<svg
-									width="13"
-									height="14"
-									viewBox="0 0 9 10"
-									fill="none"
-									xmlns="http://www.w3.org/2000/svg"
-								>
-									<path
-										d="M4.16004 6.27718C4.08868 6.27718 4.02088 6.24863 3.97093 6.19868L2.96115 5.1889C2.85768 5.08542 2.85768 4.91415 2.96115 4.81068C3.06463 4.7072 3.2359 4.7072 3.33937 4.81068L4.16004 5.63135L5.99405 3.79733C6.09753 3.69386 6.2688 3.69386 6.37227 3.79733C6.47575 3.90081 6.47575 4.07208 6.37227 4.17555L4.34915 6.19868C4.2992 6.24863 4.2314 6.27718 4.16004 6.27718Z"
-										fill="currentColor"
-									/>
-								</svg>
+							{#if value === item.value}
+								<div class="ml-auto pl-2 pr-2 md:pr-0 text-lightGray-100 dark:text-customGray-100">
+									<svg
+										width="13"
+										height="14"
+										viewBox="0 0 9 10"
+										fill="none"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<path
+											d="M4.16004 6.27718C4.08868 6.27718 4.02088 6.24863 3.97093 6.19868L2.96115 5.1889C2.85768 5.08542 2.85768 4.91415 2.96115 4.81068C3.06463 4.7072 3.2359 4.7072 3.33937 4.81068L4.16004 5.63135L5.99405 3.79733C6.09753 3.69386 6.2688 3.69386 6.37227 3.79733C6.47575 3.90081 6.47575 4.07208 6.37227 4.17555L4.34915 6.19868C4.2992 6.24863 4.2314 6.27718 4.16004 6.27718Z"
+											fill="currentColor"
+										/>
+									</svg>
+								</div>
+							{/if}
+							{#if $modelsInfo?.[item?.label]?.hosted_in == 'EU'}
+								<div class="w-3 ml-auto opacity-80">
+										<EuIcon className="size-3"/>
+								</div>
+							{/if}
+						</button>
+					{:else}
+						<div>
+							<div class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-100">
+								{$i18n.t('No results found')}
 							</div>
-						{/if}
-					</button>
-				{:else}
-					<div>
-						<div class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-100">
-							{$i18n.t('No results found')}
 						</div>
-					</div>
-				{/each}
+					{/each}
+				
 				{#if hoveredItem && !$mobile}
 					<div
 						role="tooltip"
-						class=" shadow-lg absolute flex flex-col h-[290px] left-full ml-1 top-0 w-[23rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
+						class=" shadow-lg absolute flex flex-col h-[100%] left-full ml-1 top-0 w-[23rem] p-2.5 rounded-xl border border-lightGray-400 bg-lightGray-550 dark:border-customGray-700 dark:bg-customGray-900 text-sm text-gray-800 dark:text-white z-50"
 						on:mouseenter={() => {
 							if(hoverTimeout)
 							{
@@ -329,41 +415,63 @@
 								{:else}
 								{$i18n.t($modelsInfo?.[hoveredItem?.label]?.description)}
 								{/if}
-
 							</p>
 						</div>
 					{#if hoveredItem.label != "Smart Router"}
-						<div class="flex items-center gap-3 mt-auto">
-							{#if $modelsInfo?.[hoveredItem?.label]?.multimodal}
-								<div class="py-2 flex items-center">
-									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
-										<CheckmarkIcon className="size-6" />
-									</div>
-									<p class="text-xs dark:text-customGray-100">{$i18n.t('Multimodal')}</p>
+						{@const m = $modelsInfo?.[hoveredItem?.label]}
+						<div class="grid grid-cols-2 mt-auto">
+							<div class="flex flex-col items-center mb-3">
+								<div class="mb-1.5 text-lightGray-900 dark:text-white/50 tracking-wide text-2xs">{$i18n.t('MODALITIES')}</div>
+								<div class="flex items-center gap-2">
+									<Tooltip content={$i18n.t('Text')} placement="bottom">
+										<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 text-[0.9em] font-serif flex items-center justify-center">T</div>
+									</Tooltip>
+									{#if m?.supports_document_input}
+										<Tooltip content={$i18n.t('Documents')} placement="bottom">
+											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 text-xs flex items-center justify-center"> <Document className="size-4"/></div>
+										</Tooltip>
+									{/if}
+									{#if m?.supports_image_input}
+										<Tooltip content={$i18n.t('Images')} placement="bottom">
+											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
+										</Tooltip>
+									{/if}
 								</div>
-							{/if}
-							{#if $modelsInfo?.[hoveredItem?.label]?.reasoning}
-								<div class="py-2 flex items-center">
-									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
-										<CheckmarkIcon className="size-6" />
+							</div>
+							<div class="border-l border-lightGray-400">
+								<div class="flex flex-col items-center mb-3">
+									<div class="mb-1.5 text-lightGray-900 dark:text-white/50 tracking-wide text-2xs">{$i18n.t('TOOLS')}</div>
+									<div class="flex items-center gap-2">
+										{#if m?.supports_web_search}
+										<Tooltip content={$i18n.t('Web Search')} placement="bottom">
+											<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <WebSearchIcon className="size-4"/></div>
+										</Tooltip>
+										{/if}
+										{#if m?.supports_image_generation}
+											<Tooltip content={$i18n.t('Image Generation')} placement="bottom">
+												<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
+											</Tooltip>
+										{/if}
+										{#if m?.supports_code_execution}
+											<Tooltip content={$i18n.t('Code execution')} placement="bottom">
+												<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <CodeInterpreterIcon className="size-4"/></div>
+											</Tooltip>
+										{/if}
+										{#if m?.reasoning}
+											<Tooltip content={$i18n.t('Reasoning')} placement="bottom">
+												<div class="size-7 border border-blue-200 rounded-lg bg-blue-50 text-blue-500 text-xs flex items-center justify-center"> <LightBlub className="size-4"/></div>
+											</Tooltip>
+										{/if}
 									</div>
-									<p class="text-xs dark:text-customGray-100">{$i18n.t('Reasoning')}</p>
 								</div>
-							{/if}
-							{#if $modelsInfo?.[hoveredItem?.label]?.zdr}
-								<div class="py-2 flex items-center">
-									<div class="mr-1.5 cursor-pointer flex justify-center items-center w-[18px] h-[18px] rounded-full text-white dark:text-white bg-customBlue-600 dark:bg-customGray-700">
-										<CheckmarkIcon className="size-6" />
-									</div>
-									<p class="text-xs dark:text-customGray-100">{$i18n.t('Zero Data Retention')}</p>
-								</div>
-							{/if}
+							</div>
+							
 						</div>
 						<div class="grid grid-cols-3 gap-y-4 gap-x-2 pt-3 border-t border-lightGray-400 dark:border-customGray-700">
 							{#if $subscription?.plan !== 'free' && $subscription?.plan !== 'premium'}
-								<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.costFactor && "justify-end"}">
-									{#if $modelsInfo?.[hoveredItem?.label]?.costFactor != null}
-										<CostRating rating={$modelsInfo?.[hoveredItem?.label]?.costFactor} />
+								<div class="flex flex-col items-center text-xs {!m?.costFactor && "justify-end"}">
+									{#if m?.costFactor != null}
+										<CostRating rating={m?.costFactor} />
 									{:else}
 										N/A
 									{/if}
@@ -371,33 +479,33 @@
 								</div>
 							{:else}
 								<div class="flex flex-col items-center text-xs justify-end">
-									{#if $modelsInfo?.[hoveredItem?.label]?.category != null}
-										{$modelsInfo?.[hoveredItem?.label]?.category}
+									{#if m?.category != null}
+										{m?.category}
 									{:else}
 										N/A
 									{/if}
 									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Fair Usage category')}</p>
 								</div>
 							{/if}
-							<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.intelligence_score && "justify-end"}">
-								{#if $modelsInfo?.[hoveredItem?.label]?.intelligence_score}
-									<StarRating rating={$modelsInfo?.[hoveredItem?.label]?.intelligence_score} />
+							<div class="flex flex-col items-center text-xs {!m?.intelligence_score && "justify-end"}">
+								{#if m?.intelligence_score}
+									<StarRating rating={m?.intelligence_score} />
 								{:else}
 									N/A
 								{/if}
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Intelligence score')}</p>
 							</div>
-							<div class="flex flex-col items-center text-xs {!$modelsInfo?.[hoveredItem?.label]?.speed && "justify-end"}">
-								{#if $modelsInfo?.[hoveredItem?.label]?.speed}
-									<SpeedRating rating={$modelsInfo?.[hoveredItem?.label]?.speed} tokens_per_second={$modelsInfo?.[hoveredItem?.label]?.tokens_per_second} />
+							<div class="flex flex-col items-center text-xs {!m?.speed && "justify-end"}">
+								{#if m?.speed}
+									<SpeedRating rating={m?.speed} tokens_per_second={m?.tokens_per_second} />
 								{:else}
 									N/A
 								{/if}
 								<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Tokens/second')}</p>
 							</div>
 							<div class="flex flex-col items-center py-2">
-								{#if $modelsInfo?.[hoveredItem?.label]?.hosted_in}
-									<p class="text-xs dark:text-customGray-100">{$modelsInfo?.[hoveredItem?.label]?.hosted_in}</p>
+								{#if m?.hosted_in}
+									<p class="text-xs dark:text-customGray-100">{m?.hosted_in}</p>
 									<p class="text-2xs text-lightGray-900 dark:text-white/50">{$i18n.t('Hosted in')}</p>
 								{/if}
 							</div>
@@ -419,8 +527,8 @@
 							</div>
 							<div class="flex flex-col items-center py-2">
 								<p class="text-xs dark:text-customGray-100">
-									{#if $modelsInfo?.[hoveredItem?.label]?.context_window}
-										{$modelsInfo?.[hoveredItem?.label]?.context_window}
+									{#if m?.context_window}
+										{m?.context_window}
 									{:else}
 										N/A
 									{/if}

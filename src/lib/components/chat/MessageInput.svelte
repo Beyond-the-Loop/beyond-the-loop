@@ -13,6 +13,7 @@
 		mobile,
 		type Model,
 		models,
+		modelsInfo,
 		settings,
 		showCallOverlay,
 		showControls,
@@ -278,11 +279,11 @@
 				}
 				let reader = new FileReader();
 				reader.onload = async (event) => {
-					let imageUrl = event.target.result;
-
 					const maxWidth = 1568;
 					const maxHeight = 1568;
-					imageUrl = await compressImage(imageUrl, maxWidth, maxHeight);
+					console.log(event.target?.result);
+					let imageUrl = await compressImage(event.target?.result, maxWidth, maxHeight);
+					console.log("IMAGEEEEEE URL", imageUrl);
 
 					files = [
 						...files,
@@ -475,15 +476,11 @@
 		}
 	});
 
-	let customModel = null;
-
-	$: {
-		if (selectedModels.length === 1) {
-			customModel = $models.find(
-				(model) => model.id === selectedModels[0] && model.info?.base_model_id !== null
-			);
-		}
-	}
+	$: selectedModelInfo = (() => {
+		if (selectedModels.length !== 1) return null;
+		const model = $models.find((m) => m.id === selectedModels[0]);
+		return model ? ($modelsInfo[model.name] ?? null) : null;
+	})();
 </script>
 
 <FilesOverlay show={dragged} />
@@ -1264,11 +1261,11 @@
 
 										{#if $_user}
 											{@const
-												canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (customModel?.meta?.capabilities?.websearch ?? true))}
+												canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (selectedModelInfo?.supports_web_search ?? false))}
 											{@const
-												canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (customModel?.meta?.capabilities?.image_generation ?? true))}
+												canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (selectedModelInfo?.supports_image_generation ?? false))}
 											{@const
-												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true))}
+												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (selectedModelInfo?.supports_code_execution ?? false))}
 
 											<ToolsMenu
 												{canWebSearch}

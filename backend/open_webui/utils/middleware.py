@@ -2,45 +2,32 @@ import time
 import logging
 import sys
 import os
-import base64
 import re
-import mimetypes
 import asyncio
+import io
 import random
-from io import BytesIO
-
-import httpx
 import json
 import html
+import base64
+import uuid
 import ast
-from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
-from beyond_the_loop.config import CODE_INTERPRETER_FILE_HINT_TEMPLATE
-from beyond_the_loop.config import CODE_INTERPRETER_SUMMARY_PROMPT, CODE_INTERPRETER_FAIL_PROMPT, CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT
 from beyond_the_loop.prompts import (
-    IMAGE_EDIT_DECISION_MESSAGE,
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
-    WEB_SEARCH_CONTEXT_MESSAGE,
-    IMAGE_GENERATED_CONTEXT,
-    IMAGE_ERROR_CONTEXT,
-    AUTO_TOOL_SELECTION_PROMPT,
     SMART_ROUTER_PROMPT,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
-    ImageEditDecision,
     FileIntentDecision,
     KnowledgeUseDecision,
-    ToolSelectionDecision,
     SmartRouterDecision,
 )
-from beyond_the_loop.models.files import FileForm
 from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -51,15 +38,12 @@ from beyond_the_loop.models.models import ModelMeta, ModelParams
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
-    generate_image_prompt
 )
-from open_webui.routers.retrieval import process_web_search, process_web_url_scrape
-from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
-from beyond_the_loop.routers.openai import generate_chat_completion
+from beyond_the_loop.routers.litellm import generate_chat_completion
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
@@ -74,8 +58,6 @@ from open_webui.utils.misc import (
 )
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
-    CACHE_DIR,
-    CODE_INTERPRETER_PROMPT,
     LITELLM_MODEL_CONFIG,
 )
 from open_webui.env import (
@@ -84,309 +66,11 @@ from open_webui.env import (
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS
-from open_webui.routers.retrieval import process_file, ProcessFileForm
-from beyond_the_loop.services.credit_service import credit_service
-from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
-from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.utils.chat_compression import maybe_compress_chat
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
-
-async def chat_web_search_handler(
-    request: Request, form_data: dict, extra_params: dict, user
-):
-    subscription = payments_service.get_subscription(user.company_id)
-
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
-
-    event_emitter = extra_params["__event_emitter__"]
-
-    web_search_files = []
-
-    await event_emitter(
-        {
-            "type": "status",
-            "data": {
-                "action": "web_search",
-                "description": "Generating search queries",
-                "done": False,
-            },
-        }
-    )
-
-    messages = form_data["messages"]
-    user_message = get_last_user_message(messages)
-
-    # Extract URLs from the user message reliably via regex (never delegate to LLM).
-    # Also matches bare www. URLs (e.g. www.example.com) and normalises them to https://.
-    _url_re = re.compile(r'(?:https?://|www\.)[^\s<>"{}|\\^`\[\]\']+')
-    extracted_urls = []
-    for u in _url_re.findall(user_message or ""):
-        u = u.rstrip('.,;:)!?\'\"')
-        if u.startswith('www.'):
-            u = 'https://' + u
-        extracted_urls.append(u)
-
-    # Generate keyword search queries via LLM; filter out any accidental URL queries
-    try:
-        res = await generate_queries(
-            "web_search",
-            messages,
-            form_data.get("chat_id", None),
-            user
-        )
-
-        all_queries = res.get("queries", [])
-        search_queries = [
-            q for q in all_queries
-            if not q.get("query", "").startswith(("http://", "https://", "www."))
-        ]
-    except Exception as e:
-        log.exception(e)
-        # Only fall back to the raw message if there are no URLs to scrape either
-        search_queries = [] if extracted_urls else [{"query": user_message, "result_limit": 3}]
-
-    all_processed_queries = []
-
-    # --- Scrape explicitly mentioned URLs directly ---
-    for url in extracted_urls:
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "web_search",
-                    "description": 'Scraping "{{searchQuery}}"',
-                    "query": url,
-                    "done": False,
-                },
-            }
-        )
-
-        try:
-            loop = asyncio.get_running_loop()
-            with ThreadPoolExecutor() as executor:
-                results = await loop.run_in_executor(
-                    executor,
-                    lambda u=url: process_web_url_scrape(request, u, user),
-                )
-
-            if results:
-                all_processed_queries.append({"query": url, "filenames": results["filenames"]})
-                web_search_files.append(
-                    {
-                        "collection_name": results["collection_name"],
-                        "name": url,
-                        "type": "web_search_results",
-                        "urls": results["filenames"],
-                    }
-                )
-            else:
-                await event_emitter(
-                    {
-                        "type": "status",
-                        "data": {
-                            "action": "web_search",
-                            "description": "No content found at URL",
-                            "query": url,
-                            "done": True,
-                            "error": True,
-                        },
-                    }
-                )
-        except Exception as e:
-            log.exception(e)
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "web_search",
-                        "description": 'Error scraping "{{searchQuery}}"',
-                        "query": url,
-                        "done": True,
-                        "error": True,
-                    },
-                }
-            )
-
-    # --- Run LLM-generated keyword search queries ---
-    for search_query in search_queries:
-        query_str = search_query.get("query", "")
-
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "web_search",
-                    "description": 'Searching "{{searchQuery}}"',
-                    "query": query_str,
-                    "done": False,
-                },
-            }
-        )
-
-        try:
-            loop = asyncio.get_running_loop()
-            with ThreadPoolExecutor() as executor:
-                results = await loop.run_in_executor(
-                    executor,
-                    lambda q=query_str, rl=search_query.get("result_limit", 3): process_web_search(
-                        request, q, rl, user
-                    ),
-                )
-
-            if results:
-                search_query["filenames"] = results["filenames"]
-                all_processed_queries.append(search_query)
-                web_search_files.append(
-                    {
-                        "collection_name": results["collection_name"],
-                        "name": query_str,
-                        "type": "web_search_results",
-                        "urls": results["filenames"],
-                    }
-                )
-            else:
-                await event_emitter(
-                    {
-                        "type": "status",
-                        "data": {
-                            "action": "web_search",
-                            "description": "No search results found",
-                            "query": query_str,
-                            "done": True,
-                            "error": True,
-                        },
-                    }
-                )
-        except Exception as e:
-            log.exception(e)
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "web_search",
-                        "description": 'Error searching "{{searchQuery}}"',
-                        "query": query_str,
-                        "done": True,
-                        "error": True,
-                    },
-                }
-            )
-
-    if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-        await credit_service.subtract_credits_by_user_for_web_search(user)
-
-    system_message_content = WEB_SEARCH_CONTEXT_MESSAGE
-
-    form_data["messages"] = add_or_update_system_message(
-        system_message_content, form_data["messages"]
-    )
-
-    return web_search_files, all_processed_queries
-
-
-async def chat_image_generation_handler(
-    request: Request, form_data: dict, extra_params: dict, user
-):
-    __event_emitter__ = extra_params["__event_emitter__"]
-    await __event_emitter__(
-        {
-            "type": "status",
-            "data": {"description": "Generating an image", "done": False},
-        }
-    )
-
-    messages = form_data["messages"]
-    user_message = get_last_user_message(messages)
-
-    prompt = user_message
-
-    already_generated_images = [
-        re.search(r'/cache/image/generations/[^)\s]+', x["content"]).group(0)
-        for x in messages
-        if x["role"] == "assistant" and "/cache/image/generations/" in x["content"]
-    ]
-
-    edit_last_image = False
-
-    if len(already_generated_images) > 0:
-        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-
-        decision_messages = messages.copy()
-        decision_messages.append({"role": "user", "content": IMAGE_EDIT_DECISION_MESSAGE})
-        result = await structured_completion(decision_messages, ImageEditDecision, model)
-        edit_last_image = result.decision == "yes"
-
-    if not edit_last_image:
-        try:
-            res = await generate_image_prompt(
-                request,
-                {
-                    "model": form_data["model"],
-                    "messages": messages
-                },
-                user,
-            )
-            prompt = res.get("prompt") or user_message
-        except Exception as e:
-            log.exception(e)
-            prompt = user_message
-
-    input_image_path = None
-
-    if edit_last_image:
-        last_image_path = already_generated_images[-1]
-        input_image_path = os.path.normpath(os.path.join(CACHE_DIR, last_image_path.lstrip('/cache/')))
-
-    try:
-        images = await image_generations(
-            form_data=GenerateImageForm(**{
-                "prompt": prompt,
-                "input_image_path": input_image_path,
-                "images": form_data["metadata"]["images"]
-            }),
-            user=user,
-        )
-
-        await __event_emitter__(
-            {
-                "type": "status",
-                "data": {"description": "Generated an image", "done": True},
-            }
-        )
-
-        for image in images:
-            await __event_emitter__(
-                {
-                    "type": "message",
-                    "data": {"content": f"![Generated Image]({image['url']})\n"},
-                }
-            )
-
-        system_message_content = IMAGE_GENERATED_CONTEXT
-
-    except Exception as e:
-        log.exception(e)
-        await __event_emitter__(
-            {
-                "type": "status",
-                "data": {
-                    "description": f"An error occured while generating an image",
-                    "done": True,
-                },
-            }
-        )
-
-        system_message_content = IMAGE_ERROR_CONTEXT
-
-    if system_message_content:
-        form_data["messages"] = add_or_update_system_message(
-            system_message_content, form_data["messages"]
-        )
-
-    return form_data
 
 
 async def chat_file_intent_decision_handler(
@@ -425,15 +109,15 @@ async def chat_file_intent_decision_handler(
             else:
                 # Collections and web search results should use RAG
                 non_image_files.append(file_item)
-    
+
     if not non_image_files:
         return form_data, True  # No non-image files, proceed with normal RAG
-    
+
     # Use DEFAULT_AGENT_MODEL to decide intent
     user_message = get_last_user_message(form_data["messages"])
     if not user_message:
         return form_data, True  # No user message, proceed with RAG
-    
+
     try:
         result = await structured_completion(
             messages=[
@@ -450,7 +134,7 @@ async def chat_file_intent_decision_handler(
         log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
 
         return form_data, is_rag_task
-        
+
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
         return form_data, True  # Fallback to RAG on error
@@ -464,40 +148,40 @@ def extract_file_content_with_loader(file_id: str) -> str:
         file_record = Files.get_file_by_id(file_id)
         if not file_record:
             return f"[File {file_id} not found]"
-        
+
         # Get file path using Storage
         if file_record.path:
             try:
                 storage = Storage()
                 file_path = storage.get_file(file_record.path)
-                
+
                 # Use the existing Loader system to extract content
                 loader = Loader()
                 content_type = file_record.meta.get("content_type", "") if file_record.meta else ""
-                
+
                 # Load documents using the existing system
                 documents = loader.load(file_record.filename, content_type, file_path)
-                
+
                 # Combine all document content
                 combined_content = "\n\n".join([doc.page_content for doc in documents])
                 return combined_content
-                
+
             except Exception as e:
                 log.debug(f"Error loading file {file_id} with Loader: {e}")
-        
+
         # Fallback: try to get content from file data if available
         if file_record.data and 'content' in file_record.data:
             return file_record.data['content']
-        
+
         return f"[Could not extract content from file {file_record.filename}]"
-        
+
     except Exception as e:
         log.exception(f"Error extracting content from file {file_id}: {e}")
         return f"[Error reading file {file_id}]"
 
 
 async def chat_completion_files_handler(
-    request: Request, form_data: dict, user: UserModel, extra_params: dict, web_search_queries
+        request: Request, form_data: dict, user: UserModel, extra_params: dict
 ) -> tuple[dict, dict[str, list]]:
     sources = []
 
@@ -561,19 +245,6 @@ async def chat_completion_files_handler(
             }
         )
 
-        if web_search_queries:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "web_search",
-                        "description": "Searched {{count}} sites",
-                        "query_summaries": web_search_queries,
-                        "done": True,
-                    },
-                }
-            )
-
         log.debug(f"rag_contexts:sources: {sources}")
 
     return form_data, {"sources": sources}
@@ -618,21 +289,21 @@ async def check_disconnect(request):
 
 
 SMART_ROUTER_MODEL = ModelModel(
-                id="Smart Router",
-                name="Smart Router",
-                meta=ModelMeta(),
-                params=ModelParams(),
-                is_active=True,
-                updated_at=int(time.time()),
-                created_at=int(time.time()),
-                user_id=None,
-                company_id="",
-                base_model_id=None,
-                access_control=None,
-            )
+    id="Smart Router",
+    name="Smart Router",
+    meta=ModelMeta(),
+    params=ModelParams(),
+    is_active=True,
+    updated_at=int(time.time()),
+    created_at=int(time.time()),
+    user_id=None,
+    company_id="",
+    base_model_id=None,
+    access_control=None,
+)
 
 
-async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelModel | None, dict | None]:
+async def _smart_router_model_selection(user_message: str, user) -> ModelModel | None:
     """
     Score the user message complexity (1–5) via structured completion, then pick
     the best model from all candidates whose intelligence_score >= that score.
@@ -658,23 +329,30 @@ async def _smart_router_model_selection(user_message: str, user) -> tuple[ModelM
 
         routable_models = [
             m for m in active_models_result["data"]
-            if m.base_model_id is None                              # no assistants
-            and m.name != SMART_ROUTER_MODEL.name                  # not Smart Router itself
-            and m.is_active                                         # active (e.g. not locked in free plan)
-            and not getattr(m, "fair_usage_limit_reached", False)   # fair usage not exhausted
+            if m.base_model_id is None  # no assistants
+               and m.name != SMART_ROUTER_MODEL.name  # not Smart Router itself
+               and m.is_active  # active (e.g. not locked in free plan)
+               and not getattr(m, "fair_usage_limit_reached", False)  # fair usage not exhausted
         ]
 
-        # Filter to models meeting the minimum intelligence requirement
+        # Filter to models meeting the minimum intelligence requirement and required capabilities
         candidates = []
 
         for m in routable_models:
             cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
             score = cfg.get("intelligence_score")
-            if score is not None and score >= target_score:
-                candidates.append(m)
+            if score is None or score < target_score:
+                continue
+            if decision.needs_web_search and not cfg.get("supports_web_search", False):
+                continue
+            if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
+                continue
+            if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
+                continue
+            candidates.append(m)
 
         if not candidates:
-            return None, None
+            return None
 
         # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
         cost_values = {
@@ -778,8 +456,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     events = []
     sources = []
 
-    features = form_data.pop("features", {})
-    auto_tools = form_data.pop("auto_tools", [])
+    features = form_data.pop("features", {}) or {}
+    auto_tools = form_data.pop("auto_tools", None)
+
+    # When auto selection is active the frontend sends features={} and auto_tools=[...].
+    # Merge auto_tools into features so the rest of the pipeline sees the same structure.
+    if isinstance(auto_tools, list):
+        for tool in auto_tools:
+            features[tool] = True
 
     user_message = get_last_user_message(form_data["messages"])
 
@@ -852,48 +536,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    if auto_tools and user_message:
-        try:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "tool_selection",
-                        "description": "Auto-selecting tools",
-                        "done": False,
-                    },
-                }
-            )
-            prompt = AUTO_TOOL_SELECTION_PROMPT.replace("{{USER_MESSAGE}}", user_message)
+    # Set feature flags in metadata so litellm.py can inject the correct provider-specific tools
+    _model_cfg = LITELLM_MODEL_CONFIG.get(model.name, {})
 
-            decision = await structured_completion(
-                messages=[{"role": "user", "content": prompt}],
-                response_model=ToolSelectionDecision,
-                model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
-            )
-            selected_tool = decision.tool
+    if features.get("web_search") and _model_cfg.get("supports_web_search"):
+        metadata["web_search_enabled"] = True
+    if features.get("image_generation") and _model_cfg.get("supports_image_generation"):
+        metadata["image_generation_enabled"] = True
+    if features.get("code_interpreter") and _model_cfg.get("supports_code_execution"):
+        metadata["code_interpreter_enabled"] = True
 
-            if selected_tool != "none" and selected_tool in auto_tools:
-                features = {selected_tool: True}
-                log.debug(f"Auto tool selection: {selected_tool}")
-
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "tool_selection",
-                        "description": "Auto-selecting tools",
-                        "done": True,
-                        "hidden": True,
-                    },
-                }
-            )
-        except Exception as e:
-            log.exception(f"Auto tool selection failed: {e}")
-
-    metadata["features"] = features
-
-    model_knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
+    model_knowledge = Knowledges.get_knowledge_by_ids(
+        [knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
     model_files = model.meta.files
 
@@ -922,7 +576,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
 
-        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
+        knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (
+            k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
 
         knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
 
@@ -958,37 +613,34 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if model_files:
                 files.extend(model_files)
 
-    web_search_active = features.get("web_search")
-    web_search_queries = None
-
-    # Include web search files before deciding task intent and building RAG context
-    if web_search_active:
-        await check_disconnect(request)
-        web_search_files, web_search_queries = await chat_web_search_handler(
-            request, form_data, extra_params, user
-        )
-
-        files.extend(web_search_files)
+    # For code interpreter: skip RAG and text extraction entirely.
+    # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
+    code_interpreter_enabled = form_data.get("metadata", {}).get("code_interpreter_enabled", False)
 
     # First, decide if this is a RAG task or content extraction task
-    try:
-        has_user_collections = any(f.get("type") == "collection" for f in files)
+    if not code_interpreter_enabled:
+        try:
+            has_user_collections = any(f.get("type") == "collection" for f in files)
 
-        form_data, is_rag_task = await chat_file_intent_decision_handler(form_data, user) if not model_knowledge and not web_search_active and not has_user_collections else (form_data, True)
-    except Exception as e:
-        log.exception(f"Error in file intent decision: {e}")
-        is_rag_task = True  # Fallback to RAG
+            form_data, is_rag_task = await chat_file_intent_decision_handler(form_data,
+                                                                             user) if not model_knowledge and not has_user_collections else (
+                form_data, True)
+        except Exception as e:
+            log.exception(f"Error in file intent decision: {e}")
+            is_rag_task = True  # Fallback to RAG
+    else:
+        is_rag_task = False  # Will be skipped below since code_interpreter_enabled
 
     await check_disconnect(request)
 
-    if is_rag_task:
+    if not code_interpreter_enabled and is_rag_task:
         # Proceed with normal RAG processing
         try:
-            form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params, web_search_queries)
+            form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params)
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
-    else:
+    elif not code_interpreter_enabled:
         # Handle non-RAG task: extract file content and append to user prompt
         try:
             file_contents = []
@@ -1006,7 +658,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                     # Skip image files
                                     if not content_type.startswith("image/"):
                                         content = extract_file_content_with_loader(file_id)
-                                        file_contents.append(f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
+                                        file_contents.append(
+                                            f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
                             except Exception as e:
                                 log.debug(f"Error processing file {file_id}: {e}")
 
@@ -1048,25 +701,19 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         if prompt is None:
             raise Exception("No user message found")
         if (
-            request.app.state.config.RELEVANCE_THRESHOLD == 0
-            and context_string.strip() == ""
+                request.app.state.config.RELEVANCE_THRESHOLD == 0
+                and context_string.strip() == ""
         ):
             log.debug(
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-        if not features.get("code_interpreter", False):
-            form_data["messages"] = add_or_update_system_message(
-                rag_template(
-                    request.app.state.config.RAG_TEMPLATE, context_string, prompt
-                ),
-                form_data["messages"],
-            )
-        else:
-            form_data["messages"] = add_or_update_system_message(
-                context_string,
-                form_data["messages"]
-            )
+        form_data["messages"] = add_or_update_system_message(
+            rag_template(
+                request.app.state.config.RAG_TEMPLATE, context_string, prompt
+            ),
+            form_data["messages"],
+        )
 
     # If there are citations, add them to the data_items
     sources = [source for source in sources if source.get("source", {}).get("name", "")]
@@ -1087,84 +734,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-    form_data["metadata"]["images"] = []
-
-    # Add images to form_data metadata
-    for message in form_data["messages"]:
-        if "content" in message and isinstance(message["content"], list):
-            for c in message["content"]:
-                if c.get("type") == "image_url":
-                    url = c.get("image_url", {}).get("url")
-
-                    if url:
-                        ext = get_extension_from_base64(url)
-                        filename = f"uploaded_image{len(form_data['metadata']['images']) + 1}.{ext}" if ext else "uploaded_image.bin"
-
-                        parts = url.split(',')
-                        if len(parts) > 1:
-                            url = parts[1]
-                        else:
-                            url = parts[0]
-
-                        form_data["metadata"]["images"].append({
-                            "name": filename,
-                            "content": url
-                        })
-
-    use_images_as_tool_input = (
-        features.get("image_generation") or features.get("code_interpreter")
-    )
-
-    if use_images_as_tool_input and form_data["metadata"]["images"]:
-        # Strip image_url blocks from messages — images are forwarded via metadata
-        # to the respective tool handler, so the LLM doesn't need them inline
-        for message in form_data["messages"]:
-            if "content" in message and isinstance(message["content"], list):
-                text_items = [c for c in message["content"] if c.get("type") != "image_url"]
-                if len(text_items) == 1 and text_items[0].get("type") == "text":
-                    message["content"] = text_items[0]["text"]
-                elif text_items:
-                    message["content"] = text_items
-                else:
-                    message["content"] = ""
-
-    if features.get("image_generation", False):
-        await check_disconnect(request)
-        form_data = await chat_image_generation_handler(
-            request, form_data, extra_params, user
-        )
-
-    if features.get("code_interpreter", False):
-        form_data["messages"] = add_or_update_system_message(
-            CODE_INTERPRETER_PROMPT, form_data["messages"]
-        )
-
-        # Store original model for display; use code interpreter model only for the LLM call
-        metadata["display_model_id"] = model.id
-        model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id)
-        form_data["model"] = model.id
-
-        code_interpreter_files = Chats.get_chat_by_id(metadata["chat_id"]).chat.get("code_interpreter_files", [])
-        form_data["metadata"]["code_interpreter_files"] = code_interpreter_files
-
-        non_knowledge_files = [f for f in files if f.get("file") and "filename" in f["file"]]
-
-        # Inform the LLM about available uploaded files so it can reference them in generated code
-        if code_interpreter_files or non_knowledge_files or form_data["metadata"]["images"]:
-            # Build a concise instruction listing accessible filenames (non-image, non-collection)
-            file_list_str = ", ".join(f["file"]["filename"] for f in non_knowledge_files) + ", ".join(
-                image["name"] for image in form_data["metadata"]["images"]) + ", ".join(
-                file["name"] for file in code_interpreter_files)
-
-            code_interpreter_file_hint_template = CODE_INTERPRETER_FILE_HINT_TEMPLATE
-            form_data["messages"] = add_or_update_user_message(
-                code_interpreter_file_hint_template.replace("{{file_list}}", file_list_str), form_data["messages"])
-
     return form_data, metadata, events, model
 
 
 async def process_chat_response(
-    request, response, form_data, user, events, metadata, tasks, model
+        request, response, form_data, user, events, metadata, tasks, model
 ):
     async def background_tasks_handler():
         message_map = Chats.get_messages_by_chat_id(metadata["chat_id"])
@@ -1212,12 +786,12 @@ async def process_chat_response(
     event_caller = None
 
     if (
-        "session_id" in metadata
-        and metadata["session_id"]
-        and "chat_id" in metadata
-        and metadata["chat_id"]
-        and "message_id" in metadata
-        and metadata["message_id"]
+            "session_id" in metadata
+            and metadata["session_id"]
+            and "chat_id" in metadata
+            and metadata["chat_id"]
+            and "message_id" in metadata
+            and metadata["message_id"]
     ):
         event_emitter = get_event_emitter(metadata)
         event_caller = get_event_call(metadata)
@@ -1291,8 +865,8 @@ async def process_chat_response(
 
     # Non standard response
     if not any(
-        content_type in response.headers["Content-Type"]
-        for content_type in ["text/event-stream", "application/x-ndjson"]
+            content_type in response.headers["Content-Type"]
+            for content_type in ["text/event-stream", "application/x-ndjson"]
     ):
         return response
 
@@ -1302,7 +876,7 @@ async def process_chat_response(
             metadata["chat_id"],
             metadata["message_id"],
             {
-                "model": metadata.get("display_model_id", model.id),
+                "model": model.id,
             },
         )
 
@@ -1365,25 +939,6 @@ async def process_chat_response(
                             else:
                                 content = f'{content}\n<details type="reasoning" done="false">\n<summary>Thinking…</summary>\n{reasoning_display_content}\n</details>\n'
 
-                    elif block["type"] == "code_interpreter":
-                        attributes = block.get("attributes", {})
-                        output = block.get("output", None)
-                        lang = attributes.get("lang", "")
-
-                        if output:
-                            output = html.escape(json.dumps(output))
-
-                            # RAW means without code interpreter activated - not code execution
-                            if raw:
-                                content = f'{content}\n<code_interpreter type="code" lang="{lang}">\n{block["content"]}\n</code_interpreter>\n```output\n{output}\n```\n'
-                            else:
-                                content = f'{content}\n<details type="code_interpreter" done="true" output="{output}">\n<summary>Analyzed</summary>\n```{lang}\n{block["content"]}\n```\n</details>\n'
-                        else:
-                            if raw:
-                                content = f'{content}\n<code_interpreter type="code" lang="{lang}">\n{block["content"]}\n</code_interpreter>\n'
-                            else:
-                                content = f'{content}\n<details type="code_interpreter" done="false">\n<summary>Analyzing...</summary>\n```{lang}\n{block["content"]}\n```\n</details>\n'
-
                     else:
                         block_content = str(block["content"]).strip()
                         content = f"{content}{block['type']}: {block_content}\n"
@@ -1426,7 +981,7 @@ async def process_chat_response(
                                 : match.start()
                             ]  # Content before opening tag
                             after_tag = content[
-                                match.end() :
+                                match.end():
                             ]  # Content after opening tag
 
                             # Text block should contain only what came BEFORE the start tag
@@ -1577,15 +1132,12 @@ async def process_chat_response(
                     "content": content,
                 }
             ]
+            response_images = []
 
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
             # We might want to disable this by default
             detect_reasoning = True
-
-            detect_code_interpreter = metadata.get("features", {}).get(
-                "code_interpreter", False
-            )
 
             reasoning_tags = [
                 "think",
@@ -1596,12 +1148,10 @@ async def process_chat_response(
                 "Thought",
             ]
 
-            code_interpreter_tags = ["code_interpreter"]
-
             await event_emitter(
                 {
                     "type": "chat:completion",
-                    "data": {"model": metadata.get("display_model_id", model.id)},
+                    "data": {"model": model.id},
                 }
             )
 
@@ -1626,6 +1176,7 @@ async def process_chat_response(
                 async def stream_body_handler(response):
                     nonlocal content
                     nonlocal content_blocks
+                    nonlocal response_images
 
                     response_tool_calls = []
 
@@ -1644,7 +1195,7 @@ async def process_chat_response(
                             continue
 
                         # Remove the prefix
-                        data = data[len("data:") :].strip()
+                        data = data[len("data:"):].strip()
 
                         try:
                             data = json.loads(data)
@@ -1673,7 +1224,23 @@ async def process_chat_response(
                                     },
                                     data["citations"]
                                 ))
-                            
+
+                            if "file_refs" in data:
+                                await event_emitter(
+                                    {
+                                        "type": "file_refs",
+                                        "data": data["file_refs"],
+                                    }
+                                )
+
+                                if "content_replacement" in data:
+                                    content = data["content_replacement"]
+                                    content_blocks.clear()
+                                    content_blocks.append(
+                                        {"type": "text", "content": content}
+                                    )
+                                continue
+
                             if "selected_model_id" in data:
                                 model_id = data["selected_model_id"]
                                 Chats.upsert_message_to_chat_by_id_and_message_id(
@@ -1689,6 +1256,15 @@ async def process_chat_response(
                                     continue
 
                                 delta = choices[0].get("delta", {})
+
+                                delta_images = delta.get("images", None)
+
+                                if delta_images:
+                                    for delta_image in delta_images:
+                                        image_base64 = delta_image['image_url']["url"]
+
+                                        response_images.append({"type": "image", "url": image_base64})
+
                                 delta_tool_calls = delta.get("tool_calls", None)
 
                                 if delta_tool_calls:
@@ -1697,8 +1273,8 @@ async def process_chat_response(
 
                                         if tool_call_index is not None:
                                             if (
-                                                len(response_tool_calls)
-                                                <= tool_call_index
+                                                    len(response_tool_calls)
+                                                    <= tool_call_index
                                             ):
                                                 response_tool_calls.append(
                                                     delta_tool_call
@@ -1724,15 +1300,15 @@ async def process_chat_response(
                                                     ] += delta_arguments
 
                                 reasoning_content = (
-                                    delta.get("reasoning_content")
-                                    or delta.get("reasoning")
-                                    or delta.get("thinking")
+                                        delta.get("reasoning_content")
+                                        or delta.get("reasoning")
+                                        or delta.get("thinking")
                                 )
 
                                 if reasoning_content:
                                     if (
-                                        not content_blocks
-                                        or content_blocks[-1]["type"] != "reasoning"
+                                            not content_blocks
+                                            or content_blocks[-1]["type"] != "reasoning"
                                     ):
                                         reasoning_block = {
                                             "type": "reasoning",
@@ -1755,18 +1331,68 @@ async def process_chat_response(
                                         "type": "reasoning",
                                     }
 
+                                delta_annotations = delta.get("annotations", [])
+                                if delta_annotations:
+                                    seen_urls = {
+                                        s["document"][0]
+                                        for s in (sources or [])
+                                        if s.get("document")
+                                    }
+                                    for annotation in delta_annotations:
+                                        if annotation.get("type") == "url_citation":
+                                            url_citation = annotation.get("url_citation", {})
+                                            url = url_citation.get("url", "")
+                                            title = url_citation.get("title") or url
+                                            if url and url not in seen_urls:
+                                                seen_urls.add(url)
+                                                if sources is None:
+                                                    sources = []
+
+                                                sources.append({
+                                                    "source": {"name": title},
+                                                    "document": [url],
+                                                    "metadata": [{"source": url, "name": title}],
+                                                    "distances": [0],
+                                                })
+
+                                # Handle Claude/Vertex AI web search results via provider_specific_fields
+                                provider_specific_fields = delta.get("provider_specific_fields", {})
+                                if provider_specific_fields:
+                                    web_search_results = provider_specific_fields.get("web_search_results")
+                                    if web_search_results:
+                                        seen_urls = {
+                                            s["document"][0]
+                                            for s in (sources or [])
+                                            if s.get("document")
+                                        }
+                                        for result_group in web_search_results:
+                                            for result in result_group.get("content", []):
+                                                if result.get("type") == "web_search_result":
+                                                    url = result.get("url", "")
+                                                    title = result.get("title") or url
+                                                    if url and url not in seen_urls:
+                                                        seen_urls.add(url)
+                                                        if sources is None:
+                                                            sources = []
+                                                        sources.append({
+                                                            "source": {"name": title},
+                                                            "document": [url],
+                                                            "metadata": [{"source": url, "name": title}],
+                                                            "distances": [0],
+                                                        })
+
                                 value = delta.get("content")
 
                                 if value:
                                     content = f"{content}{value}"
                                     if (
-                                        content_blocks
-                                        and content_blocks[-1]["type"]
-                                        == "reasoning"
-                                        and content_blocks[-1]
-                                        .get("attributes", {})
-                                        .get("type")
-                                        == "reasoning_content"
+                                            content_blocks
+                                            and content_blocks[-1]["type"]
+                                            == "reasoning"
+                                            and content_blocks[-1]
+                                            .get("attributes", {})
+                                            .get("type")
+                                            == "reasoning_content"
                                     ):
                                         reasoning_block = content_blocks[-1]
                                         reasoning_block["ended_at"] = time.time()
@@ -1791,7 +1417,7 @@ async def process_chat_response(
                                         )
 
                                     content_blocks[-1]["content"] = (
-                                        content_blocks[-1]["content"] + value
+                                            content_blocks[-1]["content"] + value
                                     )
 
                                     if detect_reasoning:
@@ -1804,19 +1430,6 @@ async def process_chat_response(
                                             )
                                         )
 
-                                    if detect_code_interpreter:
-                                        content, content_blocks, end = (
-                                            tag_content_handler(
-                                                "code_interpreter",
-                                                code_interpreter_tags,
-                                                content,
-                                                content_blocks,
-                                            )
-                                        )
-
-                                        if end:
-                                            break
-
                                     if ENABLE_REALTIME_CHAT_SAVE:
                                         # Save message in the database
                                         Chats.upsert_message_to_chat_by_id_and_message_id(
@@ -1828,19 +1441,13 @@ async def process_chat_response(
                                                 ),
                                             },
                                         )
-                                    elif (content_blocks[-1]["type"] == "reasoning"): # In case reasoning summary was detected in tag_content_handler
+                                    elif (content_blocks[-1][
+                                              "type"] == "reasoning"):  # In case reasoning summary was detected in tag_content_handler
                                         data = {
                                             "content": serialize_content_blocks(
                                                 content_blocks
                                             ),
                                             "type": "reasoning",
-                                        }
-                                    elif (content_blocks[-1]["type"] == "code_interpreter"):
-                                        data = {
-                                            "content": serialize_content_blocks(
-                                                content_blocks
-                                            ),
-                                            "type": "code_interpreter",
                                         }
                                     else:
                                         data = {
@@ -1884,12 +1491,23 @@ async def process_chat_response(
                                     )
 
                     if response_tool_calls:
-                        tool_calls.append(response_tool_calls)
+                        # Filter out server-side native tool calls (e.g. Claude's built-in
+                        # web_search executed by the LLM provider) that are not in our
+                        # user-defined tools. These have already been handled server-side
+                        # and should not be displayed as "Tool Executed" in the UI.
+                        user_tools = metadata.get("tools", {})
+                        client_tool_calls = [
+                            tc for tc in response_tool_calls
+                            if tc.get("function", {}).get("name", "") in user_tools
+                        ]
+                        if client_tool_calls:
+                            tool_calls.append(client_tool_calls)
 
                     if response.background:
                         await response.background()
 
                 await stream_body_handler(response)
+                print(f"[SOURCES DEBUG] sources after stream_body_handler: {sources}", flush=True)
 
                 MAX_TOOL_CALL_RETRIES = 5
                 tool_call_retries = 0
@@ -2009,291 +1627,6 @@ async def process_chat_response(
                     except Exception as e:
                         log.debug(e)
                         break
-
-                if detect_code_interpreter:
-                    # Defensive cleanup: strip any leftover closing tags from code_interpreter
-                    # blocks whose end tag arrived in the same chunk as the start tag and
-                    # therefore wasn't processed by tag_content_handler in a later call.
-                    for _block in content_blocks:
-                        if _block.get("type") == "code_interpreter" and "content" in _block:
-                            _tag = _block.get("tag", "code_interpreter")
-                            _end_re = re.compile(rf"</{re.escape(_tag)}>", re.DOTALL)
-                            _parts = _end_re.split(_block["content"], maxsplit=1)
-                            if len(_parts) > 1:
-                                _block["content"] = _parts[0].strip()
-
-                    max_retries = 3
-                    retries = 0
-
-                    while (
-                        content_blocks[-1]["type"] == "code_interpreter"
-                        and retries < max_retries
-                    ):
-                        retries += 1
-                        log.debug(f"Attempt count: {retries}")
-
-                        output = ""
-
-                        try:
-                            if content_blocks[-1]["attributes"].get("type") == "code":
-                                # Execute code via external Python executor service instead of frontend event
-                                try:
-                                    executor_url = os.getenv("PYTHON_EXECUTOR_URL")
-
-                                    if not executor_url:
-                                        raise RuntimeError("PYTHON_EXECUTOR_URL environment variable is not set")
-
-                                    code_to_run = content_blocks[-1]["content"]
-
-                                    code_execution_id = str(uuid4())
-
-                                    await event_emitter(
-                                        {
-                                            "type": "source",
-                                            "data": {
-                                                "type": "code_execution",
-                                                "id": code_execution_id,
-                                                "name": "Python Execution",
-                                                "language": "Python",
-                                                "code": code_to_run,
-                                            },
-                                        }
-                                    )
-
-                                    # Prepare attached files for the Python executor: we embed small files as base64
-                                    files_to_send = []
-
-                                    try:
-                                        attached_files = (metadata or {}).get("files", []) + (metadata or {}).get("code_interpreter_files", [])
-
-                                        for file_item in attached_files or []:
-                                            if not isinstance(file_item, dict):
-                                                continue
-                                            file_id = file_item.get("id")
-
-                                            if not file_id:
-                                                continue
-                                            # Skip collections and web_search results
-                                            if file_item.get("type") in ["collection", "web_search_results"]:
-                                                continue
-                                            try:
-                                                file_record = Files.get_file_by_id(file_id)
-                                                if not file_record or not file_record.meta:
-                                                    continue
-
-                                                # Fetch local path and read bytes
-                                                try:
-                                                    local_path = Storage.get_file(file_record.path)
-                                                    with open(local_path, "rb") as f:
-                                                        raw = f.read()
-
-                                                    b64 = base64.b64encode(raw).decode("ascii")
-                                                    name = file_record.meta.get("name", file_record.filename) if file_record.meta else file_record.filename
-                                                    files_to_send.append({
-                                                        "name": name,
-                                                        "content": b64
-                                                    })
-                                                except Exception as file_err:
-                                                    log.error(f"Failed to stage file {file_id} for executor: {file_err}")
-                                                    continue
-                                            except Exception as file_meta_err:
-                                                log.error(f"Error accessing file metadata {file_id}: {file_meta_err}")
-                                                continue
-
-                                    except Exception as prep_err:
-                                        log.error(f"Error preparing files for python executor: {prep_err}")
-
-                                    async with httpx.AsyncClient(timeout=60) as client:
-                                        payload = {"code": code_to_run}
-                                        if files_to_send:
-                                            payload["files"] = files_to_send
-
-                                        images = (metadata or {}).get("images", [])
-
-                                        if (metadata or {}).get("images", []):
-                                            payload["files"] = payload.get("files", []) + images
-
-                                        resp = await client.post(executor_url, json=payload)
-                                        resp.raise_for_status()
-                                        data = resp.json()
-
-                                    # Expecting structure:
-                                    # {
-                                    #   "success": true,
-                                    #   "stdout": "...",
-                                    #   "stderr": "...",
-                                    #   "files": [{name: "", url: "", binary: ""}, ...],
-                                    #   "execution_id": "..."
-                                    # }
-
-                                    if isinstance(data, dict):
-                                        subscription = payments_service.get_subscription(user.company_id)
-
-                                        if subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                            await credit_service.subtract_credits_by_user_for_code_interpreter(user)
-
-                                        output = data
-                                        # Ensure keys exist
-                                        output.setdefault("success", False)
-                                        output.setdefault("stdout", "")
-                                        output.setdefault("stderr", "")
-                                        output.setdefault("files", [])
-                                        output.setdefault("execution_id", "")
-
-                                        # Process returned files (non-images)
-                                        if output.get("files"):
-                                            for file_item in output["files"]:
-                                                if not isinstance(file_item, dict):
-                                                    continue
-                                                file_name = file_item.get("name")
-                                                file_bytes = file_item.get("bytes")
-
-                                                if not file_bytes:
-                                                    continue
-
-                                                try:
-                                                    contents, file_path = Storage.upload_file(BytesIO(base64.b64decode(file_bytes)), file_name)
-
-                                                    new_file_id = str(uuid4())
-
-                                                    content_type, _ = mimetypes.guess_type(file_name)
-
-                                                    Files.insert_new_file(
-                                                        user.id,
-                                                        FileForm(
-                                                            **{
-                                                                "id": new_file_id,
-                                                                "filename": file_name,
-                                                                "path": file_path,
-                                                                "meta": {
-                                                                    "name": file_name,
-                                                                    "size": len(contents),
-                                                                    "content_type": content_type
-                                                                },
-                                                            }
-                                                        ),
-                                                    )
-
-                                                    process_file(request, ProcessFileForm(file_id=new_file_id), user=user)
-
-                                                    file_item = Files.get_file_by_id(id=new_file_id)
-
-                                                    chat_file_item = {
-                                                        "type": "file",
-                                                        "file": file_item.model_dump(),
-                                                        "id": new_file_id,
-                                                        "url": None,
-                                                        "name": file_item.filename,
-                                                        "collection_name": file_item.meta.get("collection_name"),
-                                                        "size": file_item.meta.get("size"),
-                                                        "itemId": new_file_id
-                                                    }
-
-                                                    chat = Chats.get_chat_by_id(metadata["chat_id"])
-                                                    chat.chat["code_interpreter_files"] = chat.chat.get("code_interpreter_files", []) + [chat_file_item]
-                                                    Chats.update_chat_by_id(metadata.get("chat_id"), chat.chat)
-                                                except Exception as file_upload_err:
-                                                    log.error(f"Error on created file processing: {file_upload_err}")
-                                    else:
-                                        output = str(data)
-                                except Exception as exec_err:
-                                    output = str(exec_err)
-                        except Exception as e:
-                            output = str(e)
-
-                        content_blocks[-1]["output"] = output
-
-                        # Emit the final code execution result event with the same id
-                        block = content_blocks[-1]
-
-                        await event_emitter(
-                            {
-                                "type": "source",
-                                "data": {
-                                    "type": "code_execution",
-                                    "id": code_execution_id,
-                                    "name": "Python Execution",
-                                    "language": "Python",
-                                    "code": block.get("content", ""),
-                                    "result": {
-                                        **({"output": output.get("stdout") if isinstance(output, dict) else ""}),
-                                        **({"error": output.get("stderr") if isinstance(output, dict) else output}),
-                                        **({"files": output.get("files") if isinstance(output, dict) else []}),
-                                    },
-                                },
-                            }
-                        )
-
-                        content_blocks.append(
-                            {
-                                "type": "text",
-                                "content": "",
-                            }
-                        )
-
-                        await event_emitter(
-                            {
-                                "type": "chat:completion",
-                                "data": {
-                                    "content": serialize_content_blocks(content_blocks),
-                                },
-                            }
-                        )
-
-                        # After code execution completes, call the LLM again to summarize the result
-                        try:
-                            # Replace the full CODE_INTERPRETER_PROMPT system message with a
-                            # minimal follow-up system message — avoids verbose preamble while
-                            # still teaching the tag format for potential retries.
-                            followup_non_system = [
-                                m for m in form_data["messages"] if m.get("role") != "system"
-                            ]
-                            followup_base_messages = [
-                                {"role": "system", "content": CODE_INTERPRETER_FOLLOWUP_SYSTEM_PROMPT},
-                                *followup_non_system,
-                            ]
-
-                            followup_instruction = CODE_INTERPRETER_SUMMARY_PROMPT if retries < max_retries else CODE_INTERPRETER_FAIL_PROMPT
-
-                            followup_messages = [
-                                *followup_base_messages,
-                                {
-                                    "role": "assistant",
-                                    "content": serialize_content_blocks(content_blocks, raw=True),
-                                },
-                                {
-                                    "role": "user",
-                                    "content": json.dumps({
-                                        "instruction": followup_instruction
-                                    }),
-                                }
-                            ]
-
-                            # Use the user's originally selected model for the summary,
-                            # falling back to the code interpreter model if unavailable.
-                            display_model_id = metadata.get("display_model_id")
-                            summary_model = (
-                                Models.get_model_by_id(display_model_id)
-                                if display_model_id
-                                else None
-                            ) or Models.get_model_by_name_and_company(
-                                os.getenv("DEFAULT_CODE_INTERPRETER_MODEL"), user.company_id
-                            )
-
-                            res, _ = await generate_chat_completion({
-                                "stream": True,
-                                "messages": followup_messages,
-                                "metadata": {
-                                    "agent_or_task_prompt": True
-                                }
-                            }, user, summary_model)
-
-                            if isinstance(res, StreamingResponse):
-                                await stream_body_handler(res)
-
-                        except Exception as follow_err:
-                            log.error(f"Follow-up LLM generation failed: {follow_err}")
-
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {
@@ -2301,6 +1634,9 @@ async def process_chat_response(
                     "content": serialize_content_blocks(content_blocks),
                     "title": title,
                 }
+
+                if response_images:
+                    data["files"] = response_images
 
                 if not ENABLE_REALTIME_CHAT_SAVE:
                     # Save message in the database
@@ -2316,6 +1652,9 @@ async def process_chat_response(
                                 "sources": sources,
                             },
                         })
+
+                    if response_images:
+                        message["files"] = response_images
 
                     Chats.upsert_message_to_chat_by_id_and_message_id(
                         metadata["chat_id"],
@@ -2398,22 +1737,3 @@ async def process_chat_response(
             background=response.background,
         )
 
-def get_extension_from_base64(b64_string):
-    match = re.match(r"data:(image/[^;]+);base64,", b64_string)
-    if not match:
-        return None  # Not a valid base64 image with MIME info
-
-    mime_type = match.group(1)  # e.g. "image/png"
-
-    # Map MIME → file extension
-    mapping = {
-        "image/png": "png",
-        "image/jpeg": "jpg",
-        "image/jpg": "jpg",
-        "image/webp": "webp",
-        "image/gif": "gif",
-        "image/bmp": "bmp",
-        "image/svg+xml": "svg",
-    }
-
-    return mapping.get(mime_type, None)

@@ -14,17 +14,13 @@ from beyond_the_loop.models.files import (
     FileModelResponse,
     Files,
 )
+from beyond_the_loop.models.users import Users
 from open_webui.routers.retrieval import process_file, ProcessFileForm
-
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.constants import ERROR_MESSAGES
-
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Request
 from fastapi.responses import FileResponse, StreamingResponse
-
-
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_verified_user
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -99,46 +95,6 @@ def upload_file(
 
 
 ############################
-# List Files
-############################
-
-
-@router.get("/", response_model=list[FileModelResponse])
-async def list_files(user=Depends(get_verified_user)):
-    if user.role == "admin":
-        files = Files.get_files()
-    else:
-        files = Files.get_files_by_user_id(user.id)
-    return files
-
-
-############################
-# Delete All Files
-############################
-
-
-@router.delete("/all")
-async def delete_all_files(user=Depends(get_admin_user)):
-    result = Files.delete_all_files()
-    if result:
-        try:
-            Storage.delete_all_files()
-        except Exception as e:
-            log.exception(e)
-            log.error(f"Error deleting files")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT("Error deleting files"),
-            )
-        return {"message": "All files deleted successfully"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT("Error deleting files"),
-        )
-
-
-############################
 # Get File By Id
 ############################
 
@@ -146,8 +102,9 @@ async def delete_all_files(user=Depends(get_admin_user)):
 @router.get("/{id}", response_model=Optional[FileModel])
 async def get_file_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or user.role == "admin"):
+    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
         return file
     else:
         raise HTTPException(
@@ -164,8 +121,9 @@ async def get_file_by_id(id: str, user=Depends(get_verified_user)):
 @router.get("/{id}/data/content")
 async def get_file_data_content_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or user.role == "admin"):
+    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
         return {"content": file.data.get("content", "")}
     else:
         raise HTTPException(
@@ -188,8 +146,9 @@ async def update_file_data_content_by_id(
     request: Request, id: str, form_data: ContentForm, user=Depends(get_verified_user)
 ):
     file = Files.get_file_by_id(id)
+    file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or user.role == "admin"):
+    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
         try:
             process_file(
                 request,
@@ -217,7 +176,9 @@ async def update_file_data_content_by_id(
 @router.get("/{id}/content")
 async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
-    if file and (file.user_id == user.id or user.role == "admin"):
+    file_user = Users.get_user_by_id(file.user_id)
+
+    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
         try:
             file_path = Storage.get_file(file.path)
             file_path = Path(file_path)
@@ -259,42 +220,12 @@ async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
         )
 
 
-@router.get("/{id}/content/html")
-async def get_html_file_content_by_id(id: str, user=Depends(get_verified_user)):
-    file = Files.get_file_by_id(id)
-    if file and (file.user_id == user.id or user.role == "admin"):
-        try:
-            file_path = Storage.get_file(file.path)
-            file_path = Path(file_path)
-
-            # Check if the file already exists in the cache
-            if file_path.is_file():
-                log.debug(f"file_path: {file_path}")
-                return FileResponse(file_path)
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=ERROR_MESSAGES.NOT_FOUND,
-                )
-        except Exception as e:
-            log.exception(e)
-            log.error(f"Error getting file content")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT("Error getting file content"),
-            )
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
-
-
 @router.get("/{id}/content/{file_name}")
 async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or user.role == "admin"):
+    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
         file_path = file.path
 
         # Handle Unicode filenames
@@ -345,7 +276,9 @@ async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
 @router.delete("/{id}")
 async def delete_file_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
-    if file and (file.user_id == user.id or user.role == "admin"):
+    file_user = Users.get_user_by_id(file.user_id)
+
+    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
         # We should add Chroma cleanup here
 
         result = Files.delete_file_by_id(id)

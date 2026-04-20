@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -10,11 +11,11 @@ import os
 
 from aiohttp import ClientResponseError
 from fastapi import Depends, HTTPException, Request, APIRouter
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from starlette.background import BackgroundTask
-
+from openai import OpenAI
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.models.completions import Completions
+
 
 from beyond_the_loop.config import (
     CACHE_DIR,
@@ -60,6 +61,7 @@ async def _get_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(
             trust_env=True,
             timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT),
+            read_bufsize=10 * 1024 * 1024,  # 10 MB
             connector=aiohttp.TCPConnector(
                 limit=200,
                 enable_cleanup_closed=True, # proactively detects stale connections
@@ -87,6 +89,50 @@ async def cleanup_response(
 ):
     if response:
         response.close()
+
+
+def _build_file_content_blocks(files: list) -> list:
+    """Read files from local storage and return inline base64 content blocks
+    for use with the OpenAI Responses API. Files are automatically made available
+    to the code interpreter container without a pre-upload step."""
+    import base64
+    from beyond_the_loop.models.files import Files
+    from beyond_the_loop.storage.provider import Storage
+
+    blocks = []
+    for file_item in files:
+        if not isinstance(file_item, dict):
+            continue
+        # File objects may be flat {"id": "..."} or nested {"type": "file", "file": {"id": "..."}}
+        nested = file_item.get("file")
+        file_id = file_item.get("id") or (nested.get("id") if isinstance(nested, dict) else None)
+        if not file_id:
+            continue
+        try:
+            file_record = Files.get_file_by_id(file_id)
+            if not file_record or not file_record.path:
+                continue
+
+            local_path = Storage.get_file(file_record.path)
+
+            with open(local_path, "rb") as f:
+                file_bytes = f.read()
+
+            content_type = (
+                file_record.meta.get("content_type", "application/octet-stream")
+                if file_record.meta
+                else "application/octet-stream"
+            )
+            b64 = base64.b64encode(file_bytes).decode("utf-8")
+            blocks.append({
+                "type": "input_file",
+                "filename": file_record.filename,
+                "file_data": f"data:{content_type};base64,{b64}",
+            })
+        except Exception as e:
+            log.warning(f"Failed to build file content block for file {file_id}: {e}")
+
+    return blocks
 
 
 ##########################################
@@ -252,14 +298,51 @@ async def generate_chat_completion(
 
     payload["model"] = model_name
 
-    if model_name == "Mistral Large 2":
-        payload["stream"] = False
-        for message in payload["messages"]:
-            if "content" in message and isinstance(message["content"], list):
-                message["content"] = [
-                    c for c in message["content"]
-                    if c.get("type") != "image_url"
-                ]
+    # GPT-5.4 (and other azure/responses/* models) must go through /v1/responses
+    # so that code interpreter annotations (container_id, file_id) are not dropped.
+    use_responses_api = "/responses/" in LITELLM_MODEL_MAP.get(model_name, "")
+
+    tools = []
+
+    if metadata.get("web_search_enabled", False):
+        if use_responses_api:
+            tools.append({"type": "web_search_preview"})
+        else:
+            payload["web_search_options"] = {}
+
+    if metadata.get("image_generation_enabled", False):
+        if use_responses_api:
+            tools.append({"type": "image_generation"})
+
+    if metadata.get("code_interpreter_enabled", False):
+        if use_responses_api:
+            tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
+            file_blocks = _build_file_content_blocks(metadata.get("files", []))
+            if file_blocks:
+                # Inject files into the last user message so OpenAI automatically
+                # makes them available in the code interpreter container
+                messages = payload.get("messages", [])
+                last_user_idx = next(
+                    (i for i in range(len(messages) - 1, -1, -1) if messages[i].get("role") == "user"),
+                    None,
+                )
+                if last_user_idx is not None:
+                    content = messages[last_user_idx]["content"]
+                    if isinstance(content, str):
+                        content = [{"type": "input_text", "text": content}]
+                    else:
+                        # Normalize any "text" types to "input_text" for Responses API
+                        content = [
+                            {**item, "type": "input_text"} if item.get("type") == "text" else item
+                            for item in content
+                        ]
+                    messages[last_user_idx]["content"] = file_blocks + content
+                    payload["messages"] = messages
+        else:
+            tools.append({"codeExecution": {}})
+
+    if tools:
+        payload["tools"] = tools
 
     subscription = payments_service.get_subscription(user.company_id)
 
@@ -285,8 +368,12 @@ async def generate_chat_completion(
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
         fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
 
-    if payload["stream"]:
+    if payload["stream"] and not use_responses_api:
         payload["stream_options"] = {"include_usage": True}
+
+    if use_responses_api:
+        # Responses API uses "input" instead of "messages"
+        payload["input"] = payload.pop("messages")
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -322,9 +409,15 @@ async def generate_chat_completion(
                 }
             )
 
+        api_url = (
+            f"{os.getenv('OPENAI_API_BASE_URL')}/responses"
+            if use_responses_api
+            else f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions"
+        )
+
         r = await s.request(
             method="POST",
-            url=f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
+            url=api_url,
             data=payload,
             headers={
                 "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
@@ -346,25 +439,128 @@ async def generate_chat_completion(
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
 
+            if use_responses_api:
+                async def responses_api_stream():
+                    buffer = ""
+                    event_type = None
+                    response_id = f"chatcmpl-responses-{int(time.time())}"
+                    annotations = []
+                    accumulated_content = ""
+
+                    async for chunk in r.content:
+                        chunk_str = chunk.decode("utf-8", errors="replace")
+                        buffer += chunk_str
+
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.rstrip("\r")
+
+                            if line.startswith("event: "):
+                                event_type = line[7:].strip()
+                            elif line.startswith("data: "):
+                                data_str = line[6:]
+                                if data_str == "[DONE]":
+                                    yield b"data: [DONE]\n\n"
+                                    return
+                                try:
+                                    data = json.loads(data_str)
+                                    event = data.get("type") or event_type or ""
+
+                                    if event == "response.output_text.delta":
+                                        delta = data.get("delta", "")
+                                        if delta:
+                                            accumulated_content += delta
+                                            chat_chunk = {
+                                                "id": response_id,
+                                                "object": "chat.completion.chunk",
+                                                "created": int(time.time()),
+                                                "model": model_name,
+                                                "choices": [{"index": 0, "delta": {"content": delta}, "finish_reason": None}],
+                                            }
+                                            yield f"data: {json.dumps(chat_chunk)}\n\n".encode()
+
+                                    elif event == "response.output_text.annotation.added":
+                                        annotation = data.get("annotation", {})
+                                        if annotation.get("type") == "container_file_citation":
+                                            annotations.append(annotation)
+
+                                    elif event == "response.completed":
+                                        resp = data.get("response", {})
+                                        usage = resp.get("usage", {})
+                                        usage_openai_format = {
+                                            "model": model_name,
+                                            "usage": {
+                                                "prompt_tokens": usage.get("input_tokens", 0),
+                                                "completion_tokens": usage.get("output_tokens", 0),
+                                                "total_tokens": usage.get("total_tokens", usage.get("input_tokens", 0) + usage.get("output_tokens", 0)),
+                                            }
+                                        }
+                                        await credit_service.record_completion(
+                                            user, usage_openai_format, model_name,
+                                            assistant=model.name if model.base_model_id else None,
+                                            agent_or_task_prompt=agent_or_task_prompt,
+                                            subscription=subscription,
+                                            should_subtract_credits=has_chat_id,
+                                        )
+                                        if annotations:
+                                            file_refs = [
+                                                {
+                                                    "container_id": a.get("container_id"),
+                                                    "file_id": a.get("file_id"),
+                                                    "filename": a.get("filename"),
+                                                }
+                                                for a in annotations
+                                            ]
+                                            replaced_content = accumulated_content
+                                            for ref in file_refs:
+                                                filename = ref.get("filename", "")
+                                                container_id = ref.get("container_id", "")
+                                                file_id = ref.get("file_id", "")
+                                                if filename and container_id and file_id:
+                                                    replaced_content = replaced_content.replace(
+                                                        f"(sandbox:/mnt/data/{filename})",
+                                                        f"(/openai/container-files/{container_id}/{file_id}?filename={filename})",
+                                                    )
+                                            yield f"data: {json.dumps({'file_refs': file_refs, 'content_replacement': replaced_content})}\n\n".encode()
+                                        stop_chunk = {
+                                            "id": response_id,
+                                            "object": "chat.completion.chunk",
+                                            "created": int(time.time()),
+                                            "model": model_name,
+                                            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                                            **usage_openai_format,
+                                        }
+                                        yield f"data: {json.dumps(stop_chunk)}\n\n".encode()
+                                        yield b"data: [DONE]\n\n"
+                                        return
+                                except json.JSONDecodeError as e:
+                                    log.warning(f"RESPONSES API JSON decode error: {e} for: {data_str!r}")
+                            elif line == "":
+                                event_type = None
+
+                return StreamingResponse(
+                    responses_api_stream(),
+                    status_code=r.status,
+                    headers=dict(r.headers),
+                    background=BackgroundTask(cleanup_response, response=r),
+                ), model
+
             async def insert_completion_if_streaming_is_done():
-                full_response = ""
                 async for chunk in r.content:
                     chunk_str = chunk.decode()
                     if chunk_str.startswith('data: '):
                         try:
                             data = json.loads(chunk_str[6:])
-                            delta = data.get('choices', [{}])[0].get('delta', {}).get('content', '')
-                            if delta:  # Only use it if there's actual content
-                                full_response += delta
-                            elif data.get('usage'):
+                            if data.get('usage'):
                                 # End of stream
                                 # Add completion to completion table if it's a chat message from the user
-                                credit_cost_streaming = 0
-
-                                if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                                    credit_cost_streaming = await credit_service.subtract_credit_cost_by_user_and_response(user, data)
-
-                                Completions.insert_new_completion(user.id, model_name, credit_cost_streaming, model.name if model.base_model_id else None, agent_or_task_prompt)
+                                await credit_service.record_completion(
+                                    user, data, model_name,
+                                    assistant=model.name if model.base_model_id else None,
+                                    agent_or_task_prompt=agent_or_task_prompt,
+                                    subscription=subscription,
+                                    should_subtract_credits=has_chat_id,
+                                )
                         except json.JSONDecodeError:
                             log.debug(f"JSON decode error for chunk: {chunk_str}")
 
@@ -374,9 +570,7 @@ async def generate_chat_completion(
                 insert_completion_if_streaming_is_done(),
                 status_code=r.status,
                 headers=dict(r.headers),
-                background=BackgroundTask(
-                    cleanup_response, response=r
-                ),
+                background=BackgroundTask(cleanup_response, response=r),
             ), model
         else:
             try:
@@ -414,12 +608,13 @@ async def generate_chat_completion(
 
                 return await generate_chat_completion(form_data, user, model)
 
-            credit_cost = 0
-
-            if has_chat_id and subscription.get("plan") != "free" and subscription.get("plan") != "premium":
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(user, response)
-
-            Completions.insert_new_completion(user.id, model_name, credit_cost, model.name if model.base_model_id else None, agent_or_task_prompt)
+            await credit_service.record_completion(
+                user, response, model_name,
+                assistant=model.name if model.base_model_id else None,
+                agent_or_task_prompt=agent_or_task_prompt,
+                subscription=subscription,
+                should_subtract_credits=has_chat_id,
+            )
 
             return response, model
     except Exception as e:
@@ -440,6 +635,34 @@ async def generate_chat_completion(
         if not streaming:
             if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
+
+@router.get("/container-files/{container_id}/{file_id}")
+async def download_container_file(
+    container_id: str,
+    file_id: str,
+    filename: Optional[str] = None,
+    user=Depends(get_verified_user),
+):
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    url = f"{azure_endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
+
+    s = await _get_session()
+    async with s.get(url, headers={"api-key": azure_api_key}) as r:
+        if r.status != 200:
+            body = await r.text()
+            raise HTTPException(status_code=r.status, detail=body)
+        content = await r.read()
+
+    disposition_filename = filename or file_id
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{disposition_filename}"'
+        },
+    )
+
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):

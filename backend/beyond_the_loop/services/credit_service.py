@@ -4,13 +4,11 @@ import stripe
 import litellm
 from typing import Optional
 from fastapi import HTTPException
-from nltk.chat.zen import responses
 
 from beyond_the_loop.models.users import UserModel
 from open_webui.env import SRC_LOG_LEVELS
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies
-from beyond_the_loop.models.completions import Completions
 from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG, LITELLM_MODEL_MAP
 
@@ -140,11 +138,6 @@ class CreditService:
         cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
         await self._subtract_credits_by_user_and_credits(user, cost)
 
-    async def subtract_credits_by_user_for_web_search(self, user):
-        await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
-
-    async def subtract_credits_by_user_for_code_interpreter(self, user):
-        await self._subtract_credits_by_user_and_credits(user, 0.05 * PROFIT_MARGIN_FACTOR)
 
     @staticmethod
     async def recharge_flex_credits(user):
@@ -212,8 +205,36 @@ class CreditService:
                     detail=f"Insufficient credits. No credits left.",
                 )
 
+    async def record_completion(
+        self,
+        user: UserModel,
+        response,
+        model_name: str,
+        assistant: str | None = None,
+        agent_or_task_prompt: bool = False,
+        subscription: dict | None = None,
+        should_subtract_credits: bool = True,
+    ) -> float:
+        """Subtract credits (if applicable) and insert a Completions record.
+
+        Args:
+            subscription: Pass the subscription dict to apply free/premium plan check.
+                          Pass None to always subtract (e.g. API key usage).
+            should_subtract_credits: Set to False to skip credit subtraction but still record the completion.
+        """
+        from beyond_the_loop.models.completions import Completions
+
+        credit_cost = 0.0
+
+        if should_subtract_credits and (subscription is None or subscription.get("plan") not in ("free", "premium")):
+            credit_cost = await self.subtract_credit_cost_by_user_and_response(user, response)
+
+        Completions.insert_new_completion(user.id, model_name, credit_cost, assistant, agent_or_task_prompt)
+        return credit_cost
+
     @staticmethod
     async def subtract_credit_cost_by_user_and_response(user: UserModel, response):
+        print("DAS SIND DIE KOSTEN", response.get('usage', {}))
         model_name = response.get("model")
 
         litellm_model = LITELLM_MODEL_MAP.get(model_name, "")
@@ -231,7 +252,7 @@ class CreditService:
         try:
             token_cost_usd = litellm.completion_cost(
                 model=pricing_model,
-                completion_response=response,
+                completion_response=response
             )
         except Exception as e:
             log.warning(f"litellm.completion_cost failed for {pricing_model}: {e}")
@@ -242,16 +263,13 @@ class CreditService:
 
         # input_cost_per_query is a custom field not in LiteLLM's pricing table
         search_query_cost = 0
+
         if "Perplexity" in model_name:
             pricing = litellm.model_cost.get(litellm_model) or LITELLM_MODEL_CONFIG.get(model_name, {})
             search_query_cost = pricing.get("input_cost_per_query", 0)
 
         total_costs = (token_cost_usd + search_query_cost) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
 
-        input_tokens = response.get('usage', {}).get('prompt_tokens', 0)
-        output_tokens = response.get('usage', {}).get('completion_tokens', 0)
-        completion_tokens_details = response.get('usage', {}).get('completion_tokens_details') or {}
-        reasoning_tokens = completion_tokens_details.get("reasoning_tokens", 0)
 
         return await credit_service._subtract_credits_by_user_and_credits(user, total_costs)
 

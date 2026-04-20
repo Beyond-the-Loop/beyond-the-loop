@@ -60,7 +60,7 @@
 				}
 
 				if (id.startsWith('http://') || id.startsWith('https://')) {
-					_source = { ..._source, name: id, url: id };
+					_source = { ..._source, ...(!metadata?.name ? { name: id } : {}), url: id };
 				}
 
 				const existingSource = acc.find((item) => item.id === id);
@@ -103,14 +103,9 @@
 						id={`source-${citation.source.name}`}
 						class="no-toggle outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-white dark:bg-gray-900 rounded-xl max-w-96"
 						on:click={() => {
-							// In this case the citation comes from the LLM response
-							if (
-								citation.document &&
-								citation.document[0] &&
-								citation.source &&
-								citation.document[0] === citation.source.name
-							) {
-								window.open(citation.source.name, '_blank', 'noopener,noreferrer');
+							// If a URL is available, open it directly
+							if (citation.source?.url) {
+								window.open(citation.source.url, '_blank', 'noopener,noreferrer');
 								return;
 							}
 							showCitationModal = true;
@@ -140,18 +135,12 @@
 						<span class="whitespace-nowrap hidden sm:inline">{$i18n.t('References from')}</span>
 						<div class="flex items-center">
 							<div class="text-xs font-medium items-center">
-								{#each citations as citation, idx}
+								{#each citations.slice(0, 2) as citation, idx}
 									<button
 										class="no-toggle outline-none mb-1 flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
 										on:click={() => {
-											// In this case the citation comes from the LLM response
-											if (
-												citation.document &&
-												citation.document[0] &&
-												citation.source &&
-												citation.document[0] === citation.source.name
-											) {
-												window.open(citation.source.name, '_blank', 'noopener,noreferrer');
+											if (citation.source?.url) {
+												window.open(citation.source.url, '_blank', 'noopener,noreferrer');
 												return;
 											}
 											showCitationModal = true;
@@ -194,17 +183,10 @@
 							<button
 								class="no-toggle mb-1 outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
 								on:click={() => {
-									// In this case the citation comes from the LLM response
-									if (
-										citation.document &&
-										citation.document[0] &&
-										citation.source &&
-										citation.document[0] === citation.source.name
-									) {
-										window.open(citation.source.name, '_blank', 'noopener,noreferrer');
+									if (citation.source?.url) {
+										window.open(citation.source.url, '_blank', 'noopener,noreferrer');
 										return;
 									}
-
 									showCitationModal = true;
 									selectedCitation = citation;
 								}}
