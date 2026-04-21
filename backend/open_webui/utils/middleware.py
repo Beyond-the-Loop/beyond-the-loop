@@ -539,6 +539,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 features["web_search"] = True
             if routing_decision.needs_code_execution:
                 features["code_interpreter"] = True
+            if routing_decision.needs_image_generation:
+                features["image_generation"] = True
 
         await event_emitter(
             {
