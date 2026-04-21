@@ -226,7 +226,7 @@ class CreditService:
 
         credit_cost = 0.0
 
-        if should_subtract_credits and (subscription is None or subscription.get("plan") not in ("free", "premium")):
+        if should_subtract_credits and (subscription is None or subscription.get("plan") not in ("free", "premium", "unlimited")):
             credit_cost = await self.subtract_credit_cost_by_user_and_response(user, response)
 
         Completions.insert_new_completion(user.id, model_name, credit_cost, assistant, agent_or_task_prompt)
@@ -268,7 +268,6 @@ class CreditService:
             search_query_cost = pricing.get("input_cost_per_query", 0)
 
         total_costs = (token_cost_usd + search_query_cost) * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
-
 
         return await credit_service._subtract_credits_by_user_and_credits(user, total_costs)
 
