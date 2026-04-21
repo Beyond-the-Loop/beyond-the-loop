@@ -1373,12 +1373,15 @@
 						message.files?.some((file) => file.type === 'image')
 					);
 
-					if (hasImages && !(model.info?.meta?.capabilities?.vision ?? true)) {
+					if (hasImages && !($modelsInfo[model.name].supports_image_input)) {
 						toast.error(
 							$i18n.t('Model {{modelName}} is not vision capable', {
 								modelName: model.name ?? model.id
 							})
 						);
+					}else {
+						console.log(hasImages);
+						console.log($modelsInfo[model.name]);
 					}
 
 					let responseMessageId =
@@ -1569,7 +1572,12 @@
 
 				auto_tools: autoToolsEnabled
 					? (() => {
-							const _meta = $modelsInfo[model?.name];
+							const _baseModel = model.base_model_id
+								? $models.find((m) => m.id === model.base_model_id)
+								: undefined;
+							const _meta = _baseModel
+								? $modelsInfo[_baseModel?.name] 
+								: $modelsInfo[model?.name];
 							return [
 								...($companyConfig?.config?.rag?.web?.search?.enable &&
 								($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
@@ -1607,7 +1615,7 @@
 					}
 					: {}),
 
-				...(stream && (model.info?.meta?.capabilities?.usage ?? false)
+				...(stream
 					? {
 						stream_options: {
 							include_usage: true

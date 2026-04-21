@@ -53,8 +53,6 @@ class ModelMeta(BaseModel):
 
     tags: Optional[list[dict]] = None
 
-    capabilities: Optional[dict] = None
-
     model_config = ConfigDict(extra="allow")
 
     files: Optional[list[dict]] = None

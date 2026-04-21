@@ -538,6 +538,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # Set feature flags in metadata so litellm.py can inject the correct provider-specific tools
     _model_cfg = LITELLM_MODEL_CONFIG.get(model.name, {})
+    _base_model = Models.get_model_by_id(model.base_model_id)
+    if _base_model: 
+        _model_cfg = LITELLM_MODEL_CONFIG.get(_base_model.name, {})
 
     if features.get("web_search") and _model_cfg.get("supports_web_search"):
         metadata["web_search_enabled"] = True

@@ -1284,7 +1284,7 @@
 	"Select model": "Modell auswählen",
 	"Select only one model to call": "Wählen Sie nur ein Modell zum Anrufen aus",
 	"Select position": "Position auswählen",
-	"Selected model(s) do not support image inputs": "Ihre ausgewählten Modelle unterstützen keine Bildeingaben",
+	"Selected model does not support image inputs": "Das ausgewählte Modell unterstützt keine Bildeingaben",
 	"Selecting the most suitable model": "Wähle das optimale Modell",
 	"Selects the optimal AI model for each request automatically. To do this, we analyze how complex your request is, match it against the strengths of our models, and choose the most efficient model for the task.": "Wählt für jede Aufgabe automatisch ein optimales KI-Modell. Dazu analysieren wir, wie anspruchsvoll deine Anfrage ist, gleichen sie gezielt mit den Stärken unserer Modelle ab und wählen für die Aufgabe das effizienteste Modell aus.",
 	"Semantic distance to query": "Semantische Distanz zur Abfrage",
