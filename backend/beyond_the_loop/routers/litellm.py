@@ -1,7 +1,10 @@
 import hashlib
+import io
 import json
 import logging
+import mimetypes
 import time
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -140,6 +143,50 @@ async def _upload_files_to_openai(files: list) -> list:
             log.warning(f"Failed to upload file {file_id} to OpenAI: {e}")
 
     return blocks
+
+
+async def _download_and_store_container_file(
+    container_id: str,
+    openai_file_id: str,
+    filename: str,
+    user_id: str,
+) -> Optional[str]:
+    """Download a container file from OpenAI and store it in our Files API. Returns internal file ID or None on failure."""
+    from beyond_the_loop.models.files import FileForm, Files
+    from beyond_the_loop.storage.provider import Storage
+
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    if not endpoint or not api_key:
+        return None
+
+    url = f"{endpoint}/openai/v1/containers/{container_id}/files/{openai_file_id}/content?api-version=preview"
+    s = await _get_session()
+    async with s.get(url, headers={"api-key": api_key}) as r:
+        if r.status != 200:
+            log.warning(f"Failed to download container file {openai_file_id}: {r.status} {await r.text()}")
+            return None
+        content = await r.read()
+
+    internal_id = str(uuid.uuid4())
+    storage_filename = f"{internal_id}_{filename}"
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    _, file_path = Storage.upload_file(io.BytesIO(content), storage_filename)
+    Files.insert_new_file(
+        user_id,
+        FileForm(
+            id=internal_id,
+            filename=filename,
+            path=file_path,
+            meta={
+                "name": filename,
+                "content_type": content_type,
+                "size": len(content),
+            },
+        ),
+    )
+    return internal_id
 
 
 ##########################################
@@ -509,24 +556,39 @@ async def generate_chat_completion(
                                             should_subtract_credits=has_chat_id,
                                         )
                                         if annotations:
-                                            file_refs = [
-                                                {
-                                                    "container_id": a.get("container_id"),
-                                                    "file_id": a.get("file_id"),
-                                                    "filename": a.get("filename"),
-                                                }
-                                                for a in annotations
-                                            ]
                                             replaced_content = accumulated_content
-                                            for ref in file_refs:
-                                                filename = ref.get("filename", "")
-                                                container_id = ref.get("container_id", "")
-                                                file_id = ref.get("file_id", "")
-                                                if filename and container_id and file_id:
+                                            file_refs = []
+                                            for a in annotations:
+                                                a_filename = a.get("filename", "")
+                                                a_container_id = a.get("container_id", "")
+                                                a_openai_file_id = a.get("file_id", "")
+                                                if not (a_filename and a_container_id and a_openai_file_id):
+                                                    continue
+                                                internal_id = await _download_and_store_container_file(
+                                                    a_container_id, a_openai_file_id, a_filename, user.id
+                                                )
+                                                if internal_id:
+                                                    our_url = f"/api/v1/files/{internal_id}/content/{a_filename}"
                                                     replaced_content = replaced_content.replace(
-                                                        f"(sandbox:/mnt/data/{filename})",
-                                                        f"(/openai/container-files/{container_id}/{file_id}?filename={filename})",
+                                                        f"(sandbox:/mnt/data/{a_filename})",
+                                                        f"({our_url})",
                                                     )
+                                                    file_refs.append({
+                                                        "file_id": internal_id,
+                                                        "filename": a_filename,
+                                                        "url": our_url,
+                                                    })
+                                                else:
+                                                    fallback_url = f"/openai/container-files/{a_container_id}/{a_openai_file_id}?filename={a_filename}"
+                                                    replaced_content = replaced_content.replace(
+                                                        f"(sandbox:/mnt/data/{a_filename})",
+                                                        f"({fallback_url})",
+                                                    )
+                                                    file_refs.append({
+                                                        "container_id": a_container_id,
+                                                        "file_id": a_openai_file_id,
+                                                        "filename": a_filename,
+                                                    })
                                             yield f"data: {json.dumps({'file_refs': file_refs, 'content_replacement': replaced_content})}\n\n".encode()
                                         stop_chunk = {
                                             "id": response_id,
@@ -641,45 +703,6 @@ async def generate_chat_completion(
         if not streaming:
             if r and isinstance(r, aiohttp.ClientResponse):
                 r.close()
-
-@router.get("/container-files/{container_id}/{file_id}")
-async def download_container_file(
-    container_id: str,
-    file_id: str,
-    filename: Optional[str] = None,
-    user=Depends(get_verified_user),
-):
-    endpoints = [
-        (os.getenv("AZURE_OPENAI_ENDPOINT"), os.getenv("AZURE_OPENAI_API_KEY"))
-    ]
-
-    s = await _get_session()
-    content = None
-    last_status, last_body = 502, "No Azure endpoint available"
-
-    for endpoint, api_key in endpoints:
-        if not endpoint or not api_key:
-            continue
-        url = f"{endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
-        async with s.get(url, headers={"api-key": api_key}) as r:
-            if r.status == 200:
-                content = await r.read()
-                break
-            last_status, last_body = r.status, await r.text()
-
-    if content is None:
-        raise HTTPException(status_code=last_status, detail=last_body)
-
-    disposition_filename = filename or file_id
-
-    return Response(
-        content=content,
-        media_type="application/octet-stream",
-        headers={
-            "Content-Disposition": f'attachment; filename="{disposition_filename}"'
-        },
-    )
-
 
 @router.post("/magicPrompt")
 async def generate_prompt(form_data: dict, user=Depends(get_verified_user)):

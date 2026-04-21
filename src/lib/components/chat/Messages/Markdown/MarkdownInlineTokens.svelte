@@ -36,7 +36,7 @@
 			{token.text}
 		{/if}
 	{:else if token.type === 'link'}
-		{#if token.href?.startsWith('/openai/container-files/')}
+		{#if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}
 			<a
 				href={`${WEBUI_BASE_URL}${token.href}`}
 				download
