@@ -1615,13 +1615,6 @@
 					}
 					: {}),
 
-				...(stream
-					? {
-						stream_options: {
-							include_usage: true
-						}
-					}
-					: {})
 			},
 			`${WEBUI_BASE_URL}/api`)
 			.catch((error) => {

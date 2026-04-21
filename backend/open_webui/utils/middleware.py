@@ -59,6 +59,7 @@ from open_webui.utils.misc import (
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
     LITELLM_MODEL_CONFIG,
+    LITELLM_MODEL_MAP,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -539,8 +540,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     # Set feature flags in metadata so litellm.py can inject the correct provider-specific tools
     _model_cfg = LITELLM_MODEL_CONFIG.get(model.name, {})
     _base_model = Models.get_model_by_id(model.base_model_id)
-    if _base_model: 
+    if _base_model:
         _model_cfg = LITELLM_MODEL_CONFIG.get(_base_model.name, {})
+
+    # Determine if this model uses the OpenAI Responses API (which supports file uploads for code interpreter)
+    _effective_model_name = _base_model.name if _base_model else model.name
+    _use_responses_api = "/responses/" in LITELLM_MODEL_MAP.get(_effective_model_name, "")
 
     if features.get("web_search") and _model_cfg.get("supports_web_search"):
         metadata["web_search_enabled"] = True
@@ -616,12 +621,15 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             if model_files:
                 files.extend(model_files)
 
-    # For code interpreter: skip RAG and text extraction entirely.
+    # For code interpreter on OpenAI Responses API: skip RAG and text extraction entirely.
     # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
+    # For other providers (e.g. Gemini codeExecution), still extract file content as text
+    # because those models don't support file uploads via the code interpreter path.
     code_interpreter_enabled = form_data.get("metadata", {}).get("code_interpreter_enabled", False)
+    skip_file_processing = code_interpreter_enabled and _use_responses_api
 
     # First, decide if this is a RAG task or content extraction task
-    if not code_interpreter_enabled:
+    if not skip_file_processing:
         try:
             has_user_collections = any(f.get("type") == "collection" for f in files)
 
@@ -632,18 +640,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             log.exception(f"Error in file intent decision: {e}")
             is_rag_task = True  # Fallback to RAG
     else:
-        is_rag_task = False  # Will be skipped below since code_interpreter_enabled
+        is_rag_task = False  # Skipped: code interpreter on responses API handles files directly
 
     await check_disconnect(request)
 
-    if not code_interpreter_enabled and is_rag_task:
+    if not skip_file_processing and is_rag_task:
         # Proceed with normal RAG processing
         try:
             form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params)
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
-    elif not code_interpreter_enabled:
+    elif not skip_file_processing:
         # Handle non-RAG task: extract file content and append to user prompt
         try:
             file_contents = []
@@ -1510,7 +1518,6 @@ async def process_chat_response(
                         await response.background()
 
                 await stream_body_handler(response)
-                print(f"[SOURCES DEBUG] sources after stream_body_handler: {sources}", flush=True)
 
                 MAX_TOOL_CALL_RETRIES = 5
                 tool_call_retries = 0

@@ -334,7 +334,6 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
-      supports_code_execution: true
       supports_web_search: true
       supports_document_input: true
       supports_image_input: true

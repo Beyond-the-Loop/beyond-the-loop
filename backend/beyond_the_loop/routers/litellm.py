@@ -372,12 +372,12 @@ async def generate_chat_completion(
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
         fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
 
-    if payload["stream"] and not use_responses_api:
-        payload["stream_options"] = {"include_usage": True}
-
     if use_responses_api:
+        payload.pop("stream_options", None)
         # Responses API uses "input" instead of "messages"
         payload["input"] = payload.pop("messages")
+    elif payload["stream"]:
+        payload["stream_options"] = {"include_usage": True}
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -385,6 +385,8 @@ async def generate_chat_completion(
     r = None
     streaming = False
     response = None
+
+    print(payload)
 
     try:
         if not agent_or_task_prompt:
