@@ -304,7 +304,9 @@ SMART_ROUTER_MODEL = ModelModel(
 )
 
 
-async def _smart_router_model_selection(user_message: str, user) -> ModelModel | None:
+async def _smart_router_model_selection(
+    user_message: str, user, messages: list[dict] | None = None
+) -> tuple[ModelModel | None, SmartRouterDecision | None]:
     """
     Score the user message complexity (1–5) via structured completion, then pick
     the best model from all candidates whose intelligence_score >= that score.
@@ -315,8 +317,35 @@ async def _smart_router_model_selection(user_message: str, user) -> ModelModel |
     try:
         agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
+        # Build conversation context from the last few turns so follow-up messages
+        # like "ja bitte" (agreeing to a suggested web search) are routed correctly.
+        context_section = ""
+        if messages:
+            prior = [
+                m for m in messages
+                if m.get("role") in ("user", "assistant")
+            ][:-1][-3:]
+            if prior:
+                lines = []
+                for m in prior:
+                    content = m.get("content", "")
+                    if isinstance(content, list):
+                        content = next(
+                            (p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"),
+                            "",
+                        )
+                    label = "User" if m.get("role") == "user" else "Assistant"
+                    lines.append(f"{label}: {str(content)[:400]}")
+                context_section = "### Recent Conversation:\n" + "\n".join(lines) + "\n\n"
+
+        prompt = (
+            SMART_ROUTER_PROMPT
+            .replace("{{CONVERSATION_CONTEXT}}", context_section)
+            .replace("{{USER_MESSAGE}}", user_message)
+        )
+
         decision = await structured_completion(
-            messages=[{"role": "user", "content": SMART_ROUTER_PROMPT.replace("{{USER_MESSAGE}}", user_message)}],
+            messages=[{"role": "user", "content": prompt}],
             response_model=SmartRouterDecision,
             model=agent_model,
         )
@@ -353,7 +382,7 @@ async def _smart_router_model_selection(user_message: str, user) -> ModelModel |
             candidates.append(m)
 
         if not candidates:
-            return None
+            return None, decision
 
         # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
         cost_values = {
@@ -407,12 +436,10 @@ async def _smart_router_model_selection(user_message: str, user) -> ModelModel |
         top_candidates = scored_candidates[:3]
         best_model = random.choice(top_candidates)
 
-        cfg = LITELLM_MODEL_CONFIG.get(best_model.name, {})
-
-        return best_model
+        return best_model, decision
     except Exception as e:
         log.exception(f"Smart Router model selection failed: {e}")
-        return None
+        return None, None
 
 
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
@@ -429,9 +456,22 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         chat_id = metadata.get("chat_id")
 
         if chat_id:
+            # Use DEFAULT_AGENT_MODEL for compression when the selected model is a virtual
+            # model (e.g. Smart Router) that has no real LiteLLM backing — otherwise
+            # _generate_summary would call the LiteLLM proxy with an unknown model name
+            # and hang indefinitely.
+            is_smart_router = (
+                model.name == SMART_ROUTER_MODEL.name
+                or model.base_model_id == SMART_ROUTER_MODEL.id
+            )
+            compression_model = (
+                Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+                if is_smart_router
+                else model
+            ) or model
             form_data = await maybe_compress_chat(
                 form_data=form_data,
-                model=model,
+                model=compression_model,
                 chat_id=chat_id,
                 event_emitter=event_emitter,
             )
@@ -480,7 +520,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-        routed_model = await _smart_router_model_selection(user_message, user)
+        routed_model, routing_decision = await _smart_router_model_selection(
+            user_message, user, messages=form_data["messages"]
+        )
 
         if routed_model:
             model = routed_model
@@ -489,6 +531,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
             form_data["model"] = model.id
+
+        # Propagate tool needs from routing decision into features so the
+        # web_search / code_interpreter tools are actually passed to the model.
+        if routing_decision:
+            if routing_decision.needs_web_search:
+                features["web_search"] = True
+            if routing_decision.needs_code_execution:
+                features["code_interpreter"] = True
 
         await event_emitter(
             {
@@ -516,7 +566,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-        routed_model = await _smart_router_model_selection(user_message, user)
+        routed_model, routing_decision = await _smart_router_model_selection(
+            user_message, user, messages=form_data["messages"]
+        )
 
         if routed_model:
             model = model.model_copy(update={"base_model_id": routed_model.id})
@@ -524,6 +576,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
             if fallback:
                 model = model.model_copy(update={"base_model_id": fallback.id})
+
+        if routing_decision:
+            if routing_decision.needs_web_search:
+                features["web_search"] = True
+            if routing_decision.needs_code_execution:
+                features["code_interpreter"] = True
 
         await event_emitter(
             {
