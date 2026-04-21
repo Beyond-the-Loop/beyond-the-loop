@@ -1,9 +1,7 @@
 import logging
 import os
 import shutil
-import json
 from abc import ABC, abstractmethod
-from datetime import timedelta
 from typing import BinaryIO, Optional, Tuple
 
 log = logging.getLogger(__name__)
@@ -17,12 +15,9 @@ from beyond_the_loop.config import (
     S3_REGION_NAME,
     S3_SECRET_ACCESS_KEY,
     GCS_BUCKET_NAME,
-    GOOGLE_APPLICATION_CREDENTIALS_JSON,
     STORAGE_PROVIDER,
     UPLOAD_DIR,
 )
-from google import auth as google_auth
-from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError, NotFound
 from open_webui.constants import ERROR_MESSAGES
@@ -168,15 +163,7 @@ class GCSStorageProvider(StorageProvider):
     def __init__(self):
         self.bucket_name = GCS_BUCKET_NAME
 
-        if GOOGLE_APPLICATION_CREDENTIALS_JSON:
-            self.gcs_client = storage.Client.from_service_account_info(
-                info=json.loads(GOOGLE_APPLICATION_CREDENTIALS_JSON)
-            )
-        else:
-            # if no credentials json is provided, credentials will be picked up from the environment
-            # if running on local environment, credentials would be user credentials
-            # if running on a Compute Engine instance, credentials would be from Google Metadata server
-            self.gcs_client = storage.Client()
+        self.gcs_client = storage.Client()
         self.bucket = self.gcs_client.bucket(GCS_BUCKET_NAME)
 
     def upload_file(self, file: BinaryIO, filename: str) -> Tuple[bytes, str]:
@@ -227,23 +214,6 @@ class GCSStorageProvider(StorageProvider):
         # Always delete from local storage
         LocalStorageProvider.delete_all_files()
 
-    def get_presigned_url(self, file_path: str, expiry_seconds: int = 600) -> Optional[str]:
-        """Generate a signed GCS URL valid for expiry_seconds seconds."""
-        try:
-            filename = file_path.removeprefix("gs://").split("/", 1)[1]
-            blob = self.bucket.blob(filename)
-            credentials, _ = google_auth.default()
-            credentials.refresh(GoogleAuthRequest())
-
-            return blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(seconds=expiry_seconds),
-                method="GET",
-                service_account_email=credentials.service_account_email,
-                access_token=credentials.token,
-            )
-        except Exception as e:
-            raise RuntimeError(f"Error generating signed URL for GCS: {e}")
 
 
 def get_storage_provider(storage_provider: str):

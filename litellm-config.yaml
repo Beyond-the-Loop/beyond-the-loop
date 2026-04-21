@@ -388,7 +388,6 @@ model_list:
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
       supports_web_search: true
-      supports_code_execution: true
       supports_document_input: true
 
   - model_name: "Mistral Large 3"
