@@ -91,11 +91,8 @@ async def cleanup_response(
         response.close()
 
 
-def _build_file_content_blocks(files: list) -> list:
-    """Read files from local storage and return inline base64 content blocks
-    for use with the OpenAI Responses API. Files are automatically made available
-    to the code interpreter container without a pre-upload step."""
-    import base64
+def _build_file_content_blocks(files: list, expiry_seconds: int = 600) -> list:
+    """Build input_file content blocks for the OpenAI Responses API using pre-signed URLs."""
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
@@ -113,21 +110,14 @@ def _build_file_content_blocks(files: list) -> list:
             if not file_record or not file_record.path:
                 continue
 
-            local_path = Storage.get_file(file_record.path)
+            presigned_url = Storage.get_presigned_url(file_record.path, expiry_seconds=expiry_seconds)
+            if not presigned_url:
+                log.warning(f"Skipping file {file_id}: storage provider does not support pre-signed URLs")
+                continue
 
-            with open(local_path, "rb") as f:
-                file_bytes = f.read()
-
-            content_type = (
-                file_record.meta.get("content_type", "application/octet-stream")
-                if file_record.meta
-                else "application/octet-stream"
-            )
-            b64 = base64.b64encode(file_bytes).decode("utf-8")
             blocks.append({
                 "type": "input_file",
-                "filename": file_record.filename,
-                "file_data": f"data:{content_type};base64,{b64}",
+                "file_url": presigned_url,
             })
         except Exception as e:
             log.warning(f"Failed to build file content block for file {file_id}: {e}")
@@ -435,6 +425,8 @@ async def generate_chat_completion(
             },
         )
 
+        print(payload)
+
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
             streaming = True
@@ -643,18 +635,31 @@ async def download_container_file(
     filename: Optional[str] = None,
     user=Depends(get_verified_user),
 ):
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    url = f"{azure_endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
+    endpoints = [
+        (os.getenv("AZURE_OPENAI_ENDPOINT"), os.getenv("AZURE_OPENAI_API_KEY")),
+        (os.getenv("AZURE_OPENAI_ALTERNATIVE_ENDPOINT"), os.getenv("AZURE_OPENAI_ALTERNATIVE_API_KEY")),
+        (os.getenv("AZURE_OPENAI_GERMANY_WEST_ENDPOINT"), os.getenv("AZURE_OPENAI_GERMANY_WEST_API_KEY")),
+    ]
 
     s = await _get_session()
-    async with s.get(url, headers={"api-key": azure_api_key}) as r:
-        if r.status != 200:
-            body = await r.text()
-            raise HTTPException(status_code=r.status, detail=body)
-        content = await r.read()
+    content = None
+    last_status, last_body = 502, "No Azure endpoint available"
+
+    for endpoint, api_key in endpoints:
+        if not endpoint or not api_key:
+            continue
+        url = f"{endpoint}/openai/v1/containers/{container_id}/files/{file_id}/content?api-version=preview"
+        async with s.get(url, headers={"api-key": api_key}) as r:
+            if r.status == 200:
+                content = await r.read()
+                break
+            last_status, last_body = r.status, await r.text()
+
+    if content is None:
+        raise HTTPException(status_code=last_status, detail=last_body)
 
     disposition_filename = filename or file_id
+
     return Response(
         content=content,
         media_type="application/octet-stream",

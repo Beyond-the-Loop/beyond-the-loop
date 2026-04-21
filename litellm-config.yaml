@@ -313,7 +313,7 @@ model_list:
 
   - model_name: "GPT-5 mini"
     litellm_params:
-      model: "azure/gpt-5-mini"
+      model: "azure/responses/gpt-5-mini"
       api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
@@ -859,6 +859,7 @@ model_list:
       tokens_per_second: 102
       zdr: true
       allowed_messages_per_three_hours_premium: 50
+      supports_code_execution: true
       supports_web_search: true
       supports_document_input: true
       supports_image_input: true
