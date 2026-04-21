@@ -91,11 +91,8 @@ async def cleanup_response(
         response.close()
 
 
-def _build_file_content_blocks(files: list) -> list:
-    """Read files from local storage and return inline base64 content blocks
-    for use with the OpenAI Responses API. Files are automatically made available
-    to the code interpreter container without a pre-upload step."""
-    import base64
+def _build_file_content_blocks(files: list, expiry_seconds: int = 600) -> list:
+    """Build input_file content blocks for the OpenAI Responses API using pre-signed URLs."""
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
@@ -113,21 +110,14 @@ def _build_file_content_blocks(files: list) -> list:
             if not file_record or not file_record.path:
                 continue
 
-            local_path = Storage.get_file(file_record.path)
+            presigned_url = Storage.get_presigned_url(file_record.path, expiry_seconds=expiry_seconds)
+            if not presigned_url:
+                log.warning(f"Skipping file {file_id}: storage provider does not support pre-signed URLs")
+                continue
 
-            with open(local_path, "rb") as f:
-                file_bytes = f.read()
-
-            content_type = (
-                file_record.meta.get("content_type", "application/octet-stream")
-                if file_record.meta
-                else "application/octet-stream"
-            )
-            b64 = base64.b64encode(file_bytes).decode("utf-8")
             blocks.append({
                 "type": "input_file",
-                "filename": file_record.filename,
-                "file_data": f"data:{content_type};base64,{b64}",
+                "file_url": presigned_url,
             })
         except Exception as e:
             log.warning(f"Failed to build file content block for file {file_id}: {e}")
@@ -434,6 +424,8 @@ async def generate_chat_completion(
                 ),
             },
         )
+
+        print(payload)
 
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
