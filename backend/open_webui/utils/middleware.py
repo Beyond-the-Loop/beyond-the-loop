@@ -381,6 +381,25 @@ async def _smart_router_model_selection(
                 continue
             candidates.append(m)
 
+        # If no candidates passed the intelligence filter, fall back to capability-only matching.
+        # Capability is a hard requirement; intelligence score is a soft preference.
+        if not candidates:
+            needs_capability = (
+                decision.needs_web_search
+                or decision.needs_code_execution
+                or decision.needs_image_generation
+            )
+            if needs_capability:
+                for m in routable_models:
+                    cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
+                    if decision.needs_web_search and not cfg.get("supports_web_search", False):
+                        continue
+                    if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
+                        continue
+                    if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
+                        continue
+                    candidates.append(m)
+
         if not candidates:
             return None, decision
 
