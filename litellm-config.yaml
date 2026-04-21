@@ -807,6 +807,7 @@ model_list:
       knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'OpenAI'
+      tokens_per_second: 180
       reasoning: true
       research: false
       speed: 2
@@ -828,6 +829,8 @@ model_list:
       hosted_in: 'Global'
       knowledge_cutoff: '2025-08-01'
       multimodal: true
+      tokens_per_second: 180
+      intelligence_score: 2
       organization: 'OpenAI'
       reasoning: false
       research: false
