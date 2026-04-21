@@ -91,36 +91,53 @@ async def cleanup_response(
         response.close()
 
 
-def _build_file_content_blocks(files: list, expiry_seconds: int = 600) -> list:
-    """Build input_file content blocks for the OpenAI Responses API using pre-signed URLs."""
+async def _upload_files_to_openai(files: list) -> list:
+    """Upload files to Azure OpenAI Files API and return input_file blocks with file_id."""
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    if not endpoint or not api_key:
+        return []
+
     blocks = []
+    s = await _get_session()
+
     for file_item in files:
         if not isinstance(file_item, dict):
             continue
-        # File objects may be flat {"id": "..."} or nested {"type": "file", "file": {"id": "..."}}
         nested = file_item.get("file")
         file_id = file_item.get("id") or (nested.get("id") if isinstance(nested, dict) else None)
         if not file_id:
             continue
+
         try:
             file_record = Files.get_file_by_id(file_id)
             if not file_record or not file_record.path:
                 continue
 
-            presigned_url = Storage.get_presigned_url(file_record.path, expiry_seconds=expiry_seconds)
-            if not presigned_url:
-                log.warning(f"Skipping file {file_id}: storage provider does not support pre-signed URLs")
-                continue
+            local_path = Storage.get_file(file_record.path)
+            filename = os.path.basename(local_path)
 
-            blocks.append({
-                "type": "input_file",
-                "file_url": presigned_url,
-            })
+            with open(local_path, "rb") as f:
+                file_content = f.read()
+
+            url = f"{endpoint}/openai/v1/files?api-version=preview"
+            form = aiohttp.FormData()
+            form.add_field("purpose", "assistants")
+            form.add_field("file", file_content, filename=filename, content_type="application/octet-stream")
+            async with s.post(url, data=form, headers={"api-key": api_key}) as r:
+                if r.status in (200, 201):
+                    result = await r.json()
+                    openai_file_id = result.get("id")
+                    if openai_file_id:
+                        blocks.append({"type": "input_file", "file_id": openai_file_id})
+                else:
+                    log.warning(f"File upload returned {r.status}: {await r.text()}")
+
         except Exception as e:
-            log.warning(f"Failed to build file content block for file {file_id}: {e}")
+            log.warning(f"Failed to upload file {file_id} to OpenAI: {e}")
 
     return blocks
 
@@ -307,10 +324,8 @@ async def generate_chat_completion(
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
             tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
-            file_blocks = _build_file_content_blocks(metadata.get("files", []))
+            file_blocks = await _upload_files_to_openai(metadata.get("files", []))
             if file_blocks:
-                # Inject files into the last user message so OpenAI automatically
-                # makes them available in the code interpreter container
                 messages = payload.get("messages", [])
                 last_user_idx = next(
                     (i for i in range(len(messages) - 1, -1, -1) if messages[i].get("role") == "user"),
@@ -321,7 +336,6 @@ async def generate_chat_completion(
                     if isinstance(content, str):
                         content = [{"type": "input_text", "text": content}]
                     else:
-                        # Normalize any "text" types to "input_text" for Responses API
                         content = [
                             {**item, "type": "input_text"} if item.get("type") == "text" else item
                             for item in content
@@ -358,12 +372,12 @@ async def generate_chat_completion(
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
         fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
 
-    if payload["stream"] and not use_responses_api:
-        payload["stream_options"] = {"include_usage": True}
-
     if use_responses_api:
+        payload.pop("stream_options", None)
         # Responses API uses "input" instead of "messages"
         payload["input"] = payload.pop("messages")
+    elif payload["stream"]:
+        payload["stream_options"] = {"include_usage": True}
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
@@ -371,6 +385,8 @@ async def generate_chat_completion(
     r = None
     streaming = False
     response = None
+
+    print(payload)
 
     try:
         if not agent_or_task_prompt:
@@ -424,8 +440,6 @@ async def generate_chat_completion(
                 ),
             },
         )
-
-        print(payload)
 
         # Check if response is SSE
         if "text/event-stream" in r.headers.get("Content-Type", ""):
@@ -636,9 +650,7 @@ async def download_container_file(
     user=Depends(get_verified_user),
 ):
     endpoints = [
-        (os.getenv("AZURE_OPENAI_ENDPOINT"), os.getenv("AZURE_OPENAI_API_KEY")),
-        (os.getenv("AZURE_OPENAI_ALTERNATIVE_ENDPOINT"), os.getenv("AZURE_OPENAI_ALTERNATIVE_API_KEY")),
-        (os.getenv("AZURE_OPENAI_GERMANY_WEST_ENDPOINT"), os.getenv("AZURE_OPENAI_GERMANY_WEST_API_KEY")),
+        (os.getenv("AZURE_OPENAI_ENDPOINT"), os.getenv("AZURE_OPENAI_API_KEY"))
     ]
 
     s = await _get_session()

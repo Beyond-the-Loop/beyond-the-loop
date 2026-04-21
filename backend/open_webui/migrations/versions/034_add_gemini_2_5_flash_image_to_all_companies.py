@@ -28,7 +28,7 @@ def upgrade() -> None:
     conn = op.get_bind()
     now = int(time.time())
 
-    companies = conn.execute(sa.text("SELECT id FROM company")).fetchall()
+    companies = conn.execute(sa.text("SELECT id FROM company WHERE id != 'system'")).fetchall()
 
     rows = []
     for company in companies:
