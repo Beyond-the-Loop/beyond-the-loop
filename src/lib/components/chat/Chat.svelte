@@ -1373,15 +1373,12 @@
 						message.files?.some((file) => file.type === 'image')
 					);
 
-					if (hasImages && !($modelsInfo[model.name].supports_image_input)) {
+					if (hasImages && $modelsInfo[model.name]?.supports_image_input === false) {
 						toast.error(
 							$i18n.t('Model {{modelName}} is not vision capable', {
 								modelName: model.name ?? model.id
 							})
 						);
-					}else {
-						console.log(hasImages);
-						console.log($modelsInfo[model.name]);
 					}
 
 					let responseMessageId =

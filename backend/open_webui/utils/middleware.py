@@ -55,6 +55,7 @@ from open_webui.utils.misc import (
     add_or_update_system_message,
     add_or_update_user_message,
     get_last_user_message,
+    get_last_user_message_item,
 )
 from open_webui.tasks import create_task
 from beyond_the_loop.config import (
@@ -305,7 +306,7 @@ SMART_ROUTER_MODEL = ModelModel(
 
 
 async def _smart_router_model_selection(
-    user_message: str, user, messages: list[dict] | None = None
+    user_message: str, user, messages: list[dict] | None = None, has_image_input: bool = False
 ) -> tuple[ModelModel | None, SmartRouterDecision | None]:
     """
     Score the user message complexity (1–5) via structured completion, then pick
@@ -379,6 +380,8 @@ async def _smart_router_model_selection(
                 continue
             if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
                 continue
+            if has_image_input and not cfg.get("supports_image_input", False):
+                continue
             candidates.append(m)
 
         # If no candidates passed the intelligence filter, fall back to capability-only matching.
@@ -388,6 +391,7 @@ async def _smart_router_model_selection(
                 decision.needs_web_search
                 or decision.needs_code_execution
                 or decision.needs_image_generation
+                or has_image_input
             )
             if needs_capability:
                 for m in routable_models:
@@ -397,6 +401,8 @@ async def _smart_router_model_selection(
                     if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
                         continue
                     if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
+                        continue
+                    if has_image_input and not cfg.get("supports_image_input", False):
                         continue
                     candidates.append(m)
 
@@ -527,6 +533,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     user_message = get_last_user_message(form_data["messages"])
 
+    last_user_msg_item = get_last_user_message_item(form_data["messages"])
+    has_image_input = isinstance(last_user_msg_item.get("content") if last_user_msg_item else None, list) and any(
+        isinstance(p, dict) and p.get("type") == "image_url"
+        for p in (last_user_msg_item.get("content") or [])
+    )
+
     if model.name == SMART_ROUTER_MODEL.name and user_message:
         await event_emitter(
             {
@@ -540,7 +552,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
         routed_model, routing_decision = await _smart_router_model_selection(
-            user_message, user, messages=form_data["messages"]
+            user_message, user, messages=form_data["messages"], has_image_input=has_image_input
         )
 
         if routed_model:
@@ -588,7 +600,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
         routed_model, routing_decision = await _smart_router_model_selection(
-            user_message, user, messages=form_data["messages"]
+            user_message, user, messages=form_data["messages"], has_image_input=has_image_input
         )
 
         if routed_model:

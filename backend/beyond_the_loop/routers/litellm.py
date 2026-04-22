@@ -95,7 +95,7 @@ async def cleanup_response(
 
 
 async def _upload_files_to_openai(files: list) -> list:
-    """Upload files to Azure OpenAI Files API and return input_file blocks with file_id."""
+    """Upload files to Azure OpenAI Files API for code_interpreter and return file IDs."""
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
@@ -104,7 +104,7 @@ async def _upload_files_to_openai(files: list) -> list:
     if not endpoint or not api_key:
         return []
 
-    blocks = []
+    file_ids = []
     s = await _get_session()
 
     for file_item in files:
@@ -134,15 +134,60 @@ async def _upload_files_to_openai(files: list) -> list:
                 if r.status in (200, 201):
                     result = await r.json()
                     openai_file_id = result.get("id")
+
                     if openai_file_id:
-                        blocks.append({"type": "input_file", "file_id": openai_file_id})
+                        file_ids.append(openai_file_id)
                 else:
                     log.warning(f"File upload returned {r.status}: {await r.text()}")
 
         except Exception as e:
             log.warning(f"Failed to upload file {file_id} to OpenAI: {e}")
 
-    return blocks
+    return file_ids
+
+
+async def _download_and_store_container_file(
+    container_id: str,
+    openai_file_id: str,
+    filename: str,
+    user_id: str,
+) -> Optional[str]:
+    """Download a container file from OpenAI and store it in our Files API. Returns internal file ID or None on failure."""
+    from beyond_the_loop.models.files import FileForm, Files
+    from beyond_the_loop.storage.provider import Storage
+
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    if not endpoint or not api_key:
+        return None
+
+    url = f"{endpoint}/openai/v1/containers/{container_id}/files/{openai_file_id}/content?api-version=preview"
+    s = await _get_session()
+    async with s.get(url, headers={"api-key": api_key}) as r:
+        if r.status != 200:
+            log.warning(f"Failed to download container file {openai_file_id}: {r.status} {await r.text()}")
+            return None
+        content = await r.read()
+
+    internal_id = str(uuid.uuid4())
+    storage_filename = f"{internal_id}_{filename}"
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    _, file_path = Storage.upload_file(io.BytesIO(content), storage_filename)
+    Files.insert_new_file(
+        user_id,
+        FileForm(
+            id=internal_id,
+            filename=filename,
+            path=file_path,
+            meta={
+                "name": filename,
+                "content_type": content_type,
+                "size": len(content),
+            },
+        ),
+    )
+    return internal_id
 
 
 async def _download_and_store_container_file(
@@ -370,25 +415,11 @@ async def generate_chat_completion(
 
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
-            tools.append({"type": "code_interpreter", "container": {"type": "auto"}})
-            file_blocks = await _upload_files_to_openai(metadata.get("files", []))
-            if file_blocks:
-                messages = payload.get("messages", [])
-                last_user_idx = next(
-                    (i for i in range(len(messages) - 1, -1, -1) if messages[i].get("role") == "user"),
-                    None,
-                )
-                if last_user_idx is not None:
-                    content = messages[last_user_idx]["content"]
-                    if isinstance(content, str):
-                        content = [{"type": "input_text", "text": content}]
-                    else:
-                        content = [
-                            {**item, "type": "input_text"} if item.get("type") == "text" else item
-                            for item in content
-                        ]
-                    messages[last_user_idx]["content"] = file_blocks + content
-                    payload["messages"] = messages
+            file_ids = await _upload_files_to_openai(metadata.get("files", []))
+            container = {"type": "auto"}
+            if file_ids:
+                container["file_ids"] = file_ids
+            tools.append({"type": "code_interpreter", "container": container})
         else:
             tools.append({"codeExecution": {}})
 
