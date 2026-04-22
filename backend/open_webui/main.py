@@ -529,7 +529,12 @@ app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"]
 
 @app.get("/api/models")
 async def get_active_models(user=Depends(get_verified_user)):
-    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id)
+    
+    subscription = payments_service.get_subscription(user.company_id)
+
+    is_kickstart_customer = subscription.get("is_kickstart_customer")
+
+    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)
 
     active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
 
@@ -544,8 +549,6 @@ async def get_active_models(user=Depends(get_verified_user)):
         model_base_model_names[base_model.id] = base_model.name
 
     all_models = assistants + active_base_models
-
-    subscription = payments_service.get_subscription(user.company_id)
 
     plan = subscription.get("plan")
 

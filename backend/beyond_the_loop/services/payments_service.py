@@ -296,7 +296,8 @@ class PaymentsService:
                     'days_remaining': days_remaining,
                     'image_url': image_url,
                     "subscription_id": trial_subscription.get("id"),
-                    "subscription_item_id": trial_subscription["items"]["data"][0]["id"]
+                    "subscription_item_id": trial_subscription["items"]["data"][0]["id"],
+                    "is_kickstart_customer": trial_subscription.get("metadata", {}).get("is_kickstart_customer")
                 }
 
             # If no active subscription, return free plan
@@ -324,7 +325,8 @@ class PaymentsService:
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     "image_url": image_url,
                     "subscription_id": subscription.get("id"),
-                    "subscription_item_id": subscription["items"]["data"][0]["id"]
+                    "subscription_item_id": subscription["items"]["data"][0]["id"],
+                    "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer")
                 }
 
             return {
@@ -345,9 +347,10 @@ class PaymentsService:
                 "image_url": image_url,
                 "credits_per_month": plan.get("credits_per_month", 0),
                 "custom_credit_amount": int(
-                    subscription.get("metadata").get("custom_credit_amount")) if subscription.get("metadata").get(
+                    subscription.get("metadata", {}).get("custom_credit_amount")) if subscription.get("metadata").get(
                     "custom_credit_amount") is not None else None,
-                "next_credit_recharge": company.next_credit_charge_check
+                "next_credit_recharge": company.next_credit_charge_check,
+                "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer")
             }
 
         except Exception as e:

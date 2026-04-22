@@ -247,7 +247,7 @@ class ModelsTable:
             ]
 
     def get_assistants_by_user_and_company(
-        self, user_id: str, company_id: str, permission: str = "read"
+        self, user_id: str, company_id: str, permission: str = "read", is_kickstart_customer = False
     ) -> list[ModelUserResponse]:
         with get_db() as db:
             result = db.execute(
@@ -265,7 +265,8 @@ class ModelsTable:
         for model in assistants:
             if (
                 model.user_id == user_id
-                or (model.company_id == company_id and has_access(user_id, permission, model.access_control))
+                or (model.company_id == company_id and has_access(user_id, permission, model.access_control)
+                    and (model.user_id != "kickstart" or is_kickstart_customer))
             ):
                 # Resolve system model base_model_id from name to actual ID using the pre-fetched map
                 if model.user_id == "system":
