@@ -27,7 +27,8 @@
       "Bash(grep -A 15 \"page.subscribe\\\\|^\\\\s*$:\" /Users/philszalay/Documents/code/beyond-the-loop/src/routes/\\\\\\(app\\\\\\)/+layout.svelte)",
       "Bash(grep -rn atSelectedModels*= /Users/philszalay/Documents/code/beyond-the-loop/src/lib)",
       "Bash(grep:*)",
-      "WebFetch(domain:docs.cloud.google.com)"
+      "WebFetch(domain:docs.cloud.google.com)",
+      "Bash(python *)"
     ]
   }
 }

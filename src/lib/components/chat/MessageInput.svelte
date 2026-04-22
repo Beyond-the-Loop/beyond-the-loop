@@ -107,6 +107,7 @@
 	$: visionCapableModels = selectedModelIds.filter((modelId) => {
 		const m = $models.find((m) => m.id === modelId);
 		if (!m) return false;
+		if (m.name === 'Smart Router') return true;
 		const infoModel = m.base_model_id ? $models.find((bm) => bm.id === m.base_model_id) : m;
 		return $modelsInfo[infoModel?.name]?.supports_image_input ?? false;
 	});
