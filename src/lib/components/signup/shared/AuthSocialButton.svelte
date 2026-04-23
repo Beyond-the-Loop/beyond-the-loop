@@ -9,7 +9,7 @@
 
 <button
 	type="button"
-	class="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-[#F1F1F1] px-4 h-12 text-sm font-medium text-[#16181D] transition hover:bg-[#E8E8E8] dark:border-customGray-700 dark:bg-customGray-900 dark:text-customGray-200 dark:hover:bg-customGray-950"
+	class="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-[#F1F1F1] px-4 h-12 text-sm font-medium text-[#16181D] transition hover:bg-[#E8E8E8] dark:border-customGray-700 dark:bg-customGray-800 dark:text-customGray-200 dark:hover:bg-customGray-700"
 	on:click={() => {
 		window.location.href = href;
 	}}

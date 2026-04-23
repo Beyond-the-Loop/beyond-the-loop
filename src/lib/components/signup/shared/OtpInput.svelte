@@ -51,7 +51,7 @@
 			type="text"
 			inputmode="numeric"
 			maxlength="1"
-			class="aspect-square h-auto w-0 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white text-center text-base font-medium text-[#16181D] outline-none transition focus:border-customBlue-500 focus:ring-1 focus:ring-customBlue-500 sm:text-lg dark:border-customGray-700 dark:bg-customGray-900 dark:text-customGray-100"
+			class="aspect-square h-auto w-0 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white text-center text-base font-medium text-[#16181D] outline-none transition focus:border-customBlue-500 focus:ring-1 focus:ring-customBlue-500 sm:text-lg dark:border-customGray-700 dark:bg-customGray-800 dark:text-customGray-100"
 		/>
 	{/each}
 </div>
