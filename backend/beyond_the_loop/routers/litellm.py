@@ -587,7 +587,7 @@ async def generate_chat_completion(
                                         log_all_until_completed = True
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': True, 'description': 'Running code'}})}\n\n".encode()
                                         if item_id:
-                                            yield f"data: {json.dumps({'code_execution_event': {'id': item_id, 'name': 'Code', 'code': code, 'language': 'python', 'result': {"output": " "}}})}\n\n".encode()
+                                            yield f"data: {json.dumps({'code_execution_event': {'id': item_id, 'name': 'Code', 'code': code, 'language': 'python', 'result': {'output': ' '}}})}\n\n".encode()
 
                                     elif event == "response.output_item.done":
                                         item = data.get("item", {})
