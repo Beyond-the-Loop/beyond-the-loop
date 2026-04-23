@@ -28,7 +28,9 @@
       "Bash(grep -rn atSelectedModels*= /Users/philszalay/Documents/code/beyond-the-loop/src/lib)",
       "Bash(grep:*)",
       "WebFetch(domain:docs.cloud.google.com)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(cat)",
+      "Read(//tmp/**)"
     ]
   }
 }

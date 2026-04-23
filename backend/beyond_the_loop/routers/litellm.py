@@ -408,8 +408,33 @@ async def generate_chat_completion(
 
     if use_responses_api:
         payload.pop("stream_options", None)
-        # Responses API uses "input" instead of "messages"
-        payload["input"] = payload.pop("messages")
+
+        # Responses API uses "input" instead of "messages", and requires
+        # different content block types than Chat Completions:
+        #   text       → input_text
+        #   image_url  → input_image  (with flat image_url string, not nested)
+        def _convert_content_for_responses_api(content):
+            if isinstance(content, str):
+                return [{"type": "input_text", "text": content}]
+            if not isinstance(content, list):
+                return content
+            converted = []
+            for block in content:
+                btype = block.get("type")
+                if btype == "text":
+                    converted.append({"type": "input_text", "text": block["text"]})
+                elif btype == "image_url":
+                    url = block.get("image_url", {}).get("url", "")
+                    converted.append({"type": "input_image", "image_url": url})
+                else:
+                    converted.append(block)
+            return converted
+
+        messages = payload.pop("messages")
+        for msg in messages:
+            if msg.get("role") in ("user", "assistant") and "content" in msg:
+                msg["content"] = _convert_content_for_responses_api(msg["content"])
+        payload["input"] = messages
     elif payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
 
