@@ -30,7 +30,29 @@
       "WebFetch(domain:docs.cloud.google.com)",
       "Bash(python *)",
       "Bash(cat)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(/usr/bin/grep -E '^---|migrations/versions/0[0-3][0-9]_')",
+      "Bash(git ls-tree *)",
+      "Bash(/usr/bin/grep -E \"^[0-9]+ blob [a-f0-9]+\\\\s+backend\")",
+      "Bash(/usr/bin/grep -oE \"[0-9]+_[a-z_]+\\\\.py\")",
+      "Bash(/usr/bin/grep -n \"each\\\\|models\\\\|\\\\.models\\\\|filteredModels\\\\|baseModels\" src/lib/components/chat/Settings/CompanySettings/ModelControl.svelte)",
+      "Bash(/usr/bin/grep -n \"getBaseModels\\\\|/models/base\\\\|get_base_models\" backend/open_webui/routers/models.py backend/beyond_the_loop/routers/models.py src/lib/apis/models/index.ts)",
+      "Bash(/usr/bin/grep -n \"/base\\\\|api/models/base\\\\|get_base\\\\|get_all_base\\\\|base_models\" backend/open_webui/main.py)",
+      "Bash(/usr/bin/grep -rn \"Claude 4.5 Haiku\\\\|Claude Haiku 4.5\\\\|haiku-4-5\" backend/open_webui/migrations/)",
+      "Bash(/usr/bin/grep -v __pycache__)",
+      "Bash(/usr/bin/grep -rn \"Claude 3.5 Haiku\\\\|Claude 3.5 Sonnet\" backend/open_webui/migrations/)",
+      "Bash(/usr/bin/grep -n \"INSERT INTO model\\\\|claude\\\\|Claude\" backend/open_webui/migrations/versions/001_init_db.py)",
+      "Bash(/usr/bin/grep -B1 -E \"migrations/versions/0\\(2[4-9]|3[0-9]\\)_\")",
+      "Bash(/usr/bin/grep \"versions copy\")",
+      "Bash(/usr/bin/grep -rn \"models\\\\.set\\\\|getModels\\\\|storeModels\\\\.set\" src/ --include=\"*.svelte\" --include=\"*.ts\" --include=\"*.js\")",
+      "Bash(/usr/bin/grep -rn \"Claude\" backend/open_webui/migrations/versions/)",
+      "Bash(/usr/bin/grep -v \"model_cost\\\\|DELETE\\\\|cost_per\")",
+      "Bash(/usr/bin/grep -rn \"Claude\" backend/open_webui/migrations/data/)",
+      "Bash(/usr/bin/grep -rn \"insert_new_model\\\\|Models\\\\.insert\\\\|INSERT INTO model\" backend/beyond_the_loop/ --include=\"*.py\")",
+      "Bash(/usr/bin/grep -rn \"openai_models\\\\|get_all_models_from_litellm\\\\|for model in\\\\|for openai_model\\\\|create_missing_models\" backend/beyond_the_loop/ --include=\"*.py\")",
+      "Bash(/usr/bin/grep *)",
+      "Bash(/usr/bin/head -3 backend/open_webui/migrations/data/prebuilt_assistants.csv)",
+      "Bash(/usr/bin/awk '{print length, $0}')"
     ]
   }
 }
