@@ -256,6 +256,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 150
       supports_web_search: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT o4-mini"
     litellm_params:
@@ -281,7 +282,8 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
       supports_web_search: true
-      supports_document_input: true 
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5"
     litellm_params:
@@ -310,6 +312,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5 mini"
     litellm_params:
@@ -362,6 +365,7 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5 nano"
     litellm_params:
@@ -388,6 +392,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 300
       supports_web_search: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Mistral Large 3"
     litellm_params:
@@ -716,6 +721,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT o3 Deep Research"
     litellm_params:
@@ -739,6 +745,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 10
       supports_web_search: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.4"
     litellm_params:
@@ -764,6 +771,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.3 Codex"
     litellm_params:
@@ -788,6 +796,7 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_premium: 50
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.2"
     litellm_params:
@@ -813,6 +822,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 50
       supports_web_search: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.3 Chat"
     litellm_params:
@@ -836,6 +846,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 50
       supports_web_search: true
       supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 3.1 Pro"
     litellm_params:
