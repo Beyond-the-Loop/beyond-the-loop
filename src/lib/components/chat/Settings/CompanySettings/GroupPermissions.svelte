@@ -53,11 +53,11 @@
 
 	let permissions = {
 		view_assistants: true,
-		edit_assistants: false,
+		edit_assistants: true,
 		view_prompts: true,
-		edit_prompts: false,
+		edit_prompts: true,
 		view_knowledge: true,
-		edit_knowledge: false,
+		edit_knowledge: true,
 		assistants_only: false
 	}
 

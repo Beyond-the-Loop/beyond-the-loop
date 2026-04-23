@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, getContext, createEventDispatcher } from 'svelte';
+	import { tick, onMount, getContext, createEventDispatcher } from 'svelte';
 	const i18n = getContext('i18n');
 	const dispatch = createEventDispatcher();
 
@@ -24,6 +24,7 @@
 	export let input = false;
 	export let inputPlaceholder = '';
 	export let inputValue = '';
+	let inputEl = null;
 
 	export let show = false;
 
@@ -51,6 +52,12 @@
 	onMount(() => {
 		mounted = true;
 	});
+
+	$: if (show && inputEl != null) {
+		tick().then(() => {
+			inputEl.focus();
+		});
+	}
 
 	$: if (mounted) {
 		if (show && modalElement) {
@@ -122,6 +129,7 @@
 						{#if input}
 							{#if inputType === 'textarea'}
 								<textarea
+									bind:this={inputEl}
 									bind:value={inputValue}
 									placeholder={inputPlaceholder ? inputPlaceholder : $i18n.t('Enter your message')}
 									class="w-full mt-2 placeholder:text-lightGray-100 dark:placeholder:text-customGray-100 rounded-md px-4 py-2 text-sm bg-lightGray-300 text-lightGray-100 dark:text-gray-300 dark:bg-customGray-900 outline-none resize-none"
@@ -130,6 +138,7 @@
 								/>
 							{:else}
 								<input
+									bind:this={inputEl}
 									bind:value={inputValue}
 									placeholder={inputPlaceholder ? inputPlaceholder : $i18n.t('Enter your message')}
 									class="w-full mt-2 placeholder:text-lightGray-100 dark:placeholder:text-customGray-100 rounded-md px-4 py-3 text-sm bg-lightGray-300 text-lightGray-100 dark:text-gray-300 dark:bg-customGray-900 outline-none resize-none"
