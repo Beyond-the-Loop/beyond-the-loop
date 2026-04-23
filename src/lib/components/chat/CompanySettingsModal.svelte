@@ -176,7 +176,7 @@
 	}
 </script>
 
-<Modal size="md-plus" bind:show blockBackdropClick={true} className="dark:bg-customGray-800 rounded-2xl" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[7.44px]">
+<Modal size={selectedTab === 'model-control' ? 'lg' : 'md-plus'} bind:show blockBackdropClick={true} className="dark:bg-customGray-800 rounded-2xl" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[7.44px] custom-scrollbar">
 	<div class="text-lightGray-100 dark:text-customGray-100 bg-lightGray-550 dark:bg-customGray-800 rounded-xl md:h-auto">
 		<div class="px-4 md:px-7">
 			<div class=" flex justify-between dark:text-white pt-5 pb-4 border-b dark:border-customGray-700">
