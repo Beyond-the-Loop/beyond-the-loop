@@ -452,8 +452,33 @@ async def generate_chat_completion(
 
     if use_responses_api:
         payload.pop("stream_options", None)
-        # Responses API uses "input" instead of "messages"
-        payload["input"] = payload.pop("messages")
+
+        # Responses API uses "input" instead of "messages", and requires
+        # different content block types than Chat Completions:
+        #   text       → input_text
+        #   image_url  → input_image  (with flat image_url string, not nested)
+        def _convert_content_for_responses_api(content):
+            if isinstance(content, str):
+                return [{"type": "input_text", "text": content}]
+            if not isinstance(content, list):
+                return content
+            converted = []
+            for block in content:
+                btype = block.get("type")
+                if btype == "text":
+                    converted.append({"type": "input_text", "text": block["text"]})
+                elif btype == "image_url":
+                    url = block.get("image_url", {}).get("url", "")
+                    converted.append({"type": "input_image", "image_url": url})
+                else:
+                    converted.append(block)
+            return converted
+
+        messages = payload.pop("messages")
+        for msg in messages:
+            if msg.get("role") in ("user", "assistant") and "content" in msg:
+                msg["content"] = _convert_content_for_responses_api(msg["content"])
+        payload["input"] = messages
     elif payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
 
@@ -530,6 +555,8 @@ async def generate_chat_completion(
                     response_id = f"chatcmpl-responses-{int(time.time())}"
                     annotations = []
                     accumulated_content = ""
+                    code_accumulator = {}
+                    log_all_until_completed = False
 
                     async for chunk in r.content:
                         chunk_str = chunk.decode("utf-8", errors="replace")
@@ -541,8 +568,12 @@ async def generate_chat_completion(
 
                             if line.startswith("event: "):
                                 event_type = line[7:].strip()
+                                if "code_interpreter" in event_type:
+                                    log.info(f"[RESPONSES API] event: {event_type}")
                             elif line.startswith("data: "):
                                 data_str = line[6:]
+                                if "code_interpreter" in data_str or log_all_until_completed:
+                                    log.info(f"[RESPONSES API] data: {data_str}")
                                 if data_str == "[DONE]":
                                     yield b"data: [DONE]\n\n"
                                     return
@@ -550,7 +581,89 @@ async def generate_chat_completion(
                                     data = json.loads(data_str)
                                     event = data.get("type") or event_type or ""
 
-                                    if event == "response.output_text.delta":
+                                    if event == "response.reasoning_summary_text.delta":
+                                        delta = data.get("delta", "")
+                                        if delta:
+                                            think_chunk = {
+                                                "id": response_id,
+                                                "object": "chat.completion.chunk",
+                                                "created": int(time.time()),
+                                                "model": model_name,
+                                                "choices": [{"index": 0, "delta": {"thinking": delta}, "finish_reason": None}],
+                                            }
+                                            yield f"data: {json.dumps(think_chunk)}\n\n".encode()
+
+                                    elif event in (
+                                        "response.web_search_call.in_progress",
+                                        "response.web_search_call.searching",
+                                    ):
+                                        status_payload = {
+                                            "status_event": {
+                                                "action": "web_search",
+                                                "done": False,
+                                                "description": "Searching the web",
+                                            }
+                                        }
+                                        yield f"data: {json.dumps(status_payload)}\n\n".encode()
+
+                                    elif event == "response.code_interpreter_call.in_progress":
+                                        yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Writing code'}})}\n\n".encode()
+
+                                    elif event == "response.code_interpreter_call_code.delta":
+                                        item_id = data.get("item_id", "")
+                                        delta = data.get("delta", "")
+                                        if item_id and delta:
+                                            code_accumulator[item_id] = code_accumulator.get(item_id, "") + delta
+
+                                    elif event == "response.code_interpreter_call_code.done":
+                                        item_id = data.get("item_id", "")
+                                        code = data.get("code") or code_accumulator.get(item_id, "")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Running code'}})}\n\n".encode()
+                                        if code:
+                                            yield f"data: {json.dumps({'code_execution_event': {'id': item_id, 'name': 'Code', 'code': code, 'language': 'python'}})}\n\n".encode()
+
+                                    elif event == "response.code_interpreter_call.interpreting":
+                                        yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Running code'}})}\n\n".encode()
+
+                                    elif event == "response.code_interpreter_call.completed":
+                                        item_id = data.get("item_id", "")
+                                        code = code_accumulator.get(item_id, "")
+                                        log_all_until_completed = True
+                                        yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': True, 'description': 'Running code'}})}\n\n".encode()
+                                        if item_id:
+                                            yield f"data: {json.dumps({'code_execution_event': {'id': item_id, 'name': 'Code', 'code': code, 'language': 'python', 'result': {'output': ' '}}})}\n\n".encode()
+
+                                    elif event == "response.output_item.done":
+                                        item = data.get("item", {})
+                                        if item.get("type") == "web_search_call":
+                                            action = item.get("action", {})
+                                            action_type = action.get("type")
+                                            if action_type == "search":
+                                                query = action.get("query") or (action.get("queries") or [""])[0]
+                                                status_payload = {
+                                                    "status_event": {
+                                                        "action": "web_search",
+                                                        "done": True,
+                                                        "description": 'Searching "{{searchQuery}}"',
+                                                        "query": query,
+                                                    }
+                                                }
+                                            elif action_type == "open_page":
+                                                url = action.get("url", "")
+                                                status_payload = {
+                                                    "status_event": {
+                                                        "action": "web_search",
+                                                        "done": True,
+                                                        "description": 'Opening "{{searchQuery}}"',
+                                                        "query": url,
+                                                    }
+                                                }
+                                            else:
+                                                status_payload = None
+                                            if status_payload:
+                                                yield f"data: {json.dumps(status_payload)}\n\n".encode()
+
+                                    elif event == "response.output_text.delta":
                                         delta = data.get("delta", "")
                                         if delta:
                                             accumulated_content += delta
@@ -569,6 +682,7 @@ async def generate_chat_completion(
                                             annotations.append(annotation)
 
                                     elif event == "response.completed":
+                                        log_all_until_completed = False
                                         resp = data.get("response", {})
                                         usage = resp.get("usage", {})
                                         usage_openai_format = {

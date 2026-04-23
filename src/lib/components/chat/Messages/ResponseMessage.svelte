@@ -604,7 +604,7 @@
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
-												{$i18n.t("Analyzing results")}
+												{$i18n.t(status?.description || "Analyzing results")}
 											</div>
 										</div>
 									{:else if status?.action === 'querying_memory'}

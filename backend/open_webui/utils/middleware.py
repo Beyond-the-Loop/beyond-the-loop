@@ -1327,6 +1327,27 @@ async def process_chat_response(
                                     data["citations"]
                                 ))
 
+                            if "status_event" in data:
+                                await event_emitter(
+                                    {
+                                        "type": "status",
+                                        "data": data["status_event"],
+                                    }
+                                )
+                                continue
+
+                            if "code_execution_event" in data:
+                                await event_emitter(
+                                    {
+                                        "type": "source",
+                                        "data": {
+                                            "type": "code_execution",
+                                            **data["code_execution_event"],
+                                        },
+                                    }
+                                )
+                                continue
+
                             if "file_refs" in data:
                                 await event_emitter(
                                     {
