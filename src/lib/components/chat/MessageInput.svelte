@@ -484,7 +484,7 @@
 	$: selectedModelInfo = (() => {
       if (selectedModels.length !== 1) return null;
       const model = $models.find((m) => m.id === selectedModels[0]);
-	  const _baseModel = model.base_model_id
+	  const _baseModel = model?.base_model_id
 								? $models.find((m) => m.id === model.base_model_id)
 								: undefined;
       if (!model) return null;
