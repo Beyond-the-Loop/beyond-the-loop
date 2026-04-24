@@ -289,16 +289,7 @@ async def create_company(
                 user_id="system",
                 company_id=company_id,
             )
-        bsp_kickstarter = {
-                "name": "KickstartAssistent1",
-                "base_model_id": "Smart Router",
-                "description": "Nur ein kurzer test",
-                "profile_image_url": "\uD83D\uDE80",
-                "category": "",
-                "suggestion_prompts": ["Wie funktionierst du?", "Was ist deine Aufgabe?"],
-                "system_prompt": "Du bist ein hilfreicher Assistent."
-            }
-        
+
         kickstart_assistants = load_kickstart_assistants()
 
         # Register Kickstart Assistants in the database
