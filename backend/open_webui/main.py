@@ -530,7 +530,7 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     is_kickstart_customer = subscription.get("is_kickstart_customer")
 
-    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)
+    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=(is_kickstart_customer == "true"))
 
     active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
 
