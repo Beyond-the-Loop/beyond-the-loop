@@ -1,7 +1,7 @@
-"""Insert Prebuilt Assistants
+"""Add Kickstart Assistants
 
-Revision ID: 034
-Revises: 033
+Revision ID: 036
+Revises: 035
 Create Date: 2026-01-06 12:07:04.497624
 
 """
@@ -13,10 +13,6 @@ import pathlib
 import uuid
 
 from alembic import op
-import beyond_the_loop.models.models
-import beyond_the_loop.models.prompts
-import beyond_the_loop.models.domains
-from beyond_the_loop.models.companies import Company, CompanyTable
 from beyond_the_loop.assistants.assistants_csv_loader import load_kickstart_assistants
 from open_webui.internal.db import get_db
 import sqlalchemy as sa
@@ -24,8 +20,8 @@ from sqlalchemy.orm import Session
 
 
 # revision identifiers, used by Alembic.
-revision: str = '034'
-down_revision: Union[str, None] = '033'
+revision: str = '036'
+down_revision: Union[str, None] = '035'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -44,12 +40,13 @@ def upgrade() -> None:
         ON CONFLICT (id) DO NOTHING
     """))
 
-    companies = CompanyTable.get_all()
+    result = connection.execute(sa.text("SELECT id FROM company;"))
+    company_ids = [row[0] for row in result]
     
     kickstart_assistants = load_kickstart_assistants()
     kickstart_user_id = "kickstart"
-    for company in companies:
-        if company.id != 'system':
+    for company in company_ids:
+        if company != 'system':
             for assistant in kickstart_assistants:
                 assistant_id = str(uuid.uuid4())
                 assistant_name=assistant.get("name")
@@ -76,7 +73,7 @@ def upgrade() -> None:
                 connection.execute(insert_query, {
                     'id': assistant_id,
                     'user_id': kickstart_user_id,
-                    'company_id': company.id,
+                    'company_id': company,
                     'base_model_id': base_model_id,
                     'name': assistant_name,
                     'meta': json.dumps(meta),
