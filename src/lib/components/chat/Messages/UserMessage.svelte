@@ -18,6 +18,7 @@
 	import CopyMessageIcon from '$lib/components/icons/CopyMessageIcon.svelte';
 	import DeleteIcon from '$lib/components/icons/DeleteIcon.svelte';
 	import CreatePromptIcon from '$lib/components/icons/CreatePromptIcon.svelte';
+	import { showChatInfoSidebar } from '$lib/stores';
 	import { goto } from '$app/navigation';
 
 	const i18n = getContext('i18n');
@@ -49,6 +50,15 @@
 			message = JSON.parse(JSON.stringify(history.messages[messageId]));
 		}
 	}
+
+	// Badge: drives the per-message PII state pill.
+	// "full"    — filter active, all detected entities anonymized
+	// "partial" — filter active, but at least one entity was released
+	// anything else (filter was off this turn) → no badge
+	$: piiBadgeKind =
+		message?.pii_status === 'full' || message?.pii_status === 'partial'
+			? message.pii_status
+			: null;
 
 	const copyToClipboard = async (text) => {
 		const res = await _copyToClipboard(text);
@@ -322,6 +332,52 @@
 								<CreatePromptIcon className="size-3.5"/>
 							</button>
 						</Tooltip>
+
+						{#if piiBadgeKind === 'full'}
+							<Tooltip content={$i18n.t('Anonymized — click for details')} placement="bottom">
+								<button
+									class="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition flex items-center"
+									on:click={() => {
+										showChatInfoSidebar.set(true);
+									}}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										class="w-3.5 h-3.5"
+									>
+										<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+									</svg>
+								</button>
+							</Tooltip>
+						{:else if piiBadgeKind === 'partial'}
+							<Tooltip content={$i18n.t('Some entities were released — click for details')} placement="bottom">
+								<button
+									class="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition flex items-center"
+									on:click={() => {
+										showChatInfoSidebar.set(true);
+									}}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										class="w-3.5 h-3.5"
+									>
+										<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+									</svg>
+								</button>
+							</Tooltip>
+						{/if}
 
 						<!-- {#if !isFirstMessage && !readOnly}
 							<Tooltip content={$i18n.t('Delete')} placement="bottom">

@@ -76,6 +76,12 @@
 	export let codeInterpreterEnabled = false;
 	export let autoToolsEnabled = false;
 
+	// PII toggle button rendered next to the tools menu. State + click handler
+	// owned by the parent (Chat.svelte) so it survives composer remounts.
+	export let piiEnabled = true;
+	export let showPiiToggle = false;
+	export let onPiiToggle: () => void = () => {};
+
 	$: onChange({
 		prompt,
 		files,
@@ -1248,7 +1254,7 @@
 											{@const
 												canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (selectedModelInfo?.supports_web_search ?? false))}
 											{@const
-												canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (selectedModelInfo?.supports_image_generation ?? false))}
+												canImageGen = (selectedModelInfo?.supports_image_generation ?? false)}
 											{@const
 												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (selectedModelInfo?.supports_code_execution ?? false))}
 
@@ -1261,6 +1267,38 @@
 												bind:codeInterpreterEnabled
 												bind:autoToolsEnabled
 											/>
+
+											{#if showPiiToggle}
+												<Tooltip
+													content={piiEnabled
+														? $i18n.t('PII filter is ON for this chat')
+														: $i18n.t('PII filter is OFF for this chat')}
+												>
+													<button
+														type="button"
+														aria-label={piiEnabled
+															? $i18n.t('PII filter is ON for this chat')
+															: $i18n.t('PII filter is OFF for this chat')}
+														class="bg-transparent hover:bg-gray-100 dark:hover:bg-customGray-900 transition rounded-md p-[3px] outline-none focus:outline-none {piiEnabled
+															? 'text-emerald-600 dark:text-emerald-400'
+															: 'text-gray-400 dark:text-gray-500'}"
+														on:click={onPiiToggle}
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 24 24"
+															fill="none"
+															stroke="currentColor"
+															stroke-width="2"
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															class="w-4 h-4"
+														>
+															<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+														</svg>
+													</button>
+												</Tooltip>
+											{/if}
 										{/if}
 									</div>
 

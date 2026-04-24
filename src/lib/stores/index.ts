@@ -67,6 +67,9 @@ export const showCompanySettings = writable(false);
 export const showArchivedChats = writable(false);
 export const showChangelog = writable(false);
 export const showLibrary = writable(false);
+// Right-side panel for in-chat info — currently hosts the Privacy/PII section,
+// designed to grow with further sections (e.g. files in chat) over time.
+export const showChatInfoSidebar = writable(false);
 export const confirmPromptFn = writable(null);
 
 export const showControls = writable(false);
@@ -194,7 +197,6 @@ type Config = {
 		enable_signup: boolean;
 		enable_web_search?: boolean;
 		enable_google_drive_integration: boolean;
-		enable_image_generation: boolean;
 		enable_admin_export: boolean;
 		enable_admin_chat_access: boolean;
 		enable_community_sharing: boolean;

@@ -60,7 +60,17 @@
       "Bash(/Users/philszalay/Documents/code/beyond-the-loop/backend/venv/bin/python *)",
       "Bash(export PATH=\"$HOME/.nvm/versions/node/v22.22.2/bin:$PATH\")",
       "Bash(node_modules/.bin/svelte-check --tsconfig ./tsconfig.json)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(PYTHONPATH=. python3 -m pytest beyond_the_loop/tests/test_pii_session.py beyond_the_loop/tests/test_pii_streaming.py -x -q)",
+      "Bash(PYTHONPATH=. venv/bin/python -m pytest beyond_the_loop/tests/test_pii_streaming.py -q)",
+      "Bash(venv/bin/python -c ' *)",
+      "Bash(PYTHONPATH=. venv/bin/python -m pytest beyond_the_loop/tests/test_pii_session.py -q)",
+      "Bash(PYTHONPATH=. venv/bin/python -m pytest beyond_the_loop/tests/ -q)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/lib/i18n/locales/de-DE/translation.json', 'utf8'\\)\\); console.log\\('JSON OK'\\)\")",
+      "Bash(npm run *)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/lib/i18n/locales/de-DE/translation.json', 'utf8'\\)\\)\")",
+      "WebFetch(domain:aclanthology.org)",
+      "WebFetch(domain:www.marktechpost.com)"
     ]
   }
 }

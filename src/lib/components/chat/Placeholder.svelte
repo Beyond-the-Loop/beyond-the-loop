@@ -17,6 +17,7 @@
 	import MessageInput from './MessageInput.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
+	import { showChatInfoSidebar } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -41,6 +42,17 @@
 	export let autoToolsEnabled = false;
 	export let isMagicLoading;
 	export let initNewChatCompleted;
+
+	// PII toggle: state + show flag + click callback are owned by the parent
+	// (Chat.svelte). We just render the button and call the callback. No bind:.
+	export let piiEnabled = true;
+	export let showPiiToggle = false;
+	export let onPiiToggle: () => void = () => {};
+
+	// Privacy panel button (toggles the right-side sidebar). Visibility +
+	// detection count come from Chat.svelte so the badge is consistent.
+	export let showPiiPanel = false;
+	export let piiCount = 0;
 
 	let models = [];
 
@@ -217,9 +229,29 @@
 					<ModelSelector
 						bind:selectedModels
 					/>
-					<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
-						<BookIcon /> <span>{$i18n.t('Library')}</span>
-					</button>
+					<div class="flex items-center gap-2">
+						{#if showPiiPanel}
+							<button
+								type="button"
+								class="relative flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+								aria-label={$i18n.t('Privacy panel')}
+								on:click={() => showChatInfoSidebar.set(!$showChatInfoSidebar)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+								</svg>
+								<span>{$i18n.t('Privacy')}</span>
+								{#if piiCount > 0}
+									<span class="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] leading-none font-semibold min-w-[16px] h-[16px] px-1">
+										{piiCount}
+									</span>
+								{/if}
+							</button>
+						{/if}
+						<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
+							<BookIcon /> <span>{$i18n.t('Library')}</span>
+						</button>
+					</div>
 				</div>
 				<MessageInput
 					{history}
@@ -232,6 +264,9 @@
 					bind:webSearchEnabled
 					bind:autoToolsEnabled
 					bind:atSelectedModel
+					{piiEnabled}
+					{showPiiToggle}
+					{onPiiToggle}
 					{transparentBackground}
 					{stopResponse}
 					{createMessagePair}

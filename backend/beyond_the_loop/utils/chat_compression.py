@@ -99,8 +99,10 @@ async def _generate_summary(
     existing_summary: str | None,
     messages_to_summarize: list[dict],
     agent_model: ModelModel,
+    pii_active: bool = False,
 ) -> str:
     from beyond_the_loop.prompts import CHAT_SUMMARY_PROMPT
+    from beyond_the_loop.pii.session import pii_note_prefix
 
     if existing_summary:
         user_content = (
@@ -117,7 +119,7 @@ async def _generate_summary(
 
     result = await structured_completion(
         messages=[
-            {"role": "system", "content": CHAT_SUMMARY_PROMPT},
+            {"role": "system", "content": pii_note_prefix(pii_active) + CHAT_SUMMARY_PROMPT},
             {"role": "user", "content": user_content.strip()},
         ],
         response_model=ChatSummaryResponse,
@@ -161,6 +163,7 @@ async def maybe_compress_chat(
     model: ModelModel,
     chat_id: str,
     event_emitter=None,
+    pii_active: bool = False,
 ) -> dict:
     all_messages: list[dict] = form_data.get("messages", [])
 
@@ -224,6 +227,7 @@ async def maybe_compress_chat(
             existing_summary=existing_summary,
             messages_to_summarize=messages_to_compress,
             agent_model=model,
+            pii_active=pii_active,
         )
         compression["summary"] = new_summary
 

@@ -44,26 +44,6 @@ JSON format: { "tags": ["tag1", "tag2", "tag3"] }
 {{MESSAGES:END:6}}
 </chat_history>"""
 
-DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = """### Task:
-Generate a detailed prompt for am image generation task based on the given language and context. Describe the image as if you were explaining it to someone who cannot see it. Include relevant details, colors, shapes, and any other important elements.
-
-### Guidelines:
-- Be descriptive and detailed, focusing on the most important aspects of the image.
-- Avoid making assumptions or adding information not present in the image.
-- Use the chat's primary language; default to English if multilingual.
-- If the image is too complex, focus on the most prominent elements.
-
-### Output:
-Strictly return in JSON format:
-{
-    "prompt": "Your detailed description here."
-}
-
-### Chat History:
-<chat_history>
-{{MESSAGES:END:6}}
-</chat_history>"""
-
 # ---------------------------------------------------------------------------
 # Query Generation
 # ---------------------------------------------------------------------------
@@ -224,6 +204,39 @@ Guidelines:
 - Use the same language as the conversation (default to English if mixed).
 
 Return ONLY the summary text — no preamble, no explanation."""
+
+# ---------------------------------------------------------------------------
+# PII Filter (anonymization)
+# ---------------------------------------------------------------------------
+
+PII_SYSTEM_PROMPT = (
+    "Wichtig: In den folgenden Nachrichten wurden personenbezogene Daten "
+    "durch Platzhalter der Form [[TYP_N]] ersetzt (z.B. [[PERSON_1]], "
+    "[[EMAIL_1]], [[IBAN_1]], [[ADDRESS_1]]). Übernimm diese Platzhalter in "
+    "deiner Antwort exakt und unverändert, wenn du dich auf die entsprechenden "
+    "Daten beziehst. Übersetze, paraphrasiere oder modifiziere sie nicht.\n\n"
+    "Hochgeladene Dateien werden serverseitig in Text extrahiert und "
+    "anonymisiert, bevor sie an dich weitergegeben werden. Du arbeitest "
+    "ausschließlich mit dem extrahierten und anonymisierten Textinhalt — "
+    "die Originaldatei selbst liegt dir nicht vor. Operationen, die das "
+    "Original benötigen (PDF-Layout oder -Hintergrund ändern, eingebettete "
+    "Bilder bearbeiten, Binärformate wie Excel parsen, Code Interpreter auf "
+    "der Originaldatei), sind in diesem Modus nicht möglich. Wenn der "
+    "Nutzer solche Operationen anfragt, erkläre, dass die Originaldatei "
+    "wegen des aktiven PII-Filters nicht zur Verfügung steht, und biete "
+    "textbasierte Alternativen an."
+)
+
+# Shorter notice prepended to system prompts of internal helper LLM calls
+# (title generation, smart router, file/knowledge intent, compression, query
+# generation, RAG template). Without it the helper LLMs occasionally treat
+# placeholders as broken text and refuse to answer or wrap them in quotes.
+PII_PLACEHOLDER_NOTE = (
+    "Hinweis: Eingabetexte können anonymisierte Platzhalter der Form "
+    "[[TYP_N]] (z.B. [[PERSON_1]], [[EMAIL_1]], [[ADDRESS_1]]) enthalten. "
+    "Das ist erwartet — behandle sie wie die referenzierten Originalwerte "
+    "und übernimm sie unverändert in deine Ausgabe, falls du sie zitierst.\n\n"
+)
 
 # ---------------------------------------------------------------------------
 # Magic Prompt (Prompt Engineering Assistant)
