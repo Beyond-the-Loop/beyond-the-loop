@@ -87,8 +87,8 @@
 					?.map((tag) => tag?.toLowerCase())
 					?.some((tag) => modelTags.includes(tag));
 
-			const isPublic = m.access_control === null && m.company_id !== "system";
-			const isPrebuilt = m.company_id === "system";
+			const isPublic = m.access_control === null && m.user_id !== "system" && m.user_id != "kickstart";
+			const isPrebuilt = m.user_id === "system" || m.user_id === "kickstart";
 			const isPrivate = m?.user_id === $user?.id;
 			const accessMatch =
 				accessFilter === 'all' ||
@@ -610,7 +610,7 @@
 									</button>
 								{/if}
 								<div class="flex items-center gap-1 flex-wrap">
-									{#if model.company_id === "system"}
+									{#if model.user_id === "system"}
 										<div
 											class="flex gap-1 items-center {hoveredModel === model.id ||
 											menuIdOpened === model.id
@@ -618,6 +618,15 @@
 												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
 										>
 											<span>{$i18n.t('Prebuilt')}</span>
+										</div>
+									{:else if model.user_id === "kickstart"}
+									<div
+											class="flex gap-1 items-center {hoveredModel === model.id ||
+											menuIdOpened === model.id
+												? 'dark:text-white'
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
+										>
+											<span>{$i18n.t('Kickstart')}</span>
 										</div>
 									{:else if model.access_control == null}
 										<div
@@ -807,15 +816,18 @@
 									<div class="shrink-0 text-lightGray-1200 dark:text-customGray-100">
 										{#if model?.user?.first_name && model?.user?.last_name}
 											{model?.user?.first_name} {model?.user?.last_name}
-										{:else if model?.user?.email}
+										{:else if model?.user?.email && model?.user?.last_name}
+											<!-- Checkt kurzzeitig nach lastname damit bei kickstarts keine mail angezeigt wird: ZU FIXEN VOR RELEASE -->
 											{model?.user?.email}
 										{/if}
 									</div>
 								</Tooltip>
 							</div>
-							<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
-								{dayjs(model.updated_at * 1000).format('DD.MM.YYYY')}
-							</div>
+							{#if model.updated_at != 0}
+								<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
+									{dayjs(model.updated_at * 1000).format('DD.MM.YYYY')}
+								</div>
+							{/if}
 						</div>
 					</div>
 				{/each}
