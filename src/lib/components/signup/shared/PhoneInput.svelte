@@ -136,14 +136,14 @@
 			{hasError
 			? 'border-red-500 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500'
 			: 'border-gray-200 focus-within:border-customBlue-500 focus-within:ring-1 focus-within:ring-customBlue-500 dark:border-customGray-700'}
-			bg-[#F1F1F1] dark:bg-customGray-900"
+			bg-[#F1F1F1] dark:bg-customGray-800"
 	>
 		<!-- Country Code Trigger -->
 		<button
 			type="button"
 			class="flex shrink-0 items-center gap-1.5 border-r border-gray-200 px-3
 				transition-colors dark:border-customGray-700
-				hover:bg-[#E8E8E8] dark:hover:bg-customGray-950
+				hover:bg-[#E8E8E8] dark:hover:bg-customGray-700
 				rounded-l-lg focus:outline-none"
 			aria-label="Select country code"
 			aria-expanded={open}
@@ -196,12 +196,12 @@
 	{#if open}
 		<div
 			class="absolute bottom-[calc(100%+6px)] left-0 z-[9999] w-72 rounded-lg border border-gray-200
-				bg-white shadow-xl dark:border-customGray-700 dark:bg-customGray-900"
+				bg-white shadow-xl dark:border-customGray-700 dark:bg-customGray-800"
 			transition:fly={{ y: 8, duration: 150 }}
 		>
 			<!-- Search -->
 			<div class="border-b border-gray-100 p-2 dark:border-customGray-700">
-				<div class="flex items-center gap-2 rounded-md bg-[#F1F1F1] px-3 py-2 dark:bg-customGray-800">
+				<div class="flex items-center gap-2 rounded-md bg-[#F1F1F1] px-3 py-2 dark:bg-customGray-700">
 					<svg
 						class="h-4 w-4 shrink-0 text-gray-400 dark:text-customGray-400"
 						xmlns="http://www.w3.org/2000/svg"
@@ -235,8 +235,8 @@
 						data-index={i}
 						class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors
 							{i === highlightedIndex
-							? 'bg-gray-100 dark:bg-customGray-800'
-							: 'hover:bg-gray-50 dark:hover:bg-customGray-800/50'}
+							? 'bg-gray-100 dark:bg-customGray-700'
+							: 'hover:bg-gray-50 dark:hover:bg-customGray-700/50'}
 							{selectedCountry.iso === country.iso
 							? 'font-medium text-customBlue-500'
 							: 'text-[#16181D] dark:text-white'}"
