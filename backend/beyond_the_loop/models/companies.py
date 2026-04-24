@@ -127,7 +127,7 @@ class CompanyTable:
         try:
             with get_db() as db:
                 companies = db.query(Company).all()
-                return companies
+                return [CompanyModel.model_validate(company) for company in companies]
         except Exception as e:
             log.error(f"Error getting companies: {e}")
             return None
