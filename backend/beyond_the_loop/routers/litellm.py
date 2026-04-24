@@ -603,6 +603,8 @@ async def generate_chat_completion(
                     accumulated_content = ""
                     code_accumulator = {}
                     log_all_until_completed = False
+                    web_search_active = False
+                    last_web_search_status = None
 
                     async for chunk in r.content:
                         chunk_str = chunk.decode("utf-8", errors="replace")
@@ -614,11 +616,11 @@ async def generate_chat_completion(
 
                             if line.startswith("event: "):
                                 event_type = line[7:].strip()
-                                if "code_interpreter" in event_type:
+                                if "web_search" in event_type:
                                     log.info(f"[RESPONSES API] event: {event_type}")
                             elif line.startswith("data: "):
                                 data_str = line[6:]
-                                if "code_interpreter" in data_str or log_all_until_completed:
+                                if "web_search" in data_str or log_all_until_completed:
                                     log.info(f"[RESPONSES API] data: {data_str}")
                                 if data_str == "[DONE]":
                                     yield b"data: [DONE]\n\n"
@@ -642,15 +644,21 @@ async def generate_chat_completion(
                                     elif event in (
                                         "response.web_search_call.in_progress",
                                         "response.web_search_call.searching",
+                                        "response.web_search_call.completed",
                                     ):
-                                        status_payload = {
-                                            "status_event": {
+                                        # Redundant with output_item.added/done — skip to avoid status flicker.
+                                        pass
+
+                                    elif event == "response.output_item.added":
+                                        item = data.get("item", {})
+                                        if item.get("type") == "web_search_call":
+                                            web_search_active = True
+                                            last_web_search_status = {
                                                 "action": "web_search",
                                                 "done": False,
                                                 "description": "Searching the web",
                                             }
-                                        }
-                                        yield f"data: {json.dumps(status_payload)}\n\n".encode()
+                                            yield f"data: {json.dumps({'status_event': last_web_search_status})}\n\n".encode()
 
                                     elif event == "response.code_interpreter_call.in_progress":
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Writing code'}})}\n\n".encode()
@@ -664,6 +672,7 @@ async def generate_chat_completion(
                                     elif event == "response.code_interpreter_call_code.done":
                                         item_id = data.get("item_id", "")
                                         code = data.get("code") or code_accumulator.get(item_id, "")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': True, 'description': 'Writing code'}})}\n\n".encode()
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Running code'}})}\n\n".encode()
                                         if code:
                                             yield f"data: {json.dumps({'code_execution_event': {'id': item_id, 'name': 'Code', 'code': code, 'language': 'python'}})}\n\n".encode()
@@ -678,6 +687,7 @@ async def generate_chat_completion(
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': True, 'description': 'Running code'}})}\n\n".encode()
                                         if item_id:
                                             yield f"data: {json.dumps({'code_execution_event': {'id': item_id, 'name': 'Code', 'code': code, 'language': 'python', 'result': {'output': ' '}}})}\n\n".encode()
+                                        yield f"data: {json.dumps({'status_event': {'action': 'generating_response', 'done': True}})}\n\n".encode()
 
                                     elif event == "response.output_item.done":
                                         item = data.get("item", {})
@@ -686,32 +696,35 @@ async def generate_chat_completion(
                                             action_type = action.get("type")
                                             if action_type == "search":
                                                 query = action.get("query") or (action.get("queries") or [""])[0]
-                                                status_payload = {
-                                                    "status_event": {
-                                                        "action": "web_search",
-                                                        "done": True,
-                                                        "description": 'Searching "{{searchQuery}}"',
-                                                        "query": query,
-                                                    }
+                                                last_web_search_status = {
+                                                    "action": "web_search",
+                                                    "done": False,
+                                                    "description": 'Searching "{{searchQuery}}"',
+                                                    "query": query,
                                                 }
                                             elif action_type == "open_page":
                                                 url = action.get("url", "")
-                                                status_payload = {
-                                                    "status_event": {
-                                                        "action": "web_search",
-                                                        "done": True,
-                                                        "description": 'Opening "{{searchQuery}}"',
-                                                        "query": url,
-                                                    }
+                                                last_web_search_status = {
+                                                    "action": "web_search",
+                                                    "done": False,
+                                                    "description": 'Opening "{{searchQuery}}"',
+                                                    "query": url,
                                                 }
                                             else:
-                                                status_payload = None
-                                            if status_payload:
-                                                yield f"data: {json.dumps(status_payload)}\n\n".encode()
+                                                last_web_search_status = {
+                                                    "action": "web_search",
+                                                    "done": False,
+                                                    "description": "Searching the web",
+                                                }
+                                            yield f"data: {json.dumps({'status_event': last_web_search_status})}\n\n".encode()
 
                                     elif event == "response.output_text.delta":
                                         delta = data.get("delta", "")
                                         if delta:
+                                            if web_search_active and last_web_search_status is not None:
+                                                web_search_active = False
+                                                final_status = {**last_web_search_status, "done": True}
+                                                yield f"data: {json.dumps({'status_event': final_status})}\n\n".encode()
                                             accumulated_content += delta
                                             chat_chunk = {
                                                 "id": response_id,
