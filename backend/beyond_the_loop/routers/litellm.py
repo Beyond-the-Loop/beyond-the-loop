@@ -484,8 +484,6 @@ async def generate_chat_completion(
     elif payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
 
-    print(payload["model"])
-
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
 
@@ -572,12 +570,8 @@ async def generate_chat_completion(
 
                             if line.startswith("event: "):
                                 event_type = line[7:].strip()
-                                if "web_search" in event_type:
-                                    log.info(f"[RESPONSES API] event: {event_type}")
                             elif line.startswith("data: "):
                                 data_str = line[6:]
-                                if "web_search" in data_str or log_all_until_completed:
-                                    log.info(f"[RESPONSES API] data: {data_str}")
                                 if data_str == "[DONE]":
                                     yield b"data: [DONE]\n\n"
                                     return
