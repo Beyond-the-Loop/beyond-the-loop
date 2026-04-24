@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
-from beyond_the_loop.routers import openai
+from beyond_the_loop.routers import litellm
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
     NO_COMPANY,
@@ -255,12 +255,11 @@ async def create_company(
         save_config(DEFAULT_CONFIG, company_id)
 
         # Create model entries in DB based on the LiteLLM models
-        openai_models = (await openai.get_all_models_from_litellm())["data"]
+        openai_models = (await litellm.get_all_models_from_litellm())["data"]
 
         util_models = [
             "TTS",
-            "STT",
-            "Nano Banana"
+            "STT"
         ]
 
         openai_models = [openai_model for openai_model in openai_models if openai_model["id"] not in util_models]

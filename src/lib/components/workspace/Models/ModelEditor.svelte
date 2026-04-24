@@ -17,7 +17,6 @@
 	import DeleteIcon from '$lib/components/icons/DeleteIcon.svelte';
 	import { onClickOutside, getModelIcon, emojiToBase64 } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import CapabilitiesNew from './CapabilitiesNew.svelte';
 	import { transcribeAudio } from '$lib/apis/audio';
 	import { blobToFile } from '$lib/utils';
 	import { uploadFile } from '$lib/apis/files';
@@ -96,13 +95,6 @@
 	let params = {
 		system: ''
 	};
-	let capabilities = {
-		websearch: false,
-		image_generation: false,
-		code_interpreter: false,
-		vision: true,
-		citations: true
-	};
 
 	let knowledge = [];
 	let filterIds = [];
@@ -133,7 +125,6 @@
 		}
 
 		info.access_control = accessControl;
-		info.meta.capabilities = capabilities;
 		info.meta.files = files;
 
 		info.meta.description = info?.meta?.description?.trim() === '' ? "" : info?.meta?.description;
@@ -229,9 +220,6 @@
 			filterIds = model?.meta?.filterIds ?? [];
 			actionIds = model?.meta?.actionIds ?? [];
 			knowledge = model?.meta?.knowledge ?? [];
-
-			const { usage, ...rest } = model?.meta?.capabilities ?? {};
-			capabilities = { ...capabilities, ...rest };
 
 			if ('access_control' in model) {
 				accessControl = model.access_control;
@@ -895,8 +883,6 @@
 										</div>
 									</div>
 								{/if}
-
-								<CapabilitiesNew bind:capabilities />
 							</div>
 
 							<div class="my-2 flex justify-end">

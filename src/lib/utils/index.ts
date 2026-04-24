@@ -1317,7 +1317,7 @@ export function getModelIcon(label: string): string {
 	const lower = label.toLowerCase();
 
 	if (lower.includes('nano banana')) {
-		return '/google-gemini-icon.svg';
+		return '/banana.svg';
 	} else if (lower.includes('router')) {
 		return '/smart-router.svg';
 	} else if (lower.includes('perplexity')) {

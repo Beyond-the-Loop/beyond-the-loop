@@ -19,6 +19,9 @@ model_list:
       speed: 2.5
       tokens_per_second: 120
       zdr: false
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Claude Sonnet 4.5"
     litellm_params:
@@ -40,6 +43,10 @@ model_list:
       speed: 1
       tokens_per_second: 48
       zdr: false
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
+      
 
   - model_name: "Claude Sonnet 4.6"
     litellm_params:
@@ -61,6 +68,9 @@ model_list:
       speed: 1.5
       tokens_per_second: 67
       zdr: false
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Claude Opus 4.6"
     litellm_params:
@@ -82,6 +92,9 @@ model_list:
       speed: 1
       tokens_per_second: 52
       zdr: false
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 2.5 Flash"
     litellm_params:
@@ -106,6 +119,9 @@ model_list:
       zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 3 Flash"
     litellm_params:
@@ -117,7 +133,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast multimodal model for efficient text, image, and code processing."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 4
       AAII: 0.46
       knowledge_cutoff: '2025-01-01'
@@ -129,6 +145,9 @@ model_list:
       tokens_per_second: 156
       zdr: true
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 3 Pro"
     litellm_params:
@@ -141,7 +160,7 @@ model_list:
       category: 3
       costFactor: 2.5
       description: "Powerful multimodal model for demanding analysis and reasoning tasks."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 4
       AAII: 0.48
       knowledge_cutoff: '2025-01-01'
@@ -153,6 +172,9 @@ model_list:
       tokens_per_second: 116
       zdr: true
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 3.1 Flash-Lite"
     litellm_params:
@@ -164,7 +186,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast model for reasoning, science, and code. Focus on low latency."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 3
       AAII: 0.34
       knowledge_cutoff: '2025-01-01'
@@ -177,6 +199,9 @@ model_list:
       zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 2.5 Pro"
     litellm_params:
@@ -202,7 +227,10 @@ model_list:
       zdr: true
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
-
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
+      
   - model_name: "GPT o3"
     litellm_params:
       model: "azure/responses/o3"
@@ -226,6 +254,9 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT o4-mini"
     litellm_params:
@@ -250,6 +281,9 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5"
     litellm_params:
@@ -275,10 +309,14 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_web_search: true
+      supports_code_execution: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5 mini"
     litellm_params:
-      model: "azure/gpt-5-mini"
+      model: "azure/responses/gpt-5-mini"
       api_base: os.environ/AZURE_OPENAI_GERMANY_WEST_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_GERMANY_WEST_API_KEY
     model_info:
@@ -299,6 +337,9 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.1"
     litellm_params:
@@ -323,6 +364,8 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5 nano"
     litellm_params:
@@ -347,6 +390,9 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Mistral Large 3"
     litellm_params:
@@ -371,6 +417,8 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Perplexity Sonar Deep Research"
     litellm_params:
@@ -379,7 +427,7 @@ model_list:
     model_info:
       context_window: '200K'
       description: 'Autonomous research agent for comprehensive analysis reports from web sources. Costs vary depending on the depth of the research.'
-      hosted_in: 'US'
+      hosted_in: 'Global'
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
@@ -387,6 +435,8 @@ model_list:
       research: true
       tokens_per_seconds: null
       zdr: false
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Perplexity Sonar"
     litellm_params:
@@ -395,7 +445,7 @@ model_list:
     model_info:
       context_window: '127K'
       description: 'Fast search model for precise answers with source citations.'
-      hosted_in: 'US'
+      hosted_in: 'Global'
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
@@ -403,6 +453,9 @@ model_list:
       research: true
       zdr: false
       allowed_messages_per_three_hours_premium: 5
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Perplexity Sonar Pro"
     litellm_params:
@@ -411,7 +464,7 @@ model_list:
     model_info:
       context_window: '127K'
       description: 'Advanced search for complex, multi-step research with more citations. Costs vary depending on the depth of the research.'
-      hosted_in: 'US'
+      hosted_in: 'Global'
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
@@ -419,6 +472,9 @@ model_list:
       research: true
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Perplexity Sonar Reasoning Pro"
     litellm_params:
@@ -427,7 +483,7 @@ model_list:
     model_info:
       context_window: '200K'
       description: 'Web search with advanced reasoning for analytical research. Costs vary depending on the depth of the research.'
-      hosted_in: 'US'
+      hosted_in: 'Global'
       knowledge_cutoff: null
       multimodal: false
       organization: 'Perplexity'
@@ -435,6 +491,9 @@ model_list:
       research: true
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT OSS 120b"
     litellm_params:
@@ -445,7 +504,7 @@ model_list:
       context_window: '128K'
       category: 1
       description: "Large open-source language model with 120 billion parameters. Solid performance on general NLP tasks, ideal for self-hosting and customization."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       costFactor: 1
       intelligence_score: 2.5
       knowledge_cutoff: '2024-06-01'
@@ -457,6 +516,8 @@ model_list:
       zdr: true
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Grok 4 Fast Reasoning"
     litellm_params:
@@ -468,7 +529,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Multimodal model for text and image analysis with broad knowledge range."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 3
       AAII: 0.35
       knowledge_cutoff: '2024-12-01'
@@ -481,6 +542,8 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Grok 4 Fast Non-Reasoning"
     litellm_params:
@@ -492,7 +555,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Multimodal model for text and image analysis with broad knowledge range."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 2
       AAII: 0.23
       knowledge_cutoff: '2024-12-01'
@@ -505,6 +568,8 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 300
       allowed_messages_per_three_hours_premium: 300
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Grok 4.1 Fast Reasoning"
     litellm_params:
@@ -516,7 +581,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast conversational model for direct answers without reasoning process."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 3.5
       AAII: 0.39
       knowledge_cutoff: '2025-08-01'
@@ -528,6 +593,8 @@ model_list:
       tokens_per_second: 126
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Grok 4.1 Fast Non-Reasoning"
     litellm_params:
@@ -539,7 +606,7 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Fast conversational model for direct answers without reasoning process."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 2
       AAII: 0.24
       knowledge_cutoff: '2025-08-01'
@@ -551,6 +618,8 @@ model_list:
       tokens_per_second: 116
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "DeepSeek-V3.2"
     litellm_params:
@@ -562,19 +631,20 @@ model_list:
       category: 1
       costFactor: 0.5
       description: "Specialized in multi-step problem-solving in math, code, and science."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 3.5
       AAII: 0.42
       knowledge_cutoff: null
       multimodal: false
       organization: 'DeepSeek'
-      reasoning: true
+      reasoning: false
       research: false
       speed: 1
       tokens_per_second: 36
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_document_input: true
 
   - model_name: "DeepSeek R1"
     litellm_params:
@@ -586,7 +656,7 @@ model_list:
       category: 2
       costFactor: 1
       description: "Reasoning model for complex math, logic, and scientific analyses."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 1.5
       AAII: 0.19
       knowledge_cutoff: null
@@ -599,6 +669,7 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_document_input: true
 
   - model_name: "DeepSeek R1-0528"
     litellm_params:
@@ -610,7 +681,7 @@ model_list:
       category: 2
       costFactor: 1
       description: "Reasoning model for complex math, logic, and scientific analyses."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 2.5
       AAII: 0.27
       knowledge_cutoff: null
@@ -623,6 +694,8 @@ model_list:
       zdr: false
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.4 Pro"
     litellm_params:
@@ -635,7 +708,7 @@ model_list:
       category: 4
       costFactor: 5
       description: "Multimodal model with excellent reasoning for math and science."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 5
       AAII: 0.57
       knowledge_cutoff: '2025-08-01'
@@ -645,6 +718,10 @@ model_list:
       research: false
       zdr: false
       allowed_messages_per_three_hours_premium: 10
+      supports_web_search: true
+      supports_code_execution: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT o3 Deep Research"
     litellm_params:
@@ -658,7 +735,7 @@ model_list:
       category: 4
       costFactor: 5
       description: "Agent for autonomous web research with synthesis into comprehensive reports."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       knowledge_cutoff: null
       multimodal: false
       organization: 'OpenAI'
@@ -666,6 +743,9 @@ model_list:
       research: true
       zdr: false
       allowed_messages_per_three_hours_premium: 10
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.4"
     litellm_params:
@@ -678,7 +758,7 @@ model_list:
       category: 3
       costFactor: 3
       description: "Multimodal model with excellent reasoning for math and science."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 5
       AAII: 0.57
       knowledge_cutoff: '2025-08-01'
@@ -688,6 +768,10 @@ model_list:
       research: false
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_code_execution: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.3 Codex"
     litellm_params:
@@ -699,7 +783,7 @@ model_list:
       category: 3
       costFactor: 3
       description: "Specialized in code generation, debugging, and technical documentation."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 5
       AAII: 0.54
       knowledge_cutoff: null
@@ -711,6 +795,8 @@ model_list:
       tokens_per_second: 62
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.2"
     litellm_params:
@@ -723,16 +809,20 @@ model_list:
       category: 3
       costFactor: 3
       description: "Advanced GPT-5 model with improved planning, more stable agent capabilities, and higher reliability for complex long-running tasks."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 4
       knowledge_cutoff: '2025-01-01'
       multimodal: true
       organization: 'OpenAI'
+      tokens_per_second: 180
       reasoning: true
       research: false
       speed: 2
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "GPT-5.3 Chat"
     litellm_params:
@@ -744,14 +834,19 @@ model_list:
       category: 3
       costFactor: 3
       description: "Multimodal model with excellent reasoning for math and science."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       knowledge_cutoff: '2025-08-01'
       multimodal: true
+      tokens_per_second: 180
+      intelligence_score: 2
       organization: 'OpenAI'
       reasoning: false
       research: false
       zdr: false
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "Gemini 3.1 Pro"
     litellm_params:
@@ -764,7 +859,7 @@ model_list:
       category: 3
       costFactor: 2.5
       description: "Multimodal model with extended context for text, image, and code analysis."
-      hosted_in: 'US'
+      hosted_in: 'Global'
       intelligence_score: 5
       AAII: 0.57
       knowledge_cutoff: '2025-01-01'
@@ -776,13 +871,29 @@ model_list:
       tokens_per_second: 102
       zdr: true
       allowed_messages_per_three_hours_premium: 50
+      supports_web_search: true
+      supports_document_input: true
+      supports_image_input: true
 
-  - model_name: "Nano Banana"
+  - model_name: "Nano Banana 2"
     litellm_params:
       model: "vertex_ai/gemini-2.5-flash-image"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
-      num_retries: 25
+    model_info:
+      intelligence_score: 1
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 50
+      organization: 'Google'
+      hosted_in: 'Global'
+      speed: 3
+      category: 4
+      context_window: '1M'
+      knowledge_cutoff: '2025-01-01'
+      tokens_per_second: 197
+      supports_image_generation: true
+      supports_document_input: true
+      supports_image_input: true
 
   - model_name: "TTS"
     litellm_params:
@@ -799,6 +910,12 @@ litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true
   default_fallbacks: ["Gemini 2.5 Flash"]
+
+files_settings:
+  - custom_llm_provider: azure
+    api_base: os.environ/AZURE_OPENAI_ENDPOINT
+    api_key: os.environ/AZURE_OPENAI_API_KEY
+    api_version: "2025-04-01-preview"
 
 general_settings:
   alerting: ["slack"]

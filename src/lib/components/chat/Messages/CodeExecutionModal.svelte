@@ -8,6 +8,8 @@
 
 	export let show = false;
 	export let codeExecution = null;
+
+	$: hasOutput = !!(codeExecution?.result?.output && codeExecution.result.output.trim() !== '');
 </script>
 
 <Modal size="lg" bind:show>
@@ -18,10 +20,8 @@
 					<div>
 						{#if codeExecution.result?.error}
 							<Badge type="error" content="error" />
-						{:else if codeExecution.result?.output}
+						{:else if hasOutput}
 							<Badge type="success" content="success" />
-						{:else}
-							<Badge type="warning" content="incomplete" />
 						{/if}
 					</div>
 				{/if}
@@ -34,11 +34,7 @@
 					{/if}
 
 					<div>
-						{#if codeExecution?.name}
-							{$i18n.t('Code execution')}: {codeExecution?.name}
-						{:else}
-							{$i18n.t('Code execution')}
-						{/if}
+						{$i18n.t('Code execution')}
 					</div>
 				</div>
 			</div>
@@ -73,7 +69,7 @@
 						code={codeExecution?.code ?? ''}
 						className=""
 						editorClassName={codeExecution?.result &&
-						(codeExecution?.result?.error || codeExecution?.result?.output)
+						(codeExecution?.result?.error || hasOutput)
 							? 'rounded-b-none'
 							: ''}
 						stickyButtonsClassName="top-0"
@@ -81,7 +77,7 @@
 					/>
 				</div>
 
-				{#if codeExecution?.result && (codeExecution?.result?.error || codeExecution?.result?.output)}
+				{#if codeExecution?.result && (codeExecution?.result?.error || hasOutput)}
 					<div class="dark:bg-[#202123] dark:text-white px-4 py-4 rounded-b-lg flex flex-col gap-3">
 						{#if codeExecution?.result?.error}
 							<div>
@@ -89,7 +85,7 @@
 								<div class="text-sm">{codeExecution?.result?.error}</div>
 							</div>
 						{/if}
-						{#if codeExecution?.result?.output}
+						{#if hasOutput}
 							<div>
 								<div class=" text-gray-500 text-xs mb-1">{$i18n.t('OUTPUT')}</div>
 								<div class="text-sm">{codeExecution?.result?.output}</div>

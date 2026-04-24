@@ -1,4 +1,3 @@
-import asyncio
 import anyio
 import logging
 import mimetypes
@@ -117,12 +116,12 @@ from beyond_the_loop.routers import file_archival
 from beyond_the_loop.routers import intercom
 from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
 from beyond_the_loop.routers import models
-from beyond_the_loop.routers import openai, audio
+from beyond_the_loop.routers import litellm, audio
 from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import prompts
 from beyond_the_loop.routers import users
 from beyond_the_loop.routers.files import upload_file
-from beyond_the_loop.routers.openai import generate_chat_completion as chat_completion_handler
+from beyond_the_loop.routers.litellm import generate_chat_completion as chat_completion_handler
 from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
@@ -131,7 +130,6 @@ from beyond_the_loop.socket.main import (
     app as socket_app,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
-from beyond_the_loop.models.models import ModelModel
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
@@ -149,7 +147,6 @@ from open_webui.env import (
 )
 from open_webui.internal.db import Session
 from open_webui.routers import (
-    images,
     tasks,
     channels,
     memories,
@@ -483,10 +480,9 @@ app.add_middleware(
 
 app.mount("/ws", socket_app)
 
-app.include_router(openai.router, prefix="/openai", tags=["openai"])
+app.include_router(litellm.router, prefix="/openai", tags=["openai"])
 
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
-app.include_router(images.router, prefix="/api/v1/images", tags=["images"])
 app.include_router(audio.router, prefix="/api/v1/audio", tags=["audio"])
 app.include_router(retrieval.router, prefix="/api/v1/retrieval", tags=["retrieval"])
 
@@ -589,7 +585,9 @@ async def get_active_models(user=Depends(get_verified_user)):
 _DISPLAY_METADATA_FIELDS = {
     'context_window', 'category', 'costFactor', 'description', 'hosted_in',
     'intelligence_score', 'knowledge_cutoff', 'multimodal', 'organization',
-    'reasoning', 'research', 'speed', 'tokens_per_second', 'zdr'
+    'reasoning', 'research', 'speed', 'tokens_per_second', 'zdr',
+    'supports_web_search', 'supports_code_execution', 'supports_image_generation',
+    'supports_document_input', 'supports_image_input'
 }
 
 
@@ -673,10 +671,7 @@ async def chat_completion_openai(request: dict, user=Depends(get_current_api_key
 
             # Try to deduct credits and record completion
             try:
-                credit_cost = await credit_service.subtract_credit_cost_by_user_and_response(
-                    user, response
-                )
-                Completions.insert_new_completion(user.id, request.get("model"), credit_cost, None, False)
+                await credit_service.record_completion(user, response, request.get("model"))
             except Exception as err:
                 log.error("Error in chat completions public endpoint LiteLLM credit service: %s", err)
 

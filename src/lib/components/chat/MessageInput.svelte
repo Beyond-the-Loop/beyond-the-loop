@@ -13,6 +13,7 @@
 		mobile,
 		type Model,
 		models,
+		modelsInfo,
 		settings,
 		showCallOverlay,
 		showControls,
@@ -103,9 +104,14 @@
 	export let placeholder = '';
 
 	let visionCapableModels = [];
-	$: visionCapableModels = [...(atSelectedModel ? [atSelectedModel] : selectedModels)].filter(
-		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.vision ?? true
-	);
+	$: visionCapableModels = selectedModelIds.filter((modelId) => {
+		const m = $models.find((m) => m.id === modelId);
+		if (!m) return false;
+		if (m.name === 'Smart Router') return true;
+		const infoModel = m.base_model_id ? $models.find((bm) => bm.id === m.base_model_id) : m;
+		return $modelsInfo[infoModel?.name]?.supports_image_input ?? false;
+	});
+
 
 	// Magic prompt button — derived state
 	$: isMagicPromptDisabled = prompt.trim() === '' || isMagicLoading;
@@ -273,16 +279,16 @@
 
 			if (['image/gif', 'image/webp', 'image/jpeg', 'image/png'].includes(file['type'])) {
 				if (visionCapableModels.length === 0) {
-					toast.error($i18n.t('Selected model(s) do not support image inputs'));
+					toast.error($i18n.t('Selected model does not support image inputs'));
 					return;
 				}
 				let reader = new FileReader();
 				reader.onload = async (event) => {
-					let imageUrl = event.target.result;
-
 					const maxWidth = 1568;
 					const maxHeight = 1568;
-					imageUrl = await compressImage(imageUrl, maxWidth, maxHeight);
+					console.log(event.target?.result);
+					let imageUrl = await compressImage(event.target?.result, maxWidth, maxHeight);
+					console.log("IMAGEEEEEE URL", imageUrl);
 
 					files = [
 						...files,
@@ -475,15 +481,17 @@
 		}
 	});
 
-	let customModel = null;
+	$: selectedModelInfo = (() => {
+      if (selectedModels.length !== 1) return null;
+      const model = $models.find((m) => m.id === selectedModels[0]);
+	  const _baseModel = model.base_model_id
+								? $models.find((m) => m.id === model.base_model_id)
+								: undefined;
+      if (!model) return null;
+      return _baseModel ? $modelsInfo[_baseModel?.name] : $modelsInfo[model.name];
+	})();
 
-	$: {
-		if (selectedModels.length === 1) {
-			customModel = $models.find(
-				(model) => model.id === selectedModels[0] && model.info?.base_model_id !== null
-			);
-		}
-	}
+
 </script>
 
 <FilesOverlay show={dragged} />
@@ -731,16 +739,10 @@
 															alt="input"
 															imageClassName=" size-14 rounded-xl object-cover"
 														/>
-														{#if atSelectedModel ? visionCapableModels.length === 0 : selectedModels.length !== visionCapableModels.length}
+														{#if selectedModelIds.length !== visionCapableModels.length}
 															<Tooltip
 																className=" absolute top-1 left-1"
-																content={$i18n.t('{{ models }}', {
-																	models: [
-																		...(atSelectedModel ? [atSelectedModel] : selectedModels)
-																	]
-																		.filter((id) => !visionCapableModels.includes(id))
-																		.join(', ')
-																})}
+																content={$i18n.t('Selected model does not support image inputs')}
 															>
 																<svg
 																	xmlns="http://www.w3.org/2000/svg"
@@ -1264,11 +1266,11 @@
 
 										{#if $_user}
 											{@const
-												canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (customModel?.meta?.capabilities?.websearch ?? true))}
+												canWebSearch = ($companyConfig?.config?.rag?.web?.search?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.web_search) && (selectedModelInfo?.supports_web_search ?? false))}
 											{@const
-												canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (customModel?.meta?.capabilities?.image_generation ?? true))}
+												canImageGen = ($companyConfig?.config?.image_generation?.enable && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation) && (selectedModelInfo?.supports_image_generation ?? false))}
 											{@const
-												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (customModel?.meta?.capabilities?.code_interpreter ?? true))}
+												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (selectedModelInfo?.supports_code_execution ?? false))}
 
 											<ToolsMenu
 												{canWebSearch}

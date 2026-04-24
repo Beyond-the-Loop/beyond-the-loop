@@ -50,7 +50,7 @@ NEW_MODELS = [
 
 DELETED_MODELS = [
     "Grok 4",
-    "Mistral Large 2",
+    "Mistral Large 2"
 ]
 
 

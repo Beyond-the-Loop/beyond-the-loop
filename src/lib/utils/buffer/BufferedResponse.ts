@@ -21,8 +21,8 @@ export class BufferedResponse {
         }
     }
 
-		add_sources(sources: string[]) {
-			this.message.sources = sources;
+	add_sources(sources: string[]) {
+		this.message.sources = sources;
     }
 
     flushImmediate(content: string) {

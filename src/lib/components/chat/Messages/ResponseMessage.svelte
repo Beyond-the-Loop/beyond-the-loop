@@ -46,6 +46,8 @@
 	import MessageEditIcon from '$lib/components/icons/MessageEditIcon.svelte';
 	import RegenerateIcon from '$lib/components/icons/RegenerateIcon.svelte';
 	import StopReading from '$lib/components/icons/StopReading.svelte';
+	import WebSearchIcon from '$lib/components/icons/WebSearchIcon.svelte';
+	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import CustomChatError from './CustomChatError.svelte';
 
@@ -545,24 +547,12 @@
 			</Name>
 
 			<div>
-				{#if message?.files && message.files?.filter((f) => f.type === 'image').length > 0}
-					<div class="my-2.5 w-full flex overflow-x-auto gap-2 flex-wrap">
-						{#each message.files as file}
-							<div>
-								{#if file.type === 'image'}
-									<Image src={file.url} alt={message.content} />
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-
 				<div
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
 						{#if !message.done}
-								<div class="status-description flex items-center gap-2">
+								<div class="status-description flex items-center gap-2 mb-1">
 									{#if !message.content}
 										<div class="py-1">
 											<Spinner className="size-4" />
@@ -571,11 +561,12 @@
 
 									{#if status?.action === 'web_search' && (status?.query_summaries || status?.urls)}
 										<WebSearchResults {status}>
+											<WebSearchIcon className="size-4 shrink-0" />
 											<div class="flex flex-col justify-center -space-y-0.5">
 												<div
 													class="{status?.done === false
 														? 'shimmer'
-														: ''} text-base line-clamp-1 text-wrap"
+														: ''} text-base font-medium line-clamp-1 text-wrap"
 												>
 													{#if status?.description.includes('{{count}}')}
 														{$i18n.t(status?.description, {
@@ -587,6 +578,23 @@
 												</div>
 											</div>
 										</WebSearchResults>
+									{:else if status?.action === 'web_search'}
+										<WebSearchIcon className="size-4 shrink-0 text-gray-500 dark:text-gray-500" />
+										<div class="flex flex-col justify-center -space-y-0.5">
+											<div
+												class="{status?.done === false
+													? 'shimmer'
+													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+											>
+												{#if status?.description?.includes('{{searchQuery}}')}
+													{$i18n.t(status?.description, {
+														searchQuery: status?.query
+													})}
+												{:else}
+													{$i18n.t(status?.description || '')}
+												{/if}
+											</div>
+										</div>
 									{:else if status?.action === 'tool_selection'}
 									<div class="flex flex-col justify-center -space-y-0.5">
 										<div
@@ -610,13 +618,16 @@
 											</div>
 										</div>
 									{:else if status?.action === 'analyzing_results'}
+										{#if status?.description === 'Writing code' || status?.description === 'Running code'}
+											<CodeInterpreterIcon className="size-4 shrink-0 text-gray-500 dark:text-gray-500" />
+										{/if}
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div
 												class="{status?.done === false
 													? 'shimmer'
 													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
 											>
-												{$i18n.t("Analyzing results")}
+												{$i18n.t(status?.description || "Analyzing results")}
 											</div>
 										</div>
 									{:else if status?.action === 'querying_memory'}
@@ -787,6 +798,18 @@
 							</div>
 						{/if}
 					</div>
+
+					{#if message?.files && message.files?.filter((f) => f.type === 'image').length > 0}
+						<div class="my-2.5 w-full flex overflow-x-auto gap-2 flex-wrap">
+							{#each message.files as file}
+								<div>
+									{#if file.type === 'image'}
+										<Image src={file.url} alt={message.content} />
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
 				{#if !edit}

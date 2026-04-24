@@ -1,9 +1,8 @@
 import logging
 import os
 import shutil
-import json
 from abc import ABC, abstractmethod
-from typing import BinaryIO, Tuple
+from typing import BinaryIO, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +15,6 @@ from beyond_the_loop.config import (
     S3_REGION_NAME,
     S3_SECRET_ACCESS_KEY,
     GCS_BUCKET_NAME,
-    GOOGLE_APPLICATION_CREDENTIALS_JSON,
     STORAGE_PROVIDER,
     UPLOAD_DIR,
 )
@@ -41,6 +39,9 @@ class StorageProvider(ABC):
     @abstractmethod
     def delete_file(self, file_path: str) -> None:
         pass
+
+    def get_presigned_url(self, file_path: str, expiry_seconds: int = 600) -> Optional[str]:
+        return None
 
 
 class LocalStorageProvider(StorageProvider):
@@ -145,20 +146,24 @@ class S3StorageProvider(StorageProvider):
         # Always delete from local storage
         LocalStorageProvider.delete_all_files()
 
+    def get_presigned_url(self, file_path: str, expiry_seconds: int = 600) -> Optional[str]:
+        """Generate a pre-signed S3 URL valid for expiry_seconds seconds."""
+        try:
+            key = file_path.split("//")[1].split("/", 1)[1]
+            return self.s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket_name, "Key": key},
+                ExpiresIn=expiry_seconds,
+            )
+        except ClientError as e:
+            raise RuntimeError(f"Error generating presigned URL for S3: {e}")
+
 
 class GCSStorageProvider(StorageProvider):
     def __init__(self):
         self.bucket_name = GCS_BUCKET_NAME
 
-        if GOOGLE_APPLICATION_CREDENTIALS_JSON:
-            self.gcs_client = storage.Client.from_service_account_info(
-                info=json.loads(GOOGLE_APPLICATION_CREDENTIALS_JSON)
-            )
-        else:
-            # if no credentials json is provided, credentials will be picked up from the environment
-            # if running on local environment, credentials would be user credentials
-            # if running on a Compute Engine instance, credentials would be from Google Metadata server
-            self.gcs_client = storage.Client()
+        self.gcs_client = storage.Client()
         self.bucket = self.gcs_client.bucket(GCS_BUCKET_NAME)
 
     def upload_file(self, file: BinaryIO, filename: str) -> Tuple[bytes, str]:
@@ -208,6 +213,7 @@ class GCSStorageProvider(StorageProvider):
 
         # Always delete from local storage
         LocalStorageProvider.delete_all_files()
+
 
 
 def get_storage_provider(storage_provider: str):

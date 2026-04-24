@@ -36,7 +36,16 @@
 			{token.text}
 		{/if}
 	{:else if token.type === 'link'}
-		{#if token.tokens}
+		{#if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}
+			<a
+				href={`${WEBUI_BASE_URL}${token.href}`}
+				download
+				title={token.title}
+				class="inline-flex justify-center text-xs leading-0 items-center px-[.4rem] py-[.1875rem] bg-lightGray-400 dark:bg-[#2d2f2f] text-lightGray-100 dark:text-customGray-100 border-lightGray-500 rounded-md mr-1"
+			>
+				{token.tokens?.[0]?.text?.replace(/^\[|\]$/g, '') ?? token.text}
+			</a>
+		{:else if token.tokens}
 			{#if isPlainText(token.tokens)}
 				<a
 					href={token.href}
