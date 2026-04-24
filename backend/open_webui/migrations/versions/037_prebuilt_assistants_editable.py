@@ -1,7 +1,7 @@
 """Prebuilt Assistants editable
 
-Revision ID: 035
-Revises: 034
+Revision ID: 037
+Revises: 036
 Create Date: 2026-01-06 12:07:04.497624
 
 """
@@ -13,10 +13,6 @@ import pathlib
 import uuid
 
 from alembic import op
-import beyond_the_loop.models.models
-import beyond_the_loop.models.prompts
-import beyond_the_loop.models.domains
-from beyond_the_loop.models.companies import Company, CompanyTable
 from beyond_the_loop.assistants.assistants_csv_loader import load_kickstart_assistants
 from open_webui.internal.db import get_db
 import sqlalchemy as sa
@@ -24,8 +20,8 @@ from sqlalchemy.orm import Session
 
 
 # revision identifiers, used by Alembic.
-revision: str = '035'
-down_revision: Union[str, None] = '034'
+revision: str = '037'
+down_revision: Union[str, None] = '036'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -45,12 +41,14 @@ def upgrade() -> None:
                            """)
 
     session.execute(delete_query)
-    companies = CompanyTable.get_all()
+
+    result = connection.execute(sa.text("SELECT id FROM company;"))
+    company_ids = [row[0] for row in result]
     
     current_dir = pathlib.Path(__file__).parent.parent
     csv_file_path = current_dir / "data" / "prebuilt_assistants.csv"
-    for company in companies:
-        if company.id != 'system':
+    for company in company_ids:
+        if company != 'system':
             with open(csv_file_path, 'r', encoding='utf-8') as f:
                 csv_reader = csv.DictReader(f)
 
@@ -118,7 +116,7 @@ def upgrade() -> None:
                     connection.execute(insert_query, {
                         'id': assistant_id,
                         'user_id': system_user_id,
-                        'company_id': company.id,
+                        'company_id': company,
                         'base_model_id': base_model,
                         'name': row['Name'],
                         'meta': json.dumps(meta),
