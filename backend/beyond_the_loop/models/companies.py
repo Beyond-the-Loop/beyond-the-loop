@@ -122,7 +122,8 @@ class CompanyResponse(BaseModel):
 
 
 class CompanyTable:
-    def get_all(self):
+    @staticmethod
+    def get_all():
         try:
             with get_db() as db:
                 companies = db.query(Company).all()
