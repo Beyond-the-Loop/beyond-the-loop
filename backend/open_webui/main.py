@@ -29,9 +29,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from beyond_the_loop.config import (
-    # Image
-    ENABLE_IMAGE_GENERATION,
-
     # Audio
     AUDIO_TTS_VOICE,
     WHISPER_MODEL,
@@ -354,8 +351,6 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
 # IMAGES
 #
 ########################################
-
-app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
 
 ########################################
 #
@@ -858,7 +853,6 @@ async def get_app_config(request: Request):
                     "enable_channels": app.state.config.ENABLE_CHANNELS,
                     "enable_google_drive_integration": app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
                     "enable_web_search": True,
-                    "enable_image_generation": app.state.config.ENABLE_IMAGE_GENERATION,
                     "enable_community_sharing": app.state.config.ENABLE_COMMUNITY_SHARING,
                     "enable_message_rating": app.state.config.ENABLE_MESSAGE_RATING,
                 }

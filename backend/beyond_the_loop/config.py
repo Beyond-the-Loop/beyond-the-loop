@@ -165,7 +165,6 @@ DEFAULT_CONFIG = {
     },
     "image_generation": {
         "engine": "flux",
-        "enable": True,
         "model": "flux-kontext-max",
         "size": "1024x1024"
     },
@@ -965,16 +964,6 @@ RAG_TEMPLATE = PersistentConfig(
     "RAG_TEMPLATE",
     "rag.template",
     os.environ.get("RAG_TEMPLATE", DEFAULT_RAG_TEMPLATE),
-)
-
-####################################
-# Images
-####################################
-
-ENABLE_IMAGE_GENERATION = PersistentConfig(
-    "ENABLE_IMAGE_GENERATION",
-    "image_generation.enable",
-    os.environ.get("ENABLE_IMAGE_GENERATION", "").lower() == "true",
 )
 
 ####################################

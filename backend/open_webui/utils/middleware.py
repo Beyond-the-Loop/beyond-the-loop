@@ -477,8 +477,48 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
 
+    chat_id = metadata.get("chat_id")
+
+    # PII redaction: anonymize all message content before ANY downstream
+    # consumer (compression, smart router, RAG, LLM) sees it. Gated by the
+    # per-company feature flag `privacy.pii_filter_enabled` (default: ON).
+    if chat_id and form_data.get("messages"):
+        try:
+            from beyond_the_loop.pii.session import (
+                PII_SYSTEM_PROMPT,
+                PIISession,
+                anonymize_messages,
+                is_pii_filter_enabled,
+            )
+
+            if is_pii_filter_enabled(user.company_id):
+                pii_session = PIISession(chat_id)
+                anonymize_messages(form_data["messages"], pii_session)
+                pii_session.save()
+
+                # Echo the filtered user message back to the frontend so the
+                # UI can show "what was actually sent to the LLM" via an info
+                # icon on the user message bubble. Only emit when the filter
+                # actually changed the content.
+                try:
+                    filtered_user_content = get_last_user_message(form_data["messages"])
+                    if filtered_user_content and event_emitter:
+                        await event_emitter(
+                            {
+                                "type": "pii:user_message",
+                                "data": {"filtered_content": filtered_user_content},
+                            }
+                        )
+                except Exception:
+                    log.exception("[pii] failed to emit pii:user_message event")
+
+                form_data["messages"].insert(
+                    0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                )
+        except Exception as e:
+            log.exception(f"[pii] redaction failed, continuing WITHOUT redaction: {e}")
+
     try:
-        chat_id = metadata.get("chat_id")
 
         if chat_id:
             # Use DEFAULT_AGENT_MODEL for compression when the selected model is a virtual
@@ -1284,6 +1324,22 @@ async def process_chat_response(
 
                     generating_response = True
 
+                    # PII deanonymizer: buffers chunks so placeholders split across
+                    # SSE boundaries aren't leaked as "[[PER". None = pass-through.
+                    # Gated by the same per-company feature flag as the payload hook.
+                    pii_deanonymizer = None
+                    try:
+                        _chat_id_for_pii = metadata.get("chat_id")
+                        if _chat_id_for_pii:
+                            from beyond_the_loop.pii.session import (
+                                PIISession,
+                                is_pii_filter_enabled,
+                            )
+                            if is_pii_filter_enabled(user.company_id):
+                                pii_deanonymizer = PIISession(_chat_id_for_pii).streaming_deanonymizer()
+                    except Exception as e:
+                        log.exception(f"[pii] failed to init streaming deanonymizer: {e}")
+
                     async for line in response.body_iterator:
                         line = line.decode("utf-8") if isinstance(line, bytes) else line
                         data = line
@@ -1506,6 +1562,9 @@ async def process_chat_response(
 
                                 value = delta.get("content")
 
+                                if value and pii_deanonymizer is not None:
+                                    value = pii_deanonymizer.feed(value)
+
                                 if value:
                                     content = f"{content}{value}"
                                     if (
@@ -1594,6 +1653,30 @@ async def process_chat_response(
                             else:
                                 log.debug("Error: ", e)
                                 continue
+
+                    # Flush any remainder left in the deanonymizer buffer (e.g. a
+                    # placeholder that started but never closed). This is emitted
+                    # as a final chunk so the client never loses content.
+                    if pii_deanonymizer is not None:
+                        try:
+                            remainder = pii_deanonymizer.flush()
+                            if remainder:
+                                content = f"{content}{remainder}"
+                                if not content_blocks:
+                                    content_blocks.append({"type": "text", "content": ""})
+                                content_blocks[-1]["content"] = (
+                                    content_blocks[-1]["content"] + remainder
+                                )
+                                await event_emitter({
+                                    "type": "chat:completion",
+                                    "data": {
+                                        "content": serialize_content_blocks(content_blocks),
+                                        "type": "text",
+                                        "added_content": remainder,
+                                    },
+                                })
+                        except Exception as e:
+                            log.exception(f"[pii] flush failed: {e}")
 
                     if content_blocks:
                         # Clean up the last text block

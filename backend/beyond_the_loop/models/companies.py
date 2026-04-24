@@ -99,7 +99,7 @@ class UpdateCompanyConfigRequest(BaseModel):
     chat_retention_days: Optional[int] = None
     custom_user_notice: Optional[str] = None
     features_web_search: Optional[bool] = None
-    features_image_generation: Optional[bool] = None
+    features_pii_filter: Optional[bool] = None
     
     @field_validator('chat_retention_days')
     @classmethod

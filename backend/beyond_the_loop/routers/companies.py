@@ -131,10 +131,10 @@ async def update_company_config(
                 current_config["rag"]["web"]["search"] = {}
             current_config["rag"]["web"]["search"]["enable"] = form_data.features_web_search
             
-        if form_data.features_image_generation is not None:
-            if "image_generation" not in current_config:
-                current_config["image_generation"] = {}
-            current_config["image_generation"]["enable"] = form_data.features_image_generation
+        if form_data.features_pii_filter is not None:
+            if "privacy" not in current_config:
+                current_config["privacy"] = {}
+            current_config["privacy"]["pii_filter_enabled"] = form_data.features_pii_filter
 
         # Save the updated config to the database
         success = save_config(current_config, company_id)

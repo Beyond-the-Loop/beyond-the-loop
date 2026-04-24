@@ -16,7 +16,6 @@ DEFAULT_USER_PERMISSIONS = {
     },
     "features": {
         "web_search": True,
-        "image_generation": True,
         "code_interpreter": True,
     },
     "chat": {
