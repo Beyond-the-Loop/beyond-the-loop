@@ -58,17 +58,16 @@
 			align="end"
 			transition={flyAndScale}
 		>
-			{#if !user?.permissions?.workspace?.edit_assistants || model.company_id === "system"}
-				<DropdownMenu.Item
-					class="flex  gap-2  items-center px-3 py-2 text-xs text-lightGray-100 dark:text-customGray-100 font-medium cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
-					on:click={() => {
-						cloneHandler();
-					}}
-				>
-					<CloneIcon />
-					<div class="flex items-center">{$i18n.t('Clone')}</div>
-				</DropdownMenu.Item>
-			{:else}
+			<DropdownMenu.Item
+				class="flex  gap-2  items-center px-3 py-2 text-xs text-lightGray-100 dark:text-customGray-100 font-medium cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
+				on:click={() => {
+					cloneHandler();
+				}}
+			>
+				<CloneIcon />
+				<div class="flex items-center">{$i18n.t('Clone')}</div>
+			</DropdownMenu.Item>
+			{#if user?.permissions?.workspace?.edit_assistants}
 				<DropdownMenu.Item>
 					<a
 						class="flex w-full items-center gap-2 self-center text-xs font-medium dark:text-cusromGray-100 px-3 py-2 text-lightGray-100 dark:text-gray-300 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:hover:text-white hover:bg-black/5 rounded-md"

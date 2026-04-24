@@ -4,6 +4,7 @@ import logging
 import os
 import uuid
 
+from beyond_the_loop.assistants.assistants_csv_loader import load_kickstart_assistants
 import httpx
 from PIL import Image
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -287,6 +288,38 @@ async def create_company(
                     is_active=model["id"] not in disabled_models
                 ),
                 user_id="system",
+                company_id=company_id,
+            )
+        bsp_kickstarter = {
+                "name": "KickstartAssistent1",
+                "base_model_id": "Smart Router",
+                "description": "Nur ein kurzer test",
+                "profile_image_url": "\uD83D\uDE80",
+                "category": "",
+                "suggestion_prompts": ["Wie funktionierst du?", "Was ist deine Aufgabe?"],
+                "system_prompt": "Du bist ein hilfreicher Assistent."
+            }
+        
+        kickstart_assistants = load_kickstart_assistants()
+
+        # Register Kickstart Assistants in the database
+        for assistant in kickstart_assistants:
+            Models.insert_new_model(
+                ModelForm(
+                    id=str(uuid.uuid4()),
+                    name=assistant.get("name"),
+                    base_model_id=assistant.get("base_model_id"),
+                    meta=ModelMeta(
+                        description=assistant.get("description"),
+                        profile_image_url=assistant.get("profile_image_url"),
+                        categories= [assistant.get("category")],
+                        suggestion_prompts= [{"content": s} for s in assistant.get("suggestion_prompts")]
+                    ),
+                    params={"system": assistant.get("system_prompt"), "temperature": 0.5},
+                    access_control=None,  # None means public access
+                    is_active=True
+                ),
+                user_id="kickstart",
                 company_id=company_id,
             )
 

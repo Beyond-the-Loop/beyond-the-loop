@@ -264,8 +264,7 @@ class ModelsTable:
 
         for model in assistants:
             if (
-                model.user_id == "system"
-                or model.user_id == user_id
+                model.user_id == user_id
                 or (model.company_id == company_id and has_access(user_id, permission, model.access_control))
             ):
                 # Resolve system model base_model_id from name to actual ID using the pre-fetched map

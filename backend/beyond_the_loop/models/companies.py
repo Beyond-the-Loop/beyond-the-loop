@@ -122,11 +122,12 @@ class CompanyResponse(BaseModel):
 
 
 class CompanyTable:
-    def get_all(self):
+    @staticmethod
+    def get_all():
         try:
             with get_db() as db:
                 companies = db.query(Company).all()
-                return [CompanyModel.model_validate(company) for company in companies]
+                return companies
         except Exception as e:
             log.error(f"Error getting companies: {e}")
             return None
