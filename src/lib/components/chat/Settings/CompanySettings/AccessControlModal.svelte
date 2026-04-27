@@ -55,7 +55,7 @@
 
 		if (mode === 'disabled') {
 			isActive = false;
-		} else if (mode === 'all') {
+		} else if (mode === 'all' || selectedGroupIds.length === 0) {
 			accessControl = null;
 		} else {
 			accessControl = {
@@ -128,7 +128,7 @@
 		</div>
 
 		<div class="px-5 pb-2 text-xs text-[#8A8B8D] dark:text-customGray-300 border-t border-lightGray-400 dark:border-customGray-700 pt-4">
-			{$i18n.t('Zugriff')}
+			{$i18n.t('Access')}
 		</div>
 
 		<!-- Options -->
@@ -152,10 +152,10 @@
 				<div class="flex items-start justify-between gap-3 p-3">
 					<div class="min-w-0">
 						<div class="text-sm font-medium text-lightGray-100 dark:text-white">
-							{$i18n.t('Alle Nutzer')}
+							{$i18n.t('All users')}
 						</div>
 						<div class="text-xs text-[#8A8B8D] dark:text-customGray-300 mt-0.5">
-							{$i18n.t('Für alle Workspace-Mitglieder verfügbar')}
+							{$i18n.t('Available to all workspace members')}
 						</div>
 					</div>
 					{#if mode === 'all'}
@@ -185,10 +185,10 @@
 				<div class="flex items-start justify-between gap-3 p-3">
 					<div class="min-w-0">
 						<div class="text-sm font-medium text-lightGray-100 dark:text-white">
-							{$i18n.t('Bestimmte Gruppen')}
+							{$i18n.t('Specific groups')}
 						</div>
 						<div class="text-xs text-[#8A8B8D] dark:text-customGray-300 mt-0.5">
-							{$i18n.t('Zugriff auf ausgewählte Gruppen beschränken')}
+							{$i18n.t('Restrict access to selected groups')}
 						</div>
 					</div>
 					{#if mode === 'groups'}
@@ -204,7 +204,7 @@
 				<div class="pl-3 flex flex-col gap-1 max-h-[7rem] overflow-y-auto custom-scrollbar pr-1">
 					{#if groups.length === 0}
 						<div class="text-xs text-[#8A8B8D] dark:text-customGray-300 italic px-2 py-2">
-							{$i18n.t('Keine Gruppen verfügbar')}
+							{$i18n.t('No groups available')}
 						</div>
 					{:else}
 						{#each groups as group (group.id)}
@@ -273,12 +273,12 @@
 								? 'text-red-600 dark:text-red-400'
 								: 'text-lightGray-100 dark:text-white'}"
 						>
-							{$i18n.t('Deaktiviert')}
+							{$i18n.t('Disabled')}
 						</div>
 						<div class="text-xs mt-0.5 text-[#8A8B8D] dark:text-customGray-300">
 							{isDefault
-								? $i18n.t('Standardmodell kann nicht deaktiviert werden')
-								: $i18n.t('Modell ist für niemanden verfügbar')}
+								? $i18n.t('Default model cannot be disabled')
+								: $i18n.t('Model is unavailable to anyone')}
 						</div>
 					</div>
 					{#if mode === 'disabled'}
@@ -297,14 +297,14 @@
 				class="px-4 py-2 text-sm font-medium text-lightGray-100 dark:text-customGray-100 bg-[#F3F4F6] dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 hover:border-lightGray-650 dark:hover:border-customGray-500 rounded-md transition-colors"
 				on:click={cancel}
 			>
-				{$i18n.t('Abbrechen')}
+				{$i18n.t('Cancel')}
 			</button>
 			<button
 				type="button"
 				class="px-4 py-2 text-sm font-medium text-white bg-customBlue-600 hover:bg-customBlue-500 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-md transition-colors"
 				on:click={save}
 			>
-				{$i18n.t('Speichern')}
+				{$i18n.t('Save')}
 			</button>
 		</div>
 	</div>

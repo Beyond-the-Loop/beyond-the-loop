@@ -7,9 +7,10 @@
 	import {
 		filterCatalog,
 		mapModelsToOrganizations,
-		regionFlag,
 		regionLabel
 	} from '../../../../../data/modelsInfo';
+	import EuIcon from '$lib/components/icons/EuIcon.svelte';
+	import GlobeAlt from '$lib/components/icons/GlobeAlt.svelte';
 	import { modelsInfo } from '$lib/stores';
 	import { getModelIcon, onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
@@ -220,22 +221,27 @@
 		return info.costFactor ?? null;
 	};
 
+	let showRegionTooltip = false;
 	let showKlasseTooltip = false;
+
+	$: isFreeOrPremium =
+		($subscription as any)?.plan === 'free' || ($subscription as any)?.plan === 'premium';
 </script>
 
 <div class="pb-4 text-lightGray-100 dark:text-customGray-100">
-	<!-- Header -->
-	<div class="pt-1 pb-5">
-		<h2 class="text-lg font-semibold text-lightGray-100 dark:text-white">{$i18n.t('Modelle')}</h2>
-		<p class="mt-1 text-xs text-[#8A8B8D] dark:text-customGray-300">
-			{$i18n.t('KI-Modelle verwalten, Zugriff festlegen und Modelldetails einsehen.')}
-		</p>
+	<div class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 my-1.5">
+		<div class="flex flex-col w-full">
+			<div class="text-lg font-semibold">{$i18n.t('Models')}</div>
+			<div class="text-xs text-lightGray-100 dark:text-customGray-100">
+				{$i18n.t('Manage AI models, set access, and view model details.')}
+			</div>
+		</div>
 	</div>
 
 	<!-- Default model picker -->
 	<div class="mb-5">
 		<div class="text-xs text-[#8A8B8D] dark:text-customGray-300 mb-2">
-			{$i18n.t('Standard-Modell für den Workspace')}
+			{$i18n.t('Default model for the workspace')}
 		</div>
 		<div class="relative" use:onClickOutside={() => (showBaseDropdown = false)}>
 			<button
@@ -257,7 +263,7 @@
 					</div>
 				{:else}
 					<span class="text-[#8A8B8D] dark:text-customGray-300">
-						{$i18n.t('Modell auswählen')}
+						{$i18n.t('Select a model')}
 					</span>
 				{/if}
 				<ChevronDown className="size-3 {showBaseDropdown ? 'rotate-180' : ''} transition-transform" />
@@ -307,7 +313,7 @@
 			{/if}
 		</div>
 		<p class="mt-2 text-2xs text-[#8A8B8D] dark:text-customGray-300">
-			{$i18n.t('Wird automatisch für neue Chats aller Workspace-Mitglieder verwendet.')}
+			{$i18n.t('Will be used automatically for new chats by all workspace members.')}
 		</p>
 	</div>
 
@@ -325,7 +331,7 @@
 			<input
 				type="text"
 				bind:value={searchQuery}
-				placeholder={$i18n.t('Modell oder Anbieter suchen...')}
+				placeholder={$i18n.t('Search models or providers...')}
 				class="w-full h-9 pl-9 pr-3 text-xs rounded-md bg-lightGray-300 dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 text-lightGray-100 dark:text-customGray-100 placeholder:text-[#8A8B8D] dark:placeholder:text-customGray-300 focus:outline-none"
 			/>
 		</div>
@@ -337,11 +343,16 @@
 				class="flex items-center justify-between w-full h-9 px-3 text-xs rounded-md bg-lightGray-300 dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 text-lightGray-100 dark:text-customGray-100"
 				on:click={() => (showRegionDropdown = !showRegionDropdown)}
 			>
-				<span class="truncate">
+				<span class="flex items-center gap-1.5 truncate">
 					{#if filterRegion}
-						{regionFlag(filterRegion)} {regionLabel(filterRegion)}
+						{#if filterRegion?.toUpperCase() === 'EU'}
+							<EuIcon className="w-7 h-5" />
+						{:else}
+							<GlobeAlt className="w-5 h-5" />
+						{/if}
+						<span class="truncate">{regionLabel(filterRegion)}</span>
 					{:else}
-						{$i18n.t('Alle Regionen')}
+						{$i18n.t('All regions')}
 					{/if}
 				</span>
 				<ChevronDown className="size-3" />
@@ -351,13 +362,18 @@
 					<button
 						class="w-full px-3 py-1.5 text-left text-xs hover:bg-lightGray-700 dark:hover:bg-customGray-800 text-lightGray-100 dark:text-customGray-100"
 						on:click={() => { filterRegion = null; showRegionDropdown = false; }}
-					>{$i18n.t('Alle Regionen')}</button>
+					>{$i18n.t('All regions')}</button>
 					{#each availableRegions as r}
 						<button
 							class="w-full px-3 py-1.5 text-left text-xs hover:bg-lightGray-700 dark:hover:bg-customGray-800 text-lightGray-100 dark:text-customGray-100 flex items-center gap-2"
 							on:click={() => { filterRegion = r; showRegionDropdown = false; }}
 						>
-							<span>{regionFlag(r)}</span><span>{regionLabel(r)}</span>
+							{#if r?.toUpperCase() === 'EU'}
+								<EuIcon className="w-7 h-5" />
+							{:else}
+								<GlobeAlt className="w-5 h-5" />
+							{/if}
+							<span>{regionLabel(r)}</span>
 						</button>
 					{/each}
 				</div>
@@ -371,7 +387,7 @@
 				class="flex items-center justify-between w-full h-9 px-3 text-xs rounded-md bg-lightGray-300 dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 text-lightGray-100 dark:text-customGray-100"
 				on:click={() => (showProviderDropdown = !showProviderDropdown)}
 			>
-				<span class="truncate">{filterProvider ?? $i18n.t('Alle Anbieter')}</span>
+				<span class="truncate">{filterProvider ?? $i18n.t('All providers')}</span>
 				<ChevronDown className="size-3" />
 			</button>
 			{#if showProviderDropdown}
@@ -379,7 +395,7 @@
 					<button
 						class="w-full px-3 py-1.5 text-left text-xs hover:bg-lightGray-700 dark:hover:bg-customGray-800 text-lightGray-100 dark:text-customGray-100"
 						on:click={() => { filterProvider = null; showProviderDropdown = false; }}
-					>{$i18n.t('Alle Anbieter')}</button>
+					>{$i18n.t('All providers')}</button>
 					{#each availableProviders as p}
 						<button
 							class="w-full px-3 py-1.5 text-left text-xs hover:bg-lightGray-700 dark:hover:bg-customGray-800 text-lightGray-100 dark:text-customGray-100"
@@ -394,14 +410,47 @@
 	{#if models !== null}
 		<!-- Table card -->
 		<div class="rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-lightGray-550 dark:bg-customGray-900 overflow-visible">
+			<div class="overflow-x-auto overflow-y-visible custom-scrollbar">
+				<div class="min-w-[42rem]">
 			<!-- Header row -->
-			<div class="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.1fr)_36px] sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_40px] md:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,1.1fr)_44px] items-center px-3 sm:px-4 py-2.5 text-2xs text-[#8A8B8D] dark:text-customGray-300 border-b border-lightGray-400 dark:border-customGray-700">
-				<div>{$i18n.t('Modell')}</div>
-				<div class="hidden md:block">{$i18n.t('Anbieter')}</div>
-				<div>{$i18n.t('Region')}</div>
-				<div class="hidden sm:flex items-center gap-1">
-					<span>{$i18n.t('Klasse')}</span>
-					{#if !$mobile}
+			<div class="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,1.1fr)_44px] items-center px-3 sm:px-4 py-2.5 text-2xs text-[#8A8B8D] dark:text-customGray-300 border-b border-lightGray-400 dark:border-customGray-700">
+				<div>{$i18n.t('Model')}</div>
+				<div>{$i18n.t('Provider')}</div>
+				<div class="flex items-center gap-1">
+					<span>{$i18n.t('Region')}</span>
+						<span
+							role="tooltip"
+							on:mouseenter={() => (showRegionTooltip = true)}
+							on:mouseleave={() => (showRegionTooltip = false)}
+							class="relative cursor-pointer text-[#D1D5DB] dark:text-customGray-300 hover:text-[#6B7280] dark:hover:text-white transition-colors flex items-center"
+						>
+							{#if showRegionTooltip}
+								<div class="absolute left-1/2 -translate-x-1/2 top-full pt-1 z-40 font-normal text-left">
+									<div class="w-[18rem] bg-white dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 rounded-lg px-3.5 py-3 shadow-xl">
+										<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
+											{$i18n.t('The region indicates which hosting locations are used for a model.')}
+										</div>
+										<div class="flex flex-col gap-1 text-[11px]">
+											<div class="flex items-center justify-between gap-4">
+												<span class="text-[#6B7280] dark:text-customGray-300">EU</span>
+												<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Locations within the EU')}</span>
+											</div>
+											<div class="flex items-center justify-between gap-4">
+												<span class="text-[#6B7280] dark:text-customGray-300">Global</span>
+												<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Locations may be worldwide')}</span>
+											</div>
+										</div>
+										<div class="mt-2.5 text-[11px] text-[#9CA3AF] dark:text-customGray-400 leading-relaxed">
+											{$i18n.t('The actual region used depends on the respective model provider.')}
+										</div>
+									</div>
+								</div>
+							{/if}
+							<QuestionMarkCircle className="size-3" strokeWidth="1.8" />
+						</span>
+				</div>
+				<div class="flex items-center gap-1">
+					<span>{$i18n.t('Class')}</span>
 						<span
 							role="tooltip"
 							on:mouseenter={() => (showKlasseTooltip = true)}
@@ -411,57 +460,93 @@
 							{#if showKlasseTooltip}
 								<div class="absolute left-1/2 -translate-x-1/2 top-full pt-1 z-40 font-normal text-left">
 									<div class="w-[17rem] bg-white dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 rounded-lg px-3.5 py-3 shadow-xl">
-										<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
-											{$i18n.t('Höhere Klassen haben strengere Rate-Limits gemäß der Fair-Usage-Richtlinie.')}
-										</div>
-										<div class="flex flex-col gap-1 mb-2.5">
-											<div class="flex items-center justify-between text-[11px]">
-												<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Klasse 1')}</span>
-												<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Höchstes Limit')}</span>
+										{#if isFreeOrPremium}
+											<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
+												{$i18n.t('Higher classes have stricter rate limits according to the Fair Usage Policy.')}
 											</div>
-											<div class="flex items-center justify-between text-[11px]">
-												<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Klasse 2')}</span>
-												<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Hohes Limit')}</span>
+											<div class="flex flex-col gap-1 mb-2.5">
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 1')}</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Highest limit')}</span>
+												</div>
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 2')}</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('High limit')}</span>
+												</div>
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 3')}</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Medium limit')}</span>
+												</div>
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 4')}</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Lowest limit')}</span>
+												</div>
 											</div>
-											<div class="flex items-center justify-between text-[11px]">
-												<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Klasse 3')}</span>
-												<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Mittleres Limit')}</span>
+											<a
+												href="https://beyond-the-loop.notion.site/fair-usage-policy"
+												target="_blank"
+												rel="noopener noreferrer"
+												class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<path d="M15 3h6v6" />
+													<path d="M10 14 21 3" />
+													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+												</svg>
+												<span>{$i18n.t('Fair Usage Policy')}</span>
+											</a>
+										{:else}
+											<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
+												{$i18n.t('Price factor × standard price = actual price.')}
 											</div>
-											<div class="flex items-center justify-between text-[11px]">
-												<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Klasse 4')}</span>
-												<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Niedrigstes Limit')}</span>
+											<div class="flex flex-col gap-1 mb-2.5">
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">0.5</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Half price')}</span>
+												</div>
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">1.0</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Standard price')}</span>
+												</div>
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">1.5</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('1.5× price')}</span>
+												</div>
+												<div class="flex items-center justify-between text-[11px]">
+													<span class="text-[#6B7280] dark:text-customGray-300">2.0</span>
+													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Double price')}</span>
+												</div>
 											</div>
-										</div>
-										<a
-											href="https://beyond-the-loop.notion.site/fair-usage-policy"
-											target="_blank"
-											rel="noopener noreferrer"
-											class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-												<path d="M15 3h6v6" />
-												<path d="M10 14 21 3" />
-												<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-											</svg>
-											<span>{$i18n.t('Fair-Usage-Richtlinie')}</span>
-										</a>
+											<a
+												href="https://beyondtheloop.ai/pricing-breakdown"
+												target="_blank"
+												rel="noopener noreferrer"
+												class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<path d="M15 3h6v6" />
+													<path d="M10 14 21 3" />
+													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+												</svg>
+												<span>{$i18n.t('Pricing page')}</span>
+											</a>
+										{/if}
 									</div>
 								</div>
 							{/if}
 							<QuestionMarkCircle className="size-3" strokeWidth="1.8" />
 						</span>
-					{/if}
 				</div>
-				<div>{$i18n.t('Zugriff')}</div>
+				<div>{$i18n.t('Access')}</div>
 				<div></div>
 			</div>
 
 			<!-- Rows -->
 			{#if paginatedModels.length === 0}
 				<div class="px-4 py-10 text-center text-xs text-[#8A8B8D] dark:text-customGray-300">
-					{$i18n.t('Keine Modelle gefunden')}
+					{$i18n.t('No models found')}
 				</div>
-			{:else}
+				{:else}
 				{#each paginatedModels as model (model.id)}
 					{@const info = $modelsInfo?.[model?.name]}
 					{@const org = modelToOrg[model?.name] ?? '—'}
@@ -469,34 +554,41 @@
 					{@const klasse = klasseValue(model?.name)}
 					{@const inactive = !model.is_active}
 					{@const groupIds = new Set([...(model?.access_control?.read?.group_ids ?? []), ...(model?.access_control?.write?.group_ids ?? [])])}
-					<div
-						class="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.1fr)_36px] sm:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_40px] md:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,1.1fr)_44px] items-center px-3 sm:px-4 py-2.5 border-b last:border-b-0 border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-800 transition-colors"
-					>
+					{@const userIds = new Set([...(model?.access_control?.read?.user_ids ?? []), ...(model?.access_control?.write?.user_ids ?? [])])}
+					{@const isPublic = model.access_control === null || (groupIds.size === 0 && userIds.size === 0)}
+						<div
+							class="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,1.1fr)_44px] items-center px-3 sm:px-4 py-2.5 border-b last:border-b-0 border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-800 transition-colors"
+						>
 						<!-- Model -->
-						<div class="flex items-center gap-2.5 min-w-0 {inactive ? 'opacity-50' : ''}">
+							<div class="flex items-center gap-2.5 min-w-0 {inactive ? 'opacity-50' : ''}">
 							<img
 								src={getModelIcon(model.name)}
 								alt={model.name}
 								class="shrink-0 w-7 h-7 object-contain"
 							/>
 							<span class="text-xs dark:text-white text-lightGray-100 truncate">{model.name}</span>
-						</div>
-						<!-- Provider (hidden < md) -->
-						<div class="hidden md:block text-xs text-lightGray-100 dark:text-customGray-100 truncate {inactive ? 'opacity-50' : ''}">{org}</div>
-						<!-- Region -->
-						<div class="flex items-center gap-1.5 text-xs text-lightGray-100 dark:text-customGray-100 {inactive ? 'opacity-50' : ''}">
+							</div>
+							<!-- Provider -->
+							<div class="text-xs text-lightGray-100 dark:text-customGray-100 truncate {inactive ? 'opacity-50' : ''}">{org}</div>
+							<!-- Region -->
+							<div class="flex items-center text-xs text-lightGray-100 dark:text-customGray-100 {inactive ? 'opacity-50' : ''}">
 							{#if region}
-								<span class="text-base leading-none">{regionFlag(region)}</span>
-								<span>{regionLabel(region)}</span>
+								<span class="cursor-default inline-flex items-center justify-center w-7" title={regionLabel(region)}>
+									{#if region?.toUpperCase() === 'EU'}
+										<EuIcon className="w-[22px] h-[16px]" />
+									{:else}
+										<GlobeAlt className="w-[18px] h-[18px]" />
+									{/if}
+								</span>
 							{:else}
-								<span class="text-[#8A8B8D] dark:text-customGray-300">—</span>
+								<span class="text-[#8A8B8D] dark:text-customGray-300 inline-flex justify-center w-7">—</span>
 							{/if}
-						</div>
-						<!-- Klasse (hidden < sm) -->
-						<div class="hidden sm:block {inactive ? 'opacity-50' : ''}">
-							{#if klasse != null}
-								<span class="inline-flex items-center justify-center min-w-7 h-6 px-2 text-xs rounded-full bg-lightGray-700 dark:bg-customGray-800 border border-lightGray-400 dark:border-customGray-700 text-lightGray-100 dark:text-white">
-									{klasse}
+							</div>
+							<!-- Klasse -->
+							<div class="{inactive ? 'opacity-50' : ''}">
+								{#if klasse != null}
+									<span class="inline-flex items-center justify-center min-w-7 h-6 px-2 text-xs rounded-full bg-lightGray-700 dark:bg-customGray-800 border border-lightGray-400 dark:border-customGray-700 text-lightGray-100 dark:text-white">
+										{klasse}
 								</span>
 							{:else}
 								<span class="text-xs text-[#8A8B8D] dark:text-customGray-300">—</span>
@@ -506,15 +598,15 @@
 						<div class="flex items-center text-xs font-medium {inactive ? 'opacity-50' : ''}">
 							{#if !model.is_active}
 								<span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-lightGray-700 dark:bg-customGray-800 text-[#8A8B8D] dark:text-customGray-300">
-									{$i18n.t('Deaktiviert')}
+									{$i18n.t('Disabled')}
 								</span>
-							{:else if model.access_control === null}
-								<span class="text-emerald-600 dark:text-emerald-400">
-									{$i18n.t('Alle')}
+							{:else if isPublic}
+								<span class="inline-flex items-center px-2 py-1 rounded-md bg-lightGray-700 dark:bg-customGray-800 text-emerald-600 dark:text-emerald-400">
+									{$i18n.t('All')}
 								</span>
 							{:else if groupIds.size > 0}
 								<span class="inline-flex items-center px-2 py-1 rounded-md bg-lightGray-700 dark:bg-customGray-800 text-lightGray-100 dark:text-customGray-100">
-									{groupIds.size} {groupIds.size === 1 ? $i18n.t('Gruppe') : $i18n.t('Gruppen')}
+									{groupIds.size} {groupIds.size === 1 ? $i18n.t('Group') : $i18n.t('Groups')}
 								</span>
 							{:else}
 								<span class="inline-flex items-center gap-1 text-lightGray-100 dark:text-customGray-100">
@@ -543,14 +635,14 @@
 										on:click={() => openDetailsFor(model)}
 									>
 										<Info className="size-3.5" strokeWidth="1.8" />
-										{$i18n.t('Modelldetails')}
+										{$i18n.t('Model details')}
 									</button>
 									<button
 										class="w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-lightGray-700 dark:hover:bg-customGray-800 text-lightGray-100 dark:text-customGray-100"
 										on:click={() => openAccessFor(model)}
 									>
 										<UsersIcon className="size-3.5" />
-										{$i18n.t('Zugriff')}
+										{$i18n.t('Access')}
 									</button>
 								</div>
 							{/if}
@@ -558,16 +650,18 @@
 					</div>
 				{/each}
 			{/if}
+				</div>
+			</div>
 		</div>
 
 		<!-- Footer -->
 		<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mt-3 text-2xs text-[#8A8B8D] dark:text-customGray-300">
 			<div>
-				{totalCount} {$i18n.t('Modelle')} · {activeCount} {$i18n.t('aktiv')} · {euCount} {$i18n.t('EU-gehostet')}
+				{totalCount} {$i18n.t('Models')} · {activeCount} {$i18n.t('active')} · {euCount} {$i18n.t('EU-hosted')}
 			</div>
 			<div class="flex items-center gap-3">
 				<div class="flex items-center gap-1.5">
-					<span>{$i18n.t('Zeilen pro Seite')}</span>
+					<span>{$i18n.t('Rows per page')}</span>
 					<div class="relative" use:onClickOutside={() => (showPageSizeDropdown = false)}>
 						<button
 							class="flex items-center gap-1 px-2 h-7 rounded-md border border-lightGray-400 dark:border-customGray-700 bg-lightGray-300 dark:bg-customGray-900 text-lightGray-100 dark:text-customGray-100"
@@ -597,7 +691,7 @@
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
 					</button>
-					<span>{currentPage} {$i18n.t('von')} {totalPages}</span>
+					<span>{currentPage} {$i18n.t('of')} {totalPages}</span>
 					<button
 						class="w-6 h-6 flex items-center justify-center rounded hover:bg-lightGray-700 dark:hover:bg-customGray-800 disabled:opacity-30"
 						disabled={currentPage >= totalPages}

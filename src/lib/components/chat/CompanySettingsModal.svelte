@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, tick } from 'svelte';
+	import { getContext, onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { models, settings, mobile } from '$lib/stores';
 	import { subscription } from '$lib/stores';
@@ -30,9 +30,11 @@
 
 	
 	const i18n = getContext('i18n');
+	const MODEL_CONTROL_COMPACT_BREAKPOINT = 900;
 
 	export let show = false;
 	let selectedTab = 'general-settings';
+	let compactModelControl = false;
 
 	interface SettingsTab {
 		id: string;
@@ -111,6 +113,10 @@
 		return await _getModels(localStorage.token);
 	};
 
+	const updateCompactModelControl = () => {
+		compactModelControl = window.innerWidth < MODEL_CONTROL_COMPACT_BREAKPOINT;
+	};
+
 
 	// Function to handle sideways scrolling
 	const scrollHandler = (event) => {
@@ -142,6 +148,18 @@
 	} else {
 		removeScrollListener();
 	}
+
+	onMount(() => {
+		updateCompactModelControl();
+		window.addEventListener('resize', updateCompactModelControl);
+		return () => {
+			window.removeEventListener('resize', updateCompactModelControl);
+		};
+	});
+
+	$: showCompactTabView =
+		$mobile || (selectedTab === 'model-control' && compactModelControl);
+
 	let users = [];
 	const getUsersHandler = async () => {
 		users = await getUsers(localStorage.token);
@@ -180,7 +198,7 @@
 	<div class="text-lightGray-100 dark:text-customGray-100 bg-lightGray-550 dark:bg-customGray-800 rounded-xl md:h-auto">
 		<div class="px-4 md:px-7">
 			<div class=" flex justify-between dark:text-white pt-5 pb-4 border-b dark:border-customGray-700">
-				{#if selectedTab && $mobile}
+				{#if selectedTab && showCompactTabView}
 					<button class="capitalize flex items-center" on:click={() => selectedTab = null}>
 						<BackIcon className="mr-1 size-4 shrink-0"/>
 						<div class="shrink-0">{$i18n.t(settingsTabs?.find(item => item?.id === selectedTab).title)}</div>
@@ -211,8 +229,8 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col md:flex-row w-full pl-4 md:pl-0 pr-4 md:pr-7 md:space-x-4">
-			{#if selectedTab === null || !$mobile}
+		<div class="flex flex-col md:flex-row w-full pl-4 pr-4 md:pr-7 {showCompactTabView ? 'md:pl-7' : 'md:pl-0 md:space-x-4'}">
+			{#if selectedTab === null || !showCompactTabView}
 				<div
 					id="settings-tabs-container"
 					class="rounded-bl-lg md:pl-4 md:pt-5 pr-2 tabs flex flex-col md:dark:bg-customGray-900 md:gap-1 w-full md:w-[252px] dark:text-gray-200 text-sm font-medium text-left mb-1 md:mb-0"
