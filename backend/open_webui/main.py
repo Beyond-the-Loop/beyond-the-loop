@@ -525,9 +525,7 @@ app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"]
 
 @app.get("/api/models")
 async def get_active_models(user=Depends(get_verified_user)):
-    
     subscription = payments_service.get_subscription(user.company_id)
-
     is_kickstart_customer = subscription.get("is_kickstart_customer")
 
     assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)

@@ -297,7 +297,7 @@ class PaymentsService:
                     'image_url': image_url,
                     "subscription_id": trial_subscription.get("id"),
                     "subscription_item_id": trial_subscription["items"]["data"][0]["id"],
-                    "is_kickstart_customer": trial_subscription.get("metadata", {}).get("is_kickstart_customer")
+                    "is_kickstart_customer": trial_subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
                 }
 
             # If no active subscription, return free plan
@@ -326,7 +326,7 @@ class PaymentsService:
                     "image_url": image_url,
                     "subscription_id": subscription.get("id"),
                     "subscription_item_id": subscription["items"]["data"][0]["id"],
-                    "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer")
+                    "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
                 }
 
             return {
@@ -350,7 +350,7 @@ class PaymentsService:
                     subscription.get("metadata", {}).get("custom_credit_amount")) if subscription.get("metadata").get(
                     "custom_credit_amount") is not None else None,
                 "next_credit_recharge": company.next_credit_charge_check,
-                "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer")
+                "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
             }
 
         except Exception as e:
