@@ -170,7 +170,7 @@ jobs:
             docker-compose restart litellm
             docker image prune -f
 
-  notify-slack:
+  notify-google-chat:
     needs: deploy-production
     runs-on: ubuntu-latest
     permissions:
@@ -182,10 +182,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate release notes and post to Slack
+      - name: Generate release notes and post to Google Chat
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_NOTIFICATION_BOT_WEBHOOK_URL }}
+          GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_DEPLOYMENT_WEBHOOK_URL }}
         run: |
           # Get last prod tag
           LAST_TAG=$(git tag --sort=-version:refname --list "prod/*" | head -1)
@@ -218,28 +218,22 @@ jobs:
 
           SUMMARY=$(echo "$RESPONSE" | jq -r '.content[0].text // "Zusammenfassung konnte nicht erstellt werden."')
 
-          # Post to Slack
+          # Post to Google Chat
           SHORT_SHA=$(git rev-parse --short HEAD)
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           DEPLOY_TIME=$(TZ='Europe/Berlin' date '+%d.%m.%Y %H:%M %Z')
 
-          SLACK_PAYLOAD=$(jq -n \
+          GOOGLE_CHAT_PAYLOAD=$(jq -n \
             --arg summary "$SUMMARY" \
             --arg actor "${{ github.actor }}" \
             --arg sha "$SHORT_SHA" \
             --arg run_url "$RUN_URL" \
             --arg deploy_time "$DEPLOY_TIME" \
-            '{blocks:[
-              {type:"header",text:{type:"plain_text",text:"🚀 Production Deployment",emoji:true}},
-              {type:"context",elements:[{type:"mrkdwn",text:$deploy_time}]},
-              {type:"section",text:{type:"mrkdwn",text:$summary}},
-              {type:"divider"},
-              {type:"context",elements:[{type:"mrkdwn",text:("Deployed von *"+$actor+"* • SHA `"+$sha+"` • <"+$run_url+"|Details>")}]}
-            ]}')
+            '{"text": ("🚀 *Production Deployment* — " + $deploy_time + "\n\n" + $summary + "\n\nDeployed von *" + $actor + "* • SHA `" + $sha + "` • <" + $run_url + "|Details>")}')
 
-          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+          curl -s -X POST "$GOOGLE_CHAT_WEBHOOK_URL" \
             -H "content-type: application/json" \
-            -d "$SLACK_PAYLOAD"
+            -d "$GOOGLE_CHAT_PAYLOAD"
 
       - name: Create prod tag
         run: |
