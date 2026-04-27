@@ -27,8 +27,7 @@
 			view_knowledge: true,
 			edit_knowledge: true,
 			view_prompts: true,
-			edit_prompts: true,
-			tools: false
+			edit_prompts: true
 		},
 		features: {
 			web_search: true,

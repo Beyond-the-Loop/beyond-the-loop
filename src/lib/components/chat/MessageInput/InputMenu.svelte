@@ -28,7 +28,6 @@
 
 	export let uploadGoogleDriveHandler: Function;
 
-	export let selectedToolIds: string[] = [];
 	export let files: any[] = [];
 	export let onSelectKnowledge: Function = () => {};
 

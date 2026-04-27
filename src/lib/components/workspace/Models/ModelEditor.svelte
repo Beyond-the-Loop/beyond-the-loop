@@ -2,12 +2,10 @@
 	import { onMount, getContext, tick } from 'svelte';
 	import {
 		models,
-		functions,
 		knowledge as knowledgeCollections,
 		companyConfig
 	} from '$lib/stores';
 	import Textarea from '$lib/components/common/Textarea.svelte';
-	import { getFunctions } from '$lib/apis/functions';
 	import { getKnowledgeBases } from '$lib/apis/knowledge';
 	import { toast } from 'svelte-sonner';
 	import BackIcon from '$lib/components/icons/BackIcon.svelte';
@@ -177,7 +175,6 @@
 	};
 
 	onMount(async () => {
-		await functions.set(await getFunctions(localStorage.token));
 		await knowledgeCollections.set(await getKnowledgeBases(localStorage.token));
 
 		// Scroll to top 'workspace-container' element

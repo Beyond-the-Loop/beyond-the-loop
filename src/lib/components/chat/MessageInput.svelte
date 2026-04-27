@@ -17,7 +17,6 @@
 		settings,
 		showCallOverlay,
 		showControls,
-		tools,
 		user as _user
 	} from '$lib/stores';
 
@@ -72,8 +71,6 @@
 	export let prompt = '';
 	export let files = [];
 
-	export let selectedToolIds = [];
-
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
@@ -82,7 +79,6 @@
 	$: onChange({
 		prompt,
 		files,
-		selectedToolIds,
 		imageGenerationEnabled,
 		webSearchEnabled,
 		autoToolsEnabled
@@ -553,40 +549,8 @@
 				</div>
 				<!-- class="px-3 pb-0.5 pt-1.5 text-left w-full flex flex-col absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 z-10" -->
 				<div class="w-full relative">
-					{#if atSelectedModel !== undefined || selectedToolIds.length > 0 || webSearchEnabled || ($settings?.webSearch ?? false) === 'always' || imageGenerationEnabled || codeInterpreterEnabled}
+					{#if atSelectedModel !== undefined || webSearchEnabled || ($settings?.webSearch ?? false) === 'always' || imageGenerationEnabled || codeInterpreterEnabled}
 						<div>
-							{#if selectedToolIds.length > 0}
-								<div class="flex items-center justify-between w-full">
-									<div class="flex items-center gap-2.5 text-base dark:text-gray-500">
-										<div class="pl-1">
-											<span class="relative flex size-2">
-												<span
-													class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"
-												/>
-												<span class="relative inline-flex rounded-full size-2 bg-yellow-500" />
-											</span>
-										</div>
-										<div class="  text-ellipsis line-clamp-1 flex">
-											{#each selectedToolIds.map((id) => {
-												return $tools ? $tools.find((t) => t.id === id) : { id: id, name: id };
-											}) as tool, toolIdx (toolIdx)}
-												<Tooltip
-													content={tool?.meta?.description ?? ''}
-													className=" {toolIdx !== 0 ? 'pl-0.5' : ''} flex-shrink-0"
-													placement="top"
-												>
-													{tool.name}
-												</Tooltip>
-
-												{#if toolIdx !== selectedToolIds.length - 1}
-													<span>, </span>
-												{/if}
-											{/each}
-										</div>
-									</div>
-								</div>
-							{/if}
-
 							<!-- {#if webSearchEnabled || ($settings?.webSearch ?? false) === 'always'}
 								<div class="flex items-center justify-between w-full">
 									<div class="flex items-center gap-2.5 text-base dark:text-gray-500">
@@ -981,7 +945,6 @@
 													if (e.key === 'Escape') {
 														console.log('Escape');
 														atSelectedModel = undefined;
-														selectedToolIds = [];
 														webSearchEnabled = false;
 														imageGenerationEnabled = false;
 													}
@@ -1165,7 +1128,6 @@
 												if (e.key === 'Escape') {
 													console.log('Escape');
 													atSelectedModel = undefined;
-													selectedToolIds = [];
 													webSearchEnabled = false;
 													imageGenerationEnabled = false;
 												}
@@ -1226,7 +1188,6 @@
 								<div class=" flex justify-between mt-1.5 mb-5 mx-4 max-w-full items-center">
 									<div class="ml-1 self-end gap-0.5 flex items-center flex-1 max-w-[80%]">
 										<InputMenu
-											bind:selectedToolIds
 											{files}
 											{screenCaptureHandler}
 											{inputFilesHandler}

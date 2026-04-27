@@ -11,8 +11,6 @@
 				goto('/workspace/knowledge');
 			} else if ($user?.permissions?.workspace?.view_prompts) {
 				goto('/workspace/prompts');
-			} else if ($user?.permissions?.workspace?.tools) {
-				goto('/workspace/tools');
 			} else {
 				goto('/');
 			}
