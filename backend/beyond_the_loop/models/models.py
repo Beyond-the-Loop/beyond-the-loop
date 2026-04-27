@@ -247,8 +247,6 @@ class ModelsTable:
     def get_assistants_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read", is_kickstart_customer = False
     ) -> list[ModelUserResponse]:
-        print(is_kickstart_customer)
-
         with get_db() as db:
             result = db.execute(
                 select(user_model_bookmark.c.model_id).where(user_model_bookmark.c.user_id == user_id)
