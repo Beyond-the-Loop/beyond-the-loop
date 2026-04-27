@@ -581,8 +581,6 @@ async def get_active_models(user=Depends(get_verified_user)):
             for model in all_models
         ]
 
-    all_models = [SMART_ROUTER_MODEL] + list(all_models)
-
     return {"data": all_models}
 
 
