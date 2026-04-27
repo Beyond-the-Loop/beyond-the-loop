@@ -29,7 +29,6 @@
 
 	const i18n: Writable<i18nType> = getContext('i18n');
 
-	let models = null;
 	let config = null;
 	let modelIds = [];
 	let defaultModelIds = [];
@@ -73,15 +72,15 @@
 
 	const init = async () => {
 		workspaceModels = await getBaseModels(localStorage.token);
-
-		models = workspaceModels.sort((a, b) => {
-			if (a?.name === 'Smart Router') return -1;
-			if (b?.name === 'Smart Router') return 1;
-			return (orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity);
-		});
-		const availableModels = models.map((model) => model?.name);
+		const availableModels = (workspaceModels ?? []).map((m) => m?.name);
 		organizations = filterCatalog(organizations, availableModels);
 	};
+
+	$: models = workspaceModels && [...workspaceModels].sort((a, b) =>
+		a?.name === 'Smart Router' ? -1 :
+		b?.name === 'Smart Router' ? 1 :
+		(orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
+	);
 
 	const defaultInit = async () => {
 		config = await getModelsConfig(localStorage.token);
