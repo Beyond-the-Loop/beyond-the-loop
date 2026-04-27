@@ -23,6 +23,9 @@ RUN npm run build
 
 ######## WebUI backend ########
 FROM python:3.11-slim-bookworm AS base
+ARG UID=0
+ARG GID=0
+ARG BUILD_HASH=dev-build
 
 ## Basis ##
 ENV ENV=prod \
