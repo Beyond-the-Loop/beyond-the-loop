@@ -61,14 +61,14 @@ RUN pip3 install -r requirements.txt --no-cache-dir
 COPY --chown=$UID:$GID --from=build /app/build /app/build
 COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 
-# copy backend files
-COPY --chown=$UID:$GID ./backend .
-
 RUN apt-get update && apt-get install -y \
     curl jq bash ffmpeg \
     poppler-utils \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
+
+# copy backend files
+COPY --chown=$UID:$GID ./backend .
 
 EXPOSE 8080
 
