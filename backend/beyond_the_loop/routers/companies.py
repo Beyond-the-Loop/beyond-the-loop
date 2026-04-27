@@ -303,13 +303,14 @@ async def create_company(
                         description=assistant.get("description"),
                         profile_image_url=assistant.get("profile_image_url"),
                         categories= [assistant.get("category")],
-                        suggestion_prompts= [{"content": s} for s in assistant.get("suggestion_prompts")]
+                        suggestion_prompts= [{"content": s} for s in assistant.get("suggestion_prompts")],
+                        is_kickstart_assistant= True
                     ),
                     params={"system": assistant.get("system_prompt"), "temperature": 0.5},
                     access_control=None,  # None means public access
                     is_active=True
                 ),
-                user_id="kickstart",
+                user_id="system",
                 company_id=company_id,
             )
 

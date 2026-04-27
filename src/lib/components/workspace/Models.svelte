@@ -87,8 +87,8 @@
 					?.map((tag) => tag?.toLowerCase())
 					?.some((tag) => modelTags.includes(tag));
 
-			const isPublic = m.access_control === null && m.user_id !== "system" && m.user_id != "kickstart";
-			const isPrebuilt = m.user_id === "system" || m.user_id === "kickstart";
+			const isPublic = m.access_control === null && m.user_id !== "system";
+			const isPrebuilt = m.user_id === "system";
 			const isPrivate = m?.user_id === $user?.id;
 			const accessMatch =
 				accessFilter === 'all' ||
@@ -610,16 +610,7 @@
 									</button>
 								{/if}
 								<div class="flex items-center gap-1 flex-wrap">
-									{#if model.user_id === "system"}
-										<div
-											class="flex gap-1 items-center {hoveredModel === model.id ||
-											menuIdOpened === model.id
-												? 'dark:text-white'
-												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
-										>
-											<span>{$i18n.t('Prebuilt')}</span>
-										</div>
-									{:else if model.user_id === "kickstart"}
+									{#if model?.meta?.is_kickstart_assistant }
 									<div
 											class="flex gap-1 items-center {hoveredModel === model.id ||
 											menuIdOpened === model.id
@@ -627,6 +618,15 @@
 												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
 										>
 											<span>{$i18n.t('Kickstart')}</span>
+										</div>
+									{:else if model.user_id === "system"}
+										<div
+											class="flex gap-1 items-center {hoveredModel === model.id ||
+											menuIdOpened === model.id
+												? 'dark:text-white'
+												: 'text-lightGray-100 dark:text-customGray-300'} text-xs bg-lightGray-400 font-medium dark:bg-customGray-900 px-[6px] py-[3px] rounded-md"
+										>
+											<span>{$i18n.t('Prebuilt')}</span>
 										</div>
 									{:else if model.access_control == null}
 										<div

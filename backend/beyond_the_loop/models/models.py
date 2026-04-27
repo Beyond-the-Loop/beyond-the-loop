@@ -59,6 +59,8 @@ class ModelMeta(BaseModel):
 
     knowledge: Optional[list[dict]] = None
 
+    is_kickstart_assistant: Optional[bool] = None
+
     pass
 
 
@@ -269,7 +271,8 @@ class ModelsTable:
         for model in assistants:
             if (
                 model.user_id == user_id
-                or (model.company_id == company_id and has_access(user_id, permission, model.access_control) and (model.user_id != "kickstart" or is_kickstart_customer or model.name in allowed_kickstart_models))
+                or (model.company_id == company_id and has_access(user_id, permission, model.access_control) 
+                    and (model.meta.is_kickstart_assistant is None or is_kickstart_customer or model.name in allowed_kickstart_models))
             ):
                 # Resolve system model base_model_id from name to actual ID using the pre-fetched map
                 if model.user_id == "system":

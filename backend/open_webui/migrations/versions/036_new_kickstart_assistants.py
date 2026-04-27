@@ -31,20 +31,11 @@ def upgrade() -> None:
     connection = op.get_bind()
     session = Session(bind=connection)
 
-    connection.execute(sa.text("""
-        INSERT INTO "user" (id, role, first_name, last_name, email,
-                            profile_image_url, company_id,
-                            created_at, updated_at, last_active_at)
-        VALUES ('kickstart', 'system', 'System', '', 'kickstart@system.internal', '',
-                'system', 0, 0, 0)
-        ON CONFLICT (id) DO NOTHING
-    """))
-
     result = connection.execute(sa.text("SELECT id FROM company;"))
     company_ids = [row[0] for row in result]
     
     kickstart_assistants = load_kickstart_assistants()
-    kickstart_user_id = "kickstart"
+    kickstart_user_id = "system"
     for company in company_ids:
         if company != 'system':
             for assistant in kickstart_assistants:
@@ -55,7 +46,8 @@ def upgrade() -> None:
                     "description": assistant.get("description"),
                     "profile_image_url": assistant.get("profile_image_url"),
                     "categories": [assistant.get("category")], # gibt keine
-                    "suggestion_prompts": [{"content": s} for s in assistant.get("suggestion_prompts")]
+                    "suggestion_prompts": [{"content": s} for s in assistant.get("suggestion_prompts")],
+                    "is_kickstart_assistant": True
                 }
                 params = {
                     "system": assistant.get("system_prompt"),

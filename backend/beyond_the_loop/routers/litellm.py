@@ -338,7 +338,7 @@ async def generate_chat_completion(
     has_chat_id = "chat_id" in metadata and metadata["chat_id"] is not None
 
     if model.base_model_id:
-        if model.user_id == "system":
+        if model.user_id == "system" and model.meta.is_kickstart_assistant is None:
             model_name = model.base_model_id
         else:
             base_model = Models.get_model_by_id(model.base_model_id)
