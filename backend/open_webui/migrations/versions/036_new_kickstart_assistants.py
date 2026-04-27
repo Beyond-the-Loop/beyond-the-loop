@@ -70,8 +70,8 @@ def upgrade() -> None:
                     'name': assistant_name,
                     'meta': json.dumps(meta),
                     'is_active': True,
-                    'created_at': 0,
-                    'updated_at': 0,
+                    'created_at': 1,
+                    'updated_at': 1,
                     'params': json.dumps(params)
                 })
 
