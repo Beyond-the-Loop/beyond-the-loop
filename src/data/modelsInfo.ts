@@ -36,3 +36,17 @@ export function filterCatalog(
       .filter(([, models]) => (models as string[]).length > 0)
   );
 }
+
+export const regionFlag = (region?: string | null): string => {
+	if (!region) return '';
+	const r = region.toUpperCase();
+	if (r === 'EU') return '🇪🇺';
+	return '🌐';
+};
+
+export const regionLabel = (region?: string | null): string => {
+	if (!region) return '';
+	const r = region.toUpperCase();
+	if (r === 'EU') return 'EU';
+	return 'Global';
+};

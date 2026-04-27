@@ -72,9 +72,18 @@
 				group_ids: updated
 			}
 		};
+
+		if (
+			!accessControl.read.group_ids.length &&
+			!accessControl.read.user_ids.length &&
+			!accessControl.write.group_ids.length &&
+			!accessControl.write.user_ids.length
+		) {
+			accessControl = null;
+		}
+
 		isActive = true;
 		updateModel(openAccessDropdownId, accessControl, isActive);
-		// openAccessDropdownId = null;
 	};
 
 	$: activeGroupIds = [
