@@ -55,6 +55,7 @@
 	interface MessageType {
 		id: string;
 		model: string;
+		selectedModelId?: string;
 		content: string;
 		files?: { type: string; url: string }[];
 		timestamp: number;
@@ -143,6 +144,10 @@
 
 	let model = null;
 	$: model = $models.find((m) => m.id === message.model);
+	$: selectedModelName =
+		model?.base_model_id === 'Smart Router' && message.selectedModelId
+			? ($models.find((m) => m.id === message.selectedModelId)?.name ?? message.selectedModelId)
+			: null;
 
 	let edit = false;
 	let editedContent = '';
@@ -532,6 +537,9 @@
 				<!-- <Tooltip content={model?.name ?? message.model} placement="top-start"> -->
 				<span class="line-clamp-1 text-base select-text">
 					{model?.name ?? message.model}
+					{#if selectedModelName}
+						<span class="font-normal text-gray-500 dark:text-gray-400">({selectedModelName})</span>
+					{/if}
 				</span>
 				<!-- </Tooltip> -->
 
