@@ -997,6 +997,7 @@
 			type,
 			sources,
 			selected_model_id,
+			selectedModelId,
 			model: updatedModel,
 			error,
 			usage,
@@ -1109,6 +1110,10 @@
 		if (selected_model_id) {
 			message.selectedModelId = selected_model_id;
 			message.arena = true;
+		}
+
+		if (selectedModelId) {
+			message.selectedModelId = selectedModelId;
 		}
 
 		if (updatedModel && !choices) {

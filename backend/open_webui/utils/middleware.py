@@ -558,10 +558,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         if routed_model:
             model = routed_model
             form_data["model"] = routed_model.id
+            metadata["selected_model_id"] = routed_model.id
         else:
             # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
             model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
             form_data["model"] = model.id
+            metadata["selected_model_id"] = model.id
 
         # Propagate tool needs from routing decision into features so the
         # web_search / code_interpreter tools are actually passed to the model.
@@ -605,10 +607,12 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         if routed_model:
             model = model.model_copy(update={"base_model_id": routed_model.id})
+            metadata["selected_model_id"] = routed_model.id
         else:
             fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
             if fallback:
                 model = model.model_copy(update={"base_model_id": fallback.id})
+                metadata["selected_model_id"] = fallback.id
 
         if routing_decision:
             if routing_decision.needs_web_search:
@@ -900,13 +904,21 @@ async def process_chat_response(
 
     # Non-streaming response
     if not isinstance(response, StreamingResponse):
+        if (
+            isinstance(response, dict)
+            and metadata.get("selected_model_id")
+            and "selectedModelId" not in response
+        ):
+            response["selectedModelId"] = metadata["selected_model_id"]
+
         if event_emitter:
-            if "selected_model_id" in response:
+            selected_model_id = response.get("selectedModelId") or response.get("selected_model_id")
+            if selected_model_id:
                 Chats.upsert_message_to_chat_by_id_and_message_id(
                     metadata["chat_id"],
                     metadata["message_id"],
                     {
-                        "selectedModelId": response["selected_model_id"],
+                        "selectedModelId": selected_model_id,
                     },
                 )
 
@@ -974,12 +986,14 @@ async def process_chat_response(
 
     # Streaming response
     if event_emitter and event_caller:
+        message_update = {"model": model.id}
+        if metadata.get("selected_model_id"):
+            message_update["selectedModelId"] = metadata["selected_model_id"]
+
         Chats.upsert_message_to_chat_by_id_and_message_id(
             metadata["chat_id"],
             metadata["message_id"],
-            {
-                "model": model.id,
-            },
+            message_update,
         )
 
         # Handle as a background task
@@ -1253,7 +1267,7 @@ async def process_chat_response(
             await event_emitter(
                 {
                     "type": "chat:completion",
-                    "data": {"model": model.id},
+                    "data": message_update,
                 }
             )
 
