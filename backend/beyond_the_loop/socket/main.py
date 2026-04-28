@@ -197,10 +197,12 @@ async def disconnect(sid):
 
 def get_event_emitter(request_info):
     async def __event_emitter__(event_data):
-        user_id = request_info["user_id"]
+        user_id = request_info.get("user_id")
+        if not user_id:
+            return
         session_ids_from_pool = await asyncio.to_thread(USER_POOL.get, user_id, [])
         session_ids = list(
-            set(session_ids_from_pool + [request_info["session_id"]])
+            set(session_ids_from_pool + [request_info.get("session_id", "")])
         )
 
         for session_id in session_ids:
