@@ -1894,6 +1894,124 @@ async def process_chat_response(
 
                 await stream_body_handler(response)
 
+                MAX_TOOL_CALL_RETRIES = 5
+                tool_call_retries = 0
+
+                while len(tool_calls) > 0 and tool_call_retries < MAX_TOOL_CALL_RETRIES:
+                    tool_call_retries += 1
+
+                    response_tool_calls = tool_calls.pop(0)
+
+                    content_blocks.append(
+                        {
+                            "type": "tool_calls",
+                            "content": response_tool_calls,
+                        }
+                    )
+
+                    await event_emitter(
+                        {
+                            "type": "chat:completion",
+                            "data": {
+                                "content": serialize_content_blocks(content_blocks),
+                            },
+                        }
+                    )
+
+                    tools = metadata.get("tools", {})
+
+                    results = []
+                    for tool_call in response_tool_calls:
+                        log.debug(f"Tool call: {tool_call}")
+                        tool_call_id = tool_call.get("id", "")
+                        tool_name = tool_call.get("function", {}).get("name", "")
+
+                        tool_function_params = {}
+                        try:
+                            # json.loads cannot be used because some models do not produce valid JSON
+                            tool_function_params = ast.literal_eval(
+                                tool_call.get("function", {}).get("arguments", "{}")
+                            )
+                        except Exception as e:
+                            log.debug(e)
+
+                        tool_result = None
+
+                        if tool_name in tools:
+                            tool = tools[tool_name]
+                            spec = tool.get("spec", {})
+
+                            try:
+                                required_params = spec.get("parameters", {}).get(
+                                    "required", []
+                                )
+                                tool_function = tool["callable"]
+                                tool_function_params = {
+                                    k: v
+                                    for k, v in tool_function_params.items()
+                                    if k in required_params
+                                }
+                                tool_result = await tool_function(
+                                    **tool_function_params
+                                )
+                            except Exception as e:
+                                tool_result = str(e)
+
+                        results.append(
+                            {
+                                "tool_call_id": tool_call_id,
+                                "content": tool_result,
+                            }
+                        )
+
+                    content_blocks[-1]["results"] = results
+
+                    content_blocks.append(
+                        {
+                            "type": "text",
+                            "content": "",
+                        }
+                    )
+
+                    await event_emitter(
+                        {
+                            "type": "chat:completion",
+                            "data": {
+                                "content": serialize_content_blocks(content_blocks),
+                            },
+                        }
+                    )
+
+                    try:
+                        res, _ = await generate_chat_completion({
+                            "stream": True,
+                            "messages": [
+                                *form_data["messages"],
+                                {
+                                    "role": "assistant",
+                                    "content": serialize_content_blocks(
+                                        content_blocks, raw=True
+                                    ),
+                                    "tool_calls": response_tool_calls,
+                                },
+                                *[
+                                    {
+                                        "role": "tool",
+                                        "tool_call_id": result["tool_call_id"],
+                                        "content": result["content"],
+                                    }
+                                    for result in results
+                                ],
+                            ],
+                        }, user, model)
+
+                        if isinstance(res, StreamingResponse):
+                            await stream_body_handler(res)
+                        else:
+                            break
+                    except Exception as e:
+                        log.debug(e)
+                        break
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {
