@@ -1008,6 +1008,21 @@ async def process_chat_response(
                         block_content = block.get("content", [])
                         results = block.get("results", [])
 
+                        user_tools = metadata.get("tools", {}) or {}
+                        block_content = [
+                            tc for tc in block_content
+                            if not user_tools.get(
+                                tc.get("function", {}).get("name", ""), {}
+                            ).get("hidden")
+                        ]
+                        if not block_content:
+                            continue
+                        visible_ids = {tc.get("id", "") for tc in block_content}
+                        results = [
+                            r for r in results
+                            if r.get("tool_call_id", "") in visible_ids
+                        ]
+
                         if results:
 
                             result_display_content = ""
@@ -1734,7 +1749,7 @@ async def process_chat_response(
                     )
 
                     try:
-                        res = await generate_chat_completion({
+                        res, _ = await generate_chat_completion({
                             "stream": True,
                             "messages": [
                                 *form_data["messages"],

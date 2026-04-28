@@ -393,11 +393,44 @@ async def generate_chat_completion(
             tools.append({"type": "function", "function": upload_base64_file})
 
             async def _upload_base64_file_fn(filename: str, data: str) -> str:
-                return "https://staging.chat.beyondtheloop.ai/test123"
+                """Decode a base64 payload, store it via our Files API, and return a public URL."""
+                import base64
+                from beyond_the_loop.models.files import FileForm, Files
+                from beyond_the_loop.storage.provider import Storage
+
+                if data.startswith("data:") and "," in data:
+                    data = data.split(",", 1)[1]
+                try:
+                    content = base64.b64decode(data, validate=False)
+                except Exception as e:
+                    log.warning(f"upload_base64_file: invalid base64 for {filename}: {e}")
+                    return f"Error: invalid base64 data for {filename}"
+
+                internal_id = str(uuid.uuid4())
+                storage_filename = f"{internal_id}_{filename}"
+                content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+                _, file_path = Storage.upload_file(io.BytesIO(content), storage_filename)
+                Files.insert_new_file(
+                    user.id,
+                    FileForm(
+                        id=internal_id,
+                        filename=filename,
+                        path=file_path,
+                        meta={
+                            "name": filename,
+                            "content_type": content_type,
+                            "size": len(content),
+                        },
+                    ),
+                )
+
+                return f"/api/v1/files/{internal_id}/content/{filename}"
 
             metadata.setdefault("tools", {})["upload_base64_file"] = {
                 "spec": upload_base64_file,
                 "callable": _upload_base64_file_fn,
+                "hidden": True,
             }
 
     if tools:
