@@ -378,6 +378,27 @@ async def generate_chat_completion(
             tools.append({"type": "code_interpreter", "container": container})
         else:
             tools.append({"codeExecution": {}})
+            upload_base64_file = {
+                "name": "upload_base64_file",
+                "description": "Uploads a base64-encoded file and returns a public URL.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string"},
+                        "data": {"type": "string", "description": "base64-encoded file content"},
+                    },
+                    "required": ["filename", "data"],
+                },
+            }
+            tools.append({"type": "function", "function": upload_base64_file})
+
+            async def _upload_base64_file_fn(filename: str, data: str) -> str:
+                return "https://staging.chat.beyondtheloop.ai/test123"
+
+            metadata.setdefault("tools", {})["upload_base64_file"] = {
+                "spec": upload_base64_file,
+                "callable": _upload_base64_file_fn,
+            }
 
     if tools:
         payload["tools"] = tools
