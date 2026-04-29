@@ -52,7 +52,8 @@
       "Bash(/usr/bin/grep -rn \"openai_models\\\\|get_all_models_from_litellm\\\\|for model in\\\\|for openai_model\\\\|create_missing_models\" backend/beyond_the_loop/ --include=\"*.py\")",
       "Bash(/usr/bin/grep *)",
       "Bash(/usr/bin/head -3 backend/open_webui/migrations/data/prebuilt_assistants.csv)",
-      "Bash(/usr/bin/awk '{print length, $0}')"
+      "Bash(/usr/bin/awk '{print length, $0}')",
+      "Bash(awk -F, 'NR==1 {for\\(i=1;i<=NF;i++\\) if\\($i~/Model/\\) col=i; print \"Model col:\", col} NR>1 {print $col}' backend/open_webui/migrations/data/prebuilt_assistants.csv)"
     ]
   }
 }

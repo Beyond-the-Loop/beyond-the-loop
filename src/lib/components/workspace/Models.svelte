@@ -299,7 +299,14 @@
 	let showAssistant = null;
 	let loadingShowMore = false;
 	let baseModel = null;
-	$: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
+	// $: baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
+
+	 $: {
+      baseModel = $_models?.find(model => model.id === showAssistant?.base_model_id);
+			console.log('models', $_models);
+			console.log('assistant model', showAssistant?.base_model_id);
+      console.log('result:', baseModel);
+  }
 
 	$: colorMap = new Map(
     tags.map((t, i) => [

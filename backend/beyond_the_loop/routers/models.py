@@ -156,6 +156,13 @@ async def get_model_by_id(id: str, user=Depends(get_verified_user)):
 
     model.meta.knowledge = Knowledges.get_knowledge_by_ids([knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 
+    # Resolve system model base_model_id from name to actual ID using the pre-fetched map
+    if model.user_id == "system" and model.base_model_id:
+        base_model = Models.get_model_by_name_and_company(model.base_model_id, user.company_id)
+
+        if base_model:
+            model.base_model_id = base_model.id
+
     return model
 
 
