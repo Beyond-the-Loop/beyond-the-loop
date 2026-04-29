@@ -211,7 +211,7 @@
 		(m) => ($modelsInfo?.[m?.name]?.hosted_in ?? '').toUpperCase() === 'EU'
 	).length;
 
-	const klasseValue = (modelName: string) => {
+	const classValue = (modelName: string) => {
 		const info = $modelsInfo?.[modelName];
 		if (!info) return null;
 		if ($subscription?.plan === 'free' || $subscription?.plan === 'premium') {
@@ -221,10 +221,7 @@
 	};
 
 	let showRegionTooltip = false;
-	let showKlasseTooltip = false;
-
-	$: isFreeOrPremium =
-		($subscription as any)?.plan === 'free' || ($subscription as any)?.plan === 'premium';
+	let showClassTooltip = false;
 </script>
 
 <div class="pb-4 text-lightGray-100 dark:text-customGray-100">
@@ -452,84 +449,29 @@
 					<span>{$i18n.t('Class')}</span>
 						<span
 							role="tooltip"
-							on:mouseenter={() => (showKlasseTooltip = true)}
-							on:mouseleave={() => (showKlasseTooltip = false)}
+							on:mouseenter={() => (showClassTooltip = true)}
+							on:mouseleave={() => (showClassTooltip = false)}
 							class="relative cursor-pointer text-[#D1D5DB] dark:text-customGray-300 hover:text-[#6B7280] dark:hover:text-white transition-colors flex items-center"
 						>
-							{#if showKlasseTooltip}
+							{#if showClassTooltip}
 								<div class="absolute left-1/2 -translate-x-1/2 top-full pt-1 z-40 font-normal text-left">
 									<div class="w-[17rem] bg-white dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 rounded-lg px-3.5 py-3 shadow-xl">
-										{#if isFreeOrPremium}
-											<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
-												{$i18n.t('Higher classes have stricter rate limits according to the Fair Usage Policy.')}
-											</div>
-											<div class="flex flex-col gap-1 mb-2.5">
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 1')}</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Highest limit')}</span>
-												</div>
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 2')}</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('High limit')}</span>
-												</div>
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 3')}</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Medium limit')}</span>
-												</div>
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">{$i18n.t('Class 4')}</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Lowest limit')}</span>
-												</div>
-											</div>
-											<a
-												href="https://beyond-the-loop.notion.site/fair-usage-policy"
-												target="_blank"
-												rel="noopener noreferrer"
-												class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
-											>
-												<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-													<path d="M15 3h6v6" />
-													<path d="M10 14 21 3" />
-													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-												</svg>
-												<span>{$i18n.t('Fair Usage Policy')}</span>
-											</a>
-										{:else}
-											<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
-												{$i18n.t('Price factor × standard price = actual price.')}
-											</div>
-											<div class="flex flex-col gap-1 mb-2.5">
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">0.5</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Half price')}</span>
-												</div>
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">1.0</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Standard price')}</span>
-												</div>
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">1.5</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('1.5× price')}</span>
-												</div>
-												<div class="flex items-center justify-between text-[11px]">
-													<span class="text-[#6B7280] dark:text-customGray-300">2.0</span>
-													<span class="text-[#9CA3AF] dark:text-customGray-400">{$i18n.t('Double price')}</span>
-												</div>
-											</div>
-											<a
-												href="https://beyondtheloop.ai/pricing-breakdown"
-												target="_blank"
-												rel="noopener noreferrer"
-												class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
-											>
-												<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-													<path d="M15 3h6v6" />
-													<path d="M10 14 21 3" />
-													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-												</svg>
-												<span>{$i18n.t('Pricing page')}</span>
-											</a>
-										{/if}
+										<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
+											{$i18n.t('Higher classes have stricter rate limits according to the Fair Usage Policy.')}
+										</div>
+										<a
+											href="https://beyond-the-loop.notion.site/fair-usage-policy"
+											target="_blank"
+											rel="noopener noreferrer"
+											class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+												<path d="M15 3h6v6" />
+												<path d="M10 14 21 3" />
+												<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+											</svg>
+											<span>{$i18n.t('Fair Usage Policy')}</span>
+										</a>
 									</div>
 								</div>
 							{/if}
@@ -550,7 +492,7 @@
 					{@const info = $modelsInfo?.[model?.name]}
 					{@const org = modelToOrg[model?.name] ?? '—'}
 					{@const region = info?.hosted_in}
-					{@const klasse = klasseValue(model?.name)}
+					{@const modelClass = classValue(model?.name)}
 					{@const inactive = !model.is_active}
 					{@const groupIds = new Set([...(model?.access_control?.read?.group_ids ?? []), ...(model?.access_control?.write?.group_ids ?? [])])}
 					{@const userIds = new Set([...(model?.access_control?.read?.user_ids ?? []), ...(model?.access_control?.write?.user_ids ?? [])])}
@@ -583,11 +525,11 @@
 								<span class="text-[#8A8B8D] dark:text-customGray-300 inline-flex justify-center w-7">—</span>
 							{/if}
 							</div>
-							<!-- Klasse -->
+							<!-- Class -->
 							<div class="{inactive ? 'opacity-50' : ''}">
-								{#if klasse != null}
+								{#if modelClass != null}
 									<span class="inline-flex items-center justify-center min-w-7 h-6 px-2 text-xs rounded-full bg-lightGray-700 dark:bg-customGray-800 border border-lightGray-400 dark:border-customGray-700 text-lightGray-100 dark:text-white">
-										{klasse}
+										{modelClass}
 								</span>
 							{:else}
 								<span class="text-xs text-[#8A8B8D] dark:text-customGray-300">—</span>
