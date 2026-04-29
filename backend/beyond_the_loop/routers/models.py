@@ -95,7 +95,10 @@ async def get_models(user=Depends(get_verified_user)):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-    return Models.get_assistants_lite_by_user_and_company(user.id, user.company_id)
+    subscription = payments_service.get_subscription(user.company_id)
+    is_kickstart_customer = subscription.get("is_kickstart_customer")
+
+    return Models.get_assistants_lite_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)
 
 
 ############################

@@ -102,7 +102,6 @@
 	let selectedModelIds = [];
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
 
-	let selectedToolIds = [];
 	let imageGenerationEnabled = true;
 	let webSearchEnabled = true;
 	let codeInterpreterEnabled = true;
@@ -184,7 +183,6 @@
 
 			prompt = '';
 			files = [];
-			selectedToolIds = [];
 			webSearchEnabled = true;
 			imageGenerationEnabled = false;
 
@@ -198,7 +196,6 @@
 
 						prompt = input.prompt;
 						files = input.files;
-						selectedToolIds = input.selectedToolIds;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
 						autoToolsEnabled = input.autoToolsEnabled ?? true;
@@ -429,14 +426,12 @@
 				const input = JSON.parse(localStorage.getItem(`chat-input-${chatIdProp}`));
 				prompt = input.prompt;
 				files = input.files;
-				selectedToolIds = input.selectedToolIds;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
 				autoToolsEnabled = input.autoToolsEnabled ?? true;
 			} catch (e) {
 				prompt = '';
 				files = [];
-				selectedToolIds = [];
 				webSearchEnabled = true;
 				imageGenerationEnabled = true;
 				autoToolsEnabled = true;
@@ -1566,7 +1561,6 @@
 				},
 
 				files: (files?.length ?? 0) > 0 ? files : undefined,
-				tool_ids: selectedToolIds.length > 0 ? selectedToolIds : undefined,
 
 				features: autoToolsEnabled
 					? {}
@@ -1593,7 +1587,7 @@
 								? $models.find((m) => m.id === model.base_model_id)
 								: undefined;
 							const _meta = _baseModel
-								? $modelsInfo[_baseModel?.name] 
+								? $modelsInfo[_baseModel?.name]
 								: $modelsInfo[model?.name];
 							return [
 								...($companyConfig?.config?.rag?.web?.search?.enable &&
@@ -2033,7 +2027,6 @@
 									bind:prompt
 									bind:autoScroll
 									bind:isAtTop
-									bind:selectedToolIds
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
@@ -2111,7 +2104,6 @@
 								bind:files
 								bind:prompt
 								bind:autoScroll
-								bind:selectedToolIds
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled

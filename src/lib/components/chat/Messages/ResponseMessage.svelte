@@ -603,16 +603,6 @@
 												{/if}
 											</div>
 										</div>
-									{:else if status?.action === 'tool_selection'}
-									<div class="flex flex-col justify-center -space-y-0.5">
-										<div
-											class="{status?.done === false
-												? 'shimmer'
-												: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
-										>
-											{$i18n.t('Auto-selecting tools')}
-										</div>
-									</div>
 									{:else if status?.action === 'knowledge_search'}
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div

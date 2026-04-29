@@ -10,7 +10,6 @@ import json
 import html
 import base64
 import uuid
-import ast
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import Request
 from starlette.responses import StreamingResponse
@@ -43,7 +42,6 @@ from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
-from beyond_the_loop.routers.litellm import generate_chat_completion
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
@@ -470,9 +468,8 @@ async def _smart_router_model_selection(
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
 
-    # Remove variables and tool_ids from form_data. They're legacy
+    # Remove legacy variables from form_data.
     form_data.pop("variables", None)
-    form_data.pop("tool_ids", None)
 
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
@@ -1004,38 +1001,6 @@ async def process_chat_response(
                 for block in content_blocks:
                     if block["type"] == "text":
                         content = f"{content}{block['content'].strip()}\n"
-                    elif block["type"] == "tool_calls":
-                        block_content = block.get("content", [])
-                        results = block.get("results", [])
-
-                        if results:
-
-                            result_display_content = ""
-
-                            for result in results:
-                                tool_call_id = result.get("tool_call_id", "")
-                                tool_name = ""
-
-                                for tool_call in block_content:
-                                    if tool_call.get("id", "") == tool_call_id:
-                                        tool_name = tool_call.get("function", {}).get(
-                                            "name", ""
-                                        )
-                                        break
-
-                                result_display_content = f"{result_display_content}\n> {tool_name}: {result.get('content', '')}"
-
-                            if not raw:
-                                content = f'{content}\n<details type="tool_calls" done="true" content="{html.escape(json.dumps(block_content))}" results="{html.escape(json.dumps(results))}">\n<summary>Tool Executed</summary>\n{result_display_content}\n</details>\n'
-                        else:
-                            tool_calls_display_content = ""
-
-                            for tool_call in block_content:
-                                tool_calls_display_content = f"{tool_calls_display_content}\n> Executing {tool_call.get('function', {}).get('name', '')}"
-
-                            if not raw:
-                                content = f'{content}\n<details type="tool_calls" done="false" content="{html.escape(json.dumps(block_content))}">\n<summary>Tool Executing...</summary>\n{tool_calls_display_content}\n</details>\n'
-
                     elif block["type"] == "reasoning":
                         reasoning_display_content = "\n".join(
                             (f"> {line}" if not line.startswith(">") else line)
@@ -1239,8 +1204,6 @@ async def process_chat_response(
                 metadata["chat_id"], metadata["message_id"]
             )
 
-            tool_calls = []
-
             content = message.get("content", "") if message else ""
             content_blocks = [
                 {
@@ -1293,8 +1256,6 @@ async def process_chat_response(
                     nonlocal content
                     nonlocal content_blocks
                     nonlocal response_images
-
-                    response_tool_calls = []
 
                     generating_response = True
 
@@ -1401,40 +1362,6 @@ async def process_chat_response(
                                         image_base64 = delta_image['image_url']["url"]
 
                                         response_images.append({"type": "image", "url": image_base64})
-
-                                delta_tool_calls = delta.get("tool_calls", None)
-
-                                if delta_tool_calls:
-                                    for delta_tool_call in delta_tool_calls:
-                                        tool_call_index = delta_tool_call.get("index")
-
-                                        if tool_call_index is not None:
-                                            if (
-                                                    len(response_tool_calls)
-                                                    <= tool_call_index
-                                            ):
-                                                response_tool_calls.append(
-                                                    delta_tool_call
-                                                )
-                                            else:
-                                                delta_name = delta_tool_call.get(
-                                                    "function", {}
-                                                ).get("name")
-                                                delta_arguments = delta_tool_call.get(
-                                                    "function", {}
-                                                ).get("arguments")
-
-                                                if delta_name:
-                                                    response_tool_calls[
-                                                        tool_call_index
-                                                    ]["function"]["name"] += delta_name
-
-                                                if delta_arguments:
-                                                    response_tool_calls[
-                                                        tool_call_index
-                                                    ]["function"][
-                                                        "arguments"
-                                                    ] += delta_arguments
 
                                 reasoning_content = (
                                         delta.get("reasoning_content")
@@ -1627,142 +1554,11 @@ async def process_chat_response(
                                         }
                                     )
 
-                    if response_tool_calls:
-                        # Filter out server-side native tool calls (e.g. Claude's built-in
-                        # web_search executed by the LLM provider) that are not in our
-                        # user-defined tools. These have already been handled server-side
-                        # and should not be displayed as "Tool Executed" in the UI.
-                        user_tools = metadata.get("tools", {})
-                        client_tool_calls = [
-                            tc for tc in response_tool_calls
-                            if tc.get("function", {}).get("name", "") in user_tools
-                        ]
-                        if client_tool_calls:
-                            tool_calls.append(client_tool_calls)
-
                     if response.background:
                         await response.background()
 
                 await stream_body_handler(response)
 
-                MAX_TOOL_CALL_RETRIES = 5
-                tool_call_retries = 0
-
-                while len(tool_calls) > 0 and tool_call_retries < MAX_TOOL_CALL_RETRIES:
-                    tool_call_retries += 1
-
-                    response_tool_calls = tool_calls.pop(0)
-
-                    content_blocks.append(
-                        {
-                            "type": "tool_calls",
-                            "content": response_tool_calls,
-                        }
-                    )
-
-                    await event_emitter(
-                        {
-                            "type": "chat:completion",
-                            "data": {
-                                "content": serialize_content_blocks(content_blocks),
-                            },
-                        }
-                    )
-
-                    tools = metadata.get("tools", {})
-
-                    results = []
-                    for tool_call in response_tool_calls:
-                        log.debug(f"Tool call: {tool_call}")
-                        tool_call_id = tool_call.get("id", "")
-                        tool_name = tool_call.get("function", {}).get("name", "")
-
-                        tool_function_params = {}
-                        try:
-                            # json.loads cannot be used because some models do not produce valid JSON
-                            tool_function_params = ast.literal_eval(
-                                tool_call.get("function", {}).get("arguments", "{}")
-                            )
-                        except Exception as e:
-                            log.debug(e)
-
-                        tool_result = None
-
-                        if tool_name in tools:
-                            tool = tools[tool_name]
-                            spec = tool.get("spec", {})
-
-                            try:
-                                required_params = spec.get("parameters", {}).get(
-                                    "required", []
-                                )
-                                tool_function = tool["callable"]
-                                tool_function_params = {
-                                    k: v
-                                    for k, v in tool_function_params.items()
-                                    if k in required_params
-                                }
-                                tool_result = await tool_function(
-                                    **tool_function_params
-                                )
-                            except Exception as e:
-                                tool_result = str(e)
-
-                        results.append(
-                            {
-                                "tool_call_id": tool_call_id,
-                                "content": tool_result,
-                            }
-                        )
-
-                    content_blocks[-1]["results"] = results
-
-                    content_blocks.append(
-                        {
-                            "type": "text",
-                            "content": "",
-                        }
-                    )
-
-                    await event_emitter(
-                        {
-                            "type": "chat:completion",
-                            "data": {
-                                "content": serialize_content_blocks(content_blocks),
-                            },
-                        }
-                    )
-
-                    try:
-                        res = await generate_chat_completion({
-                            "stream": True,
-                            "messages": [
-                                *form_data["messages"],
-                                {
-                                    "role": "assistant",
-                                    "content": serialize_content_blocks(
-                                        content_blocks, raw=True
-                                    ),
-                                    "tool_calls": response_tool_calls,
-                                },
-                                *[
-                                    {
-                                        "role": "tool",
-                                        "tool_call_id": result["tool_call_id"],
-                                        "content": result["content"],
-                                    }
-                                    for result in results
-                                ],
-                            ],
-                        }, user, model)
-
-                        if isinstance(res, StreamingResponse):
-                            await stream_body_handler(res)
-                        else:
-                            break
-                    except Exception as e:
-                        log.debug(e)
-                        break
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {

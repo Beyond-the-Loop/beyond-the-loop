@@ -525,15 +525,19 @@ app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"]
 
 @app.get("/api/models")
 async def get_active_models(user=Depends(get_verified_user)):
-    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id)
+    subscription = payments_service.get_subscription(user.company_id)
+    is_kickstart_customer = subscription.get("is_kickstart_customer")
+
+    assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)
 
     active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
+    active_base_models.append(SMART_ROUTER_MODEL)
 
     model_base_model_names = {}
 
     for assistant in assistants:
-        assistant_base_model = next(
-            (base_model for base_model in active_base_models if base_model.id == assistant.base_model_id), None)
+        assistant_base_model = next((base_model for base_model in active_base_models if base_model.id == assistant.base_model_id), None)
+
         model_base_model_names[assistant.id] = assistant_base_model.name if assistant_base_model else None
 
     for base_model in active_base_models:
@@ -541,12 +545,12 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     all_models = assistants + active_base_models
 
-    subscription = payments_service.get_subscription(user.company_id)
-
     plan = subscription.get("plan")
 
     if plan == "free" or plan == "premium":
         allowed_premium = {name for name, cfg in LITELLM_MODEL_CONFIG.items() if cfg.get("allowed_messages_per_three_hours_premium")}
+        allowed_premium = allowed_premium.union({"Smart Router"})
+
         all_models = [model for model in all_models if
                       model_base_model_names[model.id] in allowed_premium]
 
@@ -576,8 +580,6 @@ async def get_active_models(user=Depends(get_verified_user)):
             )
             for model in all_models
         ]
-
-    all_models = [SMART_ROUTER_MODEL] + list(all_models)
 
     return {"data": all_models}
 

@@ -35,7 +35,6 @@
 	export let prompt = '';
 	export let files = [];
 
-	export let selectedToolIds = [];
 	export let imageGenerationEnabled = false;
 	export let codeInterpreterEnabled = false;
 	export let webSearchEnabled = false;
@@ -228,7 +227,6 @@
 					bind:files
 					bind:prompt
 					bind:autoScroll
-					bind:selectedToolIds
 					bind:imageGenerationEnabled
 					bind:codeInterpreterEnabled
 					bind:webSearchEnabled
