@@ -251,6 +251,16 @@
 		}
 	};
 
+	const SUPPORTED_FILE_EXTENSIONS = new Set([
+		'c', 'cpp', 'css', 'csv', 'doc', 'docx', 'gif', 'go', 'html', 'java',
+		'jpeg', 'jpg', 'js', 'json', 'md', 'pdf', 'php', 'pkl', 'png', 'pptx',
+		'py', 'rb', 'tar', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml', 'zip'
+	]);
+
+	const SUPPORTED_AUDIO_TYPES = new Set([
+		'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/x-m4a'
+	]);
+
 	const inputFilesHandler = async (inputFiles) => {
 		console.log('Input files handler called with:', inputFiles);
 		inputFiles.forEach((file) => {
@@ -275,6 +285,15 @@
 					})
 				);
 				return;
+			}
+
+			const fileExtension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
+			if (!SUPPORTED_FILE_EXTENSIONS.has(fileExtension) && !SUPPORTED_AUDIO_TYPES.has(file.type)) {
+				toast.warning(
+					$i18n.t(`File type .{{ext}} might be unsupported by some models`, {
+						ext: fileExtension
+					})
+				);
 			}
 
 			if (['image/gif', 'image/webp', 'image/jpeg', 'image/png'].includes(file['type'])) {

@@ -648,6 +648,7 @@
 	"File not found.": "Datei nicht gefunden.",
 	"File removed successfully.": "Datei erfolgreich entfernt.",
 	"File size should not exceed {{maxSize}} MB.": "Datei darf nicht größer als {{maxSize}} MB sein.",
+	"File type .{{ext}} might be unsupported by some models": "Der Dateityp .{{ext}} wird möglicherweise nicht unterstützt",
 	"File uploaded successfully": "",
 	"Files": "Dateien",
 	"Filter by category": "Nach Kategorie filtern",
