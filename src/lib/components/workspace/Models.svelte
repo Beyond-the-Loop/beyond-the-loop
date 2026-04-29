@@ -823,7 +823,7 @@
 									</div>
 								</Tooltip>
 							</div>
-							{#if model.updated_at != 0}
+							{#if model.updated_at > 2}
 								<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
 									{dayjs(model.updated_at * 1000).format('DD.MM.YYYY')}
 								</div>
