@@ -93,7 +93,7 @@ async def get_prompt_list(user=Depends(get_verified_user)):
 async def create_new_prompt(
     form_data: PromptForm, user=Depends(get_verified_user)
 ):
-    if not has_permission(user.id, "workspace.edit_prompts"):
+    if user.role != "admin" and not has_permission(user.id, "workspace.edit_prompts"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,
