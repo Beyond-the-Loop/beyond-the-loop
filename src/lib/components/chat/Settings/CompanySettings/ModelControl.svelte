@@ -76,11 +76,11 @@
 		organizations = filterCatalog(organizations, availableModels);
 	};
 
-	$: models = workspaceModels && [...workspaceModels]
-		.filter((m) => m?.name !== 'Smart Router')
-		.sort((a, b) =>
-			(orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
-		);
+	$: models = workspaceModels && [...workspaceModels].sort((a, b) =>
+		a?.name === 'Smart Router' ? -1 :
+		b?.name === 'Smart Router' ? 1 :
+		(orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
+	);
 
 	const defaultInit = async () => {
 		config = await getModelsConfig(localStorage.token);
@@ -182,6 +182,7 @@
 	// Filtered + paginated
 	$: filteredModels = (models ?? []).filter((m) => {
 		const name = m?.name ?? '';
+		if (name === 'Smart Router') return false;
 		const org = modelToOrg[name] ?? '';
 		const region = $modelsInfo?.[name]?.hosted_in ?? '';
 		if (searchQuery) {
@@ -205,9 +206,10 @@
 		currentPage = 1;
 	}
 
-	$: totalCount = (models ?? []).length;
-	$: activeCount = (models ?? []).filter((m) => m.is_active).length;
-	$: euCount = (models ?? []).filter(
+	$: listedModels = (models ?? []).filter((m) => m?.name !== 'Smart Router');
+	$: totalCount = listedModels.length;
+	$: activeCount = listedModels.filter((m) => m.is_active).length;
+	$: euCount = listedModels.filter(
 		(m) => ($modelsInfo?.[m?.name]?.hosted_in ?? '').toUpperCase() === 'EU'
 	).length;
 
