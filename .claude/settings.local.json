@@ -53,7 +53,14 @@
       "Bash(/usr/bin/grep *)",
       "Bash(/usr/bin/head -3 backend/open_webui/migrations/data/prebuilt_assistants.csv)",
       "Bash(/usr/bin/awk '{print length, $0}')",
-      "Bash(awk -F, 'NR==1 {for\\(i=1;i<=NF;i++\\) if\\($i~/Model/\\) col=i; print \"Model col:\", col} NR>1 {print $col}' backend/open_webui/migrations/data/prebuilt_assistants.csv)"
+      "Bash(./venv/bin/python -m pytest beyond_the_loop/tests/test_pii_service.py -v)",
+      "Bash(./venv/bin/python -m pytest beyond_the_loop/tests/test_pii_session.py -v)",
+      "Bash(./venv/bin/python *)",
+      "Bash(npx svelte-check *)",
+      "Bash(/Users/philszalay/Documents/code/beyond-the-loop/backend/venv/bin/python *)",
+      "Bash(export PATH=\"$HOME/.nvm/versions/node/v22.22.2/bin:$PATH\")",
+      "Bash(node_modules/.bin/svelte-check --tsconfig ./tsconfig.json)",
+      "Bash(git log *)"
     ]
   }
 }

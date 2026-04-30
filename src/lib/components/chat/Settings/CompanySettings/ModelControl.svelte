@@ -76,11 +76,11 @@
 		organizations = filterCatalog(organizations, availableModels);
 	};
 
-	$: models = workspaceModels && [...workspaceModels].sort((a, b) =>
-		a?.name === 'Smart Router' ? -1 :
-		b?.name === 'Smart Router' ? 1 :
-		(orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
-	);
+	$: models = workspaceModels && [...workspaceModels]
+		.filter((m) => m?.name !== 'Smart Router')
+		.sort((a, b) =>
+			(orderMap.get(a?.name) ?? Infinity) - (orderMap.get(b?.name) ?? Infinity)
+		);
 
 	const defaultInit = async () => {
 		config = await getModelsConfig(localStorage.token);
