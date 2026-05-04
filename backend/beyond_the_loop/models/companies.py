@@ -336,6 +336,19 @@ class CompanyTable:
             log.error(f"Error creating company: {e}")
             return None
 
+    def delete_company_by_id(self, company_id: str) -> bool:
+        try:
+            with get_db() as db:
+                company = db.query(Company).filter_by(id=company_id).first()
+                if not company:
+                    return False
+                db.delete(company)
+                db.commit()
+                return True
+        except Exception as e:
+            log.error(f"Error deleting company {company_id}: {e}")
+            return False
+
     def get_company_by_stripe_customer_id(self, stripe_customer_id: str) -> Optional[CompanyModel]:
         try:
             with get_db() as db:
