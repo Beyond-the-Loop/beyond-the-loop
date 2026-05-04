@@ -11,13 +11,6 @@ from beyond_the_loop.models.knowledge import (
     KnowledgeUserResponse,
 )
 from beyond_the_loop.models.files import Files, FileModel
-from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
-from open_webui.routers.retrieval import (
-    process_file,
-    ProcessFileForm,
-    process_files_batch,
-    BatchProcessFilesForm,
-)
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
@@ -32,6 +25,12 @@ log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 router = APIRouter()
+
+
+def _has_google_rag_file(file: FileModel) -> bool:
+    return bool(
+        file.meta and (file.meta.get("rag_file_id") or file.meta.get("rag_file_name"))
+    )
 
 ############################
 # getKnowledgeBases
@@ -246,24 +245,10 @@ def add_file_to_knowledge_by_id(
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    if not file.data:
+    if not _has_google_rag_file(file):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.FILE_NOT_PROCESSED,
-        )
-
-    # Add content to the vector database
-    try:
-        process_file(
-            request,
-            ProcessFileForm(file_id=form_data.file_id, collection_name=id),
-            user=user,
-        )
-    except Exception as e:
-        log.debug(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail="File was not imported into Google RAG Engine",
         )
 
     data = knowledge.data or {}
@@ -313,22 +298,10 @@ def update_file_from_knowledge_by_id(
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
-    # Remove content from the vector database
-    VECTOR_DB_CLIENT.delete(
-        collection_name=knowledge.id, filter={"file_id": form_data.file_id}
-    )
-
-    # Add content to the vector database
-    try:
-        process_file(
-            request,
-            ProcessFileForm(file_id=form_data.file_id, collection_name=id),
-            user=user,
-        )
-    except Exception as e:
+    if not _has_google_rag_file(file):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail="File was not imported into Google RAG Engine",
         )
 
     data = knowledge.data or {}
@@ -364,17 +337,6 @@ def remove_file_from_knowledge_by_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
-
-    # Remove content from the vector database
-    VECTOR_DB_CLIENT.delete(
-        collection_name=knowledge.id, filter={"file_id": form_data.file_id}
-    )
-
-    # Remove the file's collection from vector database
-    file_collection = f"file-{form_data.file_id}"
-
-    if VECTOR_DB_CLIENT.has_collection(collection_name=file_collection):
-        VECTOR_DB_CLIENT.delete_collection(collection_name=file_collection)
 
     # Delete file from database
     Files.delete_file_by_id(form_data.file_id)
@@ -448,13 +410,6 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
 
                 Models.update_model_by_id_and_company(model.id, model_form, user.company_id)
 
-    # Clean up vector DB
-    try:
-        VECTOR_DB_CLIENT.delete_collection(collection_name=id)
-    except Exception as e:
-        log.debug(e)
-        pass
-
     return Knowledges.delete_knowledge_by_id(id=id)
 
 
@@ -468,12 +423,6 @@ async def reset_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
     _validate_knowledge_write_access(knowledge, user)
-
-    try:
-        VECTOR_DB_CLIENT.delete_collection(collection_name=id)
-    except Exception as e:
-        log.debug(e)
-        pass
 
     knowledge = Knowledges.update_knowledge_data_by_id(id=id, data={"file_ids": []})
 
@@ -511,43 +460,24 @@ def add_files_to_knowledge_batch(
             )
         files.append(file)
 
-    # Process files
-    try:
-        result = process_files_batch(
-            request=request,
-            form_data=BatchProcessFilesForm(files=files, collection_name=id),
-            user=user,
-        )
-    except Exception as e:
-        log.error(
-            f"add_files_to_knowledge_batch: Exception occurred: {e}", exc_info=True
-        )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
     # Add successful files to knowledge base
     data = knowledge.data or {}
     existing_file_ids = data.get("file_ids", [])
 
-    # Only add files that were successfully processed
-    successful_file_ids = [r.file_id for r in result.results if r.status == "completed"]
+    missing_rag_files = [file.id for file in files if not _has_google_rag_file(file)]
+    if missing_rag_files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Files were not imported into Google RAG Engine: {', '.join(missing_rag_files)}",
+        )
+
+    successful_file_ids = [file.id for file in files]
     for file_id in successful_file_ids:
         if file_id not in existing_file_ids:
             existing_file_ids.append(file_id)
 
     data["file_ids"] = existing_file_ids
     knowledge = Knowledges.update_knowledge_data_by_id(id=id, data=data)
-
-    # If there were any errors, include them in the response
-    if result.errors:
-        error_details = [f"{err.file_id}: {err.error}" for err in result.errors]
-        return KnowledgeFilesResponse(
-            **knowledge.model_dump(),
-            files=Files.get_files_by_ids(existing_file_ids),
-            warnings={
-                "message": "Some files failed to process",
-                "errors": error_details,
-            },
-        )
 
     return KnowledgeFilesResponse(
         **knowledge.model_dump(), files=Files.get_files_by_ids(existing_file_ids)
