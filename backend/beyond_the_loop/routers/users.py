@@ -97,7 +97,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
             # Reject personal/consumer email domains
             # Exception: some companies are allowed to invite non-business emails
-            COMPANIES_ALLOWED_NON_BUSINESS_EMAILS = {"1f62d141-5b4f-4ebf-8468-83bab4765c1b", "bed374b4-bd32-42f6-8cd0-0767bbe7fdc5", "bdc018de-359c-480b-aa44-b7d9c47a5b4c"}
+            COMPANIES_ALLOWED_NON_BUSINESS_EMAILS = {"1f62d141-5b4f-4ebf-8468-83bab4765c1b", "bed374b4-bd32-42f6-8cd0-0767bbe7fdc5", "bdc018de-359c-480b-aa44-b7d9c47a5b4c", "8c67a57e-618d-4bc7-8577-a5b65227a43b"}
             if user.company_id not in COMPANIES_ALLOWED_NON_BUSINESS_EMAILS and not is_business_email(email):
                 validation_errors.append({"reason": f"{email} is invalid. {ERROR_MESSAGES.NOT_BUSINESS_EMAIL}"})
                 continue
