@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from urllib.parse import quote
 
 from beyond_the_loop.storage.provider import Storage
+from beyond_the_loop.retrieval.rag_engine import GoogleRagEngineClient
 
 from beyond_the_loop.models.files import (
     FileForm,
@@ -15,7 +16,6 @@ from beyond_the_loop.models.files import (
     Files,
 )
 from beyond_the_loop.models.users import Users
-from open_webui.routers.retrieval import process_file, ProcessFileForm
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Request
@@ -67,14 +67,35 @@ def upload_file(
         )
 
         try:
-            process_file(request, ProcessFileForm(file_id=id), user=user)
-            file_item = Files.get_file_by_id(id=id)
+            google_rag = GoogleRagEngineClient()
+            rag_file = google_rag.import_gcs_file(file_path)
+            file_item = Files.update_file_metadata_by_id(
+                id,
+                rag_file.to_file_meta(
+                    corpus=google_rag.corpus,
+                    gcs_uri=file_path,
+                ),
+            )
+            log.info(
+                "Imported file %s into Google RAG Engine as %s",
+                id,
+                rag_file.name,
+            )
         except Exception as e:
-            log.error(f"Error processing file {file_item.id}: {e.detail if hasattr(e, 'detail') else e}")
+            log.error(f"Error importing file {id} into Google RAG Engine: {e}")
+            Files.update_file_metadata_by_id(
+                id,
+                {
+                    "rag_provider": "google",
+                    "rag_gcs_uri": file_path,
+                    "rag_import_status": "failed",
+                    "rag_import_error": str(e),
+                },
+            )
             file_item = FileModelResponse(
                 **{
                     **file_item.model_dump(),
-                    "error": str(e.detail) if hasattr(e, "detail") else str(e),
+                    "error": str(e),
                 }
             )
 
@@ -149,18 +170,10 @@ async def update_file_data_content_by_id(
     file_user = Users.get_user_by_id(file.user_id)
 
     if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
-        try:
-            process_file(
-                request,
-                ProcessFileForm(file_id=id, content=form_data.content),
-                user=user,
-            )
-            file = Files.get_file_by_id(id=id)
-        except Exception as e:
-            log.exception(e)
-            log.error(f"Error processing file: {file.id}")
-
-        return {"content": file.data.get("content", "")}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Updating extracted file content is not supported with Google RAG Engine. Re-upload the file instead.",
+        )
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -41,7 +41,7 @@ from open_webui.routers.tasks import (
 from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.retrieval.utils import get_sources_from_files
+from beyond_the_loop.retrieval.rag_engine import get_sources_from_google_rag
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
@@ -73,6 +73,34 @@ log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
+def has_google_rag_scope(files: list[dict]) -> bool:
+    for file_item in files:
+        if not isinstance(file_item, dict):
+            continue
+
+        if file_item.get("type") == "collection":
+            return True
+
+        meta = file_item.get("meta") or {}
+        if meta.get("rag_file_id") or meta.get("rag_file_name"):
+            return True
+
+        file_id = file_item.get("id")
+        if not file_id:
+            continue
+
+        try:
+            file_record = Files.get_file_by_id(file_id)
+        except Exception:
+            continue
+
+        file_meta = file_record.meta if file_record else {}
+        if (file_meta or {}).get("rag_file_id") or (file_meta or {}).get("rag_file_name"):
+            return True
+
+    return False
+
+
 async def chat_file_intent_decision_handler(
         form_data: dict, user: UserModel
 ) -> tuple[dict, bool]:
@@ -85,6 +113,10 @@ async def chat_file_intent_decision_handler(
 
     if not files:
         return form_data, True  # No files, proceed normally
+
+    if has_google_rag_scope(files):
+        log.info("Google RAG scope detected; using RAG retrieval")
+        return form_data, True
 
     # Filter out image files - only process non-image files
     non_image_files = []
@@ -214,23 +246,19 @@ async def chat_completion_files_handler(
             queries = [get_last_user_message(form_data["messages"])]
 
         try:
-            # Offload get_sources_from_files to a separate thread
+            # Offload retrieval to a separate thread
             loop = asyncio.get_running_loop()
+            log.info("Calling Google RAG retrieval for %d scoped files", len(files))
             with ThreadPoolExecutor() as executor:
                 sources = await loop.run_in_executor(
                     executor,
-                    lambda: get_sources_from_files(
+                    lambda: get_sources_from_google_rag(
                         files=files,
                         queries=queries,
-                        embedding_function=lambda query: request.app.state.EMBEDDING_FUNCTION(
-                            query, user=user
-                        ),
                         k=request.app.state.config.TOP_K,
-                        reranking_function=request.app.state.rf,
-                        r=request.app.state.config.RELEVANCE_THRESHOLD,
-                        hybrid_search=request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
                     ),
                 )
+            log.info("Google RAG retrieval returned %d sources", len(sources))
 
         except Exception as e:
             log.exception(e)
@@ -712,6 +740,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             if model_files:
                 files.extend(model_files)
+
+            form_data["metadata"]["files"] = files
 
     # For code interpreter on OpenAI Responses API: skip RAG and text extraction entirely.
     # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
@@ -1668,4 +1698,3 @@ async def process_chat_response(
             headers=dict(response.headers),
             background=response.background,
         )
-

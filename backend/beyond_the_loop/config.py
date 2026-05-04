@@ -151,6 +151,15 @@ DEFAULT_CONFIG = {
         "embedding_model": "text-embedding-3-small",
         "embedding_batch_size": 2048,
         "reranking_model": "",
+        "google": {
+            "project_id": None,
+            "location": "europe-west3",
+            "corpus": None,
+            "bucket": None,
+            "chunk_size": 1024,
+            "chunk_overlap": 256,
+            "max_embedding_requests_per_min": 1000,
+        },
         "file": {"max_size": None, "max_count": None},
         "CONTENT_EXTRACTION_ENGINE": "",
         "text_splitter": "",
@@ -857,13 +866,55 @@ CONTENT_EXTRACTION_ENGINE = PersistentConfig(
 )
 
 RAG_TOP_K = PersistentConfig(
-    "RAG_TOP_K", "rag.top_k", int(os.environ.get("RAG_TOP_K", "3"))
+    "RAG_TOP_K", "rag.top_k", int(os.environ.get("RAG_TOP_K", "10"))
 )
 
 RAG_RELEVANCE_THRESHOLD = PersistentConfig(
     "RAG_RELEVANCE_THRESHOLD",
     "rag.relevance_threshold",
     float(os.environ.get("RAG_RELEVANCE_THRESHOLD", "0.0")),
+)
+
+GOOGLE_RAG_PROJECT_ID = PersistentConfig(
+    "GOOGLE_RAG_PROJECT_ID",
+    "rag.google.project_id",
+    os.environ.get("GOOGLE_RAG_PROJECT_ID", ""),
+)
+
+GOOGLE_RAG_LOCATION = PersistentConfig(
+    "GOOGLE_RAG_LOCATION",
+    "rag.google.location",
+    os.environ.get("GOOGLE_RAG_LOCATION", "europe-west3"),
+)
+
+GOOGLE_RAG_CORPUS = PersistentConfig(
+    "GOOGLE_RAG_CORPUS",
+    "rag.google.corpus",
+    os.environ.get("GOOGLE_RAG_CORPUS", ""),
+)
+
+GOOGLE_RAG_BUCKET = PersistentConfig(
+    "GOOGLE_RAG_BUCKET",
+    "rag.google.bucket",
+    os.environ.get("GOOGLE_RAG_BUCKET", ""),
+)
+
+GOOGLE_RAG_IMPORT_CHUNK_SIZE = PersistentConfig(
+    "GOOGLE_RAG_IMPORT_CHUNK_SIZE",
+    "rag.google.chunk_size",
+    int(os.environ.get("GOOGLE_RAG_IMPORT_CHUNK_SIZE", "1024")),
+)
+
+GOOGLE_RAG_IMPORT_CHUNK_OVERLAP = PersistentConfig(
+    "GOOGLE_RAG_IMPORT_CHUNK_OVERLAP",
+    "rag.google.chunk_overlap",
+    int(os.environ.get("GOOGLE_RAG_IMPORT_CHUNK_OVERLAP", "256")),
+)
+
+GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN = PersistentConfig(
+    "GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN",
+    "rag.google.max_embedding_requests_per_min",
+    int(os.environ.get("GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN", "1000")),
 )
 
 ENABLE_RAG_HYBRID_SEARCH = PersistentConfig(
