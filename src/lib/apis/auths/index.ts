@@ -393,6 +393,48 @@ export const completeInvite = async (
 	return res;
 }
 
+export const signupWithCompanyToken = async (
+	email: string,
+	firstName: string,
+	lastName: string,
+	password: string,
+	companyToken: string,
+	profileImageUrl: string
+) => {
+	let error = null;
+
+	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/signup-with-company-token`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		credentials: 'include',
+		body: JSON.stringify({
+			email,
+			first_name: firstName,
+			last_name: lastName,
+			password,
+			company_token: companyToken,
+			profile_image_url: profileImageUrl?.length ? profileImageUrl : null
+		})
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+};
+
 export const userSignOut = async () => {
 	let error = null;
 

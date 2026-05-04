@@ -331,6 +331,7 @@
 					// Needed because we pass in tokens from OAuth logins via URL fragments
 					if ($page.url.pathname !== '/login' && $page.url.pathname !== '/register' && $page.url.pathname !== '/signup'
 						&& $page.url.pathname !== '/reset-password' && $page.url.pathname !== '/create-new-password'
+						&& !$page.url.pathname.startsWith('/join/')
 					) {
 						await goto('/login');
 					}
