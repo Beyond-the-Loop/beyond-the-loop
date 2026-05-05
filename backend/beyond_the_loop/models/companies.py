@@ -36,6 +36,7 @@ class Company(Base):
     budget_mail_100_sent = Column(Boolean, nullable=False, default=False)
     subscription_not_required = Column(Boolean, nullable=True)
     next_credit_charge_check = Column(BigInteger, nullable=True)
+    public_signup_token = Column(String, nullable=True, unique=True)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
@@ -54,6 +55,7 @@ class CompanyModel(BaseModel):
     budget_mail_100_sent: Optional[bool] = False
     subscription_not_required: Optional[bool] = False
     next_credit_charge_check: Optional[int] = None
+    public_signup_token: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -141,6 +143,17 @@ class CompanyTable:
                 return CompanyModel.model_validate(company)
         except Exception as e:
             log.error(f"Error getting company: {e}")
+            return None
+
+    def get_company_by_public_signup_token(self, token: str) -> Optional[CompanyModel]:
+        try:
+            with get_db() as db:
+                company = db.query(Company).filter_by(public_signup_token=token).first()
+                if company is None:
+                    return None
+                return CompanyModel.model_validate(company)
+        except Exception as e:
+            log.error(f"Error getting company by public_signup_token: {e}")
             return None
 
 

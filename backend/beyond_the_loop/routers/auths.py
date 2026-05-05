@@ -20,9 +20,10 @@ from beyond_the_loop.models.auths import (
     ResetPasswordForm,
 )
 from beyond_the_loop.models.users import Users
-from beyond_the_loop.models.companies import NO_COMPANY
+from beyond_the_loop.models.companies import Companies, NO_COMPANY
 from beyond_the_loop.services.email_service import EmailService
 from open_webui.constants import ERROR_MESSAGES, WEBHOOK_MESSAGES
+from open_webui.utils.misc import validate_email_format, is_business_email
 from open_webui.env import (
     WEBUI_AUTH_TRUSTED_EMAIL_HEADER,
     WEBUI_AUTH_TRUSTED_NAME_HEADER,
@@ -509,6 +510,109 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
         "profile_image_url": user.profile_image_url,
         "permissions": user_permissions,
     }
+
+############################
+# Signup with Company Token
+############################
+
+
+class CompanyTokenSignupForm(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    company_token: str
+    profile_image_url: Optional[str] = None
+
+
+@router.post("/signup-with-company-token", response_model=SessionUserResponse)
+async def signup_with_company_token(
+    request: Request, response: Response, form_data: CompanyTokenSignupForm
+):
+    company = Companies.get_company_by_public_signup_token(form_data.company_token)
+    if not company:
+        raise HTTPException(404, detail=ERROR_MESSAGES.LINK_EXPIRED)
+
+    email = form_data.email.lower().strip()
+
+    if not validate_email_format(email):
+        raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_EMAIL_FORMAT)
+
+    if not is_business_email(email):
+        raise HTTPException(400, detail=ERROR_MESSAGES.NOT_BUSINESS_EMAIL)
+
+    if not validate_password(form_data.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be 8+ characters, with a number, capital letter, and symbol.",
+        )
+
+    if Users.get_user_by_email(email):
+        raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
+
+    hashed_password = get_password_hash(form_data.password)
+
+    user = Auths.insert_new_auth(
+        email=email,
+        password=hashed_password,
+        first_name=form_data.first_name,
+        last_name=form_data.last_name,
+        company_id=company.id,
+        profile_image_url=form_data.profile_image_url or "/user.png",
+        role="user",
+    )
+
+    if not user:
+        raise HTTPException(500, detail=ERROR_MESSAGES.CREATE_USER_ERROR)
+
+    expires_delta = parse_duration(request.app.state.config.JWT_EXPIRES_IN)
+    expires_at = None
+    if expires_delta:
+        expires_at = int(time.time()) + int(expires_delta.total_seconds())
+
+    token = create_token(data={"id": user.id}, expires_delta=expires_delta)
+
+    datetime_expires_at = (
+        datetime.datetime.fromtimestamp(expires_at, datetime.timezone.utc)
+        if expires_at
+        else None
+    )
+
+    response.set_cookie(
+        key="token",
+        value=token,
+        expires=datetime_expires_at,
+        httponly=True,
+        samesite=WEBUI_AUTH_COOKIE_SAME_SITE,
+        secure=WEBUI_AUTH_COOKIE_SECURE,
+    )
+
+    if request.app.state.config.WEBHOOK_URL:
+        post_webhook(
+            request.app.state.config.WEBHOOK_URL,
+            WEBHOOK_MESSAGES.USER_SIGNUP(user.first_name + " " + user.last_name),
+            {
+                "action": "signup",
+                "message": WEBHOOK_MESSAGES.USER_SIGNUP(user.first_name + " " + user.last_name),
+                "user": user.model_dump_json(exclude_none=True),
+            },
+        )
+
+    user_permissions = get_permissions(user.id)
+
+    return {
+        "token": token,
+        "token_type": "Bearer",
+        "expires_at": expires_at,
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role,
+        "profile_image_url": user.profile_image_url,
+        "permissions": user_permissions,
+    }
+
 
 @router.get("/signout")
 async def signout(request: Request, response: Response):
