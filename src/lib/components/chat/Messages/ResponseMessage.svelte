@@ -586,7 +586,7 @@
 												</div>
 											</div>
 										</WebSearchResults>
-									{:else if status?.action === 'web_search'}
+									{:else if status?.action === 'web_search' && status?.description}
 										<WebSearchIcon className="size-4 shrink-0 text-gray-500 dark:text-gray-500" />
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div

@@ -4,7 +4,6 @@
 
 	import type { Token } from 'marked';
 	import { getContext } from 'svelte';
-
 	const i18n = getContext('i18n');
 
 	import { WEBUI_BASE_URL } from '$lib/constants';
@@ -55,6 +54,7 @@
 					class="inline-flex justify-center text-xs leading-0 items-center px-[.4rem] py-[.1875rem] bg-lightGray-400 dark:bg-[#2d2f2f] text-lightGray-100 dark:text-customGray-100 border-lightGray-500 rounded-md mr-1"
 				>
 					{token.tokens[0]?.text.replace(/^\[|\]$/g, '')}
+					<!-- {token.href.slice(12, 25)} -->
 				</a>
 			{:else}
 				<a href={token.href} target="_blank" rel="nofollow" title={token.title}>

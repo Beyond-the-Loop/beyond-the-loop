@@ -38,7 +38,7 @@
 			const citationIndex = parseInt(number, 10) - 1; // Convert to 0-based index
 			if (sources[citationIndex]) {
 				// Create a special token with a data-citation attribute that will be recognized by the renderer
-				return ` [${match}](${sources[citationIndex].source.name} "citation")`;
+				return ` [${match}](${sources[citationIndex].metadata[0].source} "${sources[citationIndex].source.name}")`;
 			}
 			return match; // If no citation exists, keep it as is
 		});

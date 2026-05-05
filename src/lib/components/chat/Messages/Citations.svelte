@@ -156,7 +156,7 @@
 											</div>
 										{/if}
 										<div class="flex-1 mx-1 line-clamp-1 truncate">
-											{citation.source.name}
+											{citation.metadata?.[0]?.domain ? `${citation.metadata[0].domain} | ` : ''}{citation.source.name}
 										</div>
 									</button>
 								{/each}
@@ -197,7 +197,7 @@
 									</div>
 								{/if}
 								<div class="flex-1 mx-1 line-clamp-1 truncate">
-									{citation.source.name}
+									{citation.metadata?.[0]?.domain ? `${citation.metadata[0].domain} | ` : ''}{citation.source.name}
 								</div>
 							</button>
 						{/each}
