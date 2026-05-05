@@ -410,7 +410,7 @@
 		{ header: 'First Name', accessor: (r: TopUserItem) => r.first_name },
 		{ header: 'Last Name', accessor: (r: TopUserItem) => r.last_name },
 		{ header: 'Email', accessor: (r: TopUserItem) => r.email },
-		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium'
+		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium' && $subscription?.plan !== 'unlimited'
 			? [{ header: 'Credits Used', accessor: (r: TopUserItem) => r.credits_used?.toFixed(2) }]
 			: []),
 		{ header: 'Messages', accessor: (r: TopUserItem) => r.message_count },
@@ -421,17 +421,19 @@
 
 	$: modelCsvColumns = [
 		{ header: 'Model', accessor: (r: TopModelItem) => r.model },
-		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium'
+		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium' && $subscription?.plan !== 'unlimited'
 			? [{ header: 'Credits Used', accessor: (r: TopModelItem) => r.credits_used?.toFixed(2) }]
 			: []),
 		{ header: 'Messages', accessor: (r: TopModelItem) => r.message_count }
 	] as CsvColumnDef<TopModelItem>[];
 
-	const assistantCsvColumns: CsvColumnDef<TopAssistantItem>[] = [
-		{ header: 'Assistant', accessor: (r) => r.assistant },
-		{ header: 'Credits Used', accessor: (r) => r.credits_used?.toFixed(2) },
-		{ header: 'Messages', accessor: (r) => r.message_count }
-	];
+	$: assistantCsvColumns = [
+		{ header: 'Assistant', accessor: (r: TopAssistantItem) => r.assistant },
+		...($subscription?.plan !== 'free' && $subscription?.plan !== 'premium' && $subscription?.plan !== 'unlimited'
+			? [{ header: 'Credits Used', accessor: (r: TopAssistantItem) => r.credits_used?.toFixed(2) }]
+			: []),
+		{ header: 'Messages', accessor: (r: TopAssistantItem) => r.message_count }
+	] as CsvColumnDef<TopAssistantItem>[];
 
 	function exportCurrentTabCsv() {
 		const timestamp = formatYYYYMMDD(new Date());
@@ -688,7 +690,7 @@
 									</div>
 								</div>
 							</th>
-							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
+							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited'}
 								<th
 									class="p-2 w-[100px] md:w-[120px] font-medium hover:opacity-80 cursor-pointer select-none {sortKey ===
 									'credits'
@@ -776,10 +778,10 @@
 										</div>
 									</div>
 								</td>
-								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
+								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
-										>€{Math.max(row.credits_used, 0.01).toFixed(2)}</td
+										>€{row.credits_used.toFixed(2)}</td
 									>
 								{/if}
 								<td
@@ -790,7 +792,7 @@
 							{#if expandedRows.has(key)}
 								<tr class="bg-lightGray-300 dark:bg-customGray-900">
 									<td
-										colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium'
+										colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited'
 											? 4
 											: 3}
 										class="pr-2"
@@ -855,7 +857,7 @@
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60 dark:border-customGray-700">
 							<td
-								colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' ? 4 : 3}
+								colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited' ? 4 : 3}
 								class="p-2 pl-5"
 							>
 								<div class="flex flex-row justify-between items-center">
@@ -937,7 +939,7 @@
 					<thead class="text-lightGray-100/60 dark:text-white/60">
 						<tr>
 							<th class="pl-5 p-2 text-left font-medium select-none"> {$i18n.t('Model')} </th>
-							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
+							{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited'}
 								<th
 									class="p-2 w-[100px] md:w-[120px] font-medium hover:opacity-80 cursor-pointer select-none {sortKey ===
 									'credits'
@@ -1004,10 +1006,10 @@
 										</div>
 									</div>
 								</td>
-								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium'}
+								{#if $subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited'}
 									<td
 										class="border-t border-1 border-gray-200/60 dark:border-customGray-700 p-2 text-right min-w-[100px] font-semibold"
-										>€{Math.max(row.credits_used.toFixed(2), 0.01)}</td
+										>€{row.credits_used.toFixed(2)}</td
 									>
 								{/if}
 								<td
@@ -1020,7 +1022,7 @@
 					<tfoot>
 						<tr class="border-t border-1 border-gray-200/60 dark:border-customGray-700">
 							<td
-								colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' ? 3 : 2}
+								colspan={$subscription?.plan != 'free' && $subscription?.plan != 'premium' && $subscription?.plan != 'unlimited' ? 3 : 2}
 								class="p-2 pl-5"
 							>
 								<div class="flex flex-row justify-between items-center">
