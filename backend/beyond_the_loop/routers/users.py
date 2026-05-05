@@ -97,7 +97,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
             # Reject personal/consumer email domains
             # Exception: some companies are allowed to invite non-business emails
-            COMPANIES_ALLOWED_NON_BUSINESS_EMAILS = {"1f62d141-5b4f-4ebf-8468-83bab4765c1b", "bed374b4-bd32-42f6-8cd0-0767bbe7fdc5", "bdc018de-359c-480b-aa44-b7d9c47a5b4c"}
+            COMPANIES_ALLOWED_NON_BUSINESS_EMAILS = {"1f62d141-5b4f-4ebf-8468-83bab4765c1b", "bed374b4-bd32-42f6-8cd0-0767bbe7fdc5", "bdc018de-359c-480b-aa44-b7d9c47a5b4c", "8c67a57e-618d-4bc7-8577-a5b65227a43b"}
             if user.company_id not in COMPANIES_ALLOWED_NON_BUSINESS_EMAILS and not is_business_email(email):
                 validation_errors.append({"reason": f"{email} is invalid. {ERROR_MESSAGES.NOT_BUSINESS_EMAIL}"})
                 continue
@@ -638,6 +638,7 @@ async def transfer_user_entities(user_id: str, form_data: TransferEntitiesForm, 
 @router.delete("/{user_id}", response_model=bool)
 async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
     target_user = Users.get_user_by_id(user_id)
+
     if not target_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -661,9 +662,29 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
     def _cleanup_files():
         for file in user_files:
             collection_name = f"file-{file.id}"
-            if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-                VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
-            Storage.delete_file(file.path)
+
+            try:
+                if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+                    VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+            except Exception as e:
+                log.warning(f"Failed to delete vector collection {collection_name}: {e}")
+
+            try:
+                Storage.delete_file(file.path)
+            except Exception as e:
+                log.warning(f"Failed to delete file {file.path} from storage: {e}")
+
+    def _clear_company_caches():
+        for cache, name in (
+            (STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, "STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE"),
+            (STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, "STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE"),
+            (COMPANY_CONFIG_CACHE, "COMPANY_CONFIG_CACHE"),
+        ):
+            try:
+                if company_id in cache:
+                    del cache[company_id]
+            except Exception as e:
+                log.warning(f"Failed to clear {name} for company {company_id}: {e}")
 
     # ------------------------------------------------------------------
     # Last-user check: if this is the only user left in the company,
@@ -671,18 +692,18 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
     # (PG cascades handle user + all dependent rows).
     # ------------------------------------------------------------------
     total_users = Users.count_users_by_company_id(company_id)
+
     if total_users == 1:
         _cleanup_files()
         payments_service.cancel_company_subscription(company_id)
-        STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
-        STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
-        if company_id in COMPANY_CONFIG_CACHE:
-            del COMPANY_CONFIG_CACHE[company_id]
+        _clear_company_caches()
+
         if not Companies.delete_company_by_id(company_id):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=ERROR_MESSAGES.DELETE_USER_ERROR,
             )
+
         return True
 
     # ------------------------------------------------------------------
@@ -714,10 +735,7 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
                 # Delete the company (cascades through everything).
                 _cleanup_files()
                 payments_service.cancel_company_subscription(company_id)
-                STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
-                STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
-                if company_id in COMPANY_CONFIG_CACHE:
-                    del COMPANY_CONFIG_CACHE[company_id]
+                _clear_company_caches()
                 if not Companies.delete_company_by_id(company_id):
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
