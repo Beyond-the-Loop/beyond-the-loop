@@ -1005,6 +1005,9 @@
 
 		if (sources) {
 			message.sources = sources;
+			if(bufferedResponse){
+				bufferedResponse.add_sources(sources);
+			}
 		}
 
 		if (choices) {
