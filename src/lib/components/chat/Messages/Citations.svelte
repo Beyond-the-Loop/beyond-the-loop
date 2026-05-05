@@ -95,7 +95,7 @@
 />
 
 {#if citations.length > 0}
-	<div class=" py-0.5 -mx-0.5 w-full flex gap-1 items-center flex-wrap">
+	<div class=" py-0.5 mt-4 -mx-0.5 w-full flex gap-1 items-center flex-wrap">
 		{#if citations.length <= 3}
 			<div class="flex text-xs font-medium">
 				{#each citations as citation, idx}
