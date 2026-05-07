@@ -77,12 +77,6 @@ services:
     container_name: beyond-the-loop
     env_file:
       - .env
-    environment:
-      GOOGLE_RAG_CORPUS: projects/beyond-chat-1111/locations/europe-west3/ragCorpora/6917529027641081856
-      GOOGLE_RAG_BUCKET: bchat-rag-uploads-staging
-      GOOGLE_RAG_PROJECT_ID: beyond-chat-1111
-      GOOGLE_RAG_LOCATION: europe-west3
-      GCS_BUCKET_NAME: bchat-rag-uploads-staging
     volumes:
       - ./backend/data:/app/backend/data
       - ./litellm-config.yaml:/app/litellm-config.yaml:ro

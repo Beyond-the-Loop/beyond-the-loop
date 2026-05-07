@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import time
-from dataclasses import dataclass
+from functools import lru_cache
 from os.path import basename
 
 from beyond_the_loop.models.files import Files
@@ -14,40 +14,6 @@ _IMPORT_POLL_INTERVAL_SECONDS = 2
 _IMPORT_POLL_TIMEOUT_SECONDS = 30
 
 
-@dataclass(frozen=True)
-class RagEngineFile:
-    name: str
-    display_name: str | None = None
-    source_uri: str | None = None
-
-    @property
-    def file_id(self) -> str:
-        return self.name.rsplit("/ragFiles/", 1)[-1]
-
-    def to_file_meta(self, corpus: str, gcs_uri: str | None = None) -> dict:
-        return {
-            "rag_provider": "google",
-            "rag_corpus": corpus,
-            "rag_file_id": self.file_id,
-            "rag_file_name": self.name,
-            "rag_gcs_uri": gcs_uri or self.source_uri,
-            "rag_import_status": "imported",
-        }
-
-
-@dataclass(frozen=True)
-class RagEngineContext:
-    text: str
-    source_uri: str | None = None
-    score: float | None = None
-
-    @property
-    def source_name(self) -> str:
-        if self.source_uri:
-            return basename(self.source_uri)
-        return "Google RAG"
-
-
 class GoogleRagEngineClient:
     def __init__(
         self,
@@ -55,13 +21,13 @@ class GoogleRagEngineClient:
         project_id: str | None = None,
         location: str | None = None,
     ):
-        self.corpus = corpus or _config_value("GOOGLE_RAG_CORPUS", "")
+        self.corpus = corpus or os.getenv("GOOGLE_RAG_CORPUS", "")
         self.project_id = (
             project_id
-            or _config_value("GOOGLE_RAG_PROJECT_ID", "")
+            or os.getenv("GOOGLE_RAG_PROJECT_ID", "")
             or self._project_from_corpus(self.corpus)
         )
-        self.location = location or _config_value("GOOGLE_RAG_LOCATION", "europe-west3")
+        self.location = location or os.getenv("GOOGLE_RAG_LOCATION", "europe-west3")
 
         if not self.corpus:
             raise ValueError("GOOGLE_RAG_CORPUS is not configured")
@@ -78,7 +44,7 @@ class GoogleRagEngineClient:
         chunk_size: int | None = None,
         chunk_overlap: int | None = None,
         max_embedding_requests_per_min: int | None = None,
-    ) -> RagEngineFile:
+    ):
         if not gcs_uri.startswith("gs://"):
             raise ValueError("Google RAG import expects a gs:// URI")
 
@@ -94,16 +60,14 @@ class GoogleRagEngineClient:
             transformation_config=rag.TransformationConfig(
                 rag.ChunkingConfig(
                     chunk_size=chunk_size
-                    or int(_config_value("GOOGLE_RAG_IMPORT_CHUNK_SIZE", "1024")),
+                    or int(os.getenv("GOOGLE_RAG_IMPORT_CHUNK_SIZE", "1024")),
                     chunk_overlap=chunk_overlap
-                    or int(_config_value("GOOGLE_RAG_IMPORT_CHUNK_OVERLAP", "256")),
+                    or int(os.getenv("GOOGLE_RAG_IMPORT_CHUNK_OVERLAP", "256")),
                 )
             ),
             max_embedding_requests_per_min=(
                 max_embedding_requests_per_min
-                or int(
-                    _config_value("GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN", "1000")
-                )
+                or int(os.getenv("GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN", "1000"))
             ),
         )
         log.info("Google RAG import response: %s", response)
@@ -114,29 +78,21 @@ class GoogleRagEngineClient:
 
         return rag_file
 
-    def list_files(self) -> list[RagEngineFile]:
+    def list_files(self) -> list:
         rag = self._rag()
-        files = []
+        return list(rag.list_files(corpus_name=self.corpus))
 
-        for file in rag.list_files(corpus_name=self.corpus):
-            files.append(
-                RagEngineFile(
-                    name=getattr(file, "name", ""),
-                    display_name=getattr(file, "display_name", None),
-                    source_uri=getattr(file, "source_uri", None),
-                )
-            )
-
-        return files
-
-    def find_file_by_gcs_uri(self, gcs_uri: str) -> RagEngineFile | None:
+    def find_file_by_gcs_uri(self, gcs_uri: str):
         gcs_basename = basename(gcs_uri)
         display_name_matches = []
 
         for rag_file in self.list_files():
-            if rag_file.source_uri == gcs_uri:
+            source_uri = getattr(rag_file, "source_uri", None)
+            display_name = getattr(rag_file, "display_name", None)
+
+            if source_uri == gcs_uri:
                 return rag_file
-            if rag_file.display_name == gcs_basename:
+            if display_name == gcs_basename:
                 display_name_matches.append(rag_file)
 
         if len(display_name_matches) == 1:
@@ -149,7 +105,7 @@ class GoogleRagEngineClient:
 
         return None
 
-    def _wait_for_file(self, gcs_uri: str) -> RagEngineFile | None:
+    def _wait_for_file(self, gcs_uri: str):
         deadline = time.monotonic() + _IMPORT_POLL_TIMEOUT_SECONDS
 
         while time.monotonic() <= deadline:
@@ -165,7 +121,7 @@ class GoogleRagEngineClient:
         query: str,
         rag_file_ids: list[str],
         top_k: int = 10,
-    ) -> list[RagEngineContext]:
+    ) -> list[dict]:
         normalized_ids = normalize_rag_file_ids(rag_file_ids)
         if not normalized_ids:
             return []
@@ -183,6 +139,22 @@ class GoogleRagEngineClient:
         )
 
         return self._contexts_from_response(response)
+
+    def delete_file(self, rag_file_name_or_id: str | None) -> None:
+        if not rag_file_name_or_id:
+            return
+
+        rag = self._rag()
+        try:
+            rag.delete_file(
+                name=rag_file_name_or_id,
+                corpus_name=None if "/ragFiles/" in rag_file_name_or_id else self.corpus,
+            )
+        except Exception as e:
+            if e.__class__.__name__ == "NotFound":
+                log.info("Google RAG file already deleted: %s", rag_file_name_or_id)
+                return
+            raise
 
     def retrieve_sources(
         self,
@@ -204,17 +176,21 @@ class GoogleRagEngineClient:
 
         sources = []
         for context in contexts[:top_k]:
+            source_uri = context.get("source_uri")
+            source_name = basename(source_uri) if source_uri else "Google RAG"
             sources.append(
                 {
-                    "source": {"name": context.source_name},
-                    "document": [context.text],
+                    "source": {"name": source_name},
+                    "document": [context["text"]],
                     "metadata": [
                         {
-                            "source": context.source_name,
-                            "source_uri": context.source_uri,
+                            "source": source_name,
+                            "source_uri": source_uri,
                         }
                     ],
-                    "distances": [context.score] if context.score is not None else [],
+                    "distances": (
+                        [context["score"]] if context.get("score") is not None else []
+                    ),
                 }
             )
 
@@ -235,7 +211,7 @@ class GoogleRagEngineClient:
         return corpus.split("/", 2)[1]
 
     @staticmethod
-    def _contexts_from_response(response) -> list[RagEngineContext]:
+    def _contexts_from_response(response) -> list[dict]:
         contexts_container = getattr(response, "contexts", None)
         raw_contexts = getattr(contexts_container, "contexts", []) or []
         contexts = []
@@ -250,24 +226,33 @@ class GoogleRagEngineClient:
                 score = getattr(context, "distance", None)
 
             contexts.append(
-                RagEngineContext(
-                    text=text,
-                    source_uri=getattr(context, "source_uri", None),
-                    score=score,
-                )
+                {
+                    "text": text,
+                    "source_uri": getattr(context, "source_uri", None),
+                    "score": score,
+                }
             )
 
         return contexts
 
 
-def _config_value(name: str, default: str) -> str:
-    try:
-        from beyond_the_loop import config
+@lru_cache(maxsize=1)
+def get_google_rag_client() -> GoogleRagEngineClient:
+    return GoogleRagEngineClient()
 
-        value = getattr(config, name).value
-        return str(value) if value is not None else default
-    except Exception:
-        return os.environ.get(name, default)
+
+def rag_file_to_file_meta(rag_file, corpus: str, gcs_uri: str | None = None) -> dict:
+    rag_file_name = getattr(rag_file, "name", "")
+    source_uri = getattr(rag_file, "source_uri", None)
+
+    return {
+        "rag_provider": "google",
+        "rag_corpus": corpus,
+        "rag_file_id": rag_file_name.rsplit("/ragFiles/", 1)[-1],
+        "rag_file_name": rag_file_name,
+        "rag_gcs_uri": gcs_uri or source_uri,
+        "rag_import_status": "imported",
+    }
 
 
 def get_sources_from_google_rag(files, queries, k):
@@ -276,8 +261,19 @@ def get_sources_from_google_rag(files, queries, k):
         log.info("Google RAG skipped: no scoped rag_file_ids found")
         return []
 
-    client = GoogleRagEngineClient()
+    client = get_google_rag_client()
     return client.retrieve_sources(queries=queries, rag_file_ids=rag_file_ids, top_k=k)
+
+
+def delete_google_rag_file_from_meta(meta: dict | None) -> None:
+    if not meta:
+        return
+
+    rag_file_name = meta.get("rag_file_name") or meta.get("rag_file_id")
+    if not rag_file_name:
+        return
+
+    get_google_rag_client().delete_file(rag_file_name)
 
 
 def normalize_rag_file_ids(values: list[str]) -> list[str]:

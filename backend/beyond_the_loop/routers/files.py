@@ -7,7 +7,11 @@ from pydantic import BaseModel
 from urllib.parse import quote
 
 from beyond_the_loop.storage.provider import Storage
-from beyond_the_loop.retrieval.rag_engine import GoogleRagEngineClient
+from beyond_the_loop.retrieval.rag_engine import (
+    delete_google_rag_file_from_meta,
+    get_google_rag_client,
+    rag_file_to_file_meta,
+)
 
 from beyond_the_loop.models.files import (
     FileForm,
@@ -67,11 +71,12 @@ def upload_file(
         )
 
         try:
-            google_rag = GoogleRagEngineClient()
+            google_rag = get_google_rag_client()
             rag_file = google_rag.import_gcs_file(file_path)
             file_item = Files.update_file_metadata_by_id(
                 id,
-                rag_file.to_file_meta(
+                rag_file_to_file_meta(
+                    rag_file,
                     corpus=google_rag.corpus,
                     gcs_uri=file_path,
                 ),
@@ -292,7 +297,16 @@ async def delete_file_by_id(id: str, user=Depends(get_verified_user)):
     file_user = Users.get_user_by_id(file.user_id)
 
     if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
-        # We should add Chroma cleanup here
+        try:
+            delete_google_rag_file_from_meta(file.meta)
+        except Exception as e:
+            log.exception(e)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ERROR_MESSAGES.DEFAULT(
+                    "Error deleting file from Google RAG Engine"
+                ),
+            )
 
         result = Files.delete_file_by_id(id)
         if result:

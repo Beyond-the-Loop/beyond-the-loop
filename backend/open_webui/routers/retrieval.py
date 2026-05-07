@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import shutil
 
 import uuid
 from datetime import datetime
@@ -14,7 +13,6 @@ from fastapi import (
     status,
     APIRouter,
 )
-from pydantic import BaseModel
 import tiktoken
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSplitter
@@ -28,16 +26,16 @@ from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
     get_model_path,
 )
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
 from open_webui.utils.misc import (
     calculate_sha256_string,
 )
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_verified_user
 
 from beyond_the_loop.config import (
     RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE,
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
-    UPLOAD_DIR,
 )
 from open_webui.env import (
     SRC_LOG_LEVELS,
@@ -56,12 +54,6 @@ log.setLevel(SRC_LOG_LEVELS["RAG"])
 ##########################################
 
 firecrawl = Firecrawl(api_key=os.getenv("FIRECRAWL_API_KEY"))
-
-
-def _vector_db_client():
-    from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
-
-    return VECTOR_DB_CLIENT
 
 
 def get_ef(
@@ -128,166 +120,12 @@ def get_rf(
 router = APIRouter()
 
 
-class CollectionNameForm(BaseModel):
-    collection_name: Optional[str] = None
-
-
-class ProcessUrlForm(CollectionNameForm):
-    url: str
-
-
-class SearchForm(CollectionNameForm):
-    query: str
-
-
-@router.get("/")
-async def get_status(request: Request):
-    return {
-        "status": True,
-        "chunk_size": request.app.state.config.CHUNK_SIZE,
-        "chunk_overlap": request.app.state.config.CHUNK_OVERLAP,
-        "template": request.app.state.config.RAG_TEMPLATE,
-        "embedding_engine": request.app.state.config.RAG_EMBEDDING_ENGINE,
-        "embedding_model": request.app.state.config.RAG_EMBEDDING_MODEL,
-        "reranking_model": request.app.state.config.RAG_RERANKING_MODEL,
-        "embedding_batch_size": request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
-    }
-
-
-@router.get("/embedding")
-async def get_embedding_config(request: Request, user=Depends(get_admin_user)):
-    return {
-        "status": True,
-        "embedding_engine": request.app.state.config.RAG_EMBEDDING_ENGINE,
-        "embedding_model": request.app.state.config.RAG_EMBEDDING_MODEL,
-        "embedding_batch_size": request.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
-        "openai_config": {
-            "url": request.app.state.config.RAG_OPENAI_API_BASE_URL,
-            "key": request.app.state.config.RAG_OPENAI_API_KEY,
-        },
-    }
-
-
-@router.get("/reranking")
-async def get_reraanking_config(request: Request, user=Depends(get_admin_user)):
-    return {
-        "status": True,
-        "reranking_model": request.app.state.config.RAG_RERANKING_MODEL,
-    }
-
-
-class OpenAIConfigForm(BaseModel):
-    url: str
-    key: str
-
-
-class EmbeddingModelUpdateForm(BaseModel):
-    openai_config: Optional[OpenAIConfigForm] = None
-    embedding_engine: str
-    embedding_model: str
-    embedding_batch_size: Optional[int] = 1
-
-
-class RerankingModelUpdateForm(BaseModel):
-    reranking_model: str
-
-@router.get("/config")
-async def get_rag_config(request: Request, user=Depends(get_admin_user)):
-    return {
-        "status": True,
-        "enable_google_drive_integration": request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
-        "content_extraction": {
-            "engine": request.app.state.config.CONTENT_EXTRACTION_ENGINE,
-        },
-        "chunk": {
-            "text_splitter": request.app.state.config.TEXT_SPLITTER,
-            "chunk_size": request.app.state.config.CHUNK_SIZE,
-            "chunk_overlap": request.app.state.config.CHUNK_OVERLAP,
-        },
-        "file": {
-            "max_size": request.app.state.config.FILE_MAX_SIZE,
-            "max_count": request.app.state.config.FILE_MAX_COUNT,
-        },
-        "youtube": {
-            "language": request.app.state.config.YOUTUBE_LOADER_LANGUAGE,
-            "translation": request.app.state.YOUTUBE_LOADER_TRANSLATION,
-            "proxy_url": request.app.state.config.YOUTUBE_LOADER_PROXY_URL,
-        },
-        "web": {
-            "web_loader_ssl_verification": request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
-            "search": {
-                "drive": request.app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
-                "result_count": request.app.state.config.RAG_WEB_SEARCH_RESULT_COUNT,
-            },
-        },
-    }
-
-
-class FileConfig(BaseModel):
-    max_size: Optional[int] = None
-    max_count: Optional[int] = None
-
-
-class ContentExtractionConfig(BaseModel):
-    engine: str = ""
-
-
-class ChunkParamUpdateForm(BaseModel):
-    text_splitter: Optional[str] = None
-    chunk_size: int
-    chunk_overlap: int
-
-
-class YoutubeLoaderConfig(BaseModel):
-    language: list[str]
-    translation: Optional[str] = None
-    proxy_url: str = ""
-
-
-class WebSearchConfig(BaseModel):
-    enabled: bool
-    result_count: Optional[int] = None
-    concurrent_requests: Optional[int] = None
-
-
-class WebConfig(BaseModel):
-    search: WebSearchConfig
-    web_loader_ssl_verification: Optional[bool] = None
-
-
-class ConfigUpdateForm(BaseModel):
-    enable_google_drive_integration: Optional[bool] = None
-    file: Optional[FileConfig] = None
-    content_extraction: Optional[ContentExtractionConfig] = None
-    chunk: Optional[ChunkParamUpdateForm] = None
-    youtube: Optional[YoutubeLoaderConfig] = None
-    web: Optional[WebConfig] = None
-
-
 @router.get("/template")
 async def get_rag_template(request: Request, user=Depends(get_verified_user)):
     return {
         "status": True,
         "template": request.app.state.config.RAG_TEMPLATE,
     }
-
-
-@router.get("/query/settings")
-async def get_query_settings(request: Request, user=Depends(get_admin_user)):
-    return {
-        "status": True,
-        "template": request.app.state.config.RAG_TEMPLATE,
-        "k": request.app.state.config.TOP_K,
-        "r": request.app.state.config.RELEVANCE_THRESHOLD,
-        "hybrid": request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
-    }
-
-
-class QuerySettingsForm(BaseModel):
-    k: Optional[int] = None
-    r: Optional[float] = None
-    template: Optional[str] = None
-    hybrid: Optional[bool] = None
 
 
 ####################################
@@ -329,7 +167,7 @@ def save_docs_to_vector_db(
 
     # Check if entries with the same hash (metadata.hash) already exist
     if metadata and "hash" in metadata:
-        result = _vector_db_client().query(
+        result = VECTOR_DB_CLIENT.query(
             collection_name=collection_name,
             filter={"hash": metadata["hash"]},
         )
@@ -388,11 +226,11 @@ def save_docs_to_vector_db(
                 metadata[key] = str(value)
 
     try:
-        if _vector_db_client().has_collection(collection_name=collection_name):
+        if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
             log.info(f"collection {collection_name} already exists")
 
             if overwrite:
-                _vector_db_client().delete_collection(collection_name=collection_name)
+                VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
                 log.info(f"deleting existing collection {collection_name}")
             elif add is False:
                 log.info(
@@ -422,7 +260,7 @@ def save_docs_to_vector_db(
             for idx, text in enumerate(texts)
         ]
 
-        _vector_db_client().insert(
+        VECTOR_DB_CLIENT.insert(
             collection_name=collection_name,
             items=items,
         )
@@ -431,12 +269,6 @@ def save_docs_to_vector_db(
     except Exception as e:
         log.exception(e)
         raise e
-
-
-class ProcessTextForm(BaseModel):
-    name: str
-    content: str
-    collection_name: Optional[str] = None
 
 
 def process_web_search(request: Request, query: str, limit: int, user, collection_name: str = None):
@@ -508,7 +340,6 @@ def process_web_search(request: Request, query: str, limit: int, user, collectio
             detail=ERROR_MESSAGES.DEFAULT,
         )
 
-
 def process_web_url_scrape(request: Request, url: str, user, collection_name: str = None):
     try:
         logging.info(f"Scraping URL directly with firecrawl: {url}")
@@ -549,33 +380,3 @@ def process_web_url_scrape(request: Request, url: str, user, collection_name: st
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT,
         )
-
-
-####################################
-#
-# Vector DB operations
-#
-####################################
-
-
-@router.post("/reset/uploads")
-def reset_upload_dir(user=Depends(get_admin_user)) -> bool:
-    folder = f"{UPLOAD_DIR}"
-    try:
-        # Check if the directory exists
-        if os.path.exists(folder):
-            # Iterate over all the files and directories in the specified directory
-            for filename in os.listdir(folder):
-                file_path = os.path.join(folder, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)  # Remove the file or link
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)  # Remove the directory
-                except Exception as e:
-                    log.error(f"Failed to delete {file_path}. Reason: {e}")
-        else:
-            log.warning(f"The directory {folder} does not exist")
-    except Exception as e:
-        log.error(f"Failed to process the directory {folder}. Reason: {e}")
-    return True
