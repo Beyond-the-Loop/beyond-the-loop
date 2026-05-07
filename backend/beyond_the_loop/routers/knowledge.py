@@ -11,6 +11,7 @@ from beyond_the_loop.models.knowledge import (
     KnowledgeUserResponse,
 )
 from beyond_the_loop.models.files import Files, FileModel
+from beyond_the_loop.retrieval.rag_engine import delete_google_rag_file_from_meta
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
@@ -31,6 +32,19 @@ def _has_google_rag_file(file: FileModel) -> bool:
     return bool(
         file.meta and (file.meta.get("rag_file_id") or file.meta.get("rag_file_name"))
     )
+
+
+def _delete_file_from_google_rag(file: FileModel) -> None:
+    try:
+        delete_google_rag_file_from_meta(file.meta)
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT(
+                "Error deleting file from Google RAG Engine"
+            ),
+        )
 
 ############################
 # getKnowledgeBases
@@ -338,6 +352,8 @@ def remove_file_from_knowledge_by_id(
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
+    _delete_file_from_google_rag(file)
+
     # Delete file from database
     Files.delete_file_by_id(form_data.file_id)
 
@@ -381,6 +397,11 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     _validate_knowledge_write_access(knowledge, user)
 
     log.info(f"Deleting knowledge base: {id} (name: {knowledge.name})")
+
+    data = knowledge.data or {}
+    files = Files.get_files_by_ids(data.get("file_ids", []))
+    for file in files:
+        _delete_file_from_google_rag(file)
 
     # Get all models
     models = Models.get_all_models_by_company(user.company_id)
