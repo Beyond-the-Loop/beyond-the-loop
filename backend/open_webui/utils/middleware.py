@@ -17,6 +17,7 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import (
+    DEFAULT_RAG_TEMPLATE,
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
     SMART_ROUTER_PROMPT,
@@ -255,7 +256,6 @@ async def chat_completion_files_handler(
                     lambda: get_sources_from_google_rag(
                         files=files,
                         queries=queries,
-                        k=request.app.state.config.TOP_K,
                     ),
                 )
             log.info("Google RAG retrieval returned %d sources", len(sources))
@@ -834,7 +834,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         if prompt is None:
             raise Exception("No user message found")
         if (
-                request.app.state.config.RELEVANCE_THRESHOLD == 0
+                float(os.getenv("RAG_RELEVANCE_THRESHOLD", "0.0")) == 0
                 and context_string.strip() == ""
         ):
             log.debug(
@@ -843,7 +843,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         form_data["messages"] = add_or_update_system_message(
             rag_template(
-                request.app.state.config.RAG_TEMPLATE, context_string, prompt
+                os.getenv("RAG_TEMPLATE") or DEFAULT_RAG_TEMPLATE, context_string, prompt
             ),
             form_data["messages"],
         )

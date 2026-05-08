@@ -15,19 +15,13 @@ _IMPORT_POLL_TIMEOUT_SECONDS = 30
 
 
 class GoogleRagEngineClient:
-    def __init__(
-        self,
-        corpus: str | None = None,
-        project_id: str | None = None,
-        location: str | None = None,
-    ):
-        self.corpus = corpus or os.getenv("GOOGLE_RAG_CORPUS", "")
+    def __init__(self):
+        self.corpus = os.getenv("GOOGLE_RAG_CORPUS", "")
         self.project_id = (
-            project_id
-            or os.getenv("GOOGLE_RAG_PROJECT_ID", "")
+            os.getenv("GOOGLE_RAG_PROJECT_ID", "")
             or self._project_from_corpus(self.corpus)
         )
-        self.location = location or os.getenv("GOOGLE_RAG_LOCATION", "europe-west3")
+        self.location = os.getenv("GOOGLE_RAG_LOCATION", "europe-west3")
 
         if not self.corpus:
             raise ValueError("GOOGLE_RAG_CORPUS is not configured")
@@ -38,13 +32,7 @@ class GoogleRagEngineClient:
         if not self.location:
             raise ValueError("GOOGLE_RAG_LOCATION is not configured")
 
-    def import_gcs_file(
-        self,
-        gcs_uri: str,
-        chunk_size: int | None = None,
-        chunk_overlap: int | None = None,
-        max_embedding_requests_per_min: int | None = None,
-    ):
+    def import_gcs_file(self, gcs_uri: str):
         if not gcs_uri.startswith("gs://"):
             raise ValueError("Google RAG import expects a gs:// URI")
 
@@ -59,15 +47,12 @@ class GoogleRagEngineClient:
             paths=[gcs_uri],
             transformation_config=rag.TransformationConfig(
                 rag.ChunkingConfig(
-                    chunk_size=chunk_size
-                    or int(os.getenv("GOOGLE_RAG_IMPORT_CHUNK_SIZE", "1024")),
-                    chunk_overlap=chunk_overlap
-                    or int(os.getenv("GOOGLE_RAG_IMPORT_CHUNK_OVERLAP", "256")),
+                    chunk_size=int(os.getenv("GOOGLE_RAG_IMPORT_CHUNK_SIZE", "1024")),
+                    chunk_overlap=int(os.getenv("GOOGLE_RAG_IMPORT_CHUNK_OVERLAP", "256")),
                 )
             ),
-            max_embedding_requests_per_min=(
-                max_embedding_requests_per_min
-                or int(os.getenv("GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN", "1000"))
+            max_embedding_requests_per_min=int(
+                os.getenv("GOOGLE_RAG_MAX_EMBEDDING_REQUESTS_PER_MIN", "1000")
             ),
         )
         log.info("Google RAG import response: %s", response)
@@ -116,16 +101,12 @@ class GoogleRagEngineClient:
 
         return None
 
-    def retrieve_contexts(
-        self,
-        query: str,
-        rag_file_ids: list[str],
-        top_k: int = 10,
-    ) -> list[dict]:
+    def retrieve_contexts(self, query: str, rag_file_ids: list[str]) -> list[dict]:
         normalized_ids = normalize_rag_file_ids(rag_file_ids)
         if not normalized_ids:
             return []
 
+        top_k = int(os.getenv("RAG_TOP_K", "10"))
         rag = self._rag()
         response = rag.retrieval_query(
             rag_resources=[
@@ -156,13 +137,9 @@ class GoogleRagEngineClient:
                 return
             raise
 
-    def retrieve_sources(
-        self,
-        queries: list[str],
-        rag_file_ids: list[str],
-        top_k: int = 10,
-    ) -> list[dict]:
+    def retrieve_sources(self, queries: list[str], rag_file_ids: list[str]) -> list[dict]:
         scoped_file_ids = normalize_rag_file_ids(rag_file_ids)
+        top_k = int(os.getenv("RAG_TOP_K", "10"))
         log.info(
             "Google RAG retrieval with %d scoped file ids and top_k=%s",
             len(scoped_file_ids),
@@ -172,7 +149,7 @@ class GoogleRagEngineClient:
         contexts = []
 
         for query in queries:
-            contexts.extend(self.retrieve_contexts(query, scoped_file_ids, top_k=top_k))
+            contexts.extend(self.retrieve_contexts(query, scoped_file_ids))
 
         sources = []
         for context in contexts[:top_k]:
@@ -255,14 +232,14 @@ def rag_file_to_file_meta(rag_file, corpus: str, gcs_uri: str | None = None) -> 
     }
 
 
-def get_sources_from_google_rag(files, queries, k):
+def get_sources_from_google_rag(files, queries):
     rag_file_ids = _extract_google_rag_file_ids(files)
     if not rag_file_ids:
         log.info("Google RAG skipped: no scoped rag_file_ids found")
         return []
 
     client = get_google_rag_client()
-    return client.retrieve_sources(queries=queries, rag_file_ids=rag_file_ids, top_k=k)
+    return client.retrieve_sources(queries=queries, rag_file_ids=rag_file_ids)
 
 
 def delete_google_rag_file_from_meta(meta: dict | None) -> None:

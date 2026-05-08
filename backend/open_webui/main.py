@@ -35,14 +35,6 @@ from beyond_the_loop.config import (
     AUDIO_TTS_VOICE,
     WHISPER_MODEL,
     # Retrieval
-    RAG_TEMPLATE,
-    RAG_EMBEDDING_MODEL,
-    RAG_EMBEDDING_ENGINE,
-    RAG_EMBEDDING_BATCH_SIZE,
-    RAG_RELEVANCE_THRESHOLD,
-    RAG_FILE_MAX_COUNT,
-    RAG_FILE_MAX_SIZE,
-    RAG_TOP_K,
     GOOGLE_DRIVE_CLIENT_ID,
     GOOGLE_DRIVE_API_KEY,
     ENABLE_GOOGLE_DRIVE_INTEGRATION,
@@ -281,22 +273,19 @@ app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 ########################################
 
 
-app.state.config.TOP_K = RAG_TOP_K
-app.state.config.RELEVANCE_THRESHOLD = RAG_RELEVANCE_THRESHOLD
-app.state.config.FILE_MAX_SIZE = RAG_FILE_MAX_SIZE
-app.state.config.FILE_MAX_COUNT = RAG_FILE_MAX_COUNT
-
-app.state.config.RAG_EMBEDDING_ENGINE = RAG_EMBEDDING_ENGINE
-app.state.config.RAG_EMBEDDING_MODEL = RAG_EMBEDDING_MODEL
-app.state.config.RAG_EMBEDDING_BATCH_SIZE = RAG_EMBEDDING_BATCH_SIZE
-app.state.config.RAG_TEMPLATE = RAG_TEMPLATE
+app.state.config.FILE_MAX_SIZE = (
+    int(os.getenv("RAG_FILE_MAX_SIZE")) if os.getenv("RAG_FILE_MAX_SIZE") else None
+)
+app.state.config.FILE_MAX_COUNT = (
+    int(os.getenv("RAG_FILE_MAX_COUNT")) if os.getenv("RAG_FILE_MAX_COUNT") else None
+)
 
 app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = ENABLE_GOOGLE_DRIVE_INTEGRATION
 
 app.state.EMBEDDING_FUNCTION = get_embedding_function(
-    app.state.config.RAG_EMBEDDING_ENGINE,
-    app.state.config.RAG_EMBEDDING_MODEL,
-    app.state.config.RAG_EMBEDDING_BATCH_SIZE,
+    os.getenv("RAG_EMBEDDING_ENGINE", "openai"),
+    os.getenv("RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
+    int(os.getenv("RAG_EMBEDDING_BATCH_SIZE") or os.getenv("RAG_EMBEDDING_OPENAI_BATCH_SIZE", "1")),
 )
 
 ########################################
