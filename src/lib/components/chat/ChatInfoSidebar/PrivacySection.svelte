@@ -11,6 +11,11 @@
 	export let detectedEntities: PIISpan[] = [];
 	export let releasedEntities: string[] = [];
 	export let onReleasedChange: (released: string[]) => void = () => {};
+	// When false, entities render as read-only chips (no click-to-release).
+	// Driven by `pii.allow_disable_in_chat` — without it the backend silently
+	// forces released[] back to empty anyway, so showing clickable chips would
+	// just mislead the user.
+	export let releasable: boolean = true;
 
 	// Distinct originals only — duplicates collapse into one row, since release
 	// applies to all occurrences of the same string in this chat.
@@ -99,18 +104,35 @@
 				</div>
 				{#each spans as span (span.original)}
 					{@const released = releasedEntities.includes(span.original)}
-					<Tooltip
-						content={released
-							? $i18n.t('Released — click to re-anonymize in future messages')
-							: $i18n.t('Will be anonymized — click to release for this chat')}
-						placement="left"
-					>
-						<button
-							type="button"
-							class="flex w-full items-center justify-between gap-2 px-3 py-2 rounded-md border text-xs transition {released
+					{#if releasable}
+						<Tooltip
+							content={released
+								? $i18n.t('Released — click to re-anonymize in future messages')
+								: $i18n.t('Will be anonymized — click to release for this chat')}
+							placement="left"
+						>
+							<button
+								type="button"
+								class="flex w-full items-center justify-between gap-2 px-3 py-2 rounded-md border text-xs transition {released
+									? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-200'
+									: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30'}"
+								on:click={() => toggleEntity(span.original)}
+							>
+								<span
+									class="font-mono truncate text-left flex-1 {released ? 'line-through' : ''}"
+								>
+									{span.original}
+								</span>
+								<span class="text-[10px] uppercase tracking-wide flex-shrink-0">
+									{released ? $i18n.t('released') : $i18n.t('protected')}
+								</span>
+							</button>
+						</Tooltip>
+					{:else}
+						<div
+							class="flex w-full items-center justify-between gap-2 px-3 py-2 rounded-md border text-xs {released
 								? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-200'
-								: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/30'}"
-							on:click={() => toggleEntity(span.original)}
+								: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-100'}"
 						>
 							<span
 								class="font-mono truncate text-left flex-1 {released ? 'line-through' : ''}"
@@ -120,8 +142,8 @@
 							<span class="text-[10px] uppercase tracking-wide flex-shrink-0">
 								{released ? $i18n.t('released') : $i18n.t('protected')}
 							</span>
-						</button>
-					</Tooltip>
+						</div>
+					{/if}
 				{/each}
 			</div>
 		{/each}
@@ -132,8 +154,14 @@
 	{/if}
 
 	<p class="text-[11px] text-gray-500 dark:text-gray-500 leading-snug pt-2 border-t border-gray-200 dark:border-customGray-800">
-		{$i18n.t(
-			'Click an entry to release it from the filter for the rest of this chat.'
-		)}
+		{#if releasable}
+			{$i18n.t(
+				'Click an entry to release it from the filter for the rest of this chat.'
+			)}
+		{:else}
+			{$i18n.t(
+				'The PII filter is enforced for your account — entries cannot be released.'
+			)}
+		{/if}
 	</p>
 </div>

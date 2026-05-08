@@ -1127,6 +1127,7 @@
 	"Detected personal data": "Erkannte personenbezogene Daten",
 	"Click an entity to release it from the filter for the rest of this chat.": "Klicke auf eine Entität, um sie für diesen Chat aus dem Filter freizugeben.",
 	"Click an entry to release it from the filter for the rest of this chat.": "Klicke auf einen Eintrag, um ihn für diesen Chat aus dem Filter freizugeben.",
+	"The PII filter is enforced for your account — entries cannot be released.": "Der PII-Filter ist für dein Konto verpflichtend — Einträge können nicht freigegeben werden.",
 	"Released — click to re-anonymize in future messages": "Freigegeben — klicken, um in zukünftigen Nachrichten wieder zu anonymisieren",
 	"Will be anonymized — click to release for this chat": "Wird anonymisiert — klicken, um für diesen Chat freizugeben",
 	"Released entities": "Freigegebene Entitäten",

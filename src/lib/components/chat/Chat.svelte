@@ -139,10 +139,18 @@
 	const PII_MIN_CHARS = 3;
 
 	// Drives sidebar + privacy button visibility. The disable-toggle UI in
-	// MessageInput is gated separately via `showPiiToggle`, so users without
-	// the toggle permission still see the panel — they just can't turn it off.
+	// MessageInput is gated separately via `canRelaxPii`, so users without
+	// the toggle permission still see the panel — they just can't turn it off
+	// or release individual entities.
 	$: piiPanelVisible =
 		piiEnabled && ($companyConfig?.config?.privacy?.pii_filter_enabled ?? false);
+
+	// Whether this user is allowed to disable the PII filter or release
+	// individual entities. The backend enforces the same rule and silently
+	// forces released[] back to empty otherwise, so the UI mirrors that.
+	$: canRelaxPii =
+		($companyConfig?.config?.privacy?.pii_filter_enabled ?? false) &&
+		($user?.role === 'admin' || $user?.permissions?.pii?.allow_disable_in_chat);
 
 	$: schedulePIIAnalyze(prompt, piiPanelVisible);
 
@@ -2231,7 +2239,7 @@
 									bind:autoToolsEnabled
 									bind:atSelectedModel
 									{piiEnabled}
-									showPiiToggle={($companyConfig?.config?.privacy?.pii_filter_enabled ?? false) && ($user?.role === 'admin' || $user?.permissions?.pii?.allow_disable_in_chat)}
+									showPiiToggle={canRelaxPii}
 									onPiiToggle={handlePiiToggleClick}
 									{isMagicLoading}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}
@@ -2311,7 +2319,7 @@
 								bind:autoToolsEnabled
 								bind:atSelectedModel
 								{piiEnabled}
-								showPiiToggle={($companyConfig?.config?.privacy?.pii_filter_enabled ?? false) && ($user?.role === 'admin' || $user?.permissions?.pii?.allow_disable_in_chat)}
+								showPiiToggle={canRelaxPii}
 								onPiiToggle={handlePiiToggleClick}
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
@@ -2402,6 +2410,7 @@
 	detectedEntities={detectedPIIEntities}
 	releasedEntities={piiReleasedEntities}
 	onReleasedChange={(released) => (piiReleasedEntities = released)}
+	privacyReleasable={canRelaxPii}
 	historyVisible={true}
 	historyVariables={aggregatedChatPIIVariables}
 	historyVariableSources={aggregatedChatPIIVariableSources}

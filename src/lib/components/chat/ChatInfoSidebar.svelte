@@ -16,6 +16,7 @@
 	export let detectedEntities: PIISpan[] = [];
 	export let releasedEntities: string[] = [];
 	export let onReleasedChange: (released: string[]) => void = () => {};
+	export let privacyReleasable: boolean = true;
 
 	// History section: aggregated { original: placeholder } map collected from
 	// pii_variables across all user messages of the current chat. `historyReleased`
@@ -68,6 +69,7 @@
 				{detectedEntities}
 				{releasedEntities}
 				{onReleasedChange}
+				releasable={privacyReleasable}
 			/>
 		{/if}
 		{#if historyVisible}

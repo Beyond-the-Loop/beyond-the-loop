@@ -2,12 +2,15 @@
 Pre-send PII analysis endpoint.
 
 Stateless: does NOT touch the per-chat PIISession. Used by the frontend
-composer to live-highlight detected PII so the user can selectively release
-individual entities (Mode B) before pressing send.
+composer to live-highlight detected PII so the user can see what will be
+anonymized before sending. Users with `pii.allow_disable_in_chat` can also
+selectively release individual entities (Mode B); users without it just see
+the highlights — release/disable is gated in the UI and re-enforced when the
+chat request is processed.
 
-Auth gate: requires the company-wide filter to be on AND the user to have
-`pii.allow_disable_in_chat` (admins bypass). Without that permission the
-user has no way to act on the result, so we don't expose the analyzer.
+Auth gate: only requires the company-wide filter to be on. The view-only
+case is intentionally allowed so non-privileged users get the same live
+preview the privileged ones do.
 """
 from __future__ import annotations
 
@@ -18,7 +21,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from beyond_the_loop.pii.session import is_pii_filter_enabled
-from beyond_the_loop.utils.access_control import has_permission
 from open_webui.utils.auth import get_verified_user
 
 log = logging.getLogger(__name__)
@@ -48,14 +50,6 @@ async def analyze(form_data: PIIAnalyzeRequest, user=Depends(get_verified_user))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="PII filter is disabled for this company",
-        )
-
-    if user.role != "admin" and not has_permission(
-        user.id, "pii.allow_disable_in_chat"
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Missing permission: pii.allow_disable_in_chat",
         )
 
     text = form_data.text or ""
