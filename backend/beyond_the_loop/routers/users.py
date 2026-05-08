@@ -4,8 +4,8 @@ import random
 import uuid
 from typing import Optional
 
-from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 from beyond_the_loop.storage.provider import Storage
+from beyond_the_loop.retrieval.rag_engine import delete_google_rag_file_from_meta
 from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.files import Files
@@ -661,18 +661,13 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
 
     def _cleanup_files():
         for file in user_files:
-            collection_name = f"file-{file.id}"
-
             try:
-                if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-                    VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+                delete_google_rag_file_from_meta(file.meta)
             except Exception as e:
-                log.warning(f"Failed to delete vector collection {collection_name}: {e}")
-
-            try:
-                Storage.delete_file(file.path)
-            except Exception as e:
-                log.warning(f"Failed to delete file {file.path} from storage: {e}")
+                log.warning(
+                    f"Could not delete Google RAG file for user file {file.id}: {e}"
+                )
+            Storage.delete_file(file.path)
 
     def _clear_company_caches():
         for cache, name in (
@@ -685,7 +680,6 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
                     del cache[company_id]
             except Exception as e:
                 log.warning(f"Failed to clear {name} for company {company_id}: {e}")
-
     # ------------------------------------------------------------------
     # Last-user check: if this is the only user left in the company,
     # cancel the Stripe subscription and delete the entire company
