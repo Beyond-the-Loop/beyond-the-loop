@@ -11,7 +11,7 @@ import html
 import base64
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from open_webui.utils.web_search_chunks import _get_inline_citations, _get_web_search_results, inject_citations_into_content, WebSearchResult
+from open_webui.utils.web_search_parser import get_inline_citations, get_web_search_results, inject_citations_into_content
 from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
@@ -1610,8 +1610,23 @@ async def process_chat_response(
                                                     "query": query,
                                                 },
                                             })
-                                            if content_blocks[-1].get("content") != '':
-                                                delta["content"] = delta.get("content") + "\n\n---\n" # Claude fügt selbständig keine Zeile ein - sieht buggy aus ohne
+                                            if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event 
+                                                content_blocks.append(
+                                                        {
+                                                            "type": "text",
+                                                            "content": "",
+                                                        }
+                                                    )
+                                                await event_emitter(
+                                                    {
+                                                        "type": "chat:completion",
+                                                        "data": {
+                                                            "content": serialize_content_blocks(
+                                                                content_blocks
+                                                            )
+                                                        },
+                                                    }
+                                                )
                                             pending_search_index = None  # fertig, nicht nochmal feuern
                                         except json.JSONDecodeError:
                                             pass  # arguments noch unvollständig, weiter 
@@ -1648,16 +1663,18 @@ async def process_chat_response(
                                         "type": "reasoning",
                                     }
 
-                                web_search_results = _get_web_search_results(delta, data)
+                                web_search_results = get_web_search_results(delta, data)
                                 for search_result in web_search_results:
                                     if sources is None:
                                         sources = []
                                     sources.append({
-                                            "source": {"name": search_result.title},
+                                            "type": "web_search",
+                                            "source": {"name": search_result.title, "url": search_result.url},
                                             "document": [search_result.url],
-                                            "metadata": [{"source": search_result.url, "name": search_result.title, "domain": search_result.domain }],
+                                            "metadata": [{"source": search_result.url, "domain": search_result.domain}],
                                             "distances": [0],
                                     })
+                                if web_search_results:
                                     await event_emitter({
                                         "type": "chat:completion",
                                         "data": {
@@ -1672,20 +1689,18 @@ async def process_chat_response(
                                         }
                                     }) 
 
-                                inline_citations = _get_inline_citations(delta, data, content_blocks, sources)
+                                inline_citations = get_inline_citations(delta, data, sources)
                                 for inline_citation in inline_citations:
-                                    if delta["content"]:
-                                        print("Ist es ein Match?")
-                                        pattern = r'\(\[([^\]]+)\]\(([^)]+)\)\)'
-                                        match = re.search(pattern, delta["content"])
-                                        if match:
-                                            print ("Ja!!")
-                                        elif re.search(r'\[([^\]]+)\]\(([^)]+)\)', delta.get("content")): 
-                                            print("Nein, aber das andere pattern")
-                                            print(delta["content"])
-                                        delta["content"] = re.sub(pattern, '', delta["content"])
-                                    content_blocks = inject_citations_into_content(inline_citation, content_blocks)
-
+                                    content_blocks, delta = inject_citations_into_content(inline_citation, content_blocks, delta)
+                                if inline_citations:
+                                    last_text_block = next(
+                                        (b for b in reversed(content_blocks) if b.get("type") == "text"),
+                                        None,
+                                    )
+                                    if re.search(r'\(\[([^\]]+)\]\(([^)]+)\)\)', last_text_block["content"]): # remove chatgpt markdown citations
+                                        last_text_block["content"] = re.sub(r'\(\[([^\]]+)\]\(([^)]+)\)\)', '', last_text_block["content"]) 
+                                    elif re.search(r'\[([^\]]+)\]\(([^)]+)\)', last_text_block["content"]):
+                                        last_text_block["content"] = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', '', last_text_block["content"])
                                     await event_emitter(
                                         {
                                             "type": "chat:completion",

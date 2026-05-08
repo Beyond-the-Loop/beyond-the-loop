@@ -669,10 +669,23 @@ async def generate_chat_completion(
                                         annotation = data.get("annotation", {})
                                         if annotation.get("type") == "container_file_citation":
                                             annotations.append(annotation)
+                                            
 
                                     elif event == "response.completed":
                                         log_all_until_completed = False
                                         resp = data.get("response", {})
+                                        for output in resp.get("output") or []:
+                                            url_annotations = (output.get("content") or [{}])[0].get("annotations")
+                                            if url_annotations:
+                                                chat_chunk = {
+                                                    "id": response_id,
+                                                    "object": "chat.completion.chunk",
+                                                    "created": int(time.time()),
+                                                    "model": model_name,
+                                                    "choices": [{"index": 0, "delta": {"openai_url_citation": url_annotations}, "finish_reason": None}],
+                                                }
+                                                yield f"data: {json.dumps(chat_chunk)}\n\n".encode()
+                                        
                                         usage = resp.get("usage", {})
                                         usage_openai_format = {
                                             "model": model_name,

@@ -29,18 +29,39 @@
 	// Function to handle citation linking
 	function linkifyCitations(content, sources) {
 		if (!content || !sources || sources.length === 0) return content;
-		
-		// Regex to match citation markers like [1], [2], etc.
-		const citationRegex = /\[(\d+)]/g;
-		
+
+		// Matches both [1] and grouped [1, 3, 7] markers
+		const citationRegex = /\[(\d+(?:,\s*\d+)*)\]/g;
+
 		// Replace markers with special tokens that can be processed by the markdown renderer
-		return content.replace(citationRegex, (match, number) => {
-			const citationIndex = parseInt(number, 10) - 1; // Convert to 0-based index
-			if (sources[citationIndex]) {
-				// Create a special token with a data-citation attribute that will be recognized by the renderer
-				return ` [${match}](${sources[citationIndex].metadata[0].source} "${sources[citationIndex].source.name}")`;
+		return content.replace(citationRegex, (match, indicesStr) => {
+			const indices = indicesStr.split(',').map((s) => parseInt(s.trim(), 10));
+			const firstIdx = indices[0] - 1;
+			if (!sources[firstIdx]) return match;
+
+			if (sources[firstIdx].type === 'web_search') {
+				const validSources = indices.map((i) => sources[i - 1]).filter(Boolean);
+				const href = validSources[0].source?.url || validSources[0].metadata?.[0]?.source;
+				if (!href) return match;
+
+				// Encode domain~~title~~url per source, "|||" between sources
+				const encoded = validSources
+					.map((s) => {
+						const domain = (s.metadata?.[0]?.domain || s.source?.name || '?').replace(/~~/g, ' ');
+						const title = (s.source?.name || '').replace(/~~/g, ' ').replace(/\|\|\|/g, ' ');
+						const url = s.source?.url || s.metadata?.[0]?.source || '';
+						return `${domain}~~${title}~~${url}`;
+					})
+					.join('|||');
+
+				return ` [ref](${href} "__CITE__:${encoded}")`;
+			} else {
+				// RAG and legacy sources: keep existing number-badge behaviour
+				if (sources[firstIdx]) {
+					return ` [${match}](${sources[firstIdx].metadata[0].source} "${sources[firstIdx].source.name}")`;
+				}
+				return match;
 			}
-			return match; // If no citation exists, keep it as is
 		});
 	}
 

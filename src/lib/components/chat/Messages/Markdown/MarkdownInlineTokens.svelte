@@ -12,6 +12,7 @@
 	import Image from '$lib/components/common/Image.svelte';
 	import KatexRenderer from './KatexRenderer.svelte';
 	import Source from './Source.svelte';
+	import CitationBadge from './CitationBadge.svelte';
 
 	export let id: string;
 	export let tokens: Token[];
@@ -35,7 +36,13 @@
 			{token.text}
 		{/if}
 	{:else if token.type === 'link'}
-		{#if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}
+		{#if token.title?.startsWith('__CITE__:')}
+			{@const sources = (token.title?.slice(9) ?? '').split('|||').map((entry) => {
+				const [domain = '', title = '', url = ''] = entry.split('~~');
+				return { domain, title, url };
+			})}
+			<CitationBadge {sources} />
+		{:else if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}
 			<a
 				href={`${WEBUI_BASE_URL}${token.href}`}
 				download
@@ -54,7 +61,6 @@
 					class="inline-flex justify-center text-xs leading-0 items-center px-[.4rem] py-[.1875rem] bg-lightGray-400 dark:bg-[#2d2f2f] text-lightGray-100 dark:text-customGray-100 border-lightGray-500 rounded-md mr-1"
 				>
 					{token.tokens[0]?.text.replace(/^\[|\]$/g, '')}
-					<!-- {token.href.slice(12, 25)} -->
 				</a>
 			{:else}
 				<a href={token.href} target="_blank" rel="nofollow" title={token.title}>

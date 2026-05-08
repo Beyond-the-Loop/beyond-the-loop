@@ -371,6 +371,7 @@ def get_sources_from_files(
             if "documents" in context:
                 if "metadatas" in context:
                     source = {
+                        "type": "rag",
                         "source": context["file"],
                         "document": context["documents"][0],
                         "metadata": context["metadatas"][0],
