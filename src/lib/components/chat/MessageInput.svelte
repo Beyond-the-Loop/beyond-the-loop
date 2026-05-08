@@ -776,8 +776,7 @@
 													on:dismiss={async () => {
 														if (file.type !== 'collection' && !file?.collection) {
 															if (file.id) {
-																// This will handle both file deletion and Chroma cleanup
-																await deleteFileById(localStorage.token, file.id);
+																	await deleteFileById(localStorage.token, file.id);
 															}
 														}
 

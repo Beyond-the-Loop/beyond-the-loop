@@ -134,28 +134,13 @@ def reset_config(company_id):
 DEFAULT_CONFIG = {
     "concurrent_requests": 10,
     "rag": {
-        "youtube_loader_language": ["en"],
-        "youtube_loader_proxy_url": "",
-        "enable_web_loader_ssl_verification": False,
-        "web": {
-            "search": {
-                "enable": True,
-                "concurrent_requests": 10,
-            }
-        },
         "template": "### Task:\nRespond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.\n\n### Guidelines:\n- If you don't know the answer, clearly state that.\n- If uncertain, ask the user for clarification.\n- Respond in the same language as the user's query.\n- If the context is unreadable or of poor quality, inform the user and provide the best possible answer.\n- If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.\n- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**  \n- Do not cite if the <source_id> tag is not provided in the context.  \n- Do not use XML tags in your response.\n- Ensure citations are concise and directly related to the information provided.\n\n### Example of Citation:\nIf the user asks about a specific topic and the information is found in \"whitepaper.pdf\" with a provided <source_id>, the response should include the citation like so:  \n* \"According to the study, the proposed method increases efficiency by 20% [whitepaper.pdf].\"\nIf no <source_id> is present, the response should omit the citation.\n\n### Output:\nProvide a clear and direct response to the user's query, including inline citations in the format [source_id] only when the <source_id> tag is present in the context.\n\n<context>\n{{CONTEXT}}\n</context>\n\n<user_query>\n{{QUERY}}\n</user_query>\n",
         "top_k": 10,
         "relevance_threshold": 0.0,
-        "enable_hybrid_search": True,
         "embedding_engine": "openai",
         "embedding_model": "text-embedding-3-small",
         "embedding_batch_size": 2048,
-        "reranking_model": "",
         "file": {"max_size": None, "max_count": None},
-        "CONTENT_EXTRACTION_ENGINE": "",
-        "text_splitter": "",
-        "chunk_size": 1000,
-        "chunk_overlap": 100,
     },
     "google_drive": {"enable": False},
     "audio": {
@@ -809,23 +794,6 @@ MODEL_ORDER_LIST = PersistentConfig(
     [],
 )
 
-# Chroma
-CHROMA_DATA_PATH = f"{DATA_DIR}/vector_db"
-CHROMA_HTTP_HOST = os.environ.get("CHROMA_HTTP_HOST", "")
-CHROMA_HTTP_PORT = int(os.environ.get("CHROMA_HTTP_PORT", "8000"))
-CHROMA_CLIENT_AUTH_PROVIDER = os.environ.get("CHROMA_CLIENT_AUTH_PROVIDER", "")
-CHROMA_CLIENT_AUTH_CREDENTIALS = os.environ.get("CHROMA_CLIENT_AUTH_CREDENTIALS", "")
-# Comma-separated list of header=value pairs
-CHROMA_HTTP_HEADERS = os.environ.get("CHROMA_HTTP_HEADERS", "")
-if CHROMA_HTTP_HEADERS:
-    CHROMA_HTTP_HEADERS = dict(
-        [pair.split("=") for pair in CHROMA_HTTP_HEADERS.split(",")]
-    )
-else:
-    CHROMA_HTTP_HEADERS = None
-CHROMA_HTTP_SSL = os.environ.get("CHROMA_HTTP_SSL", "false").lower() == "true"
-# this uses the model defined in the Dockerfile ENV variable. If you dont use docker or docker based deployments such as k8s, the default embedding model will be used (sentence-transformers/all-MiniLM-L6-v2)
-
 ####################################
 # Information Retrieval (RAG)
 ####################################
@@ -849,13 +817,6 @@ GOOGLE_DRIVE_API_KEY = PersistentConfig(
     os.environ.get("GOOGLE_DRIVE_API_KEY", ""),
 )
 
-# RAG Content Extraction
-CONTENT_EXTRACTION_ENGINE = PersistentConfig(
-    "CONTENT_EXTRACTION_ENGINE",
-    "rag.CONTENT_EXTRACTION_ENGINE",
-    os.environ.get("CONTENT_EXTRACTION_ENGINE", "").lower(),
-)
-
 RAG_TOP_K = PersistentConfig(
     "RAG_TOP_K", "rag.top_k", int(os.environ.get("RAG_TOP_K", "10"))
 )
@@ -864,12 +825,6 @@ RAG_RELEVANCE_THRESHOLD = PersistentConfig(
     "RAG_RELEVANCE_THRESHOLD",
     "rag.relevance_threshold",
     float(os.environ.get("RAG_RELEVANCE_THRESHOLD", "0.0")),
-)
-
-ENABLE_RAG_HYBRID_SEARCH = PersistentConfig(
-    "ENABLE_RAG_HYBRID_SEARCH",
-    "rag.enable_hybrid_search",
-    os.environ.get("ENABLE_RAG_HYBRID_SEARCH", "").lower() == "true",
 )
 
 RAG_FILE_MAX_COUNT = PersistentConfig(
@@ -892,31 +847,16 @@ RAG_FILE_MAX_SIZE = PersistentConfig(
     ),
 )
 
-ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION = PersistentConfig(
-    "ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION",
-    "rag.enable_web_loader_ssl_verification",
-    os.environ.get("ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION", "True").lower() == "true",
-)
-
 RAG_EMBEDDING_ENGINE = PersistentConfig(
     "RAG_EMBEDDING_ENGINE",
     "rag.embedding_engine",
-    os.environ.get("RAG_EMBEDDING_ENGINE", ""),
+    os.environ.get("RAG_EMBEDDING_ENGINE", "openai"),
 )
 
 RAG_EMBEDDING_MODEL = PersistentConfig(
     "RAG_EMBEDDING_MODEL",
     "rag.embedding_model",
-    os.environ.get("RAG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
-)
-
-RAG_EMBEDDING_MODEL_AUTO_UPDATE = (
-    not OFFLINE_MODE
-    and os.environ.get("RAG_EMBEDDING_MODEL_AUTO_UPDATE", "True").lower() == "true"
-)
-
-RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE = (
-    os.environ.get("RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE", "True").lower() == "true"
+    os.environ.get("RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
 )
 
 RAG_EMBEDDING_BATCH_SIZE = PersistentConfig(
@@ -926,39 +866,6 @@ RAG_EMBEDDING_BATCH_SIZE = PersistentConfig(
         os.environ.get("RAG_EMBEDDING_BATCH_SIZE")
         or os.environ.get("RAG_EMBEDDING_OPENAI_BATCH_SIZE", "1")
     ),
-)
-
-RAG_RERANKING_MODEL = PersistentConfig(
-    "RAG_RERANKING_MODEL",
-    "rag.reranking_model",
-    os.environ.get("RAG_RERANKING_MODEL", ""),
-)
-if RAG_RERANKING_MODEL.value != "":
-    log.info(f"Reranking model set: {RAG_RERANKING_MODEL.value}")
-
-RAG_RERANKING_MODEL_AUTO_UPDATE = (
-    not OFFLINE_MODE
-    and os.environ.get("RAG_RERANKING_MODEL_AUTO_UPDATE", "True").lower() == "true"
-)
-
-RAG_RERANKING_MODEL_TRUST_REMOTE_CODE = (
-    os.environ.get("RAG_RERANKING_MODEL_TRUST_REMOTE_CODE", "True").lower() == "true"
-)
-
-
-RAG_TEXT_SPLITTER = PersistentConfig(
-    "RAG_TEXT_SPLITTER",
-    "rag.text_splitter",
-    os.environ.get("RAG_TEXT_SPLITTER", ""),
-)
-
-CHUNK_SIZE = PersistentConfig(
-    "CHUNK_SIZE", "rag.chunk_size", int(os.environ.get("CHUNK_SIZE", "1000"))
-)
-CHUNK_OVERLAP = PersistentConfig(
-    "CHUNK_OVERLAP",
-    "rag.chunk_overlap",
-    int(os.environ.get("CHUNK_OVERLAP", "100")),
 )
 
 RAG_TEMPLATE = PersistentConfig(
