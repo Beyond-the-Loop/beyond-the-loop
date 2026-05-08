@@ -51,7 +51,7 @@ def _gemini_web_search_results(vertex_meta):
         for i, chunk in enumerate(chunks):
             web = chunk.get("web") or {}
             url = web.get("uri", "")
-            domain = web.get("domain")
+            domain = web.get("domain") or web.get("title", "")
             # title = web.get("title", "")
             title = grounding_supports[i].get("segment").get("text")[:60] + "..."
             title = re.sub(r'\*', '', title)
