@@ -818,50 +818,14 @@ GOOGLE_DRIVE_API_KEY = PersistentConfig(
     os.environ.get("GOOGLE_DRIVE_API_KEY", ""),
 )
 
-RAG_TOP_K = PersistentConfig(
-    "RAG_TOP_K", "rag.top_k", int(os.environ.get("RAG_TOP_K", "10"))
-)
+####################################
+# Images
+####################################
 
-RAG_RELEVANCE_THRESHOLD = PersistentConfig(
-    "RAG_RELEVANCE_THRESHOLD",
-    "rag.relevance_threshold",
-    float(os.environ.get("RAG_RELEVANCE_THRESHOLD", "0.0")),
-)
-
-ENABLE_RAG_HYBRID_SEARCH = PersistentConfig(
-    "ENABLE_RAG_HYBRID_SEARCH",
-    "rag.enable_hybrid_search",
-    os.environ.get("ENABLE_RAG_HYBRID_SEARCH", "").lower() == "true",
-)
-UPLOAD_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
-
-UPLOAD_FILE_MAX_SIZE = int(os.environ.get("UPLOAD_FILE_MAX_SIZE", 25))
-
-RAG_EMBEDDING_ENGINE = PersistentConfig(
-    "RAG_EMBEDDING_ENGINE",
-    "rag.embedding_engine",
-    os.environ.get("RAG_EMBEDDING_ENGINE", "openai"),
-)
-
-RAG_EMBEDDING_MODEL = PersistentConfig(
-    "RAG_EMBEDDING_MODEL",
-    "rag.embedding_model",
-    os.environ.get("RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
-)
-
-RAG_EMBEDDING_BATCH_SIZE = PersistentConfig(
-    "RAG_EMBEDDING_BATCH_SIZE",
-    "rag.embedding_batch_size",
-    int(
-        os.environ.get("RAG_EMBEDDING_BATCH_SIZE")
-        or os.environ.get("RAG_EMBEDDING_OPENAI_BATCH_SIZE", "1")
-    ),
-)
-
-RAG_TEMPLATE = PersistentConfig(
-    "RAG_TEMPLATE",
-    "rag.template",
-    os.environ.get("RAG_TEMPLATE", DEFAULT_RAG_TEMPLATE),
+ENABLE_IMAGE_GENERATION = PersistentConfig(
+    "ENABLE_IMAGE_GENERATION",
+    "image_generation.enable",
+    os.environ.get("ENABLE_IMAGE_GENERATION", "").lower() == "true",
 )
 
 ####################################
