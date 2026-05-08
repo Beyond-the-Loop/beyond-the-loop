@@ -3,8 +3,11 @@
 	import { toast } from 'svelte-sonner';
 
 	import type { Token } from 'marked';
+	import type { Writable } from 'svelte/store';
 	import { getContext } from 'svelte';
 	const i18n = getContext('i18n');
+
+	const webSearchSources = getContext<Writable<any[] | null>>('web-search-sources');
 
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import { copyToClipboard, unescapeHtml } from '$lib/utils';
@@ -25,24 +28,39 @@
 	{#if token.type === 'escape'}
 		{unescapeHtml(token.text)}
 	{:else if token.type === 'html'}
-		{@const html = DOMPurify.sanitize(token.text)}
-		{#if html && html.includes('<video')}
-			{@html html}
-		{:else if token.text.includes(`<iframe src="${WEBUI_BASE_URL}/api/v1/files/`)}
-			{@html `${token.text}`}
-		{:else if token.text.includes(`<source_id`)}
-			<Source {token} onClick={onSourceClick} />
+		{#if token.text?.includes('<cite data-idx=')}
+			{@const idxMatch = token.text.match(/data-idx="([^"]+)"/)}
+			{#if idxMatch}
+				{@const citeSources = idxMatch[1]
+					.split(',')
+					.map((s) => ($webSearchSources ?? [])[parseInt(s.trim()) - 1])
+					.filter((s) => s?.type === 'web_search')}
+				{#if citeSources.length}
+					<CitationBadge
+						sources={citeSources.map((s) => ({
+							domain: s.metadata?.[0]?.domain || s.source?.name || '?',
+							title: s.source?.name || '',
+							url: s.source?.url || s.metadata?.[0]?.source || ''
+						}))}
+					/>
+				{/if}
+			{/if}
+		{:else if token.text?.trim() === '</cite>'}
+			<!-- closing tag of our <cite data-idx> citation markers — render nothing -->
 		{:else}
-			{token.text}
+			{@const html = DOMPurify.sanitize(token.text)}
+			{#if html && html.includes('<video')}
+				{@html html}
+			{:else if token.text.includes(`<iframe src="${WEBUI_BASE_URL}/api/v1/files/`)}
+				{@html `${token.text}`}
+			{:else if token.text.includes(`<source_id`)}
+				<Source {token} onClick={onSourceClick} />
+			{:else}
+				{token.text}
+			{/if}
 		{/if}
 	{:else if token.type === 'link'}
-		{#if token.title?.startsWith('__CITE__:')}
-			{@const sources = (token.title?.slice(9) ?? '').split('|||').map((entry) => {
-				const [domain = '', title = '', url = ''] = entry.split('~~');
-				return { domain, title, url };
-			})}
-			<CitationBadge {sources} />
-		{:else if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}
+		{#if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}
 			<a
 				href={`${WEBUI_BASE_URL}${token.href}`}
 				download

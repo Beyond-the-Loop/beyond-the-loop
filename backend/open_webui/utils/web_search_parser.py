@@ -54,7 +54,7 @@ def _gemini_web_search_results(vertex_meta):
             domain = web.get("domain") or web.get("title", "")
             # title = web.get("title", "")
             title = grounding_supports[i].get("segment").get("text")[:60] + "..."
-            title = re.sub(r'\*', '', title)
+            title = re.sub(r'[*_|]', '', title)
             web_search_result_list.append(WebSearchResult(url, domain, title))
     return web_search_result_list
 

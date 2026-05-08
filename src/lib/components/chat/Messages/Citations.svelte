@@ -58,6 +58,9 @@
 				if (metadata?.name) {
 					_source = { ..._source, name: metadata.name };
 				}
+				if (metadata?.domain) {
+					_source = { ..._source, domain: metadata.domain };
+				}
 
 				if (id.startsWith('http://') || id.startsWith('https://')) {
 					_source = { ..._source, ...(!metadata?.name ? { name: id } : {}), url: id };
@@ -156,7 +159,9 @@
 											</div>
 										{/if}
 										<div class="flex-1 mx-1 line-clamp-1 truncate">
-											{citation.source.name}
+											{citation.source.domain 
+												? `${citation.source.domain} | ${citation.source.name}`
+												: citation.source.name}
 										</div>
 									</button>
 								{/each}
@@ -197,7 +202,9 @@
 									</div>
 								{/if}
 								<div class="flex-1 mx-1 line-clamp-1 truncate">
-									{citation.source.name}
+									{citation.source.domain 
+										? `${citation.source.domain} | ${citation.source.name}`
+										: citation.source.name}
 								</div>
 							</button>
 						{/each}
