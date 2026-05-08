@@ -245,7 +245,8 @@ class PaymentsService:
             if company.subscription_not_required:
                 return {
                     "plan": "unlimited",
-                    "seats": "unlimited"
+                    "seats": "unlimited",
+                    "is_kickstart_customer": True
                 }
 
             cached_active_subscriptions = STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.get(company_id)
