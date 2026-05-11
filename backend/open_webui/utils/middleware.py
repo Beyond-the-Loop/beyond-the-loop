@@ -30,7 +30,6 @@ from beyond_the_loop.utils.structured_completion import (
 from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
-    get_active_status_by_user_id,
 )
 from beyond_the_loop.models.knowledge import Knowledges
 from beyond_the_loop.models.models import ModelMeta, ModelParams
@@ -38,7 +37,6 @@ from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
 )
-from open_webui.utils.webhook import post_webhook
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
@@ -74,7 +72,7 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
 async def chat_file_intent_decision_handler(
-        form_data: dict, user: UserModel
+        form_data: dict, user: UserModel, pii_session=None
 ) -> tuple[dict, bool]:
     """
     Decide if the user's intent is RAG (search/query) or translation/content extraction.
@@ -118,13 +116,18 @@ async def chat_file_intent_decision_handler(
     if not user_message:
         return form_data, True  # No user message, proceed with RAG
 
+    from beyond_the_loop.pii.session import anonymize_filename, pii_note_prefix
+    file_name_str = ', '.join(
+        anonymize_filename(f.get('name', 'unknown'), pii_session) for f in non_image_files
+    )
+
     try:
         result = await structured_completion(
             messages=[
-                {"role": "system", "content": FILE_INTENT_DECISION_PROMPT},
+                {"role": "system", "content": pii_note_prefix(pii_session is not None) + FILE_INTENT_DECISION_PROMPT},
                 {
                     "role": "user",
-                    "content": f"User message: {user_message}\n\nFile names: {', '.join([f.get('name', 'unknown') for f in non_image_files])}\n\nWhat is the user's intent?"
+                    "content": f"User message: {user_message}\n\nFile names: {file_name_str}\n\nWhat is the user's intent?"
                 }
             ],
             response_model=FileIntentDecision,
@@ -181,7 +184,8 @@ def extract_file_content_with_loader(file_id: str) -> str:
 
 
 async def chat_completion_files_handler(
-        request: Request, form_data: dict, user: UserModel, extra_params: dict
+        request: Request, form_data: dict, user: UserModel, extra_params: dict,
+        pii_active: bool = False,
 ) -> tuple[dict, dict[str, list]]:
     sources = []
 
@@ -203,7 +207,8 @@ async def chat_completion_files_handler(
                 "retrieval",
                 form_data["messages"],
                 form_data.get("chat_id", None),
-                user
+                user,
+                pii_active=pii_active,
             )
 
             queries = queries_response.get("queries", [])
@@ -282,6 +287,12 @@ class ClientDisconnectedError(Exception):
     pass
 
 
+class PIIRedactionError(Exception):
+    """Raised when PII anonymization fails mid-flight. Aborts the request to
+    prevent partially redacted (mixed-state) data from leaking to the LLM."""
+    pass
+
+
 async def check_disconnect(request):
     """Check if the client has disconnected and raise if so."""
     if await request.is_disconnected():
@@ -304,7 +315,8 @@ SMART_ROUTER_MODEL = ModelModel(
 
 
 async def _smart_router_model_selection(
-    user_message: str, user, messages: list[dict] | None = None, has_image_input: bool = False
+    user_message: str, user, messages: list[dict] | None = None,
+    has_image_input: bool = False, pii_active: bool = False,
 ) -> tuple[ModelModel | None, SmartRouterDecision | None]:
     """
     Score the user message complexity (1–5) via structured completion, then pick
@@ -337,8 +349,10 @@ async def _smart_router_model_selection(
                     lines.append(f"{label}: {str(content)[:400]}")
                 context_section = "### Recent Conversation:\n" + "\n".join(lines) + "\n\n"
 
+        from beyond_the_loop.pii.session import pii_note_prefix
         prompt = (
-            SMART_ROUTER_PROMPT
+            pii_note_prefix(pii_active)
+            + SMART_ROUTER_PROMPT
             .replace("{{CONVERSATION_CONTEXT}}", context_section)
             .replace("{{USER_MESSAGE}}", user_message)
         )
@@ -474,8 +488,88 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     event_emitter = get_event_emitter(metadata)
     event_call = get_event_call(metadata)
 
+    chat_id = metadata.get("chat_id")
+
+    # PII redaction: anonymize all message content before ANY downstream
+    # consumer (compression, smart router, RAG, LLM) sees it.
+    #
+    # Two client-controlled inputs:
+    #   - `pii_enabled` (Mode A): master toggle. When False, no anonymization.
+    #   - `pii_released_entities` (Mode B): list of original strings that
+    #     should pass through verbatim even when the filter is on. Used for
+    #     selective deanonymization of false positives or intentional release.
+    #
+    # Permission gate: if either control is "relaxed" (filter off OR releases
+    # set) but the user lacks `pii.allow_disable_in_chat` (admins bypass),
+    # we silently force back to safe defaults.
+    pii_session = None
+    filtered_user_content = None
+    pii_released_entities: list = []
+    pii_total_detected = 0
+    pii_anonymized = 0
+    pii_released_used: list = []
+    if chat_id and form_data.get("messages"):
+        try:
+            from beyond_the_loop.pii.session import (
+                PIISession,
+                anonymize_messages,
+                is_pii_filter_enabled,
+            )
+            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT
+            from beyond_the_loop.utils.access_control import has_permission
+
+            client_pii_enabled = form_data.pop("pii_enabled", True) is not False
+            client_released_raw = form_data.pop("pii_released_entities", None) or []
+            client_released = [
+                str(x) for x in client_released_raw if isinstance(x, (str, int))
+            ] if isinstance(client_released_raw, list) else []
+
+            relaxed = (not client_pii_enabled) or len(client_released) > 0
+            if relaxed and user.role != "admin" and not has_permission(
+                user.id, "pii.allow_disable_in_chat"
+            ):
+                log.warning(
+                    "[pii] user %s lacks pii.allow_disable_in_chat — forcing safe defaults",
+                    user.id,
+                )
+                client_pii_enabled = True
+                client_released = []
+
+            pii_released_entities = client_released
+
+            if is_pii_filter_enabled(user.company_id) and client_pii_enabled:
+                pii_session = PIISession(chat_id)
+                try:
+                    pii_total_detected, pii_anonymized, ru = anonymize_messages(
+                        form_data["messages"], pii_session,
+                        released=pii_released_entities, source="prompt",
+                    )
+                except Exception as e:
+                    # Fail closed: anonymize_messages mutates messages in-place,
+                    # so a mid-iteration crash leaves a mix of redacted and raw
+                    # content. Abort instead of silently sending that to the LLM.
+                    log.exception(f"[pii] anonymization failed mid-flight; aborting request: {e}")
+                    raise PIIRedactionError(
+                        "PII redaction failed — request aborted to prevent leaking "
+                        "unredacted data."
+                    ) from e
+
+                pii_released_used.extend(ru)
+                filtered_user_content = get_last_user_message(form_data["messages"])
+                form_data["messages"].insert(
+                    0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                )
+        except PIIRedactionError:
+            # Bubble up — the chat endpoint maps this to a 4xx for the client.
+            raise
+        except Exception as e:
+            # Setup errors (config lookup, permission check, import failure)
+            # before any in-place mutation has happened. Safe to continue without
+            # the filter — no half-redacted state to worry about.
+            log.exception(f"[pii] redaction setup failed, continuing WITHOUT redaction: {e}")
+            pii_session = None
+
     try:
-        chat_id = metadata.get("chat_id")
 
         if chat_id:
             # Use DEFAULT_AGENT_MODEL for compression when the selected model is a virtual
@@ -496,6 +590,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 model=compression_model,
                 chat_id=chat_id,
                 event_emitter=event_emitter,
+                pii_active=pii_session is not None,
             )
     except Exception as e:
         log.exception(f"[chat_compression] failed, continuing without compression: {e}")
@@ -549,7 +644,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
         routed_model, routing_decision = await _smart_router_model_selection(
-            user_message, user, messages=form_data["messages"], has_image_input=has_image_input
+            user_message, user, messages=form_data["messages"],
+            has_image_input=has_image_input, pii_active=pii_session is not None,
         )
 
         if routed_model:
@@ -599,7 +695,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
         routed_model, routing_decision = await _smart_router_model_selection(
-            user_message, user, messages=form_data["messages"], has_image_input=has_image_input
+            user_message, user, messages=form_data["messages"],
+            has_image_input=has_image_input, pii_active=pii_session is not None,
         )
 
         if routed_model:
@@ -672,19 +769,26 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     form_data["metadata"] = metadata
 
     if model_knowledge or model_files:
-        file_names = ', '.join([f.get('name', '') for f in model_files]) if model_files else ''
+        from beyond_the_loop.pii.session import anonymize_filename, pii_note_prefix
+        file_names = ', '.join(
+            anonymize_filename(f.get('name', ''), pii_session) for f in model_files
+        ) if model_files else ''
 
-        knowledge_names = ', '.join([knowledge.name for knowledge in model_knowledge]) if model_knowledge else ''
+        knowledge_names = ', '.join(
+            anonymize_filename(knowledge.name, pii_session) for knowledge in model_knowledge
+        ) if model_knowledge else ''
 
         knowledge_files = Files.get_files_by_ids([fid for k in model_knowledge for fid in (
             k.data.get("file_ids", []) if k.data else [])]) if model_knowledge else []
 
-        knowledge_file_names = ', '.join(file.filename for file in knowledge_files) if model_knowledge else ''
+        knowledge_file_names = ', '.join(
+            anonymize_filename(file.filename, pii_session) for file in knowledge_files
+        ) if model_knowledge else ''
 
         await check_disconnect(request)
         knowledge_result = await structured_completion(
             messages=[
-                {"role": "system", "content": KNOWLEDGE_INTENT_DECISION_PROMPT},
+                {"role": "system", "content": pii_note_prefix(pii_session is not None) + KNOWLEDGE_INTENT_DECISION_PROMPT},
                 {
                     "role": "user",
                     "content": f"User question: {user_message}\n\nKnowledge base names: {knowledge_names}, File names: {file_names}, {knowledge_file_names}\n\nDo I need this resources to answer the question?"
@@ -717,16 +821,27 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
     # For other providers (e.g. Gemini codeExecution), still extract file content as text
     # because those models don't support file uploads via the code interpreter path.
+    #
+    # Exception: when the PII filter is active we MUST NOT ship raw files to OpenAI —
+    # they bypass anonymization. Force extraction so the loader runs and the content
+    # gets anonymized into the prompt. The PII_SYSTEM_PROMPT (already injected above
+    # whenever pii_session is set) tells the LLM that files were extracted and
+    # anonymized server-side, so no separate code-interpreter notice is needed here.
     code_interpreter_enabled = form_data.get("metadata", {}).get("code_interpreter_enabled", False)
-    skip_file_processing = code_interpreter_enabled and _use_responses_api
+    skip_file_processing = (
+        code_interpreter_enabled
+        and _use_responses_api
+        and pii_session is None
+    )
 
     # First, decide if this is a RAG task or content extraction task
     if not skip_file_processing:
         try:
             has_user_collections = any(f.get("type") == "collection" for f in files)
 
-            form_data, is_rag_task = await chat_file_intent_decision_handler(form_data,
-                                                                             user) if not model_knowledge and not has_user_collections else (
+            form_data, is_rag_task = await chat_file_intent_decision_handler(
+                form_data, user, pii_session=pii_session
+            ) if not model_knowledge and not has_user_collections else (
                 form_data, True)
         except Exception as e:
             log.exception(f"Error in file intent decision: {e}")
@@ -739,12 +854,17 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if not skip_file_processing and is_rag_task:
         # Proceed with normal RAG processing
         try:
-            form_data, flags = await chat_completion_files_handler(request, form_data, user, extra_params)
+            form_data, flags = await chat_completion_files_handler(
+                request, form_data, user, extra_params,
+                pii_active=pii_session is not None,
+            )
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
     elif not skip_file_processing:
-        # Handle non-RAG task: extract file content and append to user prompt
+        # Handle non-RAG task: extract file content and append to user prompt.
+        # Anonymize each file separately so its source is tracked per-file
+        # (the sidebar groups variables by source = file name).
         try:
             file_contents = []
 
@@ -761,6 +881,20 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                     # Skip image files
                                     if not content_type.startswith("image/"):
                                         content = extract_file_content_with_loader(file_id)
+                                        if pii_session is not None:
+                                            try:
+                                                content, _t, _a, _ru = pii_session.anonymize(
+                                                    content, pii_released_entities,
+                                                    source=f"file:{file_record.filename}",
+                                                )
+                                                pii_total_detected += _t
+                                                pii_anonymized += _a
+                                                pii_released_used.extend(_ru)
+                                            except Exception:
+                                                log.exception(
+                                                    "[pii] failed to anonymize extracted content of %s; sending unredacted",
+                                                    file_record.filename,
+                                                )
                                         file_contents.append(
                                             f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
                             except Exception as e:
@@ -769,6 +903,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             # Append file contents to the last user message
             if file_contents:
                 combined_content = "".join(file_contents)
+
                 form_data["messages"] = add_or_update_user_message(
                     combined_content, form_data["messages"]
                 )
@@ -791,6 +926,34 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
                     if doc_metadata:
                         doc_source_id = doc_metadata[doc_idx].get("source", source_id)
+
+                    # Same session as the user-message anonymization — same
+                    # name in prompt and retrieved doc → same placeholder.
+                    # Source IDs (filenames) intentionally not analyzed.
+                    if pii_session is not None:
+                        try:
+                            chunk_source = doc_source_id or source_id or "unbekannt"
+                            # RAG chunks coming from knowledge collections carry
+                            # IDs like "file-<uuid>" — resolve to the original
+                            # filename for a meaningful sidebar label.
+                            resolved = chunk_source
+                            try:
+                                candidate = chunk_source[5:] if chunk_source.startswith("file-") else chunk_source
+                                if re.fullmatch(r"[0-9a-fA-F-]{32,36}", candidate):
+                                    f_rec = Files.get_file_by_id(candidate)
+                                    if f_rec and f_rec.filename:
+                                        resolved = f_rec.filename
+                            except Exception:
+                                pass
+                            doc_context, _t, _a, _ru = pii_session.anonymize(
+                                doc_context, pii_released_entities,
+                                source=f"file:{resolved}",
+                            )
+                            pii_total_detected += _t
+                            pii_anonymized += _a
+                            pii_released_used.extend(_ru)
+                        except Exception:
+                            log.exception("[pii] failed to anonymize RAG chunk; sending unredacted")
 
                     if source_id:
                         context_string += f"<source><source_id>{doc_source_id if doc_source_id is not None else source_id}</source_id><source_context>{doc_context}</source_context></source>\n"
@@ -837,6 +1000,39 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
+    # Persist the session once after every anonymization pass (user message,
+    # file extract, RAG) has populated the forward/reverse maps, then echo
+    # the filtered user message + full variable map + per-message status to
+    # the UI in a single event. The frontend uses this to render the badge
+    # (always shown when the filter was active for this send, even if no PII
+    # was detected — confirms to the user that protection was on).
+    if pii_session is not None:
+        # "partial" only when at least one detected entity was released; "full"
+        # otherwise (whether something was actually replaced or nothing was
+        # detected — both indicate the filter ran without compromise).
+        pii_status = (
+            "partial"
+            if pii_total_detected > 0 and pii_anonymized < pii_total_detected
+            else "full"
+        )
+        try:
+            pii_session.save()
+            if event_emitter:
+                await event_emitter(
+                    {
+                        "type": "pii:user_message",
+                        "data": {
+                            "filtered_content": filtered_user_content,
+                            "variables": dict(pii_session.forward),
+                            "variable_sources": pii_session.sources_serialized(),
+                            "pii_status": pii_status,
+                            "released_entities": sorted(set(pii_released_used)),
+                        },
+                    }
+                )
+        except Exception:
+            log.exception("[pii] failed to persist session / emit pii:user_message")
+
     return form_data, metadata, events, model
 
 
@@ -853,18 +1049,46 @@ async def process_chat_response(
             if tasks and messages:
                 if TASKS.TITLE_GENERATION in tasks:
                     if tasks[TASKS.TITLE_GENERATION]:
+                        # Messages in the DB are stored in original (user input)
+                        # and deanonymized (streamed assistant response) form.
+                        # If the chat has the PII filter enabled, re-anonymize
+                        # before sending to the title LLM and deanonymize the
+                        # returned title before persisting it.
+                        pii_session = None
+                        try:
+                            from beyond_the_loop.pii.session import (
+                                PIISession,
+                                anonymize_messages,
+                                is_pii_filter_enabled,
+                            )
+                            if is_pii_filter_enabled(user.company_id):
+                                pii_session = PIISession(metadata["chat_id"])
+                                anonymize_messages(messages, pii_session)
+                                pii_session.save()
+                        except Exception:
+                            log.exception(
+                                "[pii] failed to anonymize messages for title generation; aborting title task"
+                            )
+                            return
+
                         res = await generate_title(
                             request,
                             {
                                 "model": message["model"],
                                 "messages": messages,
                                 "chat_id": metadata["chat_id"],
+                                "pii_active": pii_session is not None,
                             },
                             user,
                         )
 
                         if res and isinstance(res, dict):
                             title = res.get("title", "") or messages[0].get("content", "New chat")
+                            if pii_session is not None:
+                                try:
+                                    title = pii_session.deanonymize(title)
+                                except Exception:
+                                    log.exception("[pii] failed to deanonymize generated title")
                             Chats.update_chat_title_by_id(metadata["chat_id"], title)
 
                             await event_emitter(
@@ -952,21 +1176,6 @@ async def process_chat_response(
                             "content": content,
                         },
                     )
-
-                    # Send a webhook notification if the user is not active
-                    if get_active_status_by_user_id(user.id) is None:
-                        webhook_url = Users.get_user_webhook_url_by_id(user.id)
-                        if webhook_url:
-                            post_webhook(
-                                webhook_url,
-                                f"{title} - {request.app.state.config.WEBUI_URL}/c/{metadata['chat_id']}\n\n{content}",
-                                {
-                                    "action": "chat",
-                                    "message": content,
-                                    "title": title,
-                                    "url": f"{request.app.state.config.WEBUI_URL}/c/{metadata['chat_id']}",
-                                },
-                            )
 
                     await background_tasks_handler()
 
@@ -1259,6 +1468,22 @@ async def process_chat_response(
 
                     generating_response = True
 
+                    # PII deanonymizer: buffers chunks so placeholders split across
+                    # SSE boundaries aren't leaked as "[[PER". None = pass-through.
+                    # Gated by the same per-company feature flag as the payload hook.
+                    pii_deanonymizer = None
+                    try:
+                        _chat_id_for_pii = metadata.get("chat_id")
+                        if _chat_id_for_pii:
+                            from beyond_the_loop.pii.session import (
+                                PIISession,
+                                is_pii_filter_enabled,
+                            )
+                            if is_pii_filter_enabled(user.company_id):
+                                pii_deanonymizer = PIISession(_chat_id_for_pii).streaming_deanonymizer()
+                    except Exception as e:
+                        log.exception(f"[pii] failed to init streaming deanonymizer: {e}")
+
                     async for line in response.body_iterator:
                         line = line.decode("utf-8") if isinstance(line, bytes) else line
                         data = line
@@ -1447,6 +1672,9 @@ async def process_chat_response(
 
                                 value = delta.get("content")
 
+                                if value and pii_deanonymizer is not None:
+                                    value = pii_deanonymizer.feed(value)
+
                                 if value:
                                     content = f"{content}{value}"
                                     if (
@@ -1536,6 +1764,30 @@ async def process_chat_response(
                                 log.debug("Error: ", e)
                                 continue
 
+                    # Flush any remainder left in the deanonymizer buffer (e.g. a
+                    # placeholder that started but never closed). This is emitted
+                    # as a final chunk so the client never loses content.
+                    if pii_deanonymizer is not None:
+                        try:
+                            remainder = pii_deanonymizer.flush()
+                            if remainder:
+                                content = f"{content}{remainder}"
+                                if not content_blocks:
+                                    content_blocks.append({"type": "text", "content": ""})
+                                content_blocks[-1]["content"] = (
+                                    content_blocks[-1]["content"] + remainder
+                                )
+                                await event_emitter({
+                                    "type": "chat:completion",
+                                    "data": {
+                                        "content": serialize_content_blocks(content_blocks),
+                                        "type": "text",
+                                        "added_content": remainder,
+                                    },
+                                })
+                        except Exception as e:
+                            log.exception(f"[pii] flush failed: {e}")
+
                     if content_blocks:
                         # Clean up the last text block
                         if content_blocks[-1]["type"] == "text":
@@ -1593,21 +1845,6 @@ async def process_chat_response(
                         metadata["message_id"],
                         message
                     )
-
-                # Send a webhook notification if the user is not active
-                if get_active_status_by_user_id(user.id) is None:
-                    webhook_url = Users.get_user_webhook_url_by_id(user.id)
-                    if webhook_url:
-                        post_webhook(
-                            webhook_url,
-                            f"{title} - {request.app.state.config.WEBUI_URL}/c/{metadata['chat_id']}\n\n{content}",
-                            {
-                                "action": "chat",
-                                "message": content,
-                                "title": title,
-                                "url": f"{request.app.state.config.WEBUI_URL}/c/{metadata['chat_id']}",
-                            },
-                        )
 
                 await event_emitter(
                     {

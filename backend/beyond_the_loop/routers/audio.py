@@ -34,7 +34,6 @@ from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import (
     SRC_LOG_LEVELS,
     DEVICE_TYPE,
-    ENABLE_FORWARD_USER_INFO_HEADERS,
 )
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
@@ -188,16 +187,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-                    **(
-                        {
-                            "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
-                            "X-OpenWebUI-User-Id": user.id,
-                            "X-OpenWebUI-User-Email": user.email,
-                            "X-OpenWebUI-User-Role": user.role,
-                        }
-                        if ENABLE_FORWARD_USER_INFO_HEADERS
-                        else {}
-                    ),
                 },
             ) as r:
                 r.raise_for_status()

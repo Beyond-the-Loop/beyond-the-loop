@@ -52,10 +52,6 @@ class ChatTitleResponse(BaseModel):
     title: str
 
 
-class ImagePromptResponse(BaseModel):
-    prompt: str
-
-
 class SearchQuery(BaseModel):
     query: str
     result_limit: int

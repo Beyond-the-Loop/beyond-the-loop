@@ -29,6 +29,8 @@
 		settings,
 		showArtifacts,
 		showCallOverlay,
+		showChatInfoSidebar,
+		chatInfoSidebarMode,
 		showControls,
 		showLibrary,
 		showOverview,
@@ -56,6 +58,8 @@
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
 	import { chatAction, chatCompleted, generateMoACompletion, stopTask } from '$lib/apis';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
+	import ChatInfoSidebar from '$lib/components/chat/ChatInfoSidebar.svelte';
+	import { analyzePII, type PIISpan } from '$lib/apis/pii';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
 	import AlertBanner from '$lib/components/chat/AlertBanner.svelte';
@@ -106,6 +110,113 @@
 	let webSearchEnabled = true;
 	let codeInterpreterEnabled = true;
 	let autoToolsEnabled = true;
+	// Per-chat PII filter toggle. Lives here (not in MessageInput) so it
+	// survives the composer's mount/unmount during send. Sent with every
+	// chat-completion request as `pii_enabled`. Backend forces it back to
+	// true if the user lacks `pii.allow_disable_in_chat`.
+	let piiEnabled = true;
+	let piiReleasedEntities: string[] = [];
+	let showPiiDisableConfirm = false;
+	$: hasAnonymizedMessages = Object.values(history?.messages ?? {}).some(
+		(m: any) => m?.pii_status === 'full' || m?.pii_status === 'partial'
+	);
+
+	const handlePiiToggleClick = () => {
+		if (piiEnabled && hasAnonymizedMessages) {
+			showPiiDisableConfirm = true;
+		} else {
+			piiEnabled = !piiEnabled;
+		}
+	};
+
+	// Live PII detection on the current prompt — feeds both the sidebar's
+	// privacy section and the toggle button's count badge. Lives at this
+	// level so detection state stays consistent across landing-page and
+	// active-chat composer.
+	let detectedPIIEntities: PIISpan[] = [];
+	let piiAbortController: AbortController | null = null;
+	let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	const PII_DEBOUNCE_MS = 350;
+	const PII_MIN_CHARS = 3;
+
+	// Drives sidebar + privacy button visibility. The disable-toggle UI in
+	// MessageInput is gated separately via `canRelaxPii`, so users without
+	// the toggle permission still see the panel — they just can't turn it off
+	// or release individual entities.
+	$: piiPanelVisible =
+		piiEnabled && ($companyConfig?.config?.privacy?.pii_filter_enabled ?? false);
+
+	// Whether this user is allowed to disable the PII filter or release
+	// individual entities. The backend enforces the same rule and silently
+	// forces released[] back to empty otherwise, so the UI mirrors that.
+	$: canRelaxPii =
+		($companyConfig?.config?.privacy?.pii_filter_enabled ?? false) &&
+		($user?.role === 'admin' || $user?.permissions?.pii?.allow_disable_in_chat);
+
+	$: schedulePIIAnalyze(prompt, piiPanelVisible);
+
+	function schedulePIIAnalyze(text: string, active: boolean) {
+		if (piiDebounceTimer) clearTimeout(piiDebounceTimer);
+		if (!active || !text || text.trim().length < PII_MIN_CHARS) {
+			// Abort any in-flight analyze — otherwise its result lands AFTER the
+			// reset and re-fills the sidebar with stale spans (e.g. right after
+			// the user sends and prompt becomes empty).
+			if (piiAbortController) piiAbortController.abort();
+			detectedPIIEntities = [];
+			return;
+		}
+		piiDebounceTimer = setTimeout(() => runPIIAnalyze(text), PII_DEBOUNCE_MS);
+	}
+
+	async function runPIIAnalyze(text: string) {
+		if (piiAbortController) piiAbortController.abort();
+		piiAbortController = new AbortController();
+		try {
+			const res = await analyzePII(localStorage.token, text, piiAbortController.signal);
+			detectedPIIEntities = res.spans ?? [];
+		} catch (err) {
+			if ((err as any)?.name === 'AbortError') return;
+			console.warn('[pii] analyze failed', err);
+			detectedPIIEntities = [];
+		}
+	}
+
+	$: uniquePIICount = (() => {
+		const seen = new Set<string>();
+		for (const span of detectedPIIEntities) seen.add(span.original);
+		return seen.size;
+	})();
+
+	$: piiAnonymizedCount = (() => {
+		if (detectedPIIEntities.length === 0) return 0;
+		const released = new Set(piiReleasedEntities);
+		const anonymized = new Set<string>();
+		for (const span of detectedPIIEntities) {
+			if (!released.has(span.original)) anonymized.add(span.original);
+		}
+		return anonymized.size;
+	})();
+
+	// When the sidebar is in "message" mode, slice the referenced user message's
+	// pii_variables / pii_variable_sources / pii_released_entities_actual so the
+	// sidebar only shows that one turn (no cross-chat aggregation). Returns null
+	// if the mode is composer or the referenced message no longer exists — the
+	// sidebar treats that as "nothing to render in this slot".
+	$: sidebarMessageData = (() => {
+		if ($chatInfoSidebarMode.kind !== 'message') return null;
+		const msg = (history?.messages ?? {})[$chatInfoSidebarMode.messageId] as any;
+		if (!msg) return null;
+		return {
+			variables: (msg.pii_variables ?? {}) as Record<string, string>,
+			variableSources: (msg.pii_variable_sources ?? {}) as Record<string, string[]>,
+			released: (msg.pii_released_entities_actual ?? []) as string[]
+		};
+	})();
+
+	onDestroy(() => {
+		if (piiDebounceTimer) clearTimeout(piiDebounceTimer);
+		if (piiAbortController) piiAbortController.abort();
+	});
 	let chat = null;
 	let tags = [];
 	let alert: Alert;
@@ -352,6 +463,27 @@
 						message.fileRefs = [];
 					}
 					message.fileRefs.push(...(data ?? []));
+				} else if (type === 'pii:user_message') {
+					// Backend echo after all PII passes (user message, files, RAG).
+					// `filtered_content` drives the inline diff in the modal;
+					// `variables` lists every original/placeholder pair the LLM saw;
+					// `pii_status` is "full" | "partial" | "none" — drives the badge
+					// on the user message in the chat history.
+					//
+					// This event arrives over Socket.IO while the response itself
+					// streams via SSE — the two transports race. The streaming-done
+					// save (chatCompletionEventHandler) may run before this event
+					// lands, so we MUST save again here, otherwise the badge shows
+					// in memory but vanishes on reload from DB.
+					const userMessageId = message.parentId;
+					if (userMessageId && history.messages[userMessageId]) {
+						history.messages[userMessageId].filtered_content = data.filtered_content;
+						history.messages[userMessageId].pii_variables = data.variables;
+						history.messages[userMessageId].pii_variable_sources = data.variable_sources;
+						history.messages[userMessageId].pii_released_entities_actual = data.released_entities;
+						history.messages[userMessageId].pii_status = data.pii_status;
+						saveChatHandler($chatId, history);
+					}
 				} else {
 					console.log('Unknown message type', data);
 				}
@@ -652,6 +784,7 @@
 
 		chatFiles = [];
 		params = {};
+		piiReleasedEntities = [];
 
 		webSearchEnabled = true;
 		imageGenerationEnabled = true;
@@ -733,6 +866,9 @@
 
 				params = chatContent?.params ?? {};
 				chatFiles = chatContent?.files ?? [];
+				piiReleasedEntities = Array.isArray(chatContent?.pii_released_entities)
+					? chatContent.pii_released_entities
+					: [];
 
 				autoScroll = true;
 				await tick();
@@ -1273,6 +1409,13 @@
 			history.messages[messages.at(-1).id].childrenIds.push(userMessageId);
 		}
 
+		// If the sidebar is open in composer mode, hand it off to the message
+		// that was just sent — composer mode would otherwise go blank now that
+		// the prompt is cleared.
+		if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+			chatInfoSidebarMode.set({ kind: 'message', messageId: userMessageId });
+		}
+
 		// focus on chat input
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
@@ -1568,11 +1711,7 @@
 				features: autoToolsEnabled
 					? {}
 					: {
-						image_generation:
-							$config?.features?.enable_image_generation &&
-							($user.role === 'admin' || $user?.permissions?.features?.image_generation)
-								? imageGenerationEnabled
-								: false,
+						image_generation: imageGenerationEnabled,
 						code_interpreter:
 							$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
 								? codeInterpreterEnabled
@@ -1598,9 +1737,7 @@
 								(_meta?.supports_web_search ?? false)
 									? ['web_search']
 									: []),
-								...($companyConfig?.config?.image_generation?.enable &&
-								($user.role === 'admin' || $user?.permissions?.features?.image_generation) &&
-								(_meta?.supports_image_generation ?? false)
+								...((_meta?.supports_image_generation ?? false)
 									? ['image_generation']
 									: []),
 								...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
@@ -1614,6 +1751,9 @@
 				session_id: $socket?.id,
 				chat_id: _chatId,
 				id: responseMessageId,
+
+				pii_enabled: piiEnabled,
+				pii_released_entities: piiReleasedEntities,
 
 				...(!$temporaryChatEnabled &&
 				(messages.length == 1 ||
@@ -1894,7 +2034,8 @@
 					history: history,
 					messages: createMessagesList(history, history.currentId),
 					params: params,
-					files: chatFiles
+					files: chatFiles,
+					pii_released_entities: piiReleasedEntities
 				});
 				currentChatPage.set(1);
 				await chats.set(await getChatList(localStorage.token, $currentChatPage));
@@ -1912,6 +2053,19 @@
 </svelte:head>
 
 <audio id="audioElement" src="" style="display: none;" />
+
+<EventConfirmDialog
+	bind:show={showPiiDisableConfirm}
+	title={$i18n.t('Disable anonymization?')}
+	message={$i18n.t(
+		'If you disable anonymization for this chat, all further messages will be sent unredacted to the language model. Already redacted messages in this chat remain unchanged, but the rest of the conversation will continue in plain text.'
+	)}
+	confirmLabel={$i18n.t('Disable filter')}
+	cancelLabel={$i18n.t('Cancel')}
+	onConfirm={() => {
+		piiEnabled = false;
+	}}
+/>
 
 <EventConfirmDialog
 	bind:show={showEventConfirmation}
@@ -2014,13 +2168,35 @@
 								<ModelSelector
 									bind:selectedModels
 								/>
-								<button
-									class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
-									on:click={() => showLibrary.set(!$showLibrary)}
-								>
-									<BookIcon />
-									<span>{$i18n.t('Library')}</span>
-								</button>
+								<div class="flex items-center gap-2">
+									{#if piiPanelVisible && uniquePIICount > 0}
+										<button
+											type="button"
+											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+											aria-label={$i18n.t('Privacy panel')}
+											on:click={() => {
+												if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+													showChatInfoSidebar.set(false);
+												} else {
+													chatInfoSidebarMode.set({ kind: 'composer' });
+													showChatInfoSidebar.set(true);
+												}
+											}}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
+											</svg>
+											<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
+										</button>
+									{/if}
+									<button
+										class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+										on:click={() => showLibrary.set(!$showLibrary)}
+									>
+										<BookIcon />
+										<span>{$i18n.t('Library')}</span>
+									</button>
+								</div>
 							</div>
 							<div class="mb-4">
 								<MessageInput
@@ -2035,6 +2211,9 @@
 									bind:webSearchEnabled
 									bind:autoToolsEnabled
 									bind:atSelectedModel
+									{piiEnabled}
+									showPiiToggle={canRelaxPii}
+									onPiiToggle={handlePiiToggleClick}
 									{isMagicLoading}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}
 									{stopResponse}
@@ -2112,6 +2291,12 @@
 								bind:webSearchEnabled
 								bind:autoToolsEnabled
 								bind:atSelectedModel
+								{piiEnabled}
+								showPiiToggle={canRelaxPii}
+								onPiiToggle={handlePiiToggleClick}
+								showPiiPanel={piiPanelVisible}
+								piiCount={uniquePIICount}
+								piiAnonymizedCount={piiAnonymizedCount}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}
@@ -2193,3 +2378,13 @@
 		</div>
 	{/if}
 </div>
+
+<ChatInfoSidebar
+	detectedEntities={detectedPIIEntities}
+	releasedEntities={piiReleasedEntities}
+	onReleasedChange={(released) => (piiReleasedEntities = released)}
+	privacyReleasable={canRelaxPii}
+	messageVariables={sidebarMessageData?.variables ?? null}
+	messageVariableSources={sidebarMessageData?.variableSources ?? {}}
+	messageReleased={sidebarMessageData?.released ?? []}
+/>

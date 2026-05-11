@@ -4,7 +4,6 @@
 	import PermissionIcon from '$lib/components/icons/PermissionIcon.svelte';
 	import { onClickOutside } from '$lib/utils';
 	import WebSearchIcon from '$lib/components/icons/WebSearchIcon.svelte';
-	import ImageGenerateIcon from '$lib/components/icons/ImageGenerateIcon.svelte';
 	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
 	import Checkbox from '$lib/components/common/Checkbox.svelte';
     import RenameIcon from '$lib/components/icons/RenameIcon.svelte';
@@ -41,13 +40,11 @@
 
 	let capabilities = {
 		web_search: true,
-		image_generation: true,
 		code_interpreter: true
 	};
 
 	const capabilityIcons = {
 		web_search: WebSearchIcon,
-		image_generation: ImageGenerateIcon,
 		code_interpreter: CodeInterpreterIcon
 	};
 
@@ -58,7 +55,8 @@
 		edit_prompts: true,
 		view_knowledge: true,
 		edit_knowledge: true,
-		assistants_only: false
+		assistants_only: false,
+		pii_allow_disable_in_chat: false
 	}
 
 	const permissionLabels: Record<string, string> = {
@@ -68,7 +66,8 @@
 		edit_prompts: 'Edit Prompts',
 		view_knowledge: 'View Knowledge',
 		edit_knowledge: 'Edit Knowledge',
-		assistants_only: 'Assistants Only'
+		assistants_only: 'Assistants Only',
+		pii_allow_disable_in_chat: 'Allow disabling anonymization in chat'
 	};
 
 	function setPermission(key, checked) {
@@ -82,7 +81,7 @@
 			permissions.edit_prompts = false;
 			permissions.view_knowledge = false;
 			permissions.edit_knowledge = false;
-		} else if (key !== 'assistants_only') {
+		} else if (key !== 'assistants_only' && key !== 'pii_allow_disable_in_chat') {
 			if (key.startsWith('edit_') && checked) {
 				const viewKey = 'view_' + key.slice(5);
 				permissions[viewKey] = true;
@@ -113,7 +112,6 @@
             if(group.permissions) {
             capabilities = {
 		        web_search: group.permissions.features.web_search,
-		        image_generation: group.permissions.features.image_generation,
 		        code_interpreter: group.permissions.features.code_interpreter
 	        };
 			permissions = {
@@ -123,7 +121,9 @@
 						edit_prompts: group.permissions.workspace.edit_prompts,
 						view_knowledge: group.permissions.workspace.view_knowledge,
 						edit_knowledge: group.permissions.workspace.edit_knowledge,
-						assistants_only: group.permissions.chat?.assistants_only ?? false
+						assistants_only: group.permissions.chat?.assistants_only ?? false,
+						pii_allow_disable_in_chat:
+							group.permissions.pii?.allow_disable_in_chat ?? false
 	        };
         }
             initialized = true;
@@ -254,7 +254,7 @@
 										{#if capabilityIcons[capability]}
 											<svelte:component this={capabilityIcons[capability]} className="size-4" />
 										{/if}
-										<span>{$i18n.t(capability === 'web_search' ? 'Web Search' : capability === 'image_generation' ? 'Image Generation' : capability === 'code_interpreter' ? 'Code Interpreter' : capability.replace(/_/g, ' '))}</span>
+										<span>{$i18n.t(capability === 'web_search' ? 'Web Search' : capability === 'code_interpreter' ? 'Code Interpreter' : capability.replace(/_/g, ' '))}</span>
 									</div>
 								</div>
 							{/each}
@@ -272,7 +272,7 @@
 							const screenWidth = window.innerWidth;
 							if (screenWidth < 1290) {
 								// submenuX = rect.left - 178;
-								submenuPermissionsX = -215;
+								submenuPermissionsX = -279;
 							} else {
 								// submenuX = rect.right + 8;
 								submenuPermissionsX = 167;
@@ -293,7 +293,7 @@
 						on:click={() => {
 							if($mobile) {
 								showPermissionsSubmenu = true;
-								submenuPermissionsX = -215;
+								submenuPermissionsX = -279;
 								submenuPermissionsY = -10;
 							}else{
 								showDropdown = false;
@@ -332,7 +332,7 @@
 					{#if showPermissionsSubmenu}
 						<button
 							type="button"
-							class="w-[13rem] absolute dark:bg-customGray-900 border px-1 py-2 border-lightGray-400 bg-lightGray-300 dark:border-customGray-700 rounded-xl shadow z-20 min-w-30"
+							class="w-[17rem] absolute dark:bg-customGray-900 border px-1 py-2 border-lightGray-400 bg-lightGray-300 dark:border-customGray-700 rounded-xl shadow z-20 min-w-30"
 							style="top: {submenuPermissionsY}px; left: {submenuPermissionsX}px"
 							on:mouseenter={() => (hoveringPermissionsSubmenu = true)}
 							on:mouseleave={() => {
@@ -341,20 +341,25 @@
 							}}
 						>
 							{#each Object.keys(permissions) as permission}
-								{@const isDisabled = permissions.assistants_only && permission !== 'assistants_only'}
+								{@const isDisabled =
+									permissions.assistants_only &&
+									permission !== 'assistants_only' &&
+									permission !== 'pii_allow_disable_in_chat'}
 								<div
 									role="button"
 									tabindex="0"
 									class="flex items-center rounded-xl w-full justify-start px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer text-xs dark:text-customGray-100 {isDisabled ? 'opacity-40 pointer-events-none' : ''}"
 								>
-									<Checkbox
-										state={permissions[permission] ? 'checked' : 'unchecked'}
-										on:change={(e) => {
-											e.stopPropagation();
-											setPermission(permission, e.detail === 'checked');
-										}}
-									/>
-									<div class="flex items-center gap-2 ml-2">
+									<div class="flex-shrink-0">
+										<Checkbox
+											state={permissions[permission] ? 'checked' : 'unchecked'}
+											on:change={(e) => {
+												e.stopPropagation();
+												setPermission(permission, e.detail === 'checked');
+											}}
+										/>
+									</div>
+									<div class="flex gap-2 ml-2 text-left">
 										<span>{$i18n.t(permissionLabels[permission] ?? permission.replace(/_/g, ' '))}</span>
 									</div>
 								</div>

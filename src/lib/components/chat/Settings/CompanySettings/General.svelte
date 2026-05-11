@@ -17,7 +17,6 @@
 	import DOMPurify from 'dompurify';
 	import Switch from '$lib/components/common/Switch.svelte';
 	import WebSearchIcon from '$lib/components/icons/WebSearchIcon.svelte';
-	import ImageGenerateIcon from '$lib/components/icons/ImageGenerateIcon.svelte';
 	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
 	import { onClickOutside } from '$lib/utils';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
@@ -38,30 +37,23 @@
 	let loading = false;
 
 	let hideModelLogo = false;
+	let piiFilterEnabled = true;
 
-	
+
 	let profileImageInputElement: HTMLInputElement;
 
 	let showDeleteConfirm = false;
 
 	let userPermissions = {
 		websearch: false,
-		image_generation: false,
-		// code_interpreter: false,
-		// audio: false
 	};
 
 	const userPermissionsIcons = {
 		websearch: WebSearchIcon,
-		image_generation: ImageGenerateIcon,
-		// code_interpreter: CodeInterpreterIcon,
 	};
 
 	const userPermissionsText = {
 		websearch: $i18n.t('Web Search'),
-		image_generation: $i18n.t('Image Generation')
-		// code_interpreter: "Code Interpreter",
-		// audio: "Audio In and Out"
 	}
 
 	let showUserPermissionsDropdown = false;
@@ -87,24 +79,18 @@
 		if($companyConfig?.config?.ui?.hide_model_logo_in_chat) {
 			hideModelLogo = $companyConfig?.config?.ui?.hide_model_logo_in_chat;
 		}
+		// Default OFF: unset → false, explicit true → true.
+		piiFilterEnabled = $companyConfig?.config?.privacy?.pii_filter_enabled ?? false;
 		if($companyConfig?.config?.rag?.web?.search?.enable){
 			userPermissions = {
 				...userPermissions,
 				websearch: $companyConfig?.config?.rag?.web?.search?.enable,
 			};
-		if($companyConfig?.config?.image_generation?.enable) {
-			userPermissions = {
-				...userPermissions,
-				image_generation: $companyConfig?.config?.image_generation?.enable
-			};
 		}
-		// if($companyConfig?.config?.ui?.custom_user_notice) {
-		// 	userNotice = $companyConfig?.config?.ui?.custom_user_notice;
-		// }
 		if($companyConfig?.config?.data?.chat_retention_days) {
 			chatRetentionDays = chatRetentionDaysOptions.find((option) => option.value === $companyConfig?.config?.data?.chat_retention_days) || chatRetentionDaysOptions[0];
 		}
-	}});
+	});
 
 	const onSubmit = async () => {
 		loading = true;
@@ -122,7 +108,7 @@
 			chatRetentionDays.value,
 			userNotice,
 			userPermissions?.websearch,
-			userPermissions?.image_generation
+			piiFilterEnabled
 		)
 		promises.push(configPromise);
 
@@ -414,6 +400,26 @@
 					<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Safety & Compliance')}</div>
 				</div>
 			</div>
+
+			<div class="mb-2.5">
+				<div class="flex items-center justify-between mb-1 w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md h-12 px-2.5 py-2">
+					<div class="text-sm text-lightGray-100 dark:text-customGray-100">
+						{$i18n.t('Anonymization of personal data')}
+					</div>
+					<div class="flex items-center">
+						{#if piiFilterEnabled}
+							<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mr-2">{$i18n.t('On')}</div>
+						{:else}
+							<div class="text-xs text-lightGray-100/50 dark:text-customGray-100/50 mr-2">{$i18n.t('Off')}</div>
+						{/if}
+						<Switch bind:state={piiFilterEnabled} />
+					</div>
+				</div>
+				<span class="text-xs text-lightGray-100/50 dark:text-customGray-100/50">
+					{$i18n.t('Automatically redact personal data (names, emails, addresses, IBAN, Steuer-ID, …) from prompts before they reach the language model.')}
+				</span>
+			</div>
+
 			<div class="mb-2.5" use:onClickOutside={() => (showChatRetentionDaysDropdown = false)}>
 				<div class="relative" bind:this={chatRetentionDaysDropdownRef}>
 					<button

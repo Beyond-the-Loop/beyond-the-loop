@@ -31,11 +31,13 @@
 		},
 		features: {
 			web_search: true,
-			image_generation: true,
 			code_interpreter: true
 		},
 		chat: {
 			assistants_only: false
+		},
+		pii: {
+			allow_disable_in_chat: false
 		}
 	};
 
@@ -215,7 +217,6 @@
 								...group,
 								permissions: { ...permissions, features: {
                                     web_search: e.detail.web_search,
-			                        image_generation: e.detail.image_generation,
 			                        code_interpreter: e.detail.code_interpreter
                                 }}
 							});
@@ -233,6 +234,8 @@
 									edit_knowledge: e.detail.edit_knowledge
                                 }, chat: {
 									assistants_only: e.detail.assistants_only ?? false
+								}, pii: {
+									allow_disable_in_chat: e.detail.pii_allow_disable_in_chat ?? false
 								}}
 							});
 						}}

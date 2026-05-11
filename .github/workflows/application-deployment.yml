@@ -167,6 +167,7 @@ jobs:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
           key: ${{ secrets.PROD_EC2_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans
@@ -354,6 +355,7 @@ jobs:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd ~/beyond-the-loop
             docker-compose up -d --pull always --remove-orphans

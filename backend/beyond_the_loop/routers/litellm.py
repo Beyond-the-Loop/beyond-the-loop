@@ -28,7 +28,6 @@ from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMP
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
-    ENABLE_FORWARD_USER_INFO_HEADERS,
 )
 
 from open_webui.constants import ERROR_MESSAGES
@@ -257,16 +256,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-                    **(
-                        {
-                            "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
-                            "X-OpenWebUI-User-Id": user.id,
-                            "X-OpenWebUI-User-Email": user.email,
-                            "X-OpenWebUI-User-Role": user.role,
-                        }
-                        if ENABLE_FORWARD_USER_INFO_HEADERS
-                        else {}
-                    ),
                 },
                 stream=True,
             )
@@ -532,16 +521,6 @@ async def generate_chat_completion(
             headers={
                 "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
                 "Content-Type": "application/json",
-                **(
-                    {
-                        "X-OpenWebUI-User-Name": user.first_name + " " + user.last_name,
-                        "X-OpenWebUI-User-Id": user.id,
-                        "X-OpenWebUI-User-Email": user.email,
-                        "X-OpenWebUI-User-Role": user.role,
-                    }
-                    if ENABLE_FORWARD_USER_INFO_HEADERS
-                    else {}
-                ),
             },
         )
 

@@ -16,11 +16,13 @@ DEFAULT_USER_PERMISSIONS = {
     },
     "features": {
         "web_search": True,
-        "image_generation": True,
         "code_interpreter": True,
     },
     "chat": {
         "assistants_only": False,
+    },
+    "pii": {
+        "allow_disable_in_chat": False,
     },
 }
 

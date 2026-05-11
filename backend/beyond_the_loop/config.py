@@ -165,13 +165,15 @@ DEFAULT_CONFIG = {
     },
     "image_generation": {
         "engine": "flux",
-        "enable": True,
         "model": "flux-kontext-max",
         "size": "1024x1024"
     },
     "data": {
         "chat_retention_days": 90,
-    }
+    },
+    "privacy": {
+        "pii_filter_enabled": False,
+    },
 }
 
 def get_config(company_id):
@@ -770,7 +772,6 @@ TITLE_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
 from beyond_the_loop.prompts import (
     DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE,
-    DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
     WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE,
     RAG_QUERY_GENERATION_PROMPT_TEMPLATE,
     COMPLETION_ERROR_MESSAGE_PROMPT,
@@ -781,12 +782,6 @@ TAGS_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     "TAGS_GENERATION_PROMPT_TEMPLATE",
     "task.tags.prompt_template",
     os.environ.get("TAGS_GENERATION_PROMPT_TEMPLATE", ""),
-)
-
-IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
-    "IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE",
-    "task.image.prompt_template",
-    os.environ.get("IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE", ""),
 )
 
 ENABLE_TAGS_GENERATION = PersistentConfig(
@@ -965,16 +960,6 @@ RAG_TEMPLATE = PersistentConfig(
     "RAG_TEMPLATE",
     "rag.template",
     os.environ.get("RAG_TEMPLATE", DEFAULT_RAG_TEMPLATE),
-)
-
-####################################
-# Images
-####################################
-
-ENABLE_IMAGE_GENERATION = PersistentConfig(
-    "ENABLE_IMAGE_GENERATION",
-    "image_generation.enable",
-    os.environ.get("ENABLE_IMAGE_GENERATION", "").lower() == "true",
 )
 
 ####################################

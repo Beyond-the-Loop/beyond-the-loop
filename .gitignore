@@ -299,4 +299,6 @@ dist
 .vscode/settings.json
 .webui_secret_key
 
-.claude/settings.local.json
+.claude/
+
+docs/

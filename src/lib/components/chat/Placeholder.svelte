@@ -17,6 +17,7 @@
 	import MessageInput from './MessageInput.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
+	import { showChatInfoSidebar, chatInfoSidebarMode } from '$lib/stores';
 
 	const i18n = getContext('i18n');
 
@@ -41,6 +42,18 @@
 	export let autoToolsEnabled = false;
 	export let isMagicLoading;
 	export let initNewChatCompleted;
+
+	// PII toggle: state + show flag + click callback are owned by the parent
+	// (Chat.svelte). We just render the button and call the callback. No bind:.
+	export let piiEnabled = true;
+	export let showPiiToggle = false;
+	export let onPiiToggle: () => void = () => {};
+
+	// Privacy panel link (toggles the right-side sidebar). Visibility +
+	// detection counts come from Chat.svelte so the text is consistent.
+	export let showPiiPanel = false;
+	export let piiCount = 0;
+	export let piiAnonymizedCount = 0;
 
 	let models = [];
 
@@ -217,9 +230,31 @@
 					<ModelSelector
 						bind:selectedModels
 					/>
-					<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
-						<BookIcon /> <span>{$i18n.t('Library')}</span>
-					</button>
+					<div class="flex items-center gap-2">
+						{#if showPiiPanel && piiCount > 0}
+							<button
+								type="button"
+								class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+								aria-label={$i18n.t('Privacy panel')}
+								on:click={() => {
+								if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+									showChatInfoSidebar.set(false);
+								} else {
+									chatInfoSidebarMode.set({ kind: 'composer' });
+									showChatInfoSidebar.set(true);
+								}
+							}}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
+								</svg>
+								<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: piiCount })}</span>
+							</button>
+						{/if}
+						<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
+							<BookIcon /> <span>{$i18n.t('Library')}</span>
+						</button>
+					</div>
 				</div>
 				<MessageInput
 					{history}
@@ -232,6 +267,9 @@
 					bind:webSearchEnabled
 					bind:autoToolsEnabled
 					bind:atSelectedModel
+					{piiEnabled}
+					{showPiiToggle}
+					{onPiiToggle}
 					{transparentBackground}
 					{stopResponse}
 					{createMessagePair}

@@ -1115,7 +1115,7 @@ export const updateCompanyConfig = async (
     chat_retention_days: number,
     custom_user_notice: string,
     features_web_search: boolean,
-    features_image_generation: boolean
+    features_pii_filter: boolean
 ) => {
 	let error = null;
 
@@ -1131,7 +1131,7 @@ export const updateCompanyConfig = async (
 			chat_retention_days,
 			custom_user_notice,
 			features_web_search,
-			features_image_generation
+			features_pii_filter
 		})
 	})
 		.then(async (res) => {

@@ -228,11 +228,16 @@
 	$: modalParam = $page.url.searchParams.get('modal');
 	// $: tabParam = $page.url.searchParams.get('tab');
 
-	// Watch for changes in URL params
+	// Watch for changes in URL params. The `?modal=company-settings` query
+	// is a one-shot trigger, not persistent state — we clear it immediately
+	// after opening the modal so that a close + reopen via the same trigger
+	// still registers as a change.
 	$: {
 		if (modalParam === 'company-settings') {
 			showCompanySettings.set(true);
-			// selectedTab = tabParam || 'general-settings';
+			const url = new URL(window.location.href);
+			url.search = '';
+			goto(url.pathname, { replaceState: true });
 		}
 	}
 

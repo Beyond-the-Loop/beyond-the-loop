@@ -11,7 +11,6 @@ from beyond_the_loop.models.models import Models
 from open_webui.utils.task import (
     title_generation_template,
     query_generation_template,
-    image_prompt_generation_template,
     tags_generation_template,
 )
 from open_webui.utils.auth import get_admin_user, get_verified_user
@@ -19,7 +18,6 @@ from open_webui.constants import TASKS
 
 from beyond_the_loop.config import (
     DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE,
-    DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
     WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE,
     RAG_QUERY_GENERATION_PROMPT_TEMPLATE,
     DEFAULT_TAGS_GENERATION_PROMPT_TEMPLATE
@@ -27,7 +25,6 @@ from beyond_the_loop.config import (
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
     ChatTitleResponse,
-    ImagePromptResponse,
     SearchQueriesResponse,
     RagQueriesResponse,
 )
@@ -50,7 +47,6 @@ router = APIRouter()
 async def get_task_config(request: Request, user=Depends(get_verified_user)):
     return {
         "TITLE_GENERATION_PROMPT_TEMPLATE": request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE,
-        "IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE": request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
         "ENABLE_AUTOCOMPLETE_GENERATION": request.app.state.config.ENABLE_AUTOCOMPLETE_GENERATION,
         "AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH": request.app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH,
         "TAGS_GENERATION_PROMPT_TEMPLATE": request.app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE,
@@ -60,7 +56,6 @@ async def get_task_config(request: Request, user=Depends(get_verified_user)):
 
 class TaskConfigForm(BaseModel):
     TITLE_GENERATION_PROMPT_TEMPLATE: str
-    IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE: str
     ENABLE_AUTOCOMPLETE_GENERATION: bool
     AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH: int
     TAGS_GENERATION_PROMPT_TEMPLATE: str
@@ -73,10 +68,6 @@ async def update_task_config(
 ):
     request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE = (
         form_data.TITLE_GENERATION_PROMPT_TEMPLATE
-    )
-
-    request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = (
-        form_data.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
     )
 
     request.app.state.config.ENABLE_AUTOCOMPLETE_GENERATION = (
@@ -93,7 +84,6 @@ async def update_task_config(
 
     return {
         "TITLE_GENERATION_PROMPT_TEMPLATE": request.app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE,
-        "IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE": request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
         "ENABLE_AUTOCOMPLETE_GENERATION": request.app.state.config.ENABLE_AUTOCOMPLETE_GENERATION,
         "AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH": request.app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH,
         "TAGS_GENERATION_PROMPT_TEMPLATE": request.app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE,
@@ -116,6 +106,7 @@ async def generate_title(
     else:
         template = DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE
 
+    pii_active = bool(form_data.get("pii_active", False))
     messages = form_data["messages"]
 
     # Remove reasoning details from the messages
@@ -137,6 +128,9 @@ async def generate_title(
         },
     )
 
+    from beyond_the_loop.pii.session import pii_note_prefix
+    content = pii_note_prefix(pii_active) + content
+
     try:
         result = await structured_completion(
             messages=[{"role": "user", "content": content}],
@@ -153,55 +147,22 @@ async def generate_title(
         )
 
 
-@router.post("/image_prompt/completions")
-async def generate_image_prompt(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
+async def generate_queries(
+    query_type: str, messages: list[dict], chat_id: str | None, user,
+    pii_active: bool = False,
 ):
-    task_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-
-    log.debug(
-        f"generating image prompt using model {task_model.id} for user {user.email} "
-    )
-
-    if request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE != "":
-        template = request.app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
-    else:
-        template = DEFAULT_IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
-
-    content = image_prompt_generation_template(
-        template,
-        form_data["messages"],
-        user={
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-        },
-    )
-
-    try:
-        result = await structured_completion(
-            messages=[{"role": "user", "content": content}],
-            response_model=ImagePromptResponse,
-            model=task_model,
-        )
-        return {"prompt": result.prompt}
-    except Exception as e:
-        log.error("Exception occurred", exc_info=True)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": "An internal error has occurred."},
-        )
-
-
-async def generate_queries(query_type: str, messages: list[dict], chat_id: str|None, user):
     task_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
     log.debug(
         f"generating {query_type} queries using model {task_model.id} for user {user.email}"
     )
 
+    from beyond_the_loop.pii.session import pii_note_prefix
+    note = pii_note_prefix(pii_active)
+
     if query_type == "web_search":
         template = WEB_SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE
-        content = query_generation_template(template, messages)
+        content = note + query_generation_template(template, messages)
         result = await structured_completion(
             messages=[{"role": "user", "content": content}],
             response_model=SearchQueriesResponse,
@@ -210,7 +171,7 @@ async def generate_queries(query_type: str, messages: list[dict], chat_id: str|N
         return {"queries": [q.model_dump() for q in result.queries]}
     else:
         template = RAG_QUERY_GENERATION_PROMPT_TEMPLATE
-        content = query_generation_template(template, messages)
+        content = note + query_generation_template(template, messages)
         result = await structured_completion(
             messages=[{"role": "user", "content": content}],
             response_model=RagQueriesResponse,

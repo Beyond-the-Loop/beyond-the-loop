@@ -29,9 +29,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from beyond_the_loop.config import (
-    # Image
-    ENABLE_IMAGE_GENERATION,
-
     # Audio
     AUDIO_TTS_VOICE,
     WHISPER_MODEL,
@@ -96,7 +93,6 @@ from beyond_the_loop.config import (
     ENABLE_TAGS_GENERATION,
     TITLE_GENERATION_PROMPT_TEMPLATE,
     TAGS_GENERATION_PROMPT_TEMPLATE,
-    IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE,
     AppConfig,
     reset_config,
 )
@@ -118,6 +114,7 @@ from beyond_the_loop.routers import knowledge, groups, configs, folders, files, 
 from beyond_the_loop.routers import models
 from beyond_the_loop.routers import litellm, audio
 from beyond_the_loop.routers import payments
+from beyond_the_loop.routers import pii as pii_router
 from beyond_the_loop.routers import prompts
 from beyond_the_loop.routers import users
 from beyond_the_loop.routers.files import upload_file
@@ -169,7 +166,7 @@ from open_webui.utils.auth import get_current_api_key_user
 from open_webui.utils.chat import (
     chat_completed as chat_completed_handler
 )
-from open_webui.utils.middleware import process_chat_payload, process_chat_response, ClientDisconnectedError
+from open_webui.utils.middleware import process_chat_payload, process_chat_response, ClientDisconnectedError, PIIRedactionError
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 from open_webui.utils.middleware import SMART_ROUTER_MODEL
 
@@ -355,8 +352,6 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
 #
 ########################################
 
-app.state.config.ENABLE_IMAGE_GENERATION = ENABLE_IMAGE_GENERATION
-
 ########################################
 #
 # AUDIO
@@ -380,9 +375,6 @@ app.state.config.ENABLE_TAGS_GENERATION = ENABLE_TAGS_GENERATION
 
 app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE = TITLE_GENERATION_PROMPT_TEMPLATE
 app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE = TAGS_GENERATION_PROMPT_TEMPLATE
-app.state.config.IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE = (
-    IMAGE_PROMPT_GENERATION_PROMPT_TEMPLATE
-)
 
 
 ########################################
@@ -515,6 +507,7 @@ app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
 app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["chat-archival"])
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
 app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
+app.include_router(pii_router.router, prefix="/api/v1/pii", tags=["pii"])
 
 
 ##################################
@@ -759,6 +752,13 @@ async def chat_completion(
             status_code=499,
             content={"detail": "Client disconnected"},
         )
+    except PIIRedactionError as e:
+        # Fail-closed: anonymization broke mid-flight. Returning 503 instead of
+        # 400 because the failure is server-side, not a malformed client request.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
     except Exception as e:
         log.error(f"Error processing chat payload: {e}")
         raise HTTPException(
@@ -860,7 +860,6 @@ async def get_app_config(request: Request):
                     "enable_channels": app.state.config.ENABLE_CHANNELS,
                     "enable_google_drive_integration": app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION,
                     "enable_web_search": True,
-                    "enable_image_generation": app.state.config.ENABLE_IMAGE_GENERATION,
                     "enable_community_sharing": app.state.config.ENABLE_COMMUNITY_SHARING,
                     "enable_message_rating": app.state.config.ENABLE_MESSAGE_RATING,
                 }
