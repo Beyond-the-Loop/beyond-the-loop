@@ -3,31 +3,26 @@
 	import type { Writable } from 'svelte/store';
 	import type { i18n as i18nType } from 'i18next';
 	import type { PIISpan } from '$lib/apis/pii';
-	import { showChatInfoSidebar } from '$lib/stores';
+	import { showChatInfoSidebar, chatInfoSidebarMode } from '$lib/stores';
 	import CloseIcon from '$lib/components/icons/CloseIcon.svelte';
 	import PrivacySection from './ChatInfoSidebar/PrivacySection.svelte';
 	import ChatHistoryVariables from './ChatInfoSidebar/ChatHistoryVariables.svelte';
 
 	const i18n: Writable<i18nType> = getContext('i18n');
 
-	// Privacy section data is owned by the parent (Chat.svelte) so toggle
-	// indicators outside the sidebar can read the same detection state.
-	export let privacyVisible: boolean = false;
+	// Composer-mode data — live detection on the current prompt, owned by
+	// Chat.svelte so external indicators (orange link) read the same state.
 	export let detectedEntities: PIISpan[] = [];
 	export let releasedEntities: string[] = [];
 	export let onReleasedChange: (released: string[]) => void = () => {};
 	export let privacyReleasable: boolean = true;
 
-	// History section: aggregated { original: placeholder } map collected from
-	// pii_variables across all user messages of the current chat. `historyReleased`
-	// is the list of originals the user explicitly released in past messages
-	// (passed verbatim to the model). `historyVariableSources` maps each
-	// original to the list of surfaces it was seen on (e.g. ["prompt",
-	// "file:vertrag.pdf"]) — drives the source-first grouping.
-	export let historyVisible: boolean = false;
-	export let historyVariables: Record<string, string> = {};
-	export let historyVariableSources: Record<string, string[]> = {};
-	export let historyReleased: string[] = [];
+	// Message-mode data — sliced from one user message's `pii_variables`,
+	// `pii_variable_sources` and `pii_released_entities_actual` by the parent.
+	// Null when the referenced message no longer exists (e.g. deleted).
+	export let messageVariables: Record<string, string> | null = null;
+	export let messageVariableSources: Record<string, string[]> = {};
+	export let messageReleased: string[] = [];
 </script>
 
 {#if $showChatInfoSidebar}
@@ -51,7 +46,7 @@
 		class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-lightGray-300 dark:border-customGray-800"
 	>
 		<p class="text-lightGray-100 dark:text-white text-base font-medium">
-			{$i18n.t('PII filter')}
+			{$i18n.t('Anonymization')}
 		</p>
 		<button
 			type="button"
@@ -64,22 +59,19 @@
 	</div>
 
 	<div class="px-5 py-4 overflow-y-auto space-y-6" style="max-height: calc(100dvh - 4.5rem);">
-		{#if privacyVisible}
+		{#if $chatInfoSidebarMode.kind === 'composer'}
 			<PrivacySection
 				{detectedEntities}
 				{releasedEntities}
 				{onReleasedChange}
 				releasable={privacyReleasable}
 			/>
-		{/if}
-		{#if historyVisible}
+		{:else if messageVariables !== null}
 			<ChatHistoryVariables
-				variables={historyVariables}
-				variableSources={historyVariableSources}
-				released={historyReleased}
+				variables={messageVariables}
+				variableSources={messageVariableSources}
+				released={messageReleased}
 			/>
 		{/if}
-		<!-- Future sections (e.g. files in chat) get added here as additional
-			conditional blocks. The sidebar itself stays generic. -->
 	</div>
 </div>

@@ -218,6 +218,29 @@ class PIISession:
         out, sweep_count = self._sweep_known(out, source, released_set)
         return out, len(spans) + sweep_count, anonymized_count + sweep_count, released_used
 
+    def replace_known(
+        self,
+        text: str,
+        released: Optional[Iterable[str]] = None,
+        source: str = "prompt",
+    ) -> Tuple[str, int, int, List[str]]:
+        """Sweep-only: replace already-known entities, do NOT detect new ones.
+
+        Used for past assistant messages in the chat history — model-generated
+        text isn't user PII, so seeding new placeholders for it has no privacy
+        benefit and just wastes tokens / pollutes the sidebar. But user PII
+        that the model echoed back must stay anonymized so downstream turns
+        see the same placeholder the user-side anonymization established.
+
+        Return shape matches `anonymize` so callers can dispatch by role
+        without branching on tuple arity.
+        """
+        if not text:
+            return text, 0, 0, []
+        released_set: Set[str] = set(released) if released else set()
+        out, count = self._sweep_known(text, source, released_set)
+        return out, count, count, []
+
     def deanonymize(self, text: str) -> str:
         if not text or not self.reverse:
             return text
@@ -303,11 +326,17 @@ def anonymize_messages(
     anonymized = 0
     released_used: List[str] = []
     for msg in messages:
-        if msg.get("role") == "system":
+        role = msg.get("role")
+        if role == "system":
             continue
+        # Past assistant messages: only re-anonymize already-known user PII.
+        # Model-generated entities (URLs, names the model invented) aren't user
+        # data — seeding placeholders for them wastes tokens and confuses the
+        # sidebar with entries the user never typed.
+        anonymize_fn = session.anonymize if role == "user" else session.replace_known
         content = msg.get("content")
         if isinstance(content, str):
-            new_content, t, a, ru = session.anonymize(content, released_list, source=source)
+            new_content, t, a, ru = anonymize_fn(content, released_list, source=source)
             msg["content"] = new_content
             total += t
             anonymized += a
@@ -315,7 +344,7 @@ def anonymize_messages(
         elif isinstance(content, list):
             for part in content:
                 if isinstance(part, dict) and part.get("type") == "text":
-                    new_text, t, a, ru = session.anonymize(part.get("text", ""), released_list, source=source)
+                    new_text, t, a, ru = anonymize_fn(part.get("text", ""), released_list, source=source)
                     part["text"] = new_text
                     total += t
                     anonymized += a

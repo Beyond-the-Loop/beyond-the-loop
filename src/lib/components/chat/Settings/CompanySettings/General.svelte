@@ -404,7 +404,7 @@
 			<div class="mb-2.5">
 				<div class="flex items-center justify-between mb-1 w-full bg-lightGray-300 dark:bg-customGray-900 rounded-md h-12 px-2.5 py-2">
 					<div class="text-sm text-lightGray-100 dark:text-customGray-100">
-						{$i18n.t('PII filter (redact personal data)')}
+						{$i18n.t('Anonymization of personal data')}
 					</div>
 					<div class="flex items-center">
 						{#if piiFilterEnabled}

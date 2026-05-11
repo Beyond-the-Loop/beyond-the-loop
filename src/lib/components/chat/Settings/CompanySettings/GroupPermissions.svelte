@@ -67,7 +67,7 @@
 		view_knowledge: 'View Knowledge',
 		edit_knowledge: 'Edit Knowledge',
 		assistants_only: 'Assistants Only',
-		pii_allow_disable_in_chat: 'Allow disabling PII filter in chat'
+		pii_allow_disable_in_chat: 'Allow disabling anonymization in chat'
 	};
 
 	function setPermission(key, checked) {
@@ -272,7 +272,7 @@
 							const screenWidth = window.innerWidth;
 							if (screenWidth < 1290) {
 								// submenuX = rect.left - 178;
-								submenuPermissionsX = -215;
+								submenuPermissionsX = -279;
 							} else {
 								// submenuX = rect.right + 8;
 								submenuPermissionsX = 167;
@@ -293,7 +293,7 @@
 						on:click={() => {
 							if($mobile) {
 								showPermissionsSubmenu = true;
-								submenuPermissionsX = -215;
+								submenuPermissionsX = -279;
 								submenuPermissionsY = -10;
 							}else{
 								showDropdown = false;
@@ -332,7 +332,7 @@
 					{#if showPermissionsSubmenu}
 						<button
 							type="button"
-							class="w-[13rem] absolute dark:bg-customGray-900 border px-1 py-2 border-lightGray-400 bg-lightGray-300 dark:border-customGray-700 rounded-xl shadow z-20 min-w-30"
+							class="w-[17rem] absolute dark:bg-customGray-900 border px-1 py-2 border-lightGray-400 bg-lightGray-300 dark:border-customGray-700 rounded-xl shadow z-20 min-w-30"
 							style="top: {submenuPermissionsY}px; left: {submenuPermissionsX}px"
 							on:mouseenter={() => (hoveringPermissionsSubmenu = true)}
 							on:mouseleave={() => {
@@ -350,14 +350,16 @@
 									tabindex="0"
 									class="flex items-center rounded-xl w-full justify-start px-2 py-2 hover:bg-lightGray-700 dark:hover:bg-customGray-950 cursor-pointer text-xs dark:text-customGray-100 {isDisabled ? 'opacity-40 pointer-events-none' : ''}"
 								>
-									<Checkbox
-										state={permissions[permission] ? 'checked' : 'unchecked'}
-										on:change={(e) => {
-											e.stopPropagation();
-											setPermission(permission, e.detail === 'checked');
-										}}
-									/>
-									<div class="flex gap-2 ml-2">
+									<div class="flex-shrink-0">
+										<Checkbox
+											state={permissions[permission] ? 'checked' : 'unchecked'}
+											on:change={(e) => {
+												e.stopPropagation();
+												setPermission(permission, e.detail === 'checked');
+											}}
+										/>
+									</div>
+									<div class="flex gap-2 ml-2 text-left">
 										<span>{$i18n.t(permissionLabels[permission] ?? permission.replace(/_/g, ' '))}</span>
 									</div>
 								</div>

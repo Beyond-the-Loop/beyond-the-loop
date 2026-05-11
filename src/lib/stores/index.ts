@@ -70,6 +70,17 @@ export const showLibrary = writable(false);
 // Right-side panel for in-chat info — currently hosts the Privacy/PII section,
 // designed to grow with further sections (e.g. files in chat) over time.
 export const showChatInfoSidebar = writable(false);
+
+// Two display modes for the panel:
+//   - composer: shows entities detected in the current prompt input
+//   - message:  shows entities anonymized in a specific past user message
+// Triggered by the orange link above the input (composer) or the shield badge
+// on a user message (message). Submitting in composer mode auto-switches to
+// message mode for the just-sent message.
+export type ChatInfoSidebarMode =
+	| { kind: 'composer' }
+	| { kind: 'message'; messageId: string };
+export const chatInfoSidebarMode = writable<ChatInfoSidebarMode>({ kind: 'composer' });
 export const confirmPromptFn = writable(null);
 
 export const showControls = writable(false);

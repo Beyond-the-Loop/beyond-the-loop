@@ -7,9 +7,9 @@
 
 	const i18n: Writable<i18nType> = getContext('i18n');
 
-	// Aggregated map { original: placeholder } across all user messages of the
-	// current chat. PIISession ensures the same original always maps to the
-	// same placeholder, so it's safe to merge.
+	// { original: placeholder } map for a single user message — pulled from
+	// `pii_variables` on that message. PIISession guarantees stable placeholder
+	// assignment within a chat, so this is just the slice for one turn.
 	export let variables: Record<string, string> = {};
 
 	// Map { original: [source, ...] } — sources are strings like "prompt"
@@ -17,7 +17,7 @@
 	// typed prompt AND a document); we render it under each source.
 	export let variableSources: Record<string, string[]> = {};
 
-	// Originals the user explicitly released in past messages — passed
+	// Originals the user explicitly released for this message — passed
 	// verbatim to the model rather than being replaced with a placeholder.
 	export let released: string[] = [];
 
@@ -79,7 +79,7 @@
 	};
 
 	function sourceLabel(src: string): string {
-		if (src === 'prompt') return $i18n.t('From the chat');
+		if (src === 'prompt') return $i18n.t('From the prompt');
 		if (src.startsWith('file:')) {
 			const name = src.slice(5) || 'unbekannt';
 			return $i18n.t('From {{name}}', { name });
@@ -100,15 +100,15 @@
 
 <div class="space-y-3">
 	<div class="flex items-center gap-2">
-		<ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+		<ShieldCheck className="size-4 text-customBlue-500 dark:text-blue-400" />
 		<h3 class="text-sm font-medium text-lightGray-100 dark:text-white">
-			{$i18n.t('Used in this chat')}
+			{$i18n.t('Used in this prompt')}
 		</h3>
 	</div>
 
 	<p class="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
 		{$i18n.t(
-			'These variables have been anonymized in messages already sent. The model only saw the placeholder.'
+			'These variables were anonymized in this message. The model only saw the placeholder.'
 		)}
 	</p>
 

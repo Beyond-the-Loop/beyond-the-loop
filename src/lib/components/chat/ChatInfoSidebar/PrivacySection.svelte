@@ -160,7 +160,7 @@
 			)}
 		{:else}
 			{$i18n.t(
-				'The PII filter is enforced for your account — entries cannot be released.'
+				'Anonymization is enforced for your account — entries cannot be released.'
 			)}
 		{/if}
 	</p>

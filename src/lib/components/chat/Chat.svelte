@@ -30,6 +30,7 @@
 		showArtifacts,
 		showCallOverlay,
 		showChatInfoSidebar,
+		chatInfoSidebarMode,
 		showControls,
 		showLibrary,
 		showOverview,
@@ -186,66 +187,31 @@
 		return seen.size;
 	})();
 
-	// Aggregate per-entity status across the whole chat. Entities can flip
-	// between protected and released over time (user clicks the chip to
-	// release in turn 2, doesn't release in turn 5 → re-anonymized). The
-	// latest user message that mentions an entity wins.
-	//
-	// Sources are accumulated UNION across all messages — if a name first
-	// shows up in the prompt and later in a file, both surfaces are surfaced
-	// as separate cards in the sidebar (per user request).
-	$: aggregatedChatPII = (() => {
-		const userMessages = (Object.values(history?.messages ?? {}) as any[])
-			.filter((m: any) => m?.role === 'user')
-			.sort((a: any, b: any) => (a?.timestamp ?? 0) - (b?.timestamp ?? 0));
-
-		const latestStatus: Record<string, 'protected' | 'released'> = {};
-		const placeholderOf: Record<string, string> = {};
-		const sourcesOf: Record<string, Set<string>> = {};
-
-		for (const msg of userMessages) {
-			const vars = msg.pii_variables;
-			if (vars) {
-				for (const [original, placeholder] of Object.entries(vars)) {
-					placeholderOf[original] = placeholder as string;
-					latestStatus[original] = 'protected';
-				}
-			}
-			const sources = msg.pii_variable_sources;
-			if (sources) {
-				for (const [original, srcList] of Object.entries(sources)) {
-					(sourcesOf[original] ??= new Set<string>());
-					for (const s of srcList as string[]) sourcesOf[original].add(s);
-				}
-			}
-			// released_actual is set after pii_variables for the same message,
-			// so it overrides correctly within a single turn too.
-			for (const original of msg.pii_released_entities_actual ?? []) {
-				latestStatus[original] = 'released';
-			}
+	$: piiAnonymizedCount = (() => {
+		if (detectedPIIEntities.length === 0) return 0;
+		const released = new Set(piiReleasedEntities);
+		const anonymized = new Set<string>();
+		for (const span of detectedPIIEntities) {
+			if (!released.has(span.original)) anonymized.add(span.original);
 		}
-
-		const variables: Record<string, string> = {};
-		const releasedList: string[] = [];
-		const variableSources: Record<string, string[]> = {};
-		for (const [original, status] of Object.entries(latestStatus)) {
-			if (status === 'released') {
-				releasedList.push(original);
-			} else if (placeholderOf[original]) {
-				variables[original] = placeholderOf[original];
-				variableSources[original] = Array.from(sourcesOf[original] ?? []).sort();
-			}
-		}
-		return {
-			variables,
-			variableSources,
-			released: releasedList.sort((a, b) => a.localeCompare(b))
-		};
+		return anonymized.size;
 	})();
 
-	$: aggregatedChatPIIVariables = aggregatedChatPII.variables;
-	$: aggregatedChatPIIVariableSources = aggregatedChatPII.variableSources;
-	$: aggregatedChatReleasedEntities = aggregatedChatPII.released;
+	// When the sidebar is in "message" mode, slice the referenced user message's
+	// pii_variables / pii_variable_sources / pii_released_entities_actual so the
+	// sidebar only shows that one turn (no cross-chat aggregation). Returns null
+	// if the mode is composer or the referenced message no longer exists — the
+	// sidebar treats that as "nothing to render in this slot".
+	$: sidebarMessageData = (() => {
+		if ($chatInfoSidebarMode.kind !== 'message') return null;
+		const msg = (history?.messages ?? {})[$chatInfoSidebarMode.messageId] as any;
+		if (!msg) return null;
+		return {
+			variables: (msg.pii_variables ?? {}) as Record<string, string>,
+			variableSources: (msg.pii_variable_sources ?? {}) as Record<string, string[]>,
+			released: (msg.pii_released_entities_actual ?? []) as string[]
+		};
+	})();
 
 	onDestroy(() => {
 		if (piiDebounceTimer) clearTimeout(piiDebounceTimer);
@@ -1443,6 +1409,13 @@
 			history.messages[messages.at(-1).id].childrenIds.push(userMessageId);
 		}
 
+		// If the sidebar is open in composer mode, hand it off to the message
+		// that was just sent — composer mode would otherwise go blank now that
+		// the prompt is cleared.
+		if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+			chatInfoSidebarMode.set({ kind: 'message', messageId: userMessageId });
+		}
+
 		// focus on chat input
 		const chatInput = document.getElementById('chat-input');
 		chatInput?.focus();
@@ -2083,9 +2056,9 @@
 
 <EventConfirmDialog
 	bind:show={showPiiDisableConfirm}
-	title={$i18n.t('Disable PII filter?')}
+	title={$i18n.t('Disable anonymization?')}
 	message={$i18n.t(
-		'If you disable the PII filter for this chat, all further messages will be sent unredacted to the language model. Already redacted messages in this chat remain unchanged, but the rest of the conversation will continue in plain text.'
+		'If you disable anonymization for this chat, all further messages will be sent unredacted to the language model. Already redacted messages in this chat remain unchanged, but the rest of the conversation will continue in plain text.'
 	)}
 	confirmLabel={$i18n.t('Disable filter')}
 	cancelLabel={$i18n.t('Cancel')}
@@ -2196,24 +2169,24 @@
 									bind:selectedModels
 								/>
 								<div class="flex items-center gap-2">
-									{#if piiPanelVisible}
+									{#if piiPanelVisible && uniquePIICount > 0}
 										<button
 											type="button"
-											class="relative flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
+											class="flex space-x-[5px] items-center text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline transition"
 											aria-label={$i18n.t('Privacy panel')}
-											on:click={() => showChatInfoSidebar.set(!$showChatInfoSidebar)}
+											on:click={() => {
+												if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+													showChatInfoSidebar.set(false);
+												} else {
+													chatInfoSidebarMode.set({ kind: 'composer' });
+													showChatInfoSidebar.set(true);
+												}
+											}}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+												<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
 											</svg>
-											<span>{$i18n.t('Privacy')}</span>
-											{#if uniquePIICount > 0}
-												<span
-													class="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] leading-none font-semibold min-w-[16px] h-[16px] px-1"
-												>
-													{uniquePIICount}
-												</span>
-											{/if}
+											<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
 										</button>
 									{/if}
 									<button
@@ -2323,6 +2296,7 @@
 								onPiiToggle={handlePiiToggleClick}
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
+								piiAnonymizedCount={piiAnonymizedCount}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}
@@ -2406,13 +2380,11 @@
 </div>
 
 <ChatInfoSidebar
-	privacyVisible={piiPanelVisible && (prompt?.trim().length ?? 0) > 0}
 	detectedEntities={detectedPIIEntities}
 	releasedEntities={piiReleasedEntities}
 	onReleasedChange={(released) => (piiReleasedEntities = released)}
 	privacyReleasable={canRelaxPii}
-	historyVisible={true}
-	historyVariables={aggregatedChatPIIVariables}
-	historyVariableSources={aggregatedChatPIIVariableSources}
-	historyReleased={aggregatedChatReleasedEntities}
+	messageVariables={sidebarMessageData?.variables ?? null}
+	messageVariableSources={sidebarMessageData?.variableSources ?? {}}
+	messageReleased={sidebarMessageData?.released ?? []}
 />

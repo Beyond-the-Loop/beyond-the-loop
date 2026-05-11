@@ -1271,28 +1271,28 @@
 											{#if showPiiToggle}
 												<Tooltip
 													content={piiEnabled
-														? $i18n.t('PII filter is ON for this chat')
-														: $i18n.t('PII filter is OFF for this chat')}
+														? $i18n.t('Anonymization is ON for this chat')
+														: $i18n.t('Anonymization is OFF for this chat')}
 												>
 													<button
 														type="button"
 														aria-label={piiEnabled
-															? $i18n.t('PII filter is ON for this chat')
-															: $i18n.t('PII filter is OFF for this chat')}
+															? $i18n.t('Anonymization is ON for this chat')
+															: $i18n.t('Anonymization is OFF for this chat')}
 														class="bg-transparent hover:bg-gray-100 dark:hover:bg-customGray-900 transition rounded-md p-[3px] outline-none focus:outline-none {piiEnabled
-															? 'text-emerald-600 dark:text-emerald-400'
+															? 'text-customBlue-500 dark:text-blue-400'
 															: 'text-gray-400 dark:text-gray-500'}"
 														on:click={onPiiToggle}
 													>
 														<svg
 															xmlns="http://www.w3.org/2000/svg"
-															viewBox="0 0 24 24"
+															viewBox="-2 -2 28 28"
 															fill="none"
 															stroke="currentColor"
 															stroke-width="2"
 															stroke-linecap="round"
 															stroke-linejoin="round"
-															class="w-4 h-4"
+															class="w-5 h-5"
 														>
 															<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
 														</svg>

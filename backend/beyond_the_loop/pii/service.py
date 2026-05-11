@@ -184,6 +184,12 @@ class PresidioService:
                 )
                 base.extend(extra)
 
+        # Transformer NER occasionally produces spans whose source slice is
+        # whitespace-only (subword tokenizer alignment artifacts). Drop them
+        # before downstream consumers see them, otherwise they show up as
+        # empty chips in the sidebar and inflate the entity count.
+        base = [r for r in base if text[r.start : r.end].strip()]
+
         return _resolve_overlaps(_extend_truncated_person_spans(text, base))
 
 

@@ -18,7 +18,7 @@
 	import CopyMessageIcon from '$lib/components/icons/CopyMessageIcon.svelte';
 	import DeleteIcon from '$lib/components/icons/DeleteIcon.svelte';
 	import CreatePromptIcon from '$lib/components/icons/CreatePromptIcon.svelte';
-	import { showChatInfoSidebar } from '$lib/stores';
+	import { showChatInfoSidebar, chatInfoSidebarMode } from '$lib/stores';
 	import { goto } from '$app/navigation';
 
 	const i18n = getContext('i18n');
@@ -336,8 +336,9 @@
 						{#if piiBadgeKind === 'full'}
 							<Tooltip content={$i18n.t('Anonymized — click for details')} placement="bottom">
 								<button
-									class="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition flex items-center"
+									class="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-customBlue-500 dark:text-blue-400 hover:text-customBlue-600 dark:hover:text-blue-300 transition flex items-center"
 									on:click={() => {
+										chatInfoSidebarMode.set({ kind: 'message', messageId: message.id });
 										showChatInfoSidebar.set(true);
 									}}
 								>
@@ -360,6 +361,7 @@
 								<button
 									class="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition flex items-center"
 									on:click={() => {
+										chatInfoSidebarMode.set({ kind: 'message', messageId: message.id });
 										showChatInfoSidebar.set(true);
 									}}
 								>
