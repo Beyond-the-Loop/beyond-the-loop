@@ -4,6 +4,7 @@
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import ChevronUp from '$lib/components/icons/ChevronUp.svelte';
+	import MagnifyingGlass from '$lib/components/icons/MagnifyingGlass.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -54,17 +55,18 @@
 				// Within the same citation there could be multiple documents
 				const id = metadata?.source ?? 'N/A';
 				let _source = source?.source;
+				console.log(_source.name);
 
-				if (metadata?.name) {
-					_source = { ..._source, name: metadata.name };
-				}
+				// if (metadata?.name) {
+				// 	_source = { ..._source, name: metadata.name };
+				// }
 				if (metadata?.domain) {
 					_source = { ..._source, domain: metadata.domain };
 				}
 
-				if (id.startsWith('http://') || id.startsWith('https://')) {
-					_source = { ..._source, ...(!metadata?.name ? { name: id } : {}), url: id };
-				}
+				// if (id.startsWith('http://') || id.startsWith('https://')) {
+				// 	_source = { ..._source, ...(!metadata?.name ? { name: id } : {}), url: id };
+				// }
 
 				const existingSource = acc.find((item) => item.id === id);
 
@@ -98,15 +100,60 @@
 />
 
 {#if citations.length > 0}
-	<div class=" py-0.5 mt-4 -mx-0.5 w-full flex gap-1 items-center flex-wrap">
-		{#if citations.length <= 3}
-			<div class="flex text-xs font-medium">
+	<Collapsible bind:open={isCollapsibleOpen} className="mt-2 relative w-full text-sm px-2 py-1 rounded-xl {isCollapsibleOpen ? 'bg-lightGray-200': ''}">
+		<div class="w-fit rounded-full px-4 py-1 text-lightGray-100 hover:bg-lightGray-200 flex gap-1 items-center {isCollapsibleOpen ? 'bg-lightGray-200': ''} ml-auto absolute right-0 top-2">
+			<div class="flex -space-x-2">
+				{#each citations.slice(0, 3) as citation, idx}
+					{#if citation.source.domain}
+						<img
+							src={`https://www.google.com/s2/favicons?domain=${citation.source.domain}&sz=32`}
+							class="rounded-full size-4 border border-lightGray-300 border-2 flex-shrink-0"
+							alt=""
+							on:error={(e) => (e.currentTarget.style.display = 'none')}
+						/>
+					{/if}
+				{/each}
+			</div>
+			
+			{citations.length} Quellen
+			{#if isCollapsibleOpen}
+				<ChevronUp strokeWidth="2" className="size-3"/>
+			{:else}
+				<ChevronDown strokeWidth="2" className="size-3"/>
+			{/if}
+		</div>
+		<div slot="content">
+		<div class="flex flex-row items-center gap-2 px-1 py-2 overflow-x-hidden max-w-[80%] truncate">
+			<div class = "text-xs font-medium text-gray-600">
+				Gesucht nach
+			</div>
+			<div class="flex flex-row items-center w-fit px-3 py-1 rounded-full text-xs">
+				<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
+				<div class="ml-1">
+				"goldpreis aktuell mai 2026"
+				</div>
+				
+			</div>
+			<div class="flex flex-row items-center w-fit px-3 py-1 gap-1 rounded-full text-xs">
+				<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
+				<div class="ml-1">
+				"gold kaufen euro pro gramm"
+				</div>
+				
+			</div>
+			<div class="flex flex-row items-center w-fit px-3 py-1 gap-1 rounded-full text-xs">
+				<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
+				<div class="ml-1">
+				"goldpreis prognose entwicklung"
+				</div>
+				
+			</div>
+		</div>
+			<div class="text-xs font-medium">
 				{#each citations as citation, idx}
 					<button
-						id={`source-${citation.source.name}`}
-						class="no-toggle outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-white dark:bg-gray-900 rounded-xl max-w-96"
+						class="flex gap-2 items-center text-lightGray-100 dark:text-customGray-100 p-2 transition rounded-xl max-w-100"
 						on:click={() => {
-							// If a URL is available, open it directly
 							if (citation.source?.url) {
 								window.open(citation.source.url, '_blank', 'noopener,noreferrer');
 								return;
@@ -116,101 +163,34 @@
 						}}
 					>
 						{#if citations.every((c) => c.distances !== undefined)}
-							<div class="bg-gray-50 dark:bg-gray-800 rounded-full size-4">
+							<div class="text-gray-600 size-4 mr-2">
 								{idx + 1}
 							</div>
 						{/if}
-						<div
-							class="flex-1 mx-1 line-clamp-1 text-lightGray-100 dark:text-customGray-100  transition"
-						>
-							{citation.source.name}
-						</div>
+						{#if citation.source.domain}
+							<img
+								src={`https://www.google.com/s2/favicons?domain=${citation.source.domain}&sz=32`}
+								class="rounded-md size-4 flex-shrink-0"
+								alt=""
+								on:error={(e) => (e.currentTarget.style.display = 'none')}
+							/>
+							<div class="flex flex-col items-start">
+								<div class="text-sm line-clamp-1 truncate">
+									<!-- {citation.source.domain} -->
+									 {citation.source.name}
+								</div>
+								<div class="text-xs text-gray-600 line-clamp-1 truncate max-w-[720px]">
+									 {citation.source.domain}
+								</div>
+							</div>
+						{:else}
+							<div class="line-clamp-1 truncate">
+								{citation.source.name}
+							</div>
+						{/if}
 					</button>
 				{/each}
 			</div>
-		{:else}
-			<Collapsible bind:open={isCollapsibleOpen} className="w-full">
-				<div
-					class="flex items-center gap-2 text-lightGray-100 dark:text-customGray-100 transition cursor-pointer"
-				>
-					<div class="flex flex-grow items-center justify-between gap-1 overflow-hidden">
-						<div>
-						<span class="whitespace-nowrap hidden sm:inline">{$i18n.t('References from')}</span>
-						<div class="flex items-center">
-							<div class="text-xs font-medium items-center">
-								{#each citations.slice(0, 2) as citation, idx}
-									<button
-										class="no-toggle outline-none mb-1 flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
-										on:click={() => {
-											if (citation.source?.url) {
-												window.open(citation.source.url, '_blank', 'noopener,noreferrer');
-												return;
-											}
-											showCitationModal = true;
-											selectedCitation = citation;
-										}}
-										on:pointerup={(e) => {
-											e.stopPropagation();
-										}}
-									>
-										{#if citations.every((c) => c.distances !== undefined)}
-											<div class="bg-gray-50 dark:bg-gray-800 rounded-full size-4">
-												{idx + 1}
-											</div>
-										{/if}
-										<div class="flex-1 mx-1 line-clamp-1 truncate">
-											{citation.source.domain 
-												? `${citation.source.domain} | ${citation.source.name}`
-												: citation.source.name}
-										</div>
-									</button>
-								{/each}
-							</div>
-						</div>
-						</div>
-						<div class="flex items-center gap-1 whitespace-nowrap">
-							<span class="hidden sm:inline">{$i18n.t('and')}</span>
-							{citations.length - 2}
-							<span>{$i18n.t('More').toLowerCase()}</span>
-						</div>
-					</div>
-					<div class="flex-shrink-0">
-						{#if isCollapsibleOpen}
-							<ChevronUp strokeWidth="3.5" className="size-3.5" />
-						{:else}
-							<ChevronDown strokeWidth="3.5" className="size-3.5" />
-						{/if}
-					</div>
-				</div>
-				<div slot="content">
-					<div class="text-xs font-medium">
-						{#each citations.slice(2) as citation, idx}
-							<button
-								class="no-toggle mb-1 outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
-								on:click={() => {
-									if (citation.source?.url) {
-										window.open(citation.source.url, '_blank', 'noopener,noreferrer');
-										return;
-									}
-									showCitationModal = true;
-									selectedCitation = citation;
-								}}
-							>
-								{#if citations.every((c) => c.distances !== undefined)}
-									<div class="bg-gray-50 dark:bg-gray-800 rounded-full size-4">
-										{idx + 3}
-									</div>
-								{/if}
-								<div class="flex-1 mx-1 line-clamp-1 truncate">
-									{citation.source.domain 
-										? `${citation.source.domain} | ${citation.source.name}`
-										: citation.source.name}
-								</div>
-							</button>
-						{/each}
-					</div>
-				</div>
-			</Collapsible>
-		{/if}
-	</div>
+		</div>
+	</Collapsible>
 {/if}
