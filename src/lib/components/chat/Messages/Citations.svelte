@@ -14,8 +14,8 @@
 	let showPercentage = false;
 	let showRelevance = true;
 
-	let showCitationModal = false;
-	let selectedCitation: any = null;
+	export let showCitationModal = false;
+	export let selectedCitation: any = null;
 	let isCollapsibleOpen = false;
 
 	function calculateShowRelevance(sources: any[]) {
@@ -56,9 +56,6 @@
 				const id = metadata?.source ?? 'N/A';
 				let _source = source?.source;
 
-				// if (metadata?.name) {
-				// 	_source = { ..._source, name: metadata.name };
-				// }
 				if (metadata?.domain) {
 					_source = { ..._source, domain: metadata.domain };
 				}
@@ -66,10 +63,6 @@
 					_source = { ..._source, used_queries: metadata.used_queries };
 
 				}
-
-				// if (id.startsWith('http://') || id.startsWith('https://')) {
-				// 	_source = { ..._source, ...(!metadata?.name ? { name: id } : {}), url: id };
-				// }
 
 				const existingSource = acc.find((item) => item.id === id);
 
@@ -103,8 +96,8 @@
 />
 
 {#if citations.length > 0}
-	<Collapsible bind:open={isCollapsibleOpen} className="mt-2 relative w-full text-sm px-2 rounded-xl {isCollapsibleOpen ? 'bg-lightGray-200 pt-1 pb-3': ''} transition-colors duration-200">
-		<div class="w-fit rounded-full px-4 py-1 text-lightGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 top-2': 'hover:bg-lightGray-200 top-0'} ml-auto absolute right-0 ">
+	<Collapsible bind:open={isCollapsibleOpen} className="relative w-full text-sm px-2 rounded-xl {isCollapsibleOpen ? 'bg-lightGray-200 pt-1 pb-3 mt-2': ''} transition-colors duration-200">
+		<div class="w-fit rounded-full px-4 py-[3px] text-lightGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 top-2': 'hover:bg-lightGray-200 top-0'} ml-auto absolute right-0 z-10">
 			<div class="flex -space-x-2">
 				{#each citations.slice(0, 3) as citation, idx}
 					{#if citation.source.domain}
@@ -118,7 +111,7 @@
 				{/each}
 			</div>
 			
-			{citations.length} Quellen
+			{citations.length} {$i18n.t(citations.length == 1 ? 'Source' : 'Sources')}
 			  <div style="transform: rotate({isCollapsibleOpen ? 180 : 0}deg); transition: transform 0.2s ease">
 					<ChevronDown strokeWidth="2" className="size-3"/>
 				</div>
@@ -127,12 +120,12 @@
 		<div class="flex flex-row items-center gap-2 px-1 py-2 text-xs ">
 			{#if citations[0].source.used_queries}
 				<div class = "font-medium text-gray-600">
-					Gesucht nach
+					{$i18n.t('Searched for')}
 				</div>
 				<div class="max-w-[75%] overflow-x-scroll no-scrollbar" style="-ms-overflow-style: none !important; scrollbar-width: none !important;">
 					<div class="flex flex-row">
 						{#each citations[0].source.used_queries as query}
-							<div class="shrink-0 flex flex-row flex-nowrap items-center w-fit px-3 py-1">
+							<div class="shrink-0 flex flex-row flex-nowrap items-center px-3 py-1">
 								<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
 								<div class="ml-1">
 								"{query}"
@@ -148,8 +141,9 @@
 				{#each citations as citation, idx}
 					<button
 						class="flex gap-2 w-full items-center text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-300 p-2 transition rounded-xl max-w-100"
+						id="source-{citation.id}"
 						on:click={() => {
-							if (citation.source?.url) {
+							if (citation.source?.url && citation.type === 'web_search') {
 								window.open(citation.source.url, '_blank', 'noopener,noreferrer');
 								return;
 							}

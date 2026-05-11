@@ -149,6 +149,9 @@
 			? ($models.find((m) => m.id === message.selectedModelId)?.name ?? message.selectedModelId)
 			: null;
 
+	let citationShowModal = false;
+	let citationSelectedCitation: any = null;
+
 	let edit = false;
 	let editedContent = '';
 	let editTextAreaElement: HTMLTextAreaElement;
@@ -745,13 +748,23 @@
 										floatingButtons={message?.done}
 										save={!readOnly}
 										{model}
-										onSourceClick={(e) => {
-											const sourceButton = document.getElementById(`source-${e}`);
+										onSourceClick={(sourceId) => {
+											const allSources = message?.sources ?? message?.citations ?? [];
+											const match = allSources.flatMap((s) =>
+												(s.document ?? []).map((doc, i) => ({
+													id: s.metadata?.[i]?.source ?? 'N/A',
+													source: s.source,
+													document: [doc],
+													metadata: s.metadata?.[i] ? [s.metadata[i]] : [],
+													distances: s.distances?.[i] !== undefined ? [s.distances[i]] : undefined
+												}))
+											).find((c) => c.id === sourceId);
 
-											if (sourceButton) {
-												sourceButton.click();
-											} else if (e.startsWith('http')) {
-												window.open(e, '_blank', 'noopener,noreferrer');
+											if (match) {
+												citationSelectedCitation = match;
+												citationShowModal = true;
+											} else if (sourceId.startsWith('http')) {
+												window.open(sourceId, '_blank', 'noopener,noreferrer');
 											}
 										}}
 										onAddMessages={({ modelId, parentId, messages }) => {
@@ -787,7 +800,11 @@
 								{/if}
 
 								{#if (message?.sources || message?.citations) && (model?.info?.meta?.capabilities?.citations ?? true)}
-									<Citations sources={message?.sources ?? message?.citations} />
+									<Citations
+										sources={message?.sources ?? message?.citations}
+										bind:showCitationModal={citationShowModal}
+										bind:selectedCitation={citationSelectedCitation}
+									/>
 								{/if}
 
 								{#if message.code_executions}
