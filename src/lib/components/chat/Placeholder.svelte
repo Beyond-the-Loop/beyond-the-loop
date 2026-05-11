@@ -234,7 +234,7 @@
 						{#if showPiiPanel && piiCount > 0}
 							<button
 								type="button"
-								class="flex space-x-[5px] items-center text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline transition"
+								class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
 								aria-label={$i18n.t('Privacy panel')}
 								on:click={() => {
 								if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
