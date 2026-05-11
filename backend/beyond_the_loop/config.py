@@ -518,6 +518,12 @@ OAUTH_ADMIN_ROLES = PersistentConfig(
     [role.strip() for role in os.environ.get("OAUTH_ADMIN_ROLES", "admin").split(",")],
 )
 
+DEFAULT_USER_ROLE = PersistentConfig(
+    "DEFAULT_USER_ROLE",
+    "ui.default_user_role",
+    os.getenv("DEFAULT_USER_ROLE", "user"),
+)
+
 OAUTH_ALLOWED_DOMAINS = PersistentConfig(
     "OAUTH_ALLOWED_DOMAINS",
     "oauth.allowed_domains",
