@@ -272,14 +272,6 @@ app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 #
 ########################################
 
-
-app.state.config.FILE_MAX_SIZE = (
-    int(os.getenv("RAG_FILE_MAX_SIZE")) if os.getenv("RAG_FILE_MAX_SIZE") else None
-)
-app.state.config.FILE_MAX_COUNT = (
-    int(os.getenv("RAG_FILE_MAX_COUNT")) if os.getenv("RAG_FILE_MAX_COUNT") else None
-)
-
 app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = ENABLE_GOOGLE_DRIVE_INTEGRATION
 
 app.state.EMBEDDING_FUNCTION = get_embedding_function(
@@ -793,10 +785,6 @@ async def get_app_config(request: Request):
                     "tts": {
                         "voice": app.state.config.TTS_VOICE,
                     }
-                },
-                "file": {
-                    "max_size": app.state.config.FILE_MAX_SIZE,
-                    "max_count": app.state.config.FILE_MAX_COUNT,
                 },
                 "google_drive": {
                     "client_id": GOOGLE_DRIVE_CLIENT_ID.value,
