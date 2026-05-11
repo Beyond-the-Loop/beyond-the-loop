@@ -675,6 +675,18 @@ async def generate_chat_completion(
                                         log_all_until_completed = False
                                         resp = data.get("response", {})
                                         for output in resp.get("output") or []:
+                                            action = output.get("action")
+                                            if action:
+                                                queries_used = action.get("queries")
+                                                if queries_used:
+                                                    chat_chunk = {
+                                                        "id": response_id,
+                                                        "object": "chat.completion.chunk",
+                                                        "created": int(time.time()),
+                                                        "model": model_name,
+                                                        "choices": [{"index": 0, "delta": {"openai_queries_used": queries_used}, "finish_reason": None}],
+                                                    }
+                                                    yield f"data: {json.dumps(chat_chunk)}\n\n".encode()
                                             url_annotations = (output.get("content") or [{}])[0].get("annotations")
                                             if url_annotations:
                                                 chat_chunk = {

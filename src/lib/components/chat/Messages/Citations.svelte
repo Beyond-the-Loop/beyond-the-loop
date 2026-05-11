@@ -55,13 +55,16 @@
 				// Within the same citation there could be multiple documents
 				const id = metadata?.source ?? 'N/A';
 				let _source = source?.source;
-				console.log(_source.name);
 
 				// if (metadata?.name) {
 				// 	_source = { ..._source, name: metadata.name };
 				// }
 				if (metadata?.domain) {
 					_source = { ..._source, domain: metadata.domain };
+				}
+				if (metadata?.used_queries) {
+					_source = { ..._source, used_queries: metadata.used_queries };
+
 				}
 
 				// if (id.startsWith('http://') || id.startsWith('https://')) {
@@ -100,8 +103,8 @@
 />
 
 {#if citations.length > 0}
-	<Collapsible bind:open={isCollapsibleOpen} className="mt-2 relative w-full text-sm px-2 py-1 rounded-xl {isCollapsibleOpen ? 'bg-lightGray-200': ''}">
-		<div class="w-fit rounded-full px-4 py-1 text-lightGray-100 hover:bg-lightGray-200 flex gap-1 items-center {isCollapsibleOpen ? 'bg-lightGray-200': ''} ml-auto absolute right-0 top-2">
+	<Collapsible bind:open={isCollapsibleOpen} className="mt-2 relative w-full text-sm px-2 rounded-xl {isCollapsibleOpen ? 'bg-lightGray-200 pt-1 pb-3': ''} transition-colors duration-200">
+		<div class="w-fit rounded-full px-4 py-1 text-lightGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 top-2': 'hover:bg-lightGray-200 top-0'} ml-auto absolute right-0 ">
 			<div class="flex -space-x-2">
 				{#each citations.slice(0, 3) as citation, idx}
 					{#if citation.source.domain}
@@ -116,43 +119,35 @@
 			</div>
 			
 			{citations.length} Quellen
-			{#if isCollapsibleOpen}
-				<ChevronUp strokeWidth="2" className="size-3"/>
-			{:else}
-				<ChevronDown strokeWidth="2" className="size-3"/>
-			{/if}
+			  <div style="transform: rotate({isCollapsibleOpen ? 180 : 0}deg); transition: transform 0.2s ease">
+					<ChevronDown strokeWidth="2" className="size-3"/>
+				</div>
 		</div>
 		<div slot="content">
-		<div class="flex flex-row items-center gap-2 px-1 py-2 overflow-x-hidden max-w-[80%] truncate">
-			<div class = "text-xs font-medium text-gray-600">
-				Gesucht nach
-			</div>
-			<div class="flex flex-row items-center w-fit px-3 py-1 rounded-full text-xs">
-				<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
-				<div class="ml-1">
-				"goldpreis aktuell mai 2026"
+		<div class="flex flex-row items-center gap-2 px-1 py-2 text-xs ">
+			{#if citations[0].source.used_queries}
+				<div class = "font-medium text-gray-600">
+					Gesucht nach
 				</div>
-				
-			</div>
-			<div class="flex flex-row items-center w-fit px-3 py-1 gap-1 rounded-full text-xs">
-				<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
-				<div class="ml-1">
-				"gold kaufen euro pro gramm"
+				<div class="max-w-[75%] overflow-x-scroll no-scrollbar" style="-ms-overflow-style: none !important; scrollbar-width: none !important;">
+					<div class="flex flex-row">
+						{#each citations[0].source.used_queries as query}
+							<div class="shrink-0 flex flex-row flex-nowrap items-center w-fit px-3 py-1">
+								<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
+								<div class="ml-1">
+								"{query}"
+								</div>
+							</div>
+						{/each}
+					</div>
 				</div>
-				
-			</div>
-			<div class="flex flex-row items-center w-fit px-3 py-1 gap-1 rounded-full text-xs">
-				<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
-				<div class="ml-1">
-				"goldpreis prognose entwicklung"
-				</div>
-				
-			</div>
+			{/if}
+			
 		</div>
 			<div class="text-xs font-medium">
 				{#each citations as citation, idx}
 					<button
-						class="flex gap-2 items-center text-lightGray-100 dark:text-customGray-100 p-2 transition rounded-xl max-w-100"
+						class="flex gap-2 w-full items-center text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-300 p-2 transition rounded-xl max-w-100"
 						on:click={() => {
 							if (citation.source?.url) {
 								window.open(citation.source.url, '_blank', 'noopener,noreferrer');

@@ -16,6 +16,18 @@ class InlineCitation():
     source_indices: List[int]
     utf_8_index: Optional[bool] = False
 
+def get_used_search_queries(delta, data):
+    vertex_meta = data.get("vertex_ai_grounding_metadata")
+    openai_queries_used = delta.get("openai_queries_used", {})
+    if vertex_meta:
+        return _gemini_search_queries(vertex_meta)
+    if openai_queries_used:
+        return openai_queries_used or []
+    return []
+    
+def _gemini_search_queries(vertex_meta):
+    search_queries = vertex_meta[0].get("webSearchQueries") or []
+    return search_queries
 
 def get_web_search_results(delta, data): 
     provider_specific_fields = delta.get("provider_specific_fields", {})

@@ -11,7 +11,7 @@ import html
 import base64
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from open_webui.utils.web_search_parser import get_inline_citations, get_web_search_results, inject_citations_into_content
+from open_webui.utils.web_search_parser import get_inline_citations, get_used_search_queries, get_web_search_results, inject_citations_into_content
 from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
@@ -1424,6 +1424,7 @@ async def process_chat_response(
             ]
             anonymized_content_snapshot = ""
             response_images = []
+            used_search_queries = []
 
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
@@ -1469,6 +1470,7 @@ async def process_chat_response(
                     nonlocal content_blocks
                     nonlocal response_images
                     nonlocal anonymized_content_snapshot
+                    nonlocal used_search_queries
 
                     generating_response = True
 
@@ -1591,7 +1593,6 @@ async def process_chat_response(
                                         image_base64 = delta_image['image_url']["url"]
 
                                         response_images.append({"type": "image", "url": image_base64})
-
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
@@ -1613,6 +1614,7 @@ async def process_chat_response(
                                                     "query": query,
                                                 },
                                             })
+                                            used_search_queries.append(query)
                                             if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event 
                                                 content_blocks.append(
                                                         {
@@ -1665,6 +1667,8 @@ async def process_chat_response(
                                         )),
                                         "type": "reasoning",
                                     }
+                                if used_search_queries == []:
+                                    used_search_queries = get_used_search_queries(delta, data)
 
                                 web_search_results = get_web_search_results(delta, data)
                                 for search_result in web_search_results:
@@ -1674,7 +1678,7 @@ async def process_chat_response(
                                             "type": "web_search",
                                             "source": {"name": search_result.title, "url": search_result.url},
                                             "document": [search_result.url],
-                                            "metadata": [{"source": search_result.url, "domain": search_result.domain}],
+                                            "metadata": [{"source": search_result.url, "domain": search_result.domain, "used_queries": used_search_queries}],
                                             "distances": [0],
                                     })
                                 if web_search_results:
