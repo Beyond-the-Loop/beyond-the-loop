@@ -130,29 +130,39 @@ def _gemini_inline_citations(vertex_meta):
         
     
 
-def inject_citations_into_content(inline_citation, content_blocks, delta):
+def inject_citations_into_content(inline_citation, content_blocks, delta, 
+                                  pii_session=None, anonymized_text: str = "",):
     if inline_citation.position == -1:
         marker = " [" + ", ".join(str(i) for i in inline_citation.source_indices) + "] "
         delta["content"] = str(marker)
         return content_blocks, delta
+
     last_text_block = next(
-            (b for b in reversed(content_blocks) if b.get("type") == "text"),
-            None,
-        )
+        (b for b in reversed(content_blocks) if b.get("type") == "text"),
+        None,
+    )
     if last_text_block is not None:
         text_stream = last_text_block["content"]
         marker = " [" + ", ".join(str(i) for i in inline_citation.source_indices) + "] "
+
+        position = inline_citation.position
+
+        if pii_session is not None and anonymized_text:
+            position = pii_session.calculate_shifted_index(
+                anonymized_text=anonymized_text,
+                anon_end_index=position,
+                utf8=bool(inline_citation.utf_8_index),
+            )
         if inline_citation.utf_8_index:
             text_stream = text_stream.encode("utf-8")
             marker = marker.encode("utf-8")
         text_stream = (
-            text_stream[:inline_citation.position]
+            text_stream[:position]
             + marker
-            + text_stream[inline_citation.position:]
+            + text_stream[position:]
         )
         if inline_citation.utf_8_index:
             text_stream = text_stream.decode("utf-8", errors="replace")
-
         last_text_block["content"] = text_stream
 
     return content_blocks, delta

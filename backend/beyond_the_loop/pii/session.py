@@ -297,7 +297,37 @@ class PIISession:
         self.forward[original] = placeholder
         self.reverse[placeholder] = original
         return placeholder
+    def calculate_shifted_index(
+        self,
+        anonymized_text: str,
+        anon_end_index: int,
+        utf8: bool = False,
+    ) -> int:
+        if not self.forward or not anonymized_text:
+            return anon_end_index
 
+        if utf8:
+            work = anonymized_text.encode("utf-8")
+            enc = lambda s: s.encode("utf-8")
+        else:
+            work = anonymized_text
+            enc = lambda s: s
+
+        shift = 0
+        for original, placeholder in self.forward.items():
+            orig_enc = enc(original)
+            ph_enc   = enc(placeholder)
+            delta = len(orig_enc) - len(ph_enc)
+            if delta == 0:
+                continue
+            search_from = 0
+            while True:
+                idx = work.find(ph_enc, search_from)
+                if idx == -1 or idx >= anon_end_index:
+                    break
+                shift += delta
+                search_from = idx + len(ph_enc)
+        return anon_end_index + shift
 
 def anonymize_messages(
     messages: List[dict],

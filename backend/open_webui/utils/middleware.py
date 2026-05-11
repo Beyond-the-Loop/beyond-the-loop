@@ -1018,6 +1018,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
         try:
             pii_session.save()
+            metadata["pii_session"] = pii_session
             if event_emitter:
                 await event_emitter(
                     {
@@ -1421,6 +1422,7 @@ async def process_chat_response(
                     "content": content,
                 }
             ]
+            anonymized_content_snapshot = ""
             response_images = []
 
             sources = None  # Store sources from the LLMs ("citations") at this scope
@@ -1466,6 +1468,7 @@ async def process_chat_response(
                     nonlocal content
                     nonlocal content_blocks
                     nonlocal response_images
+                    nonlocal anonymized_content_snapshot
 
                     generating_response = True
 
@@ -1691,7 +1694,13 @@ async def process_chat_response(
 
                                 inline_citations = get_inline_citations(delta, data, sources)
                                 for inline_citation in inline_citations:
-                                    content_blocks, delta = inject_citations_into_content(inline_citation, content_blocks, delta)
+                                    content_blocks, delta = inject_citations_into_content(
+                                        inline_citation,
+                                        content_blocks,
+                                        delta,
+                                        pii_session=metadata.get("pii_session"),
+                                        anonymized_text=anonymized_content_snapshot
+                                    )
                                 if inline_citations:
                                     last_text_block = next(
                                         (b for b in reversed(content_blocks) if b.get("type") == "text"),
@@ -1713,7 +1722,8 @@ async def process_chat_response(
                                     )
 
                                 value = delta.get("content")
-
+                                if value:
+                                    anonymized_content_snapshot += value
                                 if value and pii_deanonymizer is not None:
                                     value = pii_deanonymizer.feed(value)
 
