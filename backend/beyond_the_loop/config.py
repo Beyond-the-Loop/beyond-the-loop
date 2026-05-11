@@ -140,7 +140,6 @@ DEFAULT_CONFIG = {
         "embedding_engine": "openai",
         "embedding_model": "text-embedding-3-small",
         "embedding_batch_size": 2048,
-        "file": {"max_size": None, "max_count": None},
     },
     "google_drive": {"enable": False},
     "audio": {

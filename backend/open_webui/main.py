@@ -271,14 +271,6 @@ app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 #
 ########################################
 
-
-app.state.config.FILE_MAX_SIZE = (
-    int(os.getenv("RAG_FILE_MAX_SIZE")) if os.getenv("RAG_FILE_MAX_SIZE") else None
-)
-app.state.config.FILE_MAX_COUNT = (
-    int(os.getenv("RAG_FILE_MAX_COUNT")) if os.getenv("RAG_FILE_MAX_COUNT") else None
-)
-
 app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = ENABLE_GOOGLE_DRIVE_INTEGRATION
 
 app.state.EMBEDDING_FUNCTION = get_embedding_function(
