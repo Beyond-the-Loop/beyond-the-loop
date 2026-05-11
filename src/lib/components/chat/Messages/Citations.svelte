@@ -73,6 +73,7 @@
 				} else {
 					acc.push({
 						id: id,
+						type: source.type,
 						source: _source,
 						document: [document],
 						metadata: metadata ? [metadata] : [],
@@ -137,7 +138,7 @@
 			{/if}
 			
 		</div>
-			<div class="text-xs font-medium">
+			<div class="text-xs font-medium overflow-x-hidden">
 				{#each citations as citation, idx}
 					<button
 						class="flex gap-2 w-full items-center text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-300 p-2 transition rounded-xl max-w-100"
@@ -152,7 +153,7 @@
 						}}
 					>
 						{#if citations.every((c) => c.distances !== undefined)}
-							<div class="text-gray-600 size-4 mr-2">
+							<div class="text-gray-600 size-4 mr-2 flex-shrink-0">
 								{idx + 1}
 							</div>
 						{/if}
