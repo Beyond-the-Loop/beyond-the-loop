@@ -238,8 +238,47 @@ def get_sources_from_google_rag(files, queries):
         log.info("Google RAG skipped: no scoped rag_file_ids found")
         return []
 
+    name_by_gcs_uri = _build_name_by_gcs_uri(files)
+
     client = get_google_rag_client()
-    return client.retrieve_sources(queries=queries, rag_file_ids=rag_file_ids)
+    sources = client.retrieve_sources(queries=queries, rag_file_ids=rag_file_ids)
+
+    for source in sources:
+        metadata_list = source.get("metadata") or []
+        source_uri = metadata_list[0].get("source_uri") if metadata_list else None
+        original_name = name_by_gcs_uri.get(source_uri) if source_uri else None
+        if original_name:
+            source["source"]["name"] = original_name
+            for meta in metadata_list:
+                meta["source"] = original_name
+
+    return sources
+
+
+def _build_name_by_gcs_uri(files) -> dict:
+    mapping = {}
+
+    for file in files:
+        meta = file.get("meta") or {}
+        rag_gcs_uri = meta.get("rag_gcs_uri")
+        original_name = meta.get("name") or file.get("name")
+
+        if not rag_gcs_uri or not original_name:
+            file_id = _extract_db_file_id(file)
+            file_record = Files.get_file_by_id(file_id) if file_id else None
+            if file_record:
+                file_meta = file_record.meta or {}
+                rag_gcs_uri = rag_gcs_uri or file_meta.get("rag_gcs_uri")
+                original_name = (
+                    original_name
+                    or file_meta.get("name")
+                    or file_record.filename
+                )
+
+        if rag_gcs_uri and original_name:
+            mapping[rag_gcs_uri] = original_name
+
+    return mapping
 
 
 def delete_google_rag_file_from_meta(meta: dict | None) -> None:
