@@ -41,8 +41,8 @@
 />
 
 {#if normalized.length > 0}
-	<Collapsible bind:open={isCollapsibleOpen} className="relative w-full text-sm px-3 rounded-xl pt-2 {isCollapsibleOpen ? 'bg-lightGray-200': ''} transition-colors duration-200">
-		<div class="w-fit rounded-full px-4 py-[3px] text-lightGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 border-lightGray-200': 'bg-lightGray-300 border-lightGray-300 hover:bg-lightGray-200 hover:border-lightGray-200'} top-2 absolute right-0 z-10">
+	<Collapsible bind:open={isCollapsibleOpen} className="relative w-full text-sm px-3 rounded-xl pt-2 {isCollapsibleOpen ? 'bg-lightGray-200 dark:bg-customGray-900': ''} transition-colors duration-200">
+		<div class="w-fit rounded-full px-4 py-[3px] text-lightGray-100 dark:text-customGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 dark:bg-customGray-800 border-lightGray-200 dark:border-customGray-800': 'bg-lightGray-300 border-lightGray-300 dark:bg-customGray-900 dark:border-customGray-900 hover:bg-lightGray-200 hover:border-lightGray-200 dark:hover:bg-customGray-800 dark:hover:border-customGray-800'} top-2 absolute right-0 z-10">
 			<div class="flex -space-x-2 bg-inherit border-inherit">
 				{#each normalized.slice(0, 3) as source}
 					{#if source.type === 'web_search'}
@@ -65,7 +65,7 @@
 		<div slot="content" class="pb-3">
 			{#if usedQueries.length > 0}
 				<div class="flex flex-row items-center gap-2 px-1 py-[3px] text-xs">
-					<div class="font-medium text-gray-600">
+					<div class="font-medium text-gray-600 dark:text-gray-500">
 						{$i18n.t('Searched for')}
 					</div>
 					<div class="max-w-[75%] overflow-x-scroll no-scrollbar" style="-ms-overflow-style: none !important; scrollbar-width: none !important;">
@@ -84,7 +84,7 @@
 			<div class="text-xs font-medium overflow-x-hidden">
 				{#each normalized as source, idx}
 					<button
-						class="flex gap-2 w-full items-center text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-300 p-2 transition rounded-xl max-w-100"
+						class="flex gap-2 w-full items-center text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-300 dark:hover:bg-gray-800 p-2 transition rounded-xl max-w-100"
 						on:click={() => {
 							if (source.type === 'web_search') {
 								window.open(source.url, '_blank', 'noopener,noreferrer');
@@ -106,7 +106,7 @@
 							/>
 							<div class="flex flex-col items-start">
 								<div class="text-sm line-clamp-1 truncate">{source.title}</div>
-								<div class="text-xs text-gray-600 line-clamp-1 truncate max-w-[720px]">{source.domain}</div>
+								<div class="text-xs text-gray-600 dark:text-gray-500 line-clamp-1 truncate max-w-[720px]">{source.domain}</div>
 							</div>
 						{:else}
 							<div class="line-clamp-1 truncate">{source.name}</div>

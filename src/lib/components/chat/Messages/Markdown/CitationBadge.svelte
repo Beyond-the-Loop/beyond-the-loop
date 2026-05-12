@@ -58,7 +58,7 @@
 					href={source.url}
 					target="_blank"
 					rel="nofollow"
-					class="flex rounded-lg flex-col gap-0.5 p-2.5 px-4 hover:bg-lightGray-400 dark:hover:bg-gray-800 transition-colors !no-underline"
+					class="flex rounded-lg flex-col gap-0.5 p-2.5 px-4 hover:bg-lightGray-400 dark:hover:bg-gray-700 transition-colors !no-underline"
 				>
 					<span class="text-sm font-medium text-lightGray-100 dark:text-gray-100 line-clamp-2">
 						{@html DOMPurify.sanitize(source.title)}
