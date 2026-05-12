@@ -51,7 +51,7 @@ def _claude_web_search_results(web_search_results):
                 if result.get("type") == "web_search_result":
                     url = result.get("url", "")
                     title = result.get("title") or url
-                    domain = urlparse(url).netloc.removeprefix("www.")
+                    domain = getDomain(url)
                     web_search_result_list.append(WebSearchResult(url, domain, title))
     return web_search_result_list
 
@@ -75,7 +75,7 @@ def _openai_web_search_results(url_citations):
     for url_citation in url_citations:
         title = url_citation.get("title")
         url = url_citation.get("url")
-        domain = urlparse(url).netloc.removeprefix("www.")
+        domain = getDomain(url)
         web_search_result_list.append(WebSearchResult(url, domain, title))
     return(web_search_result_list)
 
@@ -178,3 +178,6 @@ def inject_citations_into_content(inline_citation, content_blocks, delta,
         last_text_block["content"] = text_stream
 
     return content_blocks, delta
+
+def getDomain(url: str):
+    return urlparse(url).netloc.removeprefix("www.")

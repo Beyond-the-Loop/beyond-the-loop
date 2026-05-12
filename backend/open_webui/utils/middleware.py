@@ -11,7 +11,7 @@ import html
 import base64
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from open_webui.utils.web_search_parser import get_inline_citations, get_used_search_queries, get_web_search_results, inject_citations_into_content
+from open_webui.utils.web_search_parser import get_inline_citations, get_used_search_queries, get_web_search_results, inject_citations_into_content, getDomain
 from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
@@ -1521,17 +1521,18 @@ async def process_chat_response(
 
                                 generating_response = False
 
-                            if "citations" in data:
+                            if "search_results" in data:
                                 nonlocal sources
-                                sources = list(map(
-                                    lambda citationUrl: {
-                                        "source": {"name": citationUrl},
-                                        "document": [citationUrl],
-                                        "metadata": [{"source": citationUrl}],
-                                        "distances": [0],
-                                    },
-                                    data["citations"]
-                                ))
+                                perplexity_sources = []
+                                for search_result in data.get("search_results") or []:
+                                    perplexity_sources.append({
+                                        "type": "web_search",
+                                        "source": {"name": search_result.get("title"), "url": search_result.get("url")},
+                                        "document": [search_result.get("url")],
+                                        "metadata": [{"source": search_result.get("url"), "domain": getDomain(search_result.get("url"))}],
+                                        "distances":[0], 
+                                    })
+                                sources = perplexity_sources
 
                             if "status_event" in data:
                                 await event_emitter(

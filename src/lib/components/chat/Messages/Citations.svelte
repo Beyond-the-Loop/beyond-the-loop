@@ -3,7 +3,6 @@
 	import CitationsModal from './CitationsModal.svelte';
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import ChevronUp from '$lib/components/icons/ChevronUp.svelte';
 	import MagnifyingGlass from '$lib/components/icons/MagnifyingGlass.svelte';
 
 	const i18n = getContext('i18n');
@@ -97,14 +96,14 @@
 />
 
 {#if citations.length > 0}
-	<Collapsible bind:open={isCollapsibleOpen} className="relative w-full text-sm px-2 rounded-xl {isCollapsibleOpen ? 'bg-lightGray-200 pt-1 pb-3 mt-2': ''} transition-colors duration-200">
-		<div class="w-fit rounded-full px-4 py-[3px] text-lightGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 top-2': 'hover:bg-lightGray-200 top-0'} ml-auto absolute right-0 z-10">
-			<div class="flex -space-x-2">
+	<Collapsible bind:open={isCollapsibleOpen} className="relative w-full text-sm px-3 rounded-xl pt-2 {isCollapsibleOpen ? 'bg-lightGray-200': ''} transition-colors duration-200">
+		<div class="w-fit rounded-full px-4 py-[3px] text-lightGray-100 flex gap-1 items-center transition-all duration-200 ease {isCollapsibleOpen ? 'bg-lightGray-200 border-lightGray-200': 'bg-lightGray-300 border-lightGray-300 hover:bg-lightGray-200 hover:border-lightGray-200'} top-2 absolute right-0 z-10">
+			<div class="flex -space-x-2 bg-inherit border-inherit">
 				{#each citations.slice(0, 3) as citation, idx}
 					{#if citation.source.domain}
 						<img
 							src={`https://www.google.com/s2/favicons?domain=${citation.source.domain}&sz=32`}
-							class="rounded-full size-4 border border-lightGray-300 border-2 flex-shrink-0"
+							class="rounded-full size-4 bg-inherit border border-2 border-inherit flex-shrink-0"
 							alt=""
 							on:error={(e) => (e.currentTarget.style.display = 'none')}
 						/>
@@ -117,27 +116,29 @@
 					<ChevronDown strokeWidth="2" className="size-3"/>
 				</div>
 		</div>
-		<div slot="content">
-		<div class="flex flex-row items-center gap-2 px-1 py-2 text-xs ">
-			{#if citations[0].source.used_queries}
-				<div class = "font-medium text-gray-600">
-					{$i18n.t('Searched for')}
-				</div>
-				<div class="max-w-[75%] overflow-x-scroll no-scrollbar" style="-ms-overflow-style: none !important; scrollbar-width: none !important;">
-					<div class="flex flex-row">
-						{#each citations[0].source.used_queries as query}
-							<div class="shrink-0 flex flex-row flex-nowrap items-center px-3 py-1">
-								<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
-								<div class="ml-1">
-								"{query}"
-								</div>
-							</div>
-						{/each}
+		<div slot="content" class="pb-3">
+		{#if citations[0].source.used_queries}
+			<div class="flex flex-row items-center gap-2 px-1 py-[3px] text-xs ">
+				
+					<div class = "font-medium text-gray-600">
+						{$i18n.t('Searched for')}
 					</div>
-				</div>
-			{/if}
-			
-		</div>
+					<div class="max-w-[75%] overflow-x-scroll no-scrollbar" style="-ms-overflow-style: none !important; scrollbar-width: none !important;">
+						<div class="flex flex-row">
+							{#each citations[0].source.used_queries as query}
+								<div class="shrink-0 flex flex-row flex-nowrap items-center px-3 py-1">
+									<MagnifyingGlass className="size-3" strokeWidth="1.5"/>
+									<div class="ml-1">
+									"{query}"
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				
+				
+			</div>
+		{/if}
 			<div class="text-xs font-medium overflow-x-hidden">
 				{#each citations as citation, idx}
 					<button
@@ -166,7 +167,6 @@
 							/>
 							<div class="flex flex-col items-start">
 								<div class="text-sm line-clamp-1 truncate">
-									<!-- {citation.source.domain} -->
 									 {citation.source.name}
 								</div>
 								<div class="text-xs text-gray-600 line-clamp-1 truncate max-w-[720px]">
