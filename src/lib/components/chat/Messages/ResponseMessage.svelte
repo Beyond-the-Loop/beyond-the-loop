@@ -50,6 +50,7 @@
 	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import CustomChatError from './CustomChatError.svelte';
+	import { normalizeSources } from '$lib/utils/sources';
 
 
 	interface MessageType {
@@ -749,17 +750,10 @@
 										save={!readOnly}
 										{model}
 										onSourceClick={(sourceId) => {
-											const allSources = message?.sources ?? message?.citations ?? [];
-											const match = allSources.flatMap((s) =>
-												(s.document ?? []).map((doc, i) => ({
-													id: s.metadata?.[i]?.source ?? 'N/A',
-													source: s.source,
-													document: [doc],
-													metadata: s.metadata?.[i] ? [s.metadata[i]] : [],
-													distances: s.distances?.[i] !== undefined ? [s.distances[i]] : undefined
-												}))
-											).find((c) => c.id === sourceId);
-
+											const normalized = normalizeSources(message?.sources ?? []);
+											const match = normalized.find(
+												(s) => s.type === 'rag' && (s.file_id === sourceId || s.name === sourceId)
+											);
 											if (match) {
 												citationSelectedCitation = match;
 												citationShowModal = true;
@@ -799,9 +793,9 @@
 										<Error content={message?.error?.content ?? message.content} />
 								{/if}
 
-								{#if (message?.sources || message?.citations) && (model?.info?.meta?.capabilities?.citations ?? true)}
+								{#if message?.sources && (model?.info?.meta?.capabilities?.citations ?? true)}
 									<Citations
-										sources={message?.sources ?? message?.citations}
+										sources={message.sources}
 										bind:showCitationModal={citationShowModal}
 										bind:selectedCitation={citationSelectedCitation}
 									/>

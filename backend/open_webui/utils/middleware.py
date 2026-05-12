@@ -918,15 +918,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if len(sources) > 0 and is_rag_task:
         context_string = ""
         for source_idx, source in enumerate(sources):
-            source_id = source.get("source", {}).get("name", "")
+            source_id = source.get("name", "")
 
-            if "document" in source:
-                for doc_idx, doc_context in enumerate(source["document"]):
-                    doc_metadata = source.get("metadata")
-                    doc_source_id = None
-
-                    if doc_metadata:
-                        doc_source_id = doc_metadata[doc_idx].get("source", source_id)
+            if "snippets" in source:
+                for doc_idx, doc_context in enumerate(source["snippets"]):
+                    doc_source_id = source.get("file_id") or source_id 
 
                     # Same session as the user-message anonymization — same
                     # name in prompt and retrieved doc → same placeholder.
@@ -983,7 +979,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
     # If there are citations, add them to the data_items
-    sources = [source for source in sources if source.get("source", {}).get("name", "")]
+    sources = [source for source in sources if source.get("name") or source.get("title") or source.get("file_id") or source.get("url")]
 
     if len(sources) > 0:
         events.append({"sources": sources})
@@ -1520,17 +1516,16 @@ async def process_chat_response(
                                 )
 
                                 generating_response = False
-
-                            if "search_results" in data:
-                                nonlocal sources
+                            nonlocal sources
+                            if "search_results" in data and sources is None or sources is [] :
                                 perplexity_sources = []
                                 for search_result in data.get("search_results") or []:
                                     perplexity_sources.append({
                                         "type": "web_search",
-                                        "source": {"name": search_result.get("title"), "url": search_result.get("url")},
-                                        "document": [search_result.get("url")],
-                                        "metadata": [{"source": search_result.get("url"), "domain": getDomain(search_result.get("url"))}],
-                                        "distances":[0], 
+                                        "title": search_result.get("title"),
+                                        "url": search_result.get("url"),
+                                        "domain": getDomain(search_result.get("url")),
+                                        "snippet": "",
                                     })
                                 sources = perplexity_sources
 
@@ -1677,10 +1672,11 @@ async def process_chat_response(
                                         sources = []
                                     sources.append({
                                             "type": "web_search",
-                                            "source": {"name": search_result.title, "url": search_result.url},
-                                            "document": [search_result.url],
-                                            "metadata": [{"source": search_result.url, "domain": search_result.domain, "used_queries": used_search_queries}],
-                                            "distances": [0],
+                                            "title": search_result.title,
+                                            "url": search_result.url,
+                                            "domain": search_result.domain,
+                                            "snippet": "",
+                                            "queries": used_search_queries,
                                     })
                                 if web_search_results:
                                     await event_emitter({

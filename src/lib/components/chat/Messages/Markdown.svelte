@@ -4,6 +4,7 @@
 	import { user } from '$lib/stores';
 	import { setContext } from 'svelte';
 	import { writable } from 'svelte/store';
+	import { normalizeSources } from '$lib/utils/sources';
 
 	import markedExtension from '$lib/utils/marked/extension';
 	import markedKatexExtension from '$lib/utils/marked/katex-extension';
@@ -28,25 +29,23 @@
 		throwOnError: false
 	};
 
-	const sourcesStore = writable(sources);
+	const sourcesStore = writable(sources ? normalizeSources(sources) : null);
 	setContext('web-search-sources', sourcesStore);
-	$: sourcesStore.set(sources);
+	$: sourcesStore.set(sources ? normalizeSources(sources) : null);
 
 	function linkifyCitations(content, sources) {
 		if (!content || !sources || sources.length === 0) return content;
 
-		const citationRegex = /\[(\d+(?:,\s*\d+)*)\]/g;
-
-		return content.replace(citationRegex, (match, indicesStr) => {
-			const indices = indicesStr.split(',').map((s) => parseInt(s.trim(), 10));
+		// Match one or more adjacent citation markers on the same line: [2] [3] [4]
+		return content.replace(/\[(\d+)\](?:[ \t]*\[(\d+)\])*/g, (match) => {
+			const indices = [...match.matchAll(/\d+/g)].map((m) => parseInt(m[0], 10));
 			const firstIdx = indices[0] - 1;
 			if (!sources[firstIdx]) return match;
 
 			if (sources[firstIdx].type === 'web_search') {
 				return `<cite data-idx="${indices.join(',')}"></cite>`;
 			} else {
-				// RAG and legacy sources: keep existing number-badge behaviour
-				return ` [${match}](${sources[firstIdx].metadata[0].source} "${sources[firstIdx].source.name}")`;
+				return ` [${match}](${sources[firstIdx].file_id} "${sources[firstIdx].name}")`;
 			}
 		});
 	}

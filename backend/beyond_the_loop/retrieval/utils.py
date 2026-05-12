@@ -368,17 +368,23 @@ def get_sources_from_files(
 
     for context in relevant_contexts:
         try:
-            if "documents" in context:
-                if "metadatas" in context:
-                    source = {
-                        "type": "rag",
-                        "source": context["file"],
-                        "document": context["documents"][0],
-                        "metadata": context["metadatas"][0],
-                    }
-                    if "distances" in context and context["distances"]:
-                        source["distances"] = context["distances"][0]
-                    sources.append(source)
+            if "documents" in context and "metadatas" in context:
+                file = context["file"]
+                file_id = file.get("id", "")
+                name = (
+                    file.get("name")
+                    or file.get("filename")
+                    or file.get("meta", {}).get("name")
+                    or file_id
+                )
+                source = {
+                    "type": "rag",
+                    "name": name,
+                    "file_id": file_id,
+                    "snippets": context["documents"][0],
+                    "scores": context["distances"][0] if context.get("distances") else [],
+                }
+                sources.append(source)
         except Exception as e:
             log.exception(e)
 

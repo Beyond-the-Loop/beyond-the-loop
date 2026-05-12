@@ -5,6 +5,7 @@
 
 	import Markdown from './Markdown.svelte';
 	import { chatId, mobile, showArtifacts, showControls, showOverview } from '$lib/stores';
+	import { getSourceIds } from '$lib/utils/sources';
 	import FloatingButtons from '../ContentRenderer/FloatingButtons.svelte';
 	import { createMessagesList } from '$lib/utils';
 
@@ -116,31 +117,7 @@
 		{model}
 		{save}
 		{sources}
-		sourceIds={(sources ?? []).reduce((acc, s) => {
-			let ids = [];
-			s.document.forEach((document, index) => {
-				const metadata = s.metadata?.[index];
-				const id = metadata?.source ?? 'N/A';
-
-				if (metadata?.name) {
-					ids.push(metadata.name);
-					return ids;
-				}
-
-				if (id.startsWith('http://') || id.startsWith('https://')) {
-					ids.push(id);
-				} else {
-					ids.push(s?.source?.name ?? id);
-				}
-
-				return ids;
-			});
-
-			acc = [...acc, ...ids];
-
-			// remove duplicates
-			return acc.filter((item, index) => acc.indexOf(item) === index);
-		}, [])}
+		sourceIds={getSourceIds(sources ?? [])}
 		{onSourceClick}
 		on:update={(e) => {
 			dispatch('update', e.detail);

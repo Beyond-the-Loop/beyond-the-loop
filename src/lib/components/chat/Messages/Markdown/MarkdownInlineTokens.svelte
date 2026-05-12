@@ -38,9 +38,9 @@
 				{#if citeSources.length}
 					<CitationBadge
 						sources={citeSources.map((s) => ({
-							domain: s.metadata?.[0]?.domain || s.source?.name || '?',
-							title: s.source?.name || '',
-							url: s.source?.url || s.metadata?.[0]?.source || ''
+							domain: s.domain,
+							title: s.title,
+							url: s.url
 						}))}
 					/>
 				{/if}

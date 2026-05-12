@@ -99,7 +99,7 @@ def _claude_inline_citations(provider_specific_fields, sources):
     if citation and citation.get("type") == "web_search_result_location":                                                                       
         url = citation.get("url")
         for i, source in enumerate(sources):
-            if url == source.get("metadata")[0]['source']:
+            if url == source.get("url"):
                 chunk_index = i
         return([InlineCitation(position=-1, source_indices=[chunk_index+1])])   
     return []
@@ -116,7 +116,7 @@ def _openai_inline_citations(url_citations, sources):
         url = url_citation.get("url")
         chunk_index = -1
         for i, source in enumerate(sources):
-            if url == source.get("metadata")[0]['source']:
+            if url == source.get("url"):
                 chunk_index = i
         inline_citations.append(InlineCitation(position=position, source_indices={chunk_index + 1}))
     
@@ -145,7 +145,7 @@ def _gemini_inline_citations(vertex_meta):
 def inject_citations_into_content(inline_citation, content_blocks, delta, 
                                   pii_session=None, anonymized_text: str = "",):
     if inline_citation.position == -1:
-        marker = " [" + ", ".join(str(i) for i in inline_citation.source_indices) + "] "
+        marker = " " + " ".join(f"[{i}]" for i in inline_citation.source_indices) + " "
         delta["content"] = str(marker)
         return content_blocks, delta
 
@@ -155,7 +155,7 @@ def inject_citations_into_content(inline_citation, content_blocks, delta,
     )
     if last_text_block is not None:
         text_stream = last_text_block["content"]
-        marker = " [" + ", ".join(str(i) for i in inline_citation.source_indices) + "] "
+        marker = " " + " ".join(f"[{i}]" for i in inline_citation.source_indices) + " "
 
         position = inline_citation.position
 

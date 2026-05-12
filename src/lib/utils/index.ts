@@ -335,7 +335,8 @@ function linkifyCitations(content, sources) {
 	return content.replace(citationRegex, (match, number) => {
 		const citationIndex = parseInt(number, 10) - 1;
 		if (sources[citationIndex]) {
-			return ` [${match}](${sources[citationIndex].source.name} "citation")`;
+			const name = sources[citationIndex].title ?? sources[citationIndex].name ?? sources[citationIndex].source?.name ?? '';
+			return ` [${match}](${name} "citation")`;
 		}
 		return match;
 	});
