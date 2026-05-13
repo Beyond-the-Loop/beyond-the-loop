@@ -75,26 +75,26 @@
 		</h3>
 	</div>
 
-	<div
-		class="rounded-lg p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40"
-	>
-		<div class="flex justify-between text-xs font-medium text-amber-700 dark:text-amber-300">
-			<span>
-				{uniqueDetected.length}
-				{uniqueDetected.length === 1
-					? $i18n.t('entity detected')
-					: $i18n.t('entities detected')}
-			</span>
-			<span>{protectedCount} {$i18n.t('protected')}</span>
-		</div>
-		<p class="text-[11px] text-amber-700/80 dark:text-amber-300/70 mt-1.5 leading-snug">
-			{$i18n.t(
-				'Protected entities are replaced with placeholders before being sent to the model.'
-			)}
-		</p>
-	</div>
-
 	{#if uniqueDetected.length > 0}
+		<div
+			class="rounded-lg p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40"
+		>
+			<div class="flex justify-between text-xs font-medium text-amber-700 dark:text-amber-300">
+				<span>
+					{uniqueDetected.length}
+					{uniqueDetected.length === 1
+						? $i18n.t('entity detected')
+						: $i18n.t('entities detected')}
+				</span>
+				<span>{protectedCount} {$i18n.t('protected')}</span>
+			</div>
+			<p class="text-[11px] text-amber-700/80 dark:text-amber-300/70 mt-1.5 leading-snug">
+				{$i18n.t(
+					'Protected entities are replaced with placeholders before being sent to the model.'
+				)}
+			</p>
+		</div>
+
 		{#each Object.entries(groupedDetected) as [type, spans]}
 			<div class="space-y-1.5">
 				<div
@@ -153,15 +153,17 @@
 		</p>
 	{/if}
 
-	<p class="text-[11px] text-gray-500 dark:text-gray-500 leading-snug pt-2 border-t border-gray-200 dark:border-customGray-800">
-		{#if releasable}
-			{$i18n.t(
-				'Click an entry to release it from the filter for the rest of this chat.'
-			)}
-		{:else}
-			{$i18n.t(
-				'Anonymization is enforced for your account — entries cannot be released.'
-			)}
-		{/if}
-	</p>
+	{#if uniqueDetected.length > 0}
+		<p class="text-[11px] text-gray-500 dark:text-gray-500 leading-snug pt-2 border-t border-gray-200 dark:border-customGray-800">
+			{#if releasable}
+				{$i18n.t(
+					'Click an entry to release it from the filter for the rest of this chat.'
+				)}
+			{:else}
+				{$i18n.t(
+					'Anonymization is enforced for your account — entries cannot be released.'
+				)}
+			{/if}
+		</p>
+	{/if}
 </div>
