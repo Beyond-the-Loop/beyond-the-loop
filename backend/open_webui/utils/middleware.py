@@ -779,6 +779,56 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if features.get("code_interpreter") and _model_cfg.get("supports_code_execution"):
         metadata["code_interpreter_enabled"] = True
 
+    # MCP servers: resolve user-visible enabled servers if the model supports MCP.
+    # Client may opt-out per chat via `mcp_disabled_server_ids` (list of IDs) and
+    # `mcp_enabled` (master toggle). Both are client-state, not persisted server-side.
+    # Encrypted auth tokens travel through metadata; decryption happens just-in-time
+    # in `litellm.py` when the provider-specific payload is assembled.
+    mcp_disabled_ids = set(form_data.pop("mcp_disabled_server_ids", None) or [])
+    mcp_master_enabled = form_data.pop("mcp_enabled", True) is not False
+
+    if mcp_master_enabled and _model_cfg.get("supports_mcp"):
+        from beyond_the_loop.models.mcp_servers import MCPServers
+        from beyond_the_loop.utils.access_control import has_permission as _has_perm
+        from beyond_the_loop.utils.mcp_oauth import get_fresh_bearer
+
+        if _has_perm(user.id, "workspace.mcp_connections"):
+            try:
+                active_servers = MCPServers.get_active_servers_for_user(user.id)
+                resolved = []
+                for s in active_servers:
+                    if s.id in mcp_disabled_ids:
+                        continue
+                    # Resolve the bearer token *now* — for OAuth servers this
+                    # triggers a proactive refresh if expiry is within 60s.
+                    # We never put the encrypted blob into metadata; only the
+                    # decrypted access token for this single request.
+                    access_token = await get_fresh_bearer(s)
+                    if (s.auth_type in {"bearer", "oauth"}) and not access_token:
+                        # OAuth never connected, or refresh failed — skip this
+                        # server rather than send a header-less MCP call that
+                        # the provider would just reject.
+                        log.info(
+                            "[mcp] skipping %s for user %s: no usable token",
+                            s.id, user.id,
+                        )
+                        continue
+                    resolved.append({
+                        "id": s.id,
+                        "name": s.name,
+                        "url": s.url,
+                        "transport": s.transport,
+                        "auth_type": s.auth_type,
+                        "access_token_plain": access_token,
+                        "tool_filter": s.tool_filter,
+                    })
+                if resolved:
+                    metadata["mcp_servers_resolved"] = resolved
+            except Exception as e:
+                log.warning(
+                    "[mcp] failed to resolve servers for user %s: %s", user.id, e
+                )
+
     model_knowledge = Knowledges.get_knowledge_by_ids(
         [knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None
 

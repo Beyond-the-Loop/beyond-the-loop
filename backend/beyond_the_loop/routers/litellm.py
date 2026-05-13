@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import mimetypes
+import re
 import time
 import uuid
 from pathlib import Path
@@ -56,6 +57,23 @@ log.setLevel(SRC_LOG_LEVELS["OPENAI"])
 ##########################################
 
 session: aiohttp.ClientSession | None = None
+
+
+# Azure OpenAI Responses API constrains `tools[*].server_label` to match
+# `^[A-Za-z][A-Za-z0-9_-]*$`. Connector names like "Microsoft 365" contain
+# a space and get rejected with `invalid_request_error`. This sanitises the
+# display name into a valid label without leaking server IDs to the provider.
+_MCP_LABEL_PATTERN = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _sanitize_mcp_server_label(name: str) -> str:
+    cleaned = _MCP_LABEL_PATTERN.sub("-", name or "").strip("-")
+    if not cleaned:
+        return "mcp"
+    if not cleaned[0].isalpha():
+        cleaned = f"mcp-{cleaned}"
+    return cleaned
+
 
 async def _get_session() -> aiohttp.ClientSession:
     global session
@@ -369,6 +387,42 @@ async def generate_chat_completion(
         else:
             tools.append({"codeExecution": {}})
 
+    # MCP server injection. Only the Azure OpenAI Responses API supports
+    # server-side MCP natively (the provider acts as MCP client). For every
+    # other route — Vertex Claude, Vertex/Direct Gemini, Azure Foundry models,
+    # Perplexity — there is no equivalent feature, so the block is silently
+    # dropped here rather than sent and rejected (or worse, ignored).
+    #
+    # The `supports_mcp` flag in `litellm-config.yaml` should already gate
+    # metadata population, but this is the defensive backstop.
+    #
+    # Encrypted tokens travel through metadata and are decrypted just-in-time
+    # so plaintext tokens never sit in metadata or chat state.
+    mcp_servers_resolved = metadata.get("mcp_servers_resolved", [])
+    if mcp_servers_resolved and use_responses_api:
+        for s in mcp_servers_resolved:
+            entry = {
+                "type": "mcp",
+                "server_label": _sanitize_mcp_server_label(s["name"]),
+                "server_url": s["url"],
+                "require_approval": "never",
+            }
+            # `access_token_plain` is already decrypted (and refreshed if it was
+            # an OAuth token nearing expiry) by middleware.process_chat_payload.
+            if s.get("access_token_plain"):
+                entry["headers"] = {
+                    "Authorization": f"Bearer {s['access_token_plain']}"
+                }
+            if s.get("tool_filter"):
+                entry["allowed_tools"] = s["tool_filter"]
+            tools.append(entry)
+    elif mcp_servers_resolved:
+        log.info(
+            "[mcp] dropping %d server(s) for model %r — non-Responses-API route has no native MCP support",
+            len(mcp_servers_resolved),
+            model_name,
+        )
+
     if tools:
         payload["tools"] = tools
 
@@ -476,6 +530,8 @@ async def generate_chat_completion(
 
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
+
+    print(payload)
 
     r = None
     streaming = False

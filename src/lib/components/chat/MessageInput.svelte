@@ -31,6 +31,7 @@
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import ToolsMenu from './MessageInput/ToolsMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
+	import MCPIndicator from './MessageInput/MCPIndicator.svelte';
 	import FilesOverlay from './MessageInput/FilesOverlay.svelte';
 	import Commands from './MessageInput/Commands.svelte';
 
@@ -77,6 +78,12 @@
 	export let webSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
 	export let autoToolsEnabled = false;
+
+	// MCP toggle state — same shape as web search etc., owned by Chat.svelte.
+	// `mcpEnabled` is the master per-chat toggle; `mcpDisabledServerIds` is the
+	// per-server opt-out list (client state, not persisted).
+	export let mcpEnabled: boolean = true;
+	export let mcpDisabledServerIds: string[] = [];
 
 	// PII toggle button rendered next to the tools menu. State + click handler
 	// owned by the parent (Chat.svelte) so it survives composer remounts.
@@ -1268,6 +1275,12 @@
 												bind:imageGenerationEnabled
 												bind:codeInterpreterEnabled
 												bind:autoToolsEnabled
+											/>
+
+											<MCPIndicator
+												{selectedModelInfo}
+												bind:mcpEnabled
+												bind:mcpDisabledServerIds
 											/>
 
 											{#if showPiiToggle}

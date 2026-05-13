@@ -109,6 +109,7 @@ from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import file_archival
 from beyond_the_loop.routers import intercom
 from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
+from beyond_the_loop.routers import mcp_servers
 from beyond_the_loop.routers import models
 from beyond_the_loop.routers import litellm, audio
 from beyond_the_loop.routers import payments
@@ -461,6 +462,7 @@ app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
 app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
 app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["prompts"])
+app.include_router(mcp_servers.router, prefix="/api/v1/mcp-servers", tags=["mcp-servers"])
 
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
@@ -556,8 +558,7 @@ _DISPLAY_METADATA_FIELDS = {
     'context_window', 'category', 'costFactor', 'description', 'hosted_in',
     'intelligence_score', 'knowledge_cutoff', 'organization',
     'reasoning', 'speed', 'tokens_per_second',
-    'supports_web_search', 'supports_code_execution', 'supports_image_generation',
-    'supports_image_input'
+    'supports_web_search', 'supports_code_execution', 'supports_image_generation', 'supports_mcp'
 }
 
 

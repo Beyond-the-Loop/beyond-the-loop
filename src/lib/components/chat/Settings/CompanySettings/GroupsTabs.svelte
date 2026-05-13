@@ -27,7 +27,8 @@
 			view_knowledge: true,
 			edit_knowledge: true,
 			view_prompts: true,
-			edit_prompts: true
+			edit_prompts: true,
+			mcp_connections: true
 		},
 		features: {
 			web_search: true,
@@ -231,7 +232,8 @@
 			                        view_prompts: e.detail.view_prompts,
 									edit_prompts: e.detail.edit_prompts,
 									view_knowledge: e.detail.view_knowledge,
-									edit_knowledge: e.detail.edit_knowledge
+									edit_knowledge: e.detail.edit_knowledge,
+									mcp_connections: e.detail.mcp_connections
                                 }, chat: {
 									assistants_only: e.detail.assistants_only ?? false
 								}, pii: {
