@@ -60,6 +60,9 @@ export const replaceTokens = (content, sourceIds, char, user) => {
 		return `<iframe src="${htmlUrl}" width="100%" frameborder="0" onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"></iframe>`;
 	});
 
+	// Normalize hallucinated [source_id:X] → [X] so the sourceIds loop below can match
+	content = content.replace(/\[source_id:([^\]]+)\]/g, '[$1]');
+
 	// Remove sourceIds from the content and replace them with <source_id>...</source_id>
 	if (Array.isArray(sourceIds)) {
 		sourceIds.forEach((sourceId) => {
