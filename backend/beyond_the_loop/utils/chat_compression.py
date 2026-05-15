@@ -1,9 +1,10 @@
 import logging
 import litellm
 
-from beyond_the_loop.config import LITELLM_MODEL_MAP
+from beyond_the_loop.config import LITELLM_MODEL_CONFIG, LITELLM_MODEL_MAP
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.models import ModelModel
+from beyond_the_loop.prompts import CHAT_COMPRESSION_NOTICE
 from beyond_the_loop.utils.structured_completion import ChatSummaryResponse, structured_completion
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -14,12 +15,30 @@ log.setLevel(SRC_LOG_LEVELS.get("MODELS", logging.INFO))
 # Constants
 # ---------------------------------------------------------------------------
 
-COMPRESSION_THRESHOLD = 0.8
+DEFAULT_COMPRESSION_THRESHOLD = 0.8
+MIN_COMPRESSION_THRESHOLD = 0.6
+MAX_COMPRESSION_THRESHOLD = 0.8
 DEFAULT_CONTEXT_WINDOW = 128_000
 
 # ---------------------------------------------------------------------------
 # Token counting & context window helpers
 # ---------------------------------------------------------------------------
+
+
+def _get_compression_threshold(model_display_name: str) -> float:
+    """
+    Scale the compression threshold by the model's costFactor so expensive
+    models compress earlier than cheap ones. Range: 60% (most expensive)
+    to 80% (cheapest).
+    """
+    cost_factor = LITELLM_MODEL_CONFIG.get(model_display_name, {}).get("costFactor")
+    if cost_factor is None:
+        return DEFAULT_COMPRESSION_THRESHOLD
+
+    return max(
+        MIN_COMPRESSION_THRESHOLD,
+        min(MAX_COMPRESSION_THRESHOLD, 0.85 - cost_factor * 0.05),
+    )
 
 
 def _get_context_window(model_display_name: str) -> int:
@@ -144,13 +163,25 @@ def _build_summary_block(summary_text: str) -> str:
 
 
 def _build_payload(
-    system_msgs: list[dict], summary_text: str, conversational_messages: list[dict]
+    system_msgs: list[dict],
+    summary_text: str | None,
+    conversational_messages: list[dict],
+    notice_text: str | None = None,
 ) -> list[dict]:
-    summary_block = _build_summary_block(summary_text)
+    blocks: list[str] = []
+    if summary_text:
+        blocks.append(_build_summary_block(summary_text))
+    if notice_text:
+        blocks.append(notice_text)
+
+    if not blocks:
+        return [*system_msgs, *conversational_messages]
+
+    addition = "\n\n".join(blocks)
     if system_msgs:
-        merged = {**system_msgs[0], "content": system_msgs[0]["content"] + "\n\n" + summary_block}
+        merged = {**system_msgs[0], "content": system_msgs[0]["content"] + "\n\n" + addition}
         return [merged, *system_msgs[1:], *conversational_messages]
-    return [{"role": "system", "content": summary_block}, *conversational_messages]
+    return [{"role": "system", "content": addition}, *conversational_messages]
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +229,8 @@ async def maybe_compress_chat(
     # Check whether compression["messages"] exceeds the context window
     # -----------------------------------------------------------------------
     context_window = _get_context_window(model.name)
-    threshold_tokens = int(context_window * COMPRESSION_THRESHOLD)
+    threshold_pct = _get_compression_threshold(model.name)
+    threshold_tokens = int(context_window * threshold_pct)
     current_tokens = _count_tokens(compression["messages"], model.name)
 
     if current_tokens > threshold_tokens:
@@ -244,13 +276,17 @@ async def maybe_compress_chat(
             )
 
     # -----------------------------------------------------------------------
-    # Rebuild the LiteLLM payload when a summary exists
+    # Rebuild the LiteLLM payload when there is something to inject into the
+    # system prompt (a summary and/or a "chat is long" notice).
     # -----------------------------------------------------------------------
-    if compression.get("summary"):
+    summary = compression.get("summary")
+    if summary:
         system_msgs = [m for m in all_messages if m.get("role") == "system"]
-
         form_data["messages"] = _build_payload(
-            system_msgs, compression["summary"], compression["messages"]
+            system_msgs,
+            summary,
+            compression["messages"],
+            notice_text=CHAT_COMPRESSION_NOTICE,
         )
 
     # Persist the updated compression state
