@@ -119,13 +119,14 @@
 	$: isMagicPromptDisabled = prompt.trim() === '' || isMagicLoading;
 
 	$: magicPromptButtonClass = [
-		'text-customGray-900 dark:text-customGray-100',
 		'text-xs leading-none',
 		'transition rounded-md py-[3px] px-[5px] mr-0.5 self-center',
 		'disabled:opacity-40 disabled:cursor-not-allowed',
 		isMagicLoading
-			? 'dark:bg-customBlue-700/60'
-			: 'hover:text-gray-700 dark:hover:text-white dark:hover:bg-customGray-900'
+			? 'text-customBlue-500 dark:bg-customBlue-700/60'
+			: isMagicPromptDisabled
+				? 'text-customGray-900 dark:text-customGray-100'
+				: 'text-customBlue-500 hover:text-customBlue-600 dark:hover:bg-customGray-900'
 	].join(' ');
 
 	const scrollToBottom = () => {
