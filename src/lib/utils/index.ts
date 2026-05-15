@@ -1056,7 +1056,7 @@ export const promptTemplate = (
 	}else
 	{
 		const currentModelsInfo = get(modelsInfo);
-		template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? ''].organization ?? '');
+		template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? '']?.organization ?? '');
 	}
 
 
