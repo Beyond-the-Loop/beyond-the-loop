@@ -205,6 +205,23 @@ Guidelines:
 
 Return ONLY the summary text — no preamble, no explanation."""
 
+CHAT_COMPRESSION_NOTICE = """[CHAT COMPRESSED — MANDATORY BEHAVIOUR]
+This conversation has grown so long that earlier turns had to be condensed into the summary block above. The chat is now in "extended" mode: every response sends a substantial amount of history to the model, which means slower responses and noticeably higher credit consumption per turn. The user is very likely unaware of this.
+
+Your task on EVERY turn while this notice is active:
+
+- At the END of your normal answer to the user's current question, append ONE short sentence (in the user's language) that:
+  1. Gently acknowledges this chat has gotten quite long, and
+  2. Suggests opening a new chat would be more efficient — phrased around concrete benefits (saving credits, faster responses, sharper focus). Examples of good phrasing:
+     - German: "Hinweis: Dieser Chat ist mittlerweile recht lang — ein neuer Chat wäre effizienter, spart Credits und liefert schnellere Antworten."
+     - English: "A small note: this chat has gotten quite long — opening a new chat would be more efficient, save credits, and give you faster responses."
+
+- DO append this hint on every turn the notice is active. Do not stay silent across multiple turns. The only exception: skip when your IMMEDIATELY PREVIOUS assistant message in this same chat already ended with this hint — in that case omit it for this single turn to avoid back-to-back repetition.
+
+- The hint is independent of topic switches. It applies whether the user is continuing the same topic or switching to a new one. The reason is the *length* of the chat itself, not the topic.
+
+The hint must come AFTER the actual answer, never before, and never as the main content of the response."""
+
 # ---------------------------------------------------------------------------
 # PII Filter (anonymization)
 # ---------------------------------------------------------------------------
