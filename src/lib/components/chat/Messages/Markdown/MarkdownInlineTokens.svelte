@@ -3,9 +3,11 @@
 	import { toast } from 'svelte-sonner';
 
 	import type { Token } from 'marked';
+	import type { Writable } from 'svelte/store';
 	import { getContext } from 'svelte';
-
 	const i18n = getContext('i18n');
+
+	const webSearchSources = getContext<Writable<any[] | null>>('web-search-sources');
 
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import { copyToClipboard, unescapeHtml } from '$lib/utils';
@@ -13,6 +15,7 @@
 	import Image from '$lib/components/common/Image.svelte';
 	import KatexRenderer from './KatexRenderer.svelte';
 	import Source from './Source.svelte';
+	import CitationBadge from './CitationBadge.svelte';
 
 	export let id: string;
 	export let tokens: Token[];
@@ -25,15 +28,36 @@
 	{#if token.type === 'escape'}
 		{unescapeHtml(token.text)}
 	{:else if token.type === 'html'}
-		{@const html = DOMPurify.sanitize(token.text)}
-		{#if html && html.includes('<video')}
-			{@html html}
-		{:else if token.text.includes(`<iframe src="${WEBUI_BASE_URL}/api/v1/files/`)}
-			{@html `${token.text}`}
-		{:else if token.text.includes(`<source_id`)}
-			<Source {token} onClick={onSourceClick} />
+		{#if token.text?.includes('<cite data-idx=')}
+			{@const idxMatch = token.text.match(/data-idx="([^"]+)"/)}
+			{#if idxMatch}
+				{@const citeSources = idxMatch[1]
+					.split(',')
+					.map((s) => ($webSearchSources ?? [])[parseInt(s.trim()) - 1])
+					.filter((s) => s?.type === 'web_search')}
+				{#if citeSources.length}
+					<CitationBadge
+						sources={citeSources.map((s) => ({
+							domain: s.domain,
+							title: s.title,
+							url: s.url
+						}))}
+					/>
+				{/if}
+			{/if}
+		{:else if token.text?.trim() === '</cite>'}
+			<!-- closing tag of our <cite data-idx> citation markers — render nothing -->
 		{:else}
-			{token.text}
+			{@const html = DOMPurify.sanitize(token.text)}
+			{#if html && html.includes('<video')}
+				{@html html}
+			{:else if token.text.includes(`<iframe src="${WEBUI_BASE_URL}/api/v1/files/`)}
+				{@html `${token.text}`}
+			{:else if token.text.includes(`<source_id`)}
+				<Source {token} onClick={onSourceClick} />
+			{:else}
+				{token.text}
+			{/if}
 		{/if}
 	{:else if token.type === 'link'}
 		{#if token.href?.startsWith('/openai/container-files/') || token.href?.startsWith('/api/v1/files/')}

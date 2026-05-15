@@ -11,6 +11,7 @@ import html
 import base64
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from open_webui.utils.web_search_parser import get_inline_citations, get_used_search_queries, get_web_search_results, inject_citations_into_content, getDomain
 from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
@@ -917,15 +918,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     if len(sources) > 0 and is_rag_task:
         context_string = ""
         for source_idx, source in enumerate(sources):
-            source_id = source.get("source", {}).get("name", "")
+            source_id = source.get("name", "")
 
-            if "document" in source:
-                for doc_idx, doc_context in enumerate(source["document"]):
-                    doc_metadata = source.get("metadata")
-                    doc_source_id = None
-
-                    if doc_metadata:
-                        doc_source_id = doc_metadata[doc_idx].get("source", source_id)
+            if "snippets" in source:
+                for doc_idx, doc_context in enumerate(source["snippets"]):
+                    doc_source_id = source.get("file_id") or source_id 
 
                     # Same session as the user-message anonymization — same
                     # name in prompt and retrieved doc → same placeholder.
@@ -982,7 +979,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
     # If there are citations, add them to the data_items
-    sources = [source for source in sources if source.get("source", {}).get("name", "")]
+    sources = [source for source in sources if source.get("name") or source.get("title") or source.get("file_id") or source.get("url")]
 
     if len(sources) > 0:
         events.append({"sources": sources})
@@ -1017,6 +1014,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
         try:
             pii_session.save()
+            metadata["pii_session"] = pii_session
             if event_emitter:
                 await event_emitter(
                     {
@@ -1420,7 +1418,9 @@ async def process_chat_response(
                     "content": content,
                 }
             ]
+            anonymized_content_snapshot = ""
             response_images = []
+            used_search_queries = []
 
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
@@ -1465,6 +1465,8 @@ async def process_chat_response(
                     nonlocal content
                     nonlocal content_blocks
                     nonlocal response_images
+                    nonlocal anonymized_content_snapshot
+                    nonlocal used_search_queries
 
                     generating_response = True
 
@@ -1514,18 +1516,18 @@ async def process_chat_response(
                                 )
 
                                 generating_response = False
-
-                            if "citations" in data:
-                                nonlocal sources
-                                sources = list(map(
-                                    lambda citationUrl: {
-                                        "source": {"name": citationUrl},
-                                        "document": [citationUrl],
-                                        "metadata": [{"source": citationUrl}],
-                                        "distances": [0],
-                                    },
-                                    data["citations"]
-                                ))
+                            nonlocal sources
+                            if "search_results" in data and sources is None or sources is [] :
+                                perplexity_sources = []
+                                for search_result in data.get("search_results") or []:
+                                    perplexity_sources.append({
+                                        "type": "web_search",
+                                        "title": search_result.get("title"),
+                                        "url": search_result.get("url"),
+                                        "domain": getDomain(search_result.get("url")),
+                                        "snippet": "",
+                                    })
+                                sources = perplexity_sources
 
                             if "status_event" in data:
                                 await event_emitter(
@@ -1587,6 +1589,48 @@ async def process_chat_response(
                                         image_base64 = delta_image['image_url']["url"]
 
                                         response_images.append({"type": "image", "url": image_base64})
+                                for dtc in delta.get("tool_calls") or []:
+                                    func = dtc.get("function", {})
+                                    idx = dtc.get("index")
+
+                                    if func.get("name") == "web_search":
+                                        pending_search_index = idx
+                                        pending_search_args = ""
+
+                                    if idx == pending_search_index and func.get("arguments"):
+                                        pending_search_args += func["arguments"]
+                                        try:
+                                            query = json.loads(pending_search_args).get("query", "")
+                                            await event_emitter({
+                                                "type": "status",
+                                                "data": {
+                                                    "action": "web_search",
+                                                    "done": False,
+                                                    "description": 'Searching "{{searchQuery}}"',
+                                                    "query": query,
+                                                },
+                                            })
+                                            used_search_queries.append(query)
+                                            if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event 
+                                                content_blocks.append(
+                                                        {
+                                                            "type": "text",
+                                                            "content": "",
+                                                        }
+                                                    )
+                                                await event_emitter(
+                                                    {
+                                                        "type": "chat:completion",
+                                                        "data": {
+                                                            "content": serialize_content_blocks(
+                                                                content_blocks
+                                                            )
+                                                        },
+                                                    }
+                                                )
+                                            pending_search_index = None  # fertig, nicht nochmal feuern
+                                        except json.JSONDecodeError:
+                                            pass  # arguments noch unvollständig, weiter 
 
                                 reasoning_content = (
                                         delta.get("reasoning_content")
@@ -1619,59 +1663,68 @@ async def process_chat_response(
                                         )),
                                         "type": "reasoning",
                                     }
+                                if used_search_queries == []:
+                                    used_search_queries = get_used_search_queries(delta, data)
 
-                                delta_annotations = delta.get("annotations", [])
-                                if delta_annotations:
-                                    seen_urls = {
-                                        s["document"][0]
-                                        for s in (sources or [])
-                                        if s.get("document")
-                                    }
-                                    for annotation in delta_annotations:
-                                        if annotation.get("type") == "url_citation":
-                                            url_citation = annotation.get("url_citation", {})
-                                            url = url_citation.get("url", "")
-                                            title = url_citation.get("title") or url
-                                            if url and url not in seen_urls:
-                                                seen_urls.add(url)
-                                                if sources is None:
-                                                    sources = []
-
-                                                sources.append({
-                                                    "source": {"name": title},
-                                                    "document": [url],
-                                                    "metadata": [{"source": url, "name": title}],
-                                                    "distances": [0],
-                                                })
-
-                                # Handle Claude/Vertex AI web search results via provider_specific_fields
-                                provider_specific_fields = delta.get("provider_specific_fields", {})
-                                if provider_specific_fields:
-                                    web_search_results = provider_specific_fields.get("web_search_results")
-                                    if web_search_results:
-                                        seen_urls = {
-                                            s["document"][0]
-                                            for s in (sources or [])
-                                            if s.get("document")
+                                web_search_results = get_web_search_results(delta, data)
+                                for search_result in web_search_results:
+                                    if sources is None:
+                                        sources = []
+                                    sources.append({
+                                            "type": "web_search",
+                                            "title": search_result.title,
+                                            "url": search_result.url,
+                                            "domain": search_result.domain,
+                                            "snippet": "",
+                                            "queries": used_search_queries,
+                                    })
+                                if web_search_results:
+                                    await event_emitter({
+                                        "type": "chat:completion",
+                                        "data": {
+                                            "sources": sources,
+                                        },
+                                    })
+                                    await event_emitter({                                                                                                                                                                              
+                                        "type": "status",
+                                        "data": {
+                                            "action": "web_search", 
+                                            "done": True,
                                         }
-                                        for result_group in web_search_results:
-                                            for result in result_group.get("content", []):
-                                                if result.get("type") == "web_search_result":
-                                                    url = result.get("url", "")
-                                                    title = result.get("title") or url
-                                                    if url and url not in seen_urls:
-                                                        seen_urls.add(url)
-                                                        if sources is None:
-                                                            sources = []
-                                                        sources.append({
-                                                            "source": {"name": title},
-                                                            "document": [url],
-                                                            "metadata": [{"source": url, "name": title}],
-                                                            "distances": [0],
-                                                        })
+                                    }) 
+
+                                inline_citations = get_inline_citations(delta, data, sources)
+                                for inline_citation in inline_citations:
+                                    content_blocks, delta = inject_citations_into_content(
+                                        inline_citation,
+                                        content_blocks,
+                                        delta,
+                                        pii_session=metadata.get("pii_session"),
+                                        anonymized_text=anonymized_content_snapshot
+                                    )
+                                if inline_citations:
+                                    last_text_block = next(
+                                        (b for b in reversed(content_blocks) if b.get("type") == "text"),
+                                        None,
+                                    )
+                                    if re.search(r'\(\[([^\]]+)\]\(([^)]+)\)\)', last_text_block["content"]): # remove chatgpt markdown citations
+                                        last_text_block["content"] = re.sub(r'\(\[([^\]]+)\]\(([^)]+)\)\)', '', last_text_block["content"]) 
+                                    elif re.search(r'\[([^\]]+)\]\(([^)]+)\)', last_text_block["content"]):
+                                        last_text_block["content"] = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', '', last_text_block["content"])
+                                    await event_emitter(
+                                        {
+                                            "type": "chat:completion",
+                                            "data": {
+                                                "content": serialize_content_blocks(
+                                                    content_blocks
+                                                )
+                                            },
+                                        }
+                                    )
 
                                 value = delta.get("content")
-
+                                if value:
+                                    anonymized_content_snapshot += value
                                 if value and pii_deanonymizer is not None:
                                     value = pii_deanonymizer.feed(value)
 
@@ -1810,6 +1863,11 @@ async def process_chat_response(
                         await response.background()
 
                 await stream_body_handler(response)
+
+                # Hier brauche ich die gemini chunks um sie jetzt einzubauen, dann wird content final abgeschickt.
+                # Im optimalfall baue ich für openai und claude auch die zitationen bei dem utf8 index ein, zeige sie aber halt direkt an
+                # könnte sie dann auch schon im stream_body_handler selbst direkt einbauen sobald sie kommen.
+                # wichtig ist nur dass sie direkt mit in den content genommen werden bzw serialize_content_blocks wirkt.
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 

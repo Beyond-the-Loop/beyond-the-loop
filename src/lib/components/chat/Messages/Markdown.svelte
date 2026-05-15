@@ -2,6 +2,9 @@
 	import { marked } from 'marked';
 	import { replaceTokens, processResponseContent } from '$lib/utils';
 	import { user } from '$lib/stores';
+	import { setContext } from 'svelte';
+	import { writable } from 'svelte/store';
+	import { normalizeSources } from '$lib/utils/sources';
 
 	import markedExtension from '$lib/utils/marked/extension';
 	import markedKatexExtension from '$lib/utils/marked/katex-extension';
@@ -26,21 +29,24 @@
 		throwOnError: false
 	};
 
-	// Function to handle citation linking
+	const sourcesStore = writable(sources ? normalizeSources(sources) : null);
+	setContext('web-search-sources', sourcesStore);
+	$: sourcesStore.set(sources ? normalizeSources(sources) : null);
+
 	function linkifyCitations(content, sources) {
 		if (!content || !sources || sources.length === 0) return content;
-		
-		// Regex to match citation markers like [1], [2], etc.
-		const citationRegex = /\[(\d+)]/g;
-		
-		// Replace markers with special tokens that can be processed by the markdown renderer
-		return content.replace(citationRegex, (match, number) => {
-			const citationIndex = parseInt(number, 10) - 1; // Convert to 0-based index
-			if (sources[citationIndex]) {
-				// Create a special token with a data-citation attribute that will be recognized by the renderer
-				return ` [${match}](${sources[citationIndex].source.name} "citation")`;
+
+		// Match one or more adjacent citation markers on the same line: [2] [3] [4]
+		return content.replace(/\[(\d+)\](?:[ \t]*\[(\d+)\])*/g, (match) => {
+			const indices = [...match.matchAll(/\d+/g)].map((m) => parseInt(m[0], 10));
+			const firstIdx = indices[0] - 1;
+			if (!sources[firstIdx]) return match;
+
+			if (sources[firstIdx].type === 'web_search') {
+				return `<cite data-idx="${indices.join(',')}"></cite>`;
+			} else {
+				return ` [${match}](${sources[firstIdx].file_id} "${sources[firstIdx].name}")`;
 			}
-			return match; // If no citation exists, keep it as is
 		});
 	}
 
@@ -49,7 +55,6 @@
 
 	$: (async () => {
 		if (content) {
-			// Process citations before passing to marked lexer
 			const processedContent = sources ? linkifyCitations(content, sources) : content;
 			tokens = marked.lexer(
 				replaceTokens(processResponseContent(processedContent), sourceIds, model?.name, `${$user?.first_name} ${$user?.last_name}`)
