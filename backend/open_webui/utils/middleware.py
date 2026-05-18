@@ -1894,11 +1894,6 @@ async def process_chat_response(
 
                 await stream_body_handler(response)
 
-                # Hier brauche ich die gemini chunks um sie jetzt einzubauen, dann wird content final abgeschickt.
-                # Im optimalfall baue ich für openai und claude auch die zitationen bei dem utf8 index ein, zeige sie aber halt direkt an
-                # könnte sie dann auch schon im stream_body_handler selbst direkt einbauen sobald sie kommen.
-                # wichtig ist nur dass sie direkt mit in den content genommen werden bzw serialize_content_blocks wirkt.
-
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {
