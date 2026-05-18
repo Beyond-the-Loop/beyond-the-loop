@@ -904,6 +904,24 @@ model_list:
       api_base: os.environ/AZURE_OPENAI_ALTERNATIVE_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_ALTERNATIVE_API_KEY
 
+router_settings:
+  fallbacks:
+    - {"GPT o3": ["GPT-5 mini"]}
+    - {"GPT o4-mini": ["GPT-5 mini"]}
+    - {"GPT-5": ["GPT-5 mini"]}
+    - {"GPT-5.1": ["GPT-5 mini"]}
+    - {"GPT-5 nano": ["GPT-5 mini"]}
+    - {"GPT OSS 120b": ["GPT-5 mini"]}
+    - {"GPT-5.4 Pro": ["GPT-5 mini"]}
+    - {"GPT o3 Deep Research": ["GPT-5 mini"]}
+    - {"GPT-5.4": ["GPT-5 mini"]}
+    - {"GPT-5.3 Codex": ["GPT-5 mini"]}
+    - {"GPT-5.2": ["GPT-5 mini"]}
+    - {"Claude Sonnet 4.5": ["Claude 4.5 Haiku"]}
+    - {"Claude Sonnet 4.6": ["Claude 4.5 Haiku"]}
+    - {"Claude Opus 4.6": ["Claude 4.5 Haiku"]}
+
+
 litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true
