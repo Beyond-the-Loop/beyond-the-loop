@@ -1793,7 +1793,7 @@
 		if (res) {
 			taskId = res.task_id;
 
-			const responseMessage = history.messages[history.currentId];
+			const responseMessage = _history.messages[responseMessageId];
 
 			if (responseMessage) {
 
