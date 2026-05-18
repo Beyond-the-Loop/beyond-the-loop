@@ -1629,22 +1629,20 @@
 			.find((m) => m.role === 'assistant' && m.files?.some((f) => f.type === 'image'));
 
 		const messages = [
-			!model.base_model_id && (params?.system || $settings.system || (responseMessage?.userContext ?? null))
-				? {
-					role: 'system',
-					content: `${promptTemplate(
-						params?.system ?? $settings?.system ?? '',
-						`${$user.first_name} ${$user.last_name}`,
-						$settings?.userLocation
-							? await getAndUpdateUserLocation(localStorage.token)
-							: undefined, model.name
-					)}${
-						(responseMessage?.userContext ?? null)
-							? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
-							: ''
-					}`
-				}
-				: undefined,
+			{
+				role: 'system',
+				content: `${promptTemplate(
+					params?.system ?? $settings?.system ?? { promptStyle: 'default' },
+					`${$user.first_name} ${$user.last_name}`,
+					$settings?.userLocation
+						? await getAndUpdateUserLocation(localStorage.token)
+						: undefined, model.name
+				)}${
+					(responseMessage?.userContext ?? null)
+						? `\n\nUser Context:\n${responseMessage?.userContext ?? ''}`
+						: ''
+				}`
+			},
 			...historyMessages
 		]
 			.filter((message) => message?.content?.trim())

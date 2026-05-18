@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import { v4 as uuidv4 } from 'uuid';
 
 	export let show = false;
 	export let src = '';
@@ -9,14 +10,22 @@
 
 	let previewElement = null;
 
-	const downloadImage = (url, filename, prefixName = '') => {
+	const extensionFromBlob = (blob: Blob) => {
+		const subtype = (blob.type || '').split('/')[1]?.split(';')[0];
+		if (!subtype) return 'png';
+		if (subtype === 'jpeg') return 'jpg';
+		if (subtype === 'svg+xml') return 'svg';
+		return subtype;
+	};
+
+	const downloadImage = (url: string) => {
 		fetch(url)
 			.then((response) => response.blob())
 			.then((blob) => {
 				const objectUrl = window.URL.createObjectURL(blob);
 				const link = document.createElement('a');
 				link.href = objectUrl;
-				link.download = `${prefixName}${filename}`;
+				link.download = `${uuidv4()}.${extensionFromBlob(blob)}`;
 				document.body.appendChild(link);
 				link.click();
 				document.body.removeChild(link);
@@ -87,7 +96,7 @@
 				<button
 					class=" p-5"
 					on:click={() => {
-						downloadImage(src, src.substring(src.lastIndexOf('/') + 1), alt);
+						downloadImage(src);
 					}}
 				>
 					<svg

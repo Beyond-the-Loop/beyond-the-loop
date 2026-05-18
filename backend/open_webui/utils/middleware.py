@@ -835,15 +835,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         and pii_session is None
     )
 
-    # First, decide if this is a RAG task or content extraction task
+    # First, decide if this is a RAG task or content extraction task.
+    # Run the intent decision in every case (incl. assistants with a knowledge
+    # base or user collections) so meta questions like "what is in the file?"
+    # or "translate the document" can take the full-content path instead of a
+    # vector search that returns nothing.
     if not skip_file_processing:
         try:
-            has_user_collections = any(f.get("type") == "collection" for f in files)
-
             form_data, is_rag_task = await chat_file_intent_decision_handler(
                 form_data, user, pii_session=pii_session
-            ) if not model_knowledge and not has_user_collections else (
-                form_data, True)
+            )
         except Exception as e:
             log.exception(f"Error in file intent decision: {e}")
             is_rag_task = True  # Fallback to RAG
@@ -873,33 +874,42 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 if isinstance(file_item, dict):
                     file_id = file_item.get("id")
                     if file_id:
-                        # Skip image files and collections
-                        if file_item.get("type") not in ["web_search_results", "collection"]:
-                            try:
-                                file_record = Files.get_file_by_id(file_id)
-                                if file_record and file_record.meta:
-                                    content_type = file_record.meta.get("content_type", "")
-                                    # Skip image files
-                                    if not content_type.startswith("image/"):
-                                        content = extract_file_content_with_loader(file_id)
-                                        if pii_session is not None:
-                                            try:
-                                                content, _t, _a, _ru = pii_session.anonymize(
-                                                    content, pii_released_entities,
-                                                    source=f"file:{file_record.filename}",
-                                                )
-                                                pii_total_detected += _t
-                                                pii_anonymized += _a
-                                                pii_released_used.extend(_ru)
-                                            except Exception:
-                                                log.exception(
-                                                    "[pii] failed to anonymize extracted content of %s; sending unredacted",
-                                                    file_record.filename,
-                                                )
-                                        file_contents.append(
-                                            f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
-                            except Exception as e:
-                                log.debug(f"Error processing file {file_id}: {e}")
+                        if file_item.get("type") == "web_search_results":
+                            continue
+                        # Knowledge-base entries come in as
+                        # {type: "collection", id: "file-<uuid>"} — strip the
+                        # prefix so Files.get_file_by_id can resolve them and
+                        # the full document text is included on the FULL path.
+                        if file_item.get("type") == "collection":
+                            if isinstance(file_id, str) and file_id.startswith("file-"):
+                                file_id = file_id[5:]
+                            else:
+                                continue
+                        try:
+                            file_record = Files.get_file_by_id(file_id)
+                            if file_record and file_record.meta:
+                                content_type = file_record.meta.get("content_type", "")
+                                # Skip image files
+                                if not content_type.startswith("image/"):
+                                    content = extract_file_content_with_loader(file_id)
+                                    if pii_session is not None:
+                                        try:
+                                            content, _t, _a, _ru = pii_session.anonymize(
+                                                content, pii_released_entities,
+                                                source=f"file:{file_record.filename}",
+                                            )
+                                            pii_total_detected += _t
+                                            pii_anonymized += _a
+                                            pii_released_used.extend(_ru)
+                                        except Exception:
+                                            log.exception(
+                                                "[pii] failed to anonymize extracted content of %s; sending unredacted",
+                                                file_record.filename,
+                                            )
+                                    file_contents.append(
+                                        f"\n\n--- Content of {file_record.filename} ---\n{content}\n--- End of {file_record.filename} ---")
+                        except Exception as e:
+                            log.debug(f"Error processing file {file_id}: {e}")
 
             # Append file contents to the last user message
             if file_contents:
@@ -974,6 +984,26 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         form_data["messages"] = add_or_update_system_message(
             rag_template(
                 request.app.state.config.RAG_TEMPLATE, context_string, prompt
+            ),
+            form_data["messages"],
+        )
+    elif is_rag_task and (model_knowledge or model_files or files):
+        # Retrieval ran but returned no hits. Without a notice the model would
+        # answer "I don't see any file" — which confuses the user because the UI
+        # just showed "searching knowledge". Instead, tell the model that the
+        # file is attached but the vector search came back empty.
+        log.info("[rag] no matching chunks — injecting empty-results fallback notice")
+        form_data["messages"] = add_or_update_system_message(
+            (
+                "Knowledge search notice: A semantic search was performed over the "
+                "attached document(s) / knowledge base for the user's current "
+                "question, but no sufficiently relevant passages were found. The "
+                "file(s) are attached and present — the search query was simply "
+                "too general or semantically off (e.g. meta questions like 'What "
+                "is in the file?'). Do NOT reply with 'I don't see any file' — the "
+                "file is there. Instead, ask the user to be more specific or to "
+                "mention a keyword / section, or proactively suggest concrete "
+                "questions they could ask. Reply in the user's language."
             ),
             form_data["messages"],
         )

@@ -32,7 +32,7 @@ def _stub_module(name: str, **attrs) -> types.ModuleType:
 _litellm = _stub_module("litellm", model_cost={}, token_counter=MagicMock(return_value=10))
 
 # beyond_the_loop.config stub
-_stub_module("beyond_the_loop.config", LITELLM_MODEL_MAP={})
+_stub_module("beyond_the_loop.config", LITELLM_MODEL_MAP={}, LITELLM_MODEL_CONFIG={})
 
 # beyond_the_loop.models stubs
 _stub_module("beyond_the_loop.models.chats", Chats=MagicMock())

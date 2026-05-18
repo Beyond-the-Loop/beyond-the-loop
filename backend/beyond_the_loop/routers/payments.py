@@ -115,6 +115,7 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
 
         event_type = event.get("type")
         event_data = event.get("data", {}).get("object", {})
+        previous_attributes = event.get("data", {}).get("previous_attributes") or {}
         stripe_customer_id = event_data.get('customer')
 
 
@@ -137,7 +138,7 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
             handle_subscription_created(event_data)
             return None
         elif event_type == "customer.subscription.updated":
-            handle_subscription_updated(event_data)
+            handle_subscription_updated(event_data, previous_attributes)
             return None
         elif event_type == "invoice.payment_succeeded":
             handle_invoice_payment_succeeded(event_data)
@@ -155,6 +156,19 @@ async def checkout_webhook(request: Request, stripe_signature: str = Header(None
         log.error(f"Webhook processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Stripe statuses that mean the subscription was not actively serving credits.
+# A transition from one of these to "active" is treated as a reactivation and
+# starts a fresh billing period.
+_INACTIVE_SUBSCRIPTION_STATUSES = {
+    "canceled",
+    "incomplete",
+    "incomplete_expired",
+    "past_due",
+    "paused",
+    "unpaid",
+}
+
+
 # Legacy subscription created
 def handle_subscription_created(event_data):
     """
@@ -165,22 +179,41 @@ def handle_subscription_created(event_data):
         event_data: The subscription data from the Stripe webhook event
     """
     try:
-        payments_service.handle_company_subscription_update(event_data)
+        # A brand-new subscription always starts a fresh billing period.
+        payments_service.handle_company_subscription_update(
+            event_data, reset_billing_period=True
+        )
     except Exception as e:
         log.error(f"Error handling subscription created event: {e}")
 
 
 # Legacy subscription updated
-def handle_subscription_updated(event_data):
+def handle_subscription_updated(event_data, previous_attributes):
     """
     Handle subscription updated webhook event from Stripe.
     Updates company credit balance based on the subscription plan.
 
     Args:
         event_data: The subscription data from the Stripe webhook event
+        previous_attributes: The diff Stripe sends alongside an updated event,
+            containing only the fields whose values changed.
     """
     try:
-        payments_service.handle_company_subscription_update(event_data)
+        # Stripe fires `customer.subscription.updated` for many trivial reasons
+        # (metadata edits, default_payment_method changes, cancel_at_period_end
+        # toggles, ...). Only treat it as a new billing period if the plan/price
+        # actually changed or the subscription was reactivated.
+        is_plan_change = "items" in previous_attributes
+        prev_status = previous_attributes.get("status")
+        is_reactivation = (
+            prev_status in _INACTIVE_SUBSCRIPTION_STATUSES
+            and event_data.get("status") == "active"
+        )
+        reset_billing_period = is_plan_change or is_reactivation
+
+        payments_service.handle_company_subscription_update(
+            event_data, reset_billing_period=reset_billing_period
+        )
     except Exception as e:
         log.error(f"Error handling subscription updated event: {e}")
 

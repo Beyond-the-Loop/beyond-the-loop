@@ -28,6 +28,12 @@
 	$: releasedSorted = (released ?? []).slice().sort((a, b) => a.localeCompare(b));
 	$: releasedNormalized = new Set((released ?? []).map(normalize));
 
+	// True when this message has neither anonymized variables nor released
+	// entities — surfaced as an explicit empty-state hint so the sidebar
+	// doesn't look broken when opened on an edge-case message.
+	$: isEmpty =
+		Object.keys(variables ?? {}).length === 0 && releasedSorted.length === 0;
+
 	// Build groups keyed by source. Each entry can appear in multiple groups
 	// if the entity was seen from multiple surfaces.
 	$: groupedBySource = (() => {
@@ -98,7 +104,7 @@
 	}
 </script>
 
-<div class="space-y-3">
+<div class="space-y-4">
 	<div class="flex items-center gap-2">
 		<ShieldCheck className="size-4 text-customBlue-500 dark:text-blue-400" />
 		<h3 class="text-sm font-medium text-lightGray-100 dark:text-white">
@@ -106,11 +112,17 @@
 		</h3>
 	</div>
 
-	<p class="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
-		{$i18n.t(
-			'These variables were anonymized in this message. The model only saw the placeholder.'
-		)}
-	</p>
+	{#if isEmpty}
+		<p class="text-xs text-gray-500 dark:text-gray-400 italic px-1">
+			{$i18n.t('No variables were anonymized in this message.')}
+		</p>
+	{:else}
+		<p class="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+			{$i18n.t(
+				'These variables were anonymized in this message. The model only saw the placeholder.'
+			)}
+		</p>
+	{/if}
 
 	{#if releasedSorted.length > 0}
 		<div class="space-y-1.5">

@@ -18,28 +18,49 @@ from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE
     STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
 
 
-def _set_new_credit_recharge_check_date(company):
+def _advance_next_credit_recharge_by_one_month(company):
+    """Used by the daily cron: advance the existing date by one month so the
+    day-of-month stays stable even when the cron runs a few days late. If the
+    cron has been down for multiple months, catch up so the new date is in the
+    future."""
     try:
-        # Convert the existing timestamp to datetime
-        if company.next_credit_charge_check:
-            last_check_dt = datetime.fromtimestamp(company.next_credit_charge_check)
-        else:
-            last_check_dt = datetime.now()
+        base_dt = (
+            datetime.fromtimestamp(company.next_credit_charge_check)
+            if company.next_credit_charge_check
+            else datetime.now()
+        )
 
-        # Add one month
-        next_check_dt = last_check_dt + relativedelta(months=1)
-
-        # Convert back to timestamp
-        next_credit_charge_check = next_check_dt.timestamp()
+        next_check_dt = base_dt + relativedelta(months=1)
+        now_dt = datetime.now()
+        while next_check_dt <= now_dt:
+            next_check_dt += relativedelta(months=1)
 
         Companies.update_company_by_id(
             company.id,
-            {"next_credit_charge_check": next_credit_charge_check}
+            {"next_credit_charge_check": next_check_dt.timestamp()}
         )
 
     except Exception as e:
         log.error(
-            f"Failed to update next credit charge check date for company "
+            f"Failed to advance next credit charge check date for company "
+            f"{company.id}: {e}"
+        )
+
+
+def _set_next_credit_recharge_one_month_from_now(company):
+    """Used when a fresh billing period begins (subscription created, plan
+    change, reactivation). Anchors the next monthly recharge to today."""
+    try:
+        next_check_dt = datetime.now() + relativedelta(months=1)
+
+        Companies.update_company_by_id(
+            company.id,
+            {"next_credit_charge_check": next_check_dt.timestamp()}
+        )
+
+    except Exception as e:
+        log.error(
+            f"Failed to set next credit charge check date for company "
             f"{company.id}: {e}"
         )
 
@@ -375,7 +396,7 @@ class PaymentsService:
                         "budget_mail_100_sent": False
                     })
 
-                    _set_new_credit_recharge_check_date(company)
+                    _advance_next_credit_recharge_by_one_month(company)
                 else:
                     Companies.update_company_by_id(company.id, {
                         "next_credit_charge_check": None
@@ -392,12 +413,17 @@ class PaymentsService:
             }
 
     # Legacy
-    def handle_company_subscription_update(self, event_data):
+    def handle_company_subscription_update(self, event_data, *, reset_billing_period: bool):
         """
         Helper function to update company credits based on subscription data.
 
         Args:
             event_data: The subscription data from the Stripe webhook event
+            reset_billing_period: When True, refill credits to the plan amount and
+                anchor the next monthly recharge to today. Set this only for events
+                that actually start a fresh billing period (subscription created,
+                plan/price change, reactivation) — not for trivial updates such as
+                metadata or default_payment_method changes.
 
         Returns:
             tuple: (company, credits_per_month, plan_id) or (None, None, None) if any step fails
@@ -463,13 +489,13 @@ class PaymentsService:
             else:
                 credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
 
-            if credits_per_month > 0:
+            if reset_billing_period and credits_per_month > 0:
                 Companies.update_company_by_id(company.id, {
                     "credit_balance": credits_per_month,
                     "budget_mail_80_sent": False,
                     "budget_mail_100_sent": False
                 })
-                _set_new_credit_recharge_check_date(company)
+                _set_next_credit_recharge_one_month_from_now(company)
 
             return company, credits_per_month, plan_id
 
