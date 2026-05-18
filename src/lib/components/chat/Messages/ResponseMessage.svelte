@@ -632,6 +632,17 @@
 												{$i18n.t(status?.description || "Analyzing results")}
 											</div>
 										</div>
+									{:else if status?.action === 'file_upload'}
+										<CodeInterpreterIcon className="size-4 shrink-0 text-gray-500 dark:text-gray-500" />
+										<div class="flex flex-col justify-center -space-y-0.5">
+											<div
+												class="{status?.done === false
+													? 'shimmer'
+													: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+											>
+												{$i18n.t(status?.description || "Preparing file download...")}
+											</div>
+										</div>
 									{:else if status?.action === 'querying_memory'}
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div

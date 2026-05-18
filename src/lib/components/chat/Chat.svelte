@@ -1797,7 +1797,7 @@
 
 			if (responseMessage) {
 
-				// If responseMessage is already done it means that itx was stopped
+				// If responseMessage is already done it means that it was stopped
 				if (responseMessage.done) {
 					stopTask(localStorage.token, taskId).catch((error) => {
 						console.error('Failed to stop task:', error);

@@ -1219,6 +1219,7 @@
 	"Prefix ID": "Präfix-ID",
 	"Prefix ID is used to avoid conflicts with other connections by adding a prefix to the model IDs - leave empty to disable": "Prefix-ID wird verwendet, um Konflikte mit anderen Verbindungen zu vermeiden, indem ein Präfix zu den Modell-IDs hinzugefügt wird - leer lassen, um zu deaktivieren",
 	"Preparing model request": "Anfrage an Modell wird vorbereitet",
+	"Preparing file download...": "Datei Download wird vorbereitet...",
 	"Previous 30 days": "Vorherige 30 Tage",
 	"Previous 7 days": "Vorherige 7 Tage",
 	"Price factor × standard price = actual price.": "Preisfaktor × Standardpreis = tatsächlicher Preis.",

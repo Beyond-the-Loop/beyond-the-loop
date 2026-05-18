@@ -1245,15 +1245,16 @@ async def process_chat_response(
                         )
 
                         reasoning_duration = block.get("duration", None)
+                        reasoning_tag = block.get("tag", "think")
 
                         if reasoning_duration is not None:
                             if raw:
-                                content = f'{content}\n<{block["tag"]}>{block["content"]}</{block["tag"]}>\n'
+                                content = f'{content}\n<{reasoning_tag}>{block["content"]}</{reasoning_tag}>\n'
                             else:
                                 content = f'{content}\n<details type="reasoning" done="true" duration="{reasoning_duration}">\n<summary>Thought for {reasoning_duration} seconds</summary>\n{reasoning_display_content}\n</details>\n'
                         else:
                             if raw:
-                                content = f'{content}\n<{block["tag"]}>{block["content"]}</{block["tag"]}>\n'
+                                content = f'{content}\n<{reasoning_tag}>{block["content"]}</{reasoning_tag}>\n'
                             else:
                                 content = f'{content}\n<details type="reasoning" done="false">\n<summary>Thinking…</summary>\n{reasoning_display_content}\n</details>\n'
 
@@ -1472,7 +1473,7 @@ async def process_chat_response(
                     "data": message_update,
                 }
             )
-
+            
             try:
                 for event in events:
                     await event_emitter(
@@ -1669,10 +1670,11 @@ async def process_chat_response(
                                 )
 
                                 if reasoning_content:
-                                    if (
-                                            not content_blocks
-                                            or content_blocks[-1]["type"] != "reasoning"
-                                    ):
+                                    existing = next(
+                                        (b for b in reversed(content_blocks) if b["type"] == "reasoning"),
+                                        None,
+                                    )
+                                    if existing is None:
                                         reasoning_block = {
                                             "type": "reasoning",
                                             "attributes": {
@@ -1683,7 +1685,9 @@ async def process_chat_response(
                                         }
                                         content_blocks.append(reasoning_block)
                                     else:
-                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block = existing
+                                        reasoning_block.pop("ended_at", None)
+                                        reasoning_block.pop("duration", None)
 
                                     reasoning_block["content"] += reasoning_content
 
@@ -1759,21 +1763,24 @@ async def process_chat_response(
                                     value = pii_deanonymizer.feed(value)
 
                                 if value:
+                                    data_uri_pattern = r'data:[^;]+;base64,[A-Za-z0-9+/=\s]+'
+                                    if re.match(data_uri_pattern, value):
+                                        value = ""
                                     content = f"{content}{value}"
-                                    if (
-                                            content_blocks
-                                            and content_blocks[-1]["type"]
-                                            == "reasoning"
-                                            and content_blocks[-1]
-                                            .get("attributes", {})
-                                            .get("type")
-                                            == "reasoning_content"
-                                    ):
-                                        reasoning_block = content_blocks[-1]
-                                        reasoning_block["ended_at"] = time.time()
-                                        reasoning_block["duration"] = int(
-                                            reasoning_block["ended_at"]
-                                            - reasoning_block["started_at"]
+                                    open_reasoning = next(
+                                        (
+                                            b for b in reversed(content_blocks)
+                                            if b["type"] == "reasoning"
+                                            and b.get("attributes", {}).get("type") == "reasoning_content"
+                                            and "ended_at" not in b
+                                        ),
+                                        None,
+                                    )
+                                    if open_reasoning is not None:
+                                        open_reasoning["ended_at"] = time.time()
+                                        open_reasoning["duration"] = int(
+                                            open_reasoning["ended_at"]
+                                            - open_reasoning["started_at"]
                                         )
 
                                         content_blocks.append(
@@ -1951,9 +1958,22 @@ async def process_chat_response(
                                     for k, v in tool_function_params.items()
                                     if k in required_params
                                 }
-                                tool_result = await tool_function(
-                                    **tool_function_params
-                                )
+
+                                if tool_name == "upload_base64_file":
+                                    await event_emitter(
+                                        {
+                                            "type": "status",
+                                            "data": {
+                                                "action": "file_upload",
+                                                "done": False,
+                                                "description": "Preparing file download...",
+                                            },
+                                        }
+                                    )
+
+                                    tool_result = await tool_function(
+                                        **tool_function_params
+                                    )
                             except Exception as e:
                                 tool_result = str(e)
 
@@ -2006,8 +2026,19 @@ async def process_chat_response(
                         }, user, model)
 
                         if isinstance(res, StreamingResponse):
+                            await event_emitter(
+                                {
+                                    "type": "status",
+                                    "data": {
+                                        "action": "generating_response",
+                                        "done": False,
+                                        "description": "Waiting for model response",
+                                    },
+                                }
+                            )
                             await stream_body_handler(res)
                         else:
+                            print(f"Follow-up call returned non-StreamingResponse: {type(res)}")
                             break
                     except Exception as e:
                         log.debug(e)

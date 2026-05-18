@@ -370,7 +370,7 @@ async def generate_chat_completion(
             tools.append({"codeExecution": {}})
             upload_base64_file = {
                 "name": "upload_base64_file",
-                "description": "Uploads a base64-encoded file and returns a public URL.",
+                "description": "Takes a base64-encoded file and its filename, decodes it, uploads the binary file, and returns a publicly accessible download URL. Use this when you need to provide the user with a link to download a file.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -384,6 +384,7 @@ async def generate_chat_completion(
 
             async def _upload_base64_file_fn(filename: str, data: str) -> str:
                 """Decode a base64 payload, store it via our Files API, and return a public URL."""
+                print("in _upload_base64_file_fn")
                 import base64
                 from beyond_the_loop.models.files import FileForm, Files
                 from beyond_the_loop.storage.provider import Storage
@@ -391,9 +392,14 @@ async def generate_chat_completion(
                 if data.startswith("data:") and "," in data:
                     data = data.split(",", 1)[1]
                 try:
-                    content = base64.b64decode(data, validate=False)
+                    print(len(data))
+                    print(data[-20:])
+                    data += "=" * (-len(data) % 4)
+                    content = base64.b64decode(data, validate=True)
                 except Exception as e:
+                    print(f"upload_base64_file: invalid base64 for {filename}: {e}")
                     log.warning(f"upload_base64_file: invalid base64 for {filename}: {e}")
+                    print(data)
                     return f"Error: invalid base64 data for {filename}"
 
                 internal_id = str(uuid.uuid4())
@@ -414,6 +420,7 @@ async def generate_chat_completion(
                         },
                     ),
                 )
+                print("File inserted!")
 
                 return f"/api/v1/files/{internal_id}/content/{filename}"
 
