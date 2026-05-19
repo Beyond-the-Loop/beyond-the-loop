@@ -526,7 +526,9 @@ async def get_active_models(user=Depends(get_verified_user)):
     assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)
 
     active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
-    active_base_models.append(SMART_ROUTER_MODEL)
+    # Copy: SMART_ROUTER_MODEL is a module-level singleton and the free-plan
+    # branch below mutates `is_active` on the elements of this list.
+    active_base_models.append(SMART_ROUTER_MODEL.model_copy())
 
     model_base_model_names = {}
 
