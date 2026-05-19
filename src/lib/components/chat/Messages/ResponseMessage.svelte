@@ -50,6 +50,7 @@
 	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import CustomChatError from './CustomChatError.svelte';
+	import { normalizeSources } from '$lib/utils/sources';
 
 
 	interface MessageType {
@@ -148,6 +149,9 @@
 		model?.base_model_id === 'Smart Router' && message.selectedModelId
 			? ($models.find((m) => m.id === message.selectedModelId)?.name ?? message.selectedModelId)
 			: null;
+
+	let citationShowModal = false;
+	let citationSelectedCitation: any = null;
 
 	let edit = false;
 	let editedContent = '';
@@ -586,7 +590,7 @@
 												</div>
 											</div>
 										</WebSearchResults>
-									{:else if status?.action === 'web_search'}
+									{:else if status?.action === 'web_search' && status?.description}
 										<WebSearchIcon className="size-4 shrink-0 text-gray-500 dark:text-gray-500" />
 										<div class="flex flex-col justify-center -space-y-0.5">
 											<div
@@ -745,13 +749,16 @@
 										floatingButtons={message?.done}
 										save={!readOnly}
 										{model}
-										onSourceClick={(e) => {
-											const sourceButton = document.getElementById(`source-${e}`);
-
-											if (sourceButton) {
-												sourceButton.click();
-											} else if (e.startsWith('http')) {
-												window.open(e, '_blank', 'noopener,noreferrer');
+										onSourceClick={(sourceId) => {
+											const normalized = normalizeSources(message?.sources ?? []);
+											const match = normalized.find(
+												(s) => s.type === 'rag' && (s.file_id === sourceId || s.name === sourceId)
+											);
+											if (match) {
+												citationSelectedCitation = match;
+												citationShowModal = true;
+											} else if (sourceId.startsWith('http')) {
+												window.open(sourceId, '_blank', 'noopener,noreferrer');
 											}
 										}}
 										onAddMessages={({ modelId, parentId, messages }) => {
@@ -786,8 +793,12 @@
 										<Error content={message?.error?.content ?? message.content} />
 								{/if}
 
-								{#if (message?.sources || message?.citations) && (model?.info?.meta?.capabilities?.citations ?? true)}
-									<Citations sources={message?.sources ?? message?.citations} />
+								{#if message?.sources && (model?.info?.meta?.capabilities?.citations ?? true)}
+									<Citations
+										sources={message.sources}
+										bind:showCitationModal={citationShowModal}
+										bind:selectedCitation={citationSelectedCitation}
+									/>
 								{/if}
 
 								{#if message.code_executions}

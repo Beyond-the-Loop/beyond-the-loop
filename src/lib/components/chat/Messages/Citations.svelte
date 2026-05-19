@@ -3,87 +3,33 @@
 	import CitationsModal from './CitationsModal.svelte';
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
-	import ChevronUp from '$lib/components/icons/ChevronUp.svelte';
+	import MagnifyingGlass from '$lib/components/icons/MagnifyingGlass.svelte';
+	import { normalizeSources, type Source, type WebSearchSource, type RagSource } from '$lib/utils/sources';
 
 	const i18n = getContext('i18n');
 
 	export let sources = [];
 
-	let citations = [];
-	let showPercentage = false;
-	let showRelevance = true;
-
-	let showCitationModal = false;
-	let selectedCitation: any = null;
+	export let showCitationModal = false;
+	export let selectedCitation: RagSource | null = null;
 	let isCollapsibleOpen = false;
 
-	function calculateShowRelevance(sources: any[]) {
-		const distances = sources.flatMap((citation) => citation.distances ?? []);
-		const inRange = distances.filter((d) => d !== undefined && d >= -1 && d <= 1).length;
-		const outOfRange = distances.filter((d) => d !== undefined && (d < -1 || d > 1)).length;
-
-		if (distances.length === 0) {
-			return false;
-		}
-
-		if (
-			(inRange === distances.length - 1 && outOfRange === 1) ||
-			(outOfRange === distances.length - 1 && inRange === 1)
-		) {
-			return false;
-		}
-
-		return true;
-	}
-
-	function shouldShowPercentage(sources: any[]) {
-		const distances = sources.flatMap((citation) => citation.distances ?? []);
-		return distances.every((d) => d !== undefined && d >= -1 && d <= 1);
-	}
+	let normalized: Source[] = [];
+	let usedQueries: string[] = [];
+	let showRelevance = false;
+	let showPercentage = false;
 
 	$: {
-		citations = sources.reduce((acc, source) => {
-			if (Object.keys(source).length === 0) {
-				return acc;
-			}
-
-			source.document.forEach((document, index) => {
-				const metadata = source.metadata?.[index];
-				const distance = source.distances?.[index];
-
-				// Within the same citation there could be multiple documents
-				const id = metadata?.source ?? 'N/A';
-				let _source = source?.source;
-
-				if (metadata?.name) {
-					_source = { ..._source, name: metadata.name };
-				}
-
-				if (id.startsWith('http://') || id.startsWith('https://')) {
-					_source = { ..._source, ...(!metadata?.name ? { name: id } : {}), url: id };
-				}
-
-				const existingSource = acc.find((item) => item.id === id);
-
-				if (existingSource) {
-					existingSource.document.push(document);
-					existingSource.metadata.push(metadata);
-					if (distance !== undefined) existingSource.distances.push(distance);
-				} else {
-					acc.push({
-						id: id,
-						source: _source,
-						document: [document],
-						metadata: metadata ? [metadata] : [],
-						distances: distance !== undefined ? [distance] : undefined
-					});
-				}
-			});
-			return acc;
-		}, []);
-
-		showRelevance = calculateShowRelevance(citations);
-		showPercentage = shouldShowPercentage(citations);
+		normalized = normalizeSources(sources.filter((s) => Object.keys(s).length > 0));
+		usedQueries =
+			(normalized.find(
+				(s): s is WebSearchSource => s.type === 'web_search' && (s.queries?.length ?? 0) > 0
+			) as WebSearchSource | undefined)?.queries ?? [];
+		const ragWithScores = normalized.filter(
+			(s): s is RagSource => s.type === 'rag' && s.scores.length > 0
+		);
+		showRelevance = ragWithScores.length > 0;
+		showPercentage = showRelevance && ragWithScores.every((s) => s.scores.every((d) => d >= -1 && d <= 1));
 	}
 </script>
 
@@ -94,116 +40,80 @@
 	{showRelevance}
 />
 
-{#if citations.length > 0}
-	<div class=" py-0.5 mt-4 -mx-0.5 w-full flex gap-1 items-center flex-wrap">
-		{#if citations.length <= 3}
-			<div class="flex text-xs font-medium">
-				{#each citations as citation, idx}
+{#if normalized.length > 0}
+	<Collapsible bind:open={isCollapsibleOpen} className="relative w-full text-sm rounded-xl">
+		<div class="w-fit rounded-full px-4 py-[3px] text-lightGray-100 dark:text-customGray-100 flex gap-1 items-center transition-all duration-200 ease border-lightGray-300 hover:bg-lightGray-200 hover:border-lightGray-200 dark:border-customGray-900 dark:hover:bg-customGray-800 dark:hover:border-customGray-800 absolute top-[1px] right-0 z-10">
+			<div class="flex -space-x-2 bg-inherit border-inherit">
+				{#each normalized.slice(0, 3) as source}
+					{#if source.type === 'web_search'}
+						<img
+							src={`https://www.google.com/s2/favicons?domain=${source.domain}&sz=32`}
+							class="rounded-full size-4 bg-inherit border border-2 border-inherit flex-shrink-0"
+							alt=""
+							on:error={(e) => (e.currentTarget.style.display = 'none')}
+						/>
+					{/if}
+				{/each}
+			</div>
+
+			{normalized.length} {$i18n.t(normalized.length === 1 ? 'Source' : 'Sources')}
+			<div style="transform: rotate({isCollapsibleOpen ? 180 : 0}deg); transition: transform 0.2s ease">
+				<ChevronDown strokeWidth="2" className="size-3" />
+			</div>
+		</div>
+
+		<div slot="content">
+			{#if usedQueries.length > 0}
+				<div class="flex flex-row items-center gap-2 py-[3px] text-xs">
+					<div class="font-medium text-gray-600 dark:text-gray-500">
+						{$i18n.t('Searched for')}
+					</div>
+					<div class="max-w-[75%] overflow-x-scroll no-scrollbar" style="-ms-overflow-style: none !important; scrollbar-width: none !important;">
+						<div class="flex flex-row">
+							{#each usedQueries as query}
+								<div class="shrink-0 flex flex-row flex-nowrap items-center px-3 py-1">
+									<MagnifyingGlass className="size-3" strokeWidth="1.5" />
+									<div class="ml-1">"{query}"</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<div class="text-xs font-medium overflow-x-hidden">
+				{#each normalized as source, idx}
 					<button
-						id={`source-${citation.source.name}`}
-						class="no-toggle outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-white dark:bg-gray-900 rounded-xl max-w-96"
+						class="flex gap-2 w-full items-center text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-200 dark:hover:bg-customGray-800 p-2 transition rounded-xl max-w-100"
 						on:click={() => {
-							// If a URL is available, open it directly
-							if (citation.source?.url) {
-								window.open(citation.source.url, '_blank', 'noopener,noreferrer');
+							if (source.type === 'web_search') {
+								window.open(source.url, '_blank', 'noopener,noreferrer');
 								return;
 							}
 							showCitationModal = true;
-							selectedCitation = citation;
+							selectedCitation = source;
 						}}
 					>
-						{#if citations.every((c) => c.distances !== undefined)}
-							<div class="bg-gray-50 dark:bg-gray-800 rounded-full size-4">
-								{idx + 1}
-							</div>
+						{#if showRelevance}
+							<div class="text-gray-600 size-4 mr-2 flex-shrink-0">{idx + 1}</div>
 						{/if}
-						<div
-							class="flex-1 mx-1 line-clamp-1 text-lightGray-100 dark:text-customGray-100  transition"
-						>
-							{citation.source.name}
-						</div>
+						{#if source.type === 'web_search'}
+							<img
+								src={`https://www.google.com/s2/favicons?domain=${source.domain}&sz=32`}
+								class="rounded-md size-4 flex-shrink-0"
+								alt=""
+								on:error={(e) => (e.currentTarget.style.display = 'none')}
+							/>
+							<div class="flex flex-col items-start">
+								<div class="text-sm line-clamp-1 truncate">{source.title}</div>
+								<div class="text-xs text-gray-600 dark:text-gray-500 line-clamp-1 truncate max-w-[720px]">{source.domain}</div>
+							</div>
+						{:else}
+							<div class="line-clamp-1 truncate">{source.name}</div>
+						{/if}
 					</button>
 				{/each}
 			</div>
-		{:else}
-			<Collapsible bind:open={isCollapsibleOpen} className="w-full">
-				<div
-					class="flex items-center gap-2 text-lightGray-100 dark:text-customGray-100 transition cursor-pointer"
-				>
-					<div class="flex flex-grow items-center justify-between gap-1 overflow-hidden">
-						<div>
-						<span class="whitespace-nowrap hidden sm:inline">{$i18n.t('References from')}</span>
-						<div class="flex items-center">
-							<div class="text-xs font-medium items-center">
-								{#each citations.slice(0, 2) as citation, idx}
-									<button
-										class="no-toggle outline-none mb-1 flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
-										on:click={() => {
-											if (citation.source?.url) {
-												window.open(citation.source.url, '_blank', 'noopener,noreferrer');
-												return;
-											}
-											showCitationModal = true;
-											selectedCitation = citation;
-										}}
-										on:pointerup={(e) => {
-											e.stopPropagation();
-										}}
-									>
-										{#if citations.every((c) => c.distances !== undefined)}
-											<div class="bg-gray-50 dark:bg-gray-800 rounded-full size-4">
-												{idx + 1}
-											</div>
-										{/if}
-										<div class="flex-1 mx-1 line-clamp-1 truncate">
-											{citation.source.name}
-										</div>
-									</button>
-								{/each}
-							</div>
-						</div>
-						</div>
-						<div class="flex items-center gap-1 whitespace-nowrap">
-							<span class="hidden sm:inline">{$i18n.t('and')}</span>
-							{citations.length - 2}
-							<span>{$i18n.t('More').toLowerCase()}</span>
-						</div>
-					</div>
-					<div class="flex-shrink-0">
-						{#if isCollapsibleOpen}
-							<ChevronUp strokeWidth="3.5" className="size-3.5" />
-						{:else}
-							<ChevronDown strokeWidth="3.5" className="size-3.5" />
-						{/if}
-					</div>
-				</div>
-				<div slot="content">
-					<div class="text-xs font-medium">
-						{#each citations.slice(2) as citation, idx}
-							<button
-								class="no-toggle mb-1 outline-none flex text-lightGray-100 dark:text-customGray-100 p-1 bg-gray-50 dark:bg-gray-900 transition rounded-xl max-w-96"
-								on:click={() => {
-									if (citation.source?.url) {
-										window.open(citation.source.url, '_blank', 'noopener,noreferrer');
-										return;
-									}
-									showCitationModal = true;
-									selectedCitation = citation;
-								}}
-							>
-								{#if citations.every((c) => c.distances !== undefined)}
-									<div class="bg-gray-50 dark:bg-gray-800 rounded-full size-4">
-										{idx + 3}
-									</div>
-								{/if}
-								<div class="flex-1 mx-1 line-clamp-1 truncate">
-									{citation.source.name}
-								</div>
-							</button>
-						{/each}
-					</div>
-				</div>
-			</Collapsible>
-		{/if}
-	</div>
+		</div>
+	</Collapsible>
 {/if}

@@ -1,16 +1,26 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { Source } from '$lib/utils/sources';
+
 	export let token;
 	export let onClick: Function = () => {};
 
+	const sourcesStore = getContext<Writable<Source[] | null>>('web-search-sources');
+
 	let id = '';
 	function extractDataAttribute(input) {
-		// Use a regular expression to extract the value of the `data` attribute
 		const match = input.match(/data="([^"]*)"/);
-		// Check if a match was found and return the first captured group
 		return match ? match[1] : null;
 	}
 
 	$: id = extractDataAttribute(token.text);
+
+	$: displayName = (() => {
+		if (!id) return id;
+		const source = ($sourcesStore ?? []).find((s) => s.type === 'rag' && s.file_id === id);
+		return source?.name || id;
+	})();
 </script>
 
 <button
@@ -20,6 +30,6 @@
 	}}
 >
 	<span class="line-clamp-1">
-		{id}
+		{displayName}
 	</span>
 </button>
