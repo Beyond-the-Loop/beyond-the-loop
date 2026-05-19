@@ -458,22 +458,41 @@
 							{#if showClassTooltip}
 								<div class="absolute left-1/2 -translate-x-1/2 top-full pt-1 z-40 font-normal text-left">
 									<div class="w-[17rem] bg-white dark:bg-customGray-900 border border-lightGray-400 dark:border-customGray-700 rounded-lg px-3.5 py-3 shadow-xl">
-										<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
-											{$i18n.t('Higher classes have stricter rate limits according to the Fair Usage Policy.')}
-										</div>
-										<a
-											href="https://beyond-the-loop.notion.site/fair-usage-policy"
-											target="_blank"
-											rel="noopener noreferrer"
-											class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-												<path d="M15 3h6v6" />
-												<path d="M10 14 21 3" />
-												<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-											</svg>
-											<span>{$i18n.t('Fair Usage Policy')}</span>
-										</a>
+										{#if $subscription?.plan === 'free' || $subscription?.plan === 'premium'}
+											<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
+												{$i18n.t('Higher classes have stricter rate limits according to the Fair Usage Policy.')}
+											</div>
+											<a
+												href="https://beyond-the-loop.notion.site/fair-usage-policy"
+												target="_blank"
+												rel="noopener noreferrer"
+												class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<path d="M15 3h6v6" />
+													<path d="M10 14 21 3" />
+													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+												</svg>
+												<span>{$i18n.t('Fair Usage Policy')}</span>
+											</a>
+										{:else}
+											<div class="text-xs text-[#374151] dark:text-customGray-100 leading-relaxed mb-2.5">
+												{$i18n.t('The higher the class, the higher the price per request.')}
+											</div>
+											<a
+												href="https://beyondtheloop.ai/pricing-breakdown"
+												target="_blank"
+												rel="noopener noreferrer"
+												class="flex items-center gap-1 text-[11px] text-customBlue-600 dark:text-blue-400 hover:text-customBlue-500 dark:hover:text-blue-300 transition-colors"
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<path d="M15 3h6v6" />
+													<path d="M10 14 21 3" />
+													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+												</svg>
+												<span>{$i18n.t('Pricing breakdown')}</span>
+											</a>
+										{/if}
 									</div>
 								</div>
 							{/if}
