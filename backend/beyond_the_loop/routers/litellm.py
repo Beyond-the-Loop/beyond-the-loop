@@ -189,6 +189,66 @@ async def _download_and_store_container_file(
     return internal_id
 
 
+_GEMINI_CODE_EXEC_MIME = {
+    'cpp': 'text/x-c++src',
+    'csv': 'text/csv',
+    'java': 'text/x-java-source',
+    'jpeg': 'image/jpeg',
+    'js': 'text/javascript',
+    'png': 'image/png',
+    'py': 'text/x-python',
+    'ts': 'text/x-typescript',
+    'xml': 'text/xml',
+}
+
+
+async def _inject_gemini_inline_files(payload: dict, files: list) -> None:
+    """Read Gemini code-execution-supported files from storage and inject as inline bytes into the last user message."""
+    import base64
+    from beyond_the_loop.models.files import Files
+    from beyond_the_loop.storage.provider import Storage
+
+    inline_parts = []
+    for file_item in files:
+        if not isinstance(file_item, dict):
+            continue
+        nested = file_item.get("file")
+        file_id = file_item.get("id") or (nested.get("id") if isinstance(nested, dict) else None)
+        if not file_id:
+            continue
+        try:
+            file_record = Files.get_file_by_id(file_id)
+            if not file_record or not file_record.path:
+                continue
+            local_path = Storage.get_file(file_record.path)
+            with open(local_path, "rb") as fh:
+                content = fh.read()
+            ext = (file_record.filename or "").rsplit(".", 1)[-1].lower()
+            mime = _GEMINI_CODE_EXEC_MIME.get(
+                ext,
+                mimetypes.guess_type(file_record.filename or "")[0] or "application/octet-stream",
+            )
+            b64 = base64.b64encode(content).decode()
+            inline_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime};base64,{b64}"},
+            })
+        except Exception as e:
+            log.warning(f"Failed to inject Gemini inline file {file_id}: {e}")
+
+    if not inline_parts:
+        return
+
+    messages = payload.get("messages", [])
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].get("role") == "user":
+            content = messages[i]["content"]
+            if isinstance(content, str):
+                content = [{"type": "text", "text": content}]
+            messages[i]["content"] = content + inline_parts
+            break
+
+
 ##########################################
 #
 # Model management functions
@@ -384,7 +444,6 @@ async def generate_chat_completion(
 
             async def _upload_base64_file_fn(filename: str, data: str) -> str:
                 """Decode a base64 payload, store it via our Files API, and return a public URL."""
-                print("in _upload_base64_file_fn")
                 import base64
                 from beyond_the_loop.models.files import FileForm, Files
                 from beyond_the_loop.storage.provider import Storage
@@ -392,15 +451,11 @@ async def generate_chat_completion(
                 if data.startswith("data:") and "," in data:
                     data = data.split(",", 1)[1]
                 try:
-                    print(len(data))
-                    print(data[-20:])
                     data += "=" * (-len(data) % 4)
                     content = base64.b64decode(data, validate=True)
                 except Exception as e:
-                    print(f"upload_base64_file: invalid base64 for {filename}: {e}")
                     log.warning(f"upload_base64_file: invalid base64 for {filename}: {e}")
-                    print(data)
-                    return f"Error: invalid base64 data for {filename}"
+                    return f"Error: invalid base64 data for {filename}: {e}"
 
                 internal_id = str(uuid.uuid4())
                 storage_filename = f"{internal_id}_{filename}"
@@ -420,7 +475,6 @@ async def generate_chat_completion(
                         },
                     ),
                 )
-                print("File inserted!")
 
                 return f"/api/v1/files/{internal_id}/content/{filename}"
 
@@ -429,6 +483,10 @@ async def generate_chat_completion(
                 "callable": _upload_base64_file_fn,
                 "hidden": True,
             }
+
+            gemini_inline_files = metadata.get("gemini_inline_files", [])
+            if gemini_inline_files:
+                await _inject_gemini_inline_files(payload, gemini_inline_files)
 
     if tools:
         payload["tools"] = tools

@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { v4 as uuidv4 } from 'uuid';
 	import { createPicker } from '$lib/utils/google-drive-picker';
+	import FileTypeToast from '../toasts/FileTypeToast.svelte';
 
 	import { createEventDispatcher, getContext, onDestroy, onMount, tick } from 'svelte';
 	import ScrollToBottomIcon from '../icons/ScrollToBottomIcon.svelte';
@@ -44,6 +45,7 @@
 	import CallIcon from '../icons/CallIcon.svelte';
 	import MagicSearch from '../icons/MagicSearch.svelte';
 	import LoadingIcon from '../icons/LoadingIcon.svelte';
+	import WarningTriangle from '../icons/WarningTriangle.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -113,6 +115,38 @@
 		const infoModel = m.base_model_id ? $models.find((bm) => bm.id === m.base_model_id) : m;
 		return $modelsInfo[infoModel?.name]?.supports_image_input ?? false;
 	});
+
+	$: isGeminiModel = (() => {
+		if (selectedModels.length !== 1) return false;
+		const model = $models.find((m) => m.id === selectedModels[0]);
+		if (!model) return false;
+		const baseModel = model.base_model_id
+			? ($models.find((m) => m.id === model.base_model_id) ?? model)
+			: model;
+		return baseModel.name?.toLowerCase().includes('gemini') ?? false;
+	})();
+
+	let lastWarnedModel;
+	$: if (codeInterpreterEnabled && isGeminiModel && selectedModelInfo?.supports_code_execution) {
+		if (lastWarnedModel != selectedModelInfo)
+		{
+			lastWarnedModel = selectedModelInfo;
+			for (const f of files) {
+				if (f.type === 'image' || !f.name) continue;
+				const ext = f.name.split('.').at(-1)?.toLowerCase() ?? '';
+				if (!SUPPORTED_GEMINI_CODE_EXECUTION_FILE_EXTENSIONS.has(ext)) {
+					toast.custom(FileTypeToast, {
+							componentProps: { 
+								message: $i18n.t(`File type .{{ext}} is unsupported by the Code Interpreter of your selected model. We're sending the extracted Text.`, {
+									ext: ext,
+								}),
+								style: "info"
+							}
+						});
+				}
+			}
+		}
+	}
 
 
 	// Magic prompt button — derived state
@@ -257,11 +291,15 @@
 	const SUPPORTED_FILE_EXTENSIONS = new Set([
 		'c', 'cpp', 'css', 'csv', 'doc', 'docx', 'gif', 'go', 'html', 'java',
 		'jpeg', 'jpg', 'js', 'json', 'md', 'pdf', 'php', 'pkl', 'png', 'pptx',
-		'py', 'rb', 'tar', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml', 'zip'
+		'py', 'rb', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml'
 	]);
 
 	const SUPPORTED_AUDIO_TYPES = new Set([
 		'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/x-m4a'
+	]);
+	
+	const SUPPORTED_GEMINI_CODE_EXECUTION_FILE_EXTENSIONS = new Set([
+		'cpp', 'csv', 'java', 'jpeg', 'js', 'png', 'py', 'ts', 'xml'
 	]);
 
 	const inputFilesHandler = async (inputFiles) => {
@@ -292,11 +330,16 @@
 
 			const fileExtension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
 			if (!SUPPORTED_FILE_EXTENSIONS.has(fileExtension) && !SUPPORTED_AUDIO_TYPES.has(file.type)) {
-				toast.warning(
-					$i18n.t(`File type .{{ext}} might be unsupported by some models`, {
-						ext: fileExtension
-					})
-				);
+				
+				toast.custom(FileTypeToast, {
+						componentProps: {
+							message: $i18n.t(`File type .{{ext}} is unsupported`, {
+								ext: fileExtension,
+							}),
+							style: "warning"
+						}
+					});
+				return;
 			}
 
 			if (['image/gif', 'image/webp', 'image/jpeg', 'image/png'].includes(file['type'])) {
@@ -731,21 +774,10 @@
 														/>
 														{#if selectedModelIds.length !== visionCapableModels.length}
 															<Tooltip
-																className=" absolute top-1 left-1"
+																className=" absolute top-0 left-0"
 																content={$i18n.t('Selected model does not support image inputs')}
 															>
-																<svg
-																	xmlns="http://www.w3.org/2000/svg"
-																	viewBox="0 0 24 24"
-																	fill="currentColor"
-																	class="size-4 fill-yellow-300"
-																>
-																	<path
-																		fill-rule="evenodd"
-																		d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
-																		clip-rule="evenodd"
-																	/>
-																</svg>
+																<WarningTriangle />
 															</Tooltip>
 														{/if}
 													</div>
@@ -772,27 +804,39 @@
 													</div>
 												</div>
 											{:else}
-												<FileItem
-													item={file}
-													name={file.name}
-													type={file.type}
-													size={file?.size}
-													loading={file.status === 'uploading'}
-													dismissible={true}
-													edit={true}
-													on:dismiss={async () => {
-														if (file.type !== 'collection' && !file?.collection) {
-															if (file.id) {
-																// This will handle both file deletion and Chroma cleanup
-																await deleteFileById(localStorage.token, file.id);
+												<div class="relative">
+													<FileItem
+														item={file}
+														name={file.name}
+														type={file.type}
+														size={file?.size}
+														loading={file.status === 'uploading'}
+														dismissible={true}
+														edit={true}
+														on:dismiss={async () => {
+															if (file.type !== 'collection' && !file?.collection) {
+																if (file.id) {
+																	// This will handle both file deletion and Chroma cleanup
+																	await deleteFileById(localStorage.token, file.id);
+																}
 															}
-														}
 
-														// Remove from UI state
-														files.splice(fileIdx, 1);
-														files = files;
-													}}
-												/>
+															// Remove from UI state
+															files.splice(fileIdx, 1);
+															files = files;
+														}}
+													/>
+													{#if codeInterpreterEnabled && isGeminiModel && selectedModelInfo?.supports_code_execution && !SUPPORTED_GEMINI_CODE_EXECUTION_FILE_EXTENSIONS.has(file.name.split('.').at(-1)?.toLowerCase() ?? '')}
+													<a class="p-1 cursor-alias absolute top-0 left-0" href="https://www.notion.so/beyond-the-loop/File-Upload-Docs-365a1ab099c980cab84ad18ef6839a4e?source=copy_link" target="_blank">
+														<Tooltip
+															content={$i18n.t('File type is unsupported by the Code-Interpreter of your selected Model.')}
+														>
+																<WarningTriangle />
+															 
+														</Tooltip>
+													</a>
+													{/if}
+												</div>
 											{/if}
 										{/each}
 									</div>

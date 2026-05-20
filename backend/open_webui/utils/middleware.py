@@ -1,3 +1,4 @@
+import ast
 import time
 import logging
 import sys
@@ -12,6 +13,7 @@ import base64
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from open_webui.utils.web_search_parser import get_inline_citations, get_used_search_queries, get_web_search_results, inject_citations_into_content, getDomain
+from beyond_the_loop.routers.litellm import generate_chat_completion
 from fastapi import Request
 from starlette.responses import StreamingResponse
 from beyond_the_loop.models.chats import Chats
@@ -835,6 +837,23 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         and pii_session is None
     )
 
+    # For Gemini code execution: pull supported files out of the normal pipeline so
+    # litellm.py can inject them as inline bytes. They must not go through RAG or
+    # text extraction because Gemini code execution expects raw file data, not chunks.
+    if code_interpreter_enabled and not _use_responses_api:
+        _GEMINI_CODE_EXEC_EXTS = {'cpp', 'csv', 'java', 'jpeg', 'js', 'png', 'py', 'ts', 'xml'}
+        _all_files = form_data.get("metadata", {}).get("files", [])
+        _remaining, _gemini_inline = [], []
+        for _f in _all_files:
+            _ext = _f.get("name", "").rsplit(".", 1)[-1].lower() if isinstance(_f, dict) else ""
+            (_gemini_inline if _ext in _GEMINI_CODE_EXEC_EXTS else _remaining).append(_f)
+        if _gemini_inline:
+            form_data["metadata"]["files"] = _remaining
+            form_data["metadata"]["gemini_inline_files"] = _gemini_inline
+            files = _remaining  # keep local var in sync so RAG/fallback checks see updated list
+            if not _remaining:
+                skip_file_processing = True  # no non-inline files left; skip intent decision + RAG
+
     # First, decide if this is a RAG task or content extraction task.
     # Run the intent decision in every case (incl. assistants with a knowledge
     # base or user collections) so meta questions like "what is in the file?"
@@ -1442,6 +1461,8 @@ async def process_chat_response(
                 metadata["chat_id"], metadata["message_id"]
             )
 
+            tool_calls = []
+
             content = message.get("content", "") if message else ""
             content_blocks = [
                 {
@@ -1498,6 +1519,8 @@ async def process_chat_response(
                     nonlocal response_images
                     nonlocal anonymized_content_snapshot
                     nonlocal used_search_queries
+
+                    response_tool_calls = []
 
                     generating_response = True
 
@@ -1620,48 +1643,80 @@ async def process_chat_response(
                                         image_base64 = delta_image['image_url']["url"]
 
                                         response_images.append({"type": "image", "url": image_base64})
-                                for dtc in delta.get("tool_calls") or []:
-                                    func = dtc.get("function", {})
-                                    idx = dtc.get("index")
 
-                                    if func.get("name") == "web_search":
-                                        pending_search_index = idx
-                                        pending_search_args = ""
+                                delta_tool_calls = delta.get("tool_calls", None)
 
-                                    if idx == pending_search_index and func.get("arguments"):
-                                        pending_search_args += func["arguments"]
-                                        try:
-                                            query = json.loads(pending_search_args).get("query", "")
-                                            await event_emitter({
-                                                "type": "status",
-                                                "data": {
-                                                    "action": "web_search",
-                                                    "done": False,
-                                                    "description": 'Searching "{{searchQuery}}"',
-                                                    "query": query,
-                                                },
-                                            })
-                                            used_search_queries.append(query)
-                                            if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event 
-                                                content_blocks.append(
+                                if delta_tool_calls:
+                                    pending_search_index = -1
+                                    for delta_tool_call in delta_tool_calls:
+                                        tool_call_index = delta_tool_call.get("index")
+                                        tool_call_function = delta_tool_call.get("function", {})
+                                        tool_call_function.get("name")
+                                        if tool_call_function.get("name") == "web_search":
+                                            pending_search_index = tool_call_index
+                                            pending_search_args = ""
+                                        if tool_call_index == pending_search_index and tool_call_function.get("arguments"):
+                                            pending_search_args += tool_call_function["arguments"]
+                                            try:
+                                                query = json.loads(pending_search_args).get("query", "")
+                                                await event_emitter({
+                                                    "type": "status",
+                                                    "data": {
+                                                        "action": "web_search",
+                                                        "done": False,
+                                                        "description": 'Searching "{{searchQuery}}"',
+                                                        "query": query,
+                                                    },
+                                                })
+                                                used_search_queries.append(query)
+                                                if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event 
+                                                    content_blocks.append(
+                                                            {
+                                                                "type": "text",
+                                                                "content": "",
+                                                            }
+                                                        )
+                                                    await event_emitter(
                                                         {
-                                                            "type": "text",
-                                                            "content": "",
+                                                            "type": "chat:completion",
+                                                            "data": {
+                                                                "content": serialize_content_blocks(
+                                                                    content_blocks
+                                                                )
+                                                            },
                                                         }
                                                     )
-                                                await event_emitter(
-                                                    {
-                                                        "type": "chat:completion",
-                                                        "data": {
-                                                            "content": serialize_content_blocks(
-                                                                content_blocks
-                                                            )
-                                                        },
-                                                    }
+                                                pending_search_index = None  # fertig, nicht nochmal feuern
+                                            except json.JSONDecodeError:
+                                                pass  # arguments noch unvollständig, weiter 
+
+                                        if tool_call_index is not None:
+                                            if (
+                                                    len(response_tool_calls)
+                                                    <= tool_call_index
+                                            ):
+                                                response_tool_calls.append(
+                                                    delta_tool_call
                                                 )
-                                            pending_search_index = None  # fertig, nicht nochmal feuern
-                                        except json.JSONDecodeError:
-                                            pass  # arguments noch unvollständig, weiter 
+                                            else:
+                                                delta_name = delta_tool_call.get(
+                                                    "function", {}
+                                                ).get("name")
+                                                delta_arguments = delta_tool_call.get(
+                                                    "function", {}
+                                                ).get("arguments")
+
+                                                if delta_name:
+                                                    response_tool_calls[
+                                                        tool_call_index
+                                                    ]["function"]["name"] += delta_name
+
+                                                if delta_arguments:
+                                                    response_tool_calls[
+                                                        tool_call_index
+                                                    ]["function"][
+                                                        "arguments"
+                                                    ] += delta_arguments
 
                                 reasoning_content = (
                                         delta.get("reasoning_content")
@@ -1895,6 +1950,18 @@ async def process_chat_response(
                                             "content": "",
                                         }
                                     )
+                    if response_tool_calls:
+                        # Filter out server-side native tool calls (e.g. Claude's built-in
+                        # web_search executed by the LLM provider) that are not in our
+                        # user-defined tools. These have already been handled server-side
+                        # and should not be redirected to internal tool call endpoints.
+                        our_tools = metadata.get("tools", {})
+                        our_tool_calls = [
+                            tc for tc in response_tool_calls
+                            if tc.get("function", {}).get("name", "") in our_tools
+                        ]
+                        if our_tool_calls:
+                            tool_calls.append(our_tool_calls)
 
                     if response.background:
                         await response.background()
@@ -1908,22 +1975,6 @@ async def process_chat_response(
                     tool_call_retries += 1
 
                     response_tool_calls = tool_calls.pop(0)
-
-                    content_blocks.append(
-                        {
-                            "type": "tool_calls",
-                            "content": response_tool_calls,
-                        }
-                    )
-
-                    await event_emitter(
-                        {
-                            "type": "chat:completion",
-                            "data": {
-                                "content": serialize_content_blocks(content_blocks),
-                            },
-                        }
-                    )
 
                     tools = metadata.get("tools", {})
 

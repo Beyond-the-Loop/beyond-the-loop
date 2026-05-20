@@ -173,6 +173,7 @@ model_list:
       supports_web_search: true
       supports_document_input: true
       supports_image_input: true
+      supports_code_execution: true
 
   - model_name: "Gemini 3.1 Flash-Lite"
     litellm_params:
@@ -200,7 +201,6 @@ model_list:
       supports_web_search: true
       supports_document_input: true
       supports_image_input: true
-      supports_code_execution: true
 
   - model_name: "Gemini 2.5 Pro"
     litellm_params:
