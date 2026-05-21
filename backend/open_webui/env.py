@@ -273,12 +273,13 @@ REDIS_URL = os.environ.get("REDIS_URL")
 
 # Redirect URI registered with MCP-provider OAuth servers. Must be a fixed
 # value (per RFC 6749 §3.1.2.3) and is sent both to the authorization endpoint
-# and during Dynamic Client Registration. Override only if the backend is
-# reachable under a different hostname than WEBUI_URL.
+# and during Dynamic Client Registration. Default is the production URL;
+# staging and local dev override via env var. All values must be registered
+# in each provider's OAuth client config (Entra app, etc.) — Microsoft/Notion
+# will reject mismatched values.
 MCP_OAUTH_REDIRECT_URI = os.environ.get(
     "MCP_OAUTH_REDIRECT_URI",
-    (os.environ.get("WEBUI_URL") or "http://localhost:8080").rstrip("/")
-    + "/api/v1/mcp-servers/oauth/callback",
+    "https://chat.beyondtheloop.ai/api/v1/mcp-servers/oauth/callback",
 )
 
 ####################################

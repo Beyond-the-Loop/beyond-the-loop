@@ -87,7 +87,6 @@ from beyond_the_loop.config import (
     CORS_ALLOW_ORIGIN,
     DEFAULT_LOCALE,
     OAUTH_PROVIDERS,
-    WEBUI_URL,
     # Tasks
     ENABLE_TAGS_GENERATION,
     TITLE_GENERATION_PROMPT_TEMPLATE,
@@ -243,8 +242,6 @@ app.state.config = AppConfig()
 # WEBUI
 #
 ########################################
-
-app.state.config.WEBUI_URL = WEBUI_URL
 
 app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
@@ -879,15 +876,18 @@ async def get_manifest_json():
 
 
 @app.get("/opensearch.xml")
-async def get_opensearch_xml():
+async def get_opensearch_xml(request: Request):
+    # Derive base URL from the incoming request so the descriptor is correct
+    # for whichever host the user hit (staging vs prod vs custom).
+    base_url = str(request.base_url).rstrip("/")
     xml_content = rf"""
     <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
     <ShortName>{"Beyond the Loop"}</ShortName>
     <Description>Search {"Beyond the Loop"}</Description>
     <InputEncoding>UTF-8</InputEncoding>
-    <Image width="16" height="16" type="image/x-icon">{app.state.config.WEBUI_URL}/static/favicon.png</Image>
-    <Url type="text/html" method="get" template="{app.state.config.WEBUI_URL}/?q={"{searchTerms}"}"/>
-    <moz:SearchForm>{app.state.config.WEBUI_URL}</moz:SearchForm>
+    <Image width="16" height="16" type="image/x-icon">{base_url}/static/favicon.png</Image>
+    <Url type="text/html" method="get" template="{base_url}/?q={"{searchTerms}"}"/>
+    <moz:SearchForm>{base_url}</moz:SearchForm>
     </OpenSearchDescription>
     """
     return Response(content=xml_content, media_type="application/xml")
