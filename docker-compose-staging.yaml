@@ -64,8 +64,30 @@ services:
       options:
         gcp-log-cmd: "true"
 
-  error-pages:    
-    image: nginx:alpine    
+  ms365-mcp:
+    # Staging instance of the Microsoft 365 MCP server. Catalog points here
+    # via MS365_MCP_SERVER_URL=https://mcp-m365-staging.beyondtheloop.ai/mcp
+    # in this environment's .env.
+    container_name: ms365-mcp
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npx -y @softeria/ms-365-mcp-server@latest --http 3000 --org-mode --public-url=https://mcp-m365-staging.beyondtheloop.ai"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mcp-m365.rule=Host(`mcp-m365-staging.beyondtheloop.ai`)"
+      - "traefik.http.routers.mcp-m365.entrypoints=websecure"
+      - "traefik.http.routers.mcp-m365.tls.certresolver=myresolver"
+      - "traefik.http.services.mcp-m365.loadbalancer.server.port=3000"
+    restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    logging:
+      driver: gcplogs
+      options:
+        gcp-log-cmd: "true"
+
+  error-pages:
+    image: nginx:alpine
     restart: unless-stopped    
     volumes:      
     - ./traefik/error-pages:/usr/share/nginx/html:ro      

@@ -11,6 +11,7 @@ user to paste their own client_id (and for Microsoft, tenant_id).
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -63,11 +64,17 @@ def _build_catalog() -> list[ConnectorTemplate]:
         ),
     ]
 
-    # Microsoft 365 is backed by our self-hosted ms-365-mcp-server (Softeria)
-    # at https://mcp-m365.beyondtheloop.ai/mcp. Azure OpenAI Responses API
-    # calls the URL server-side, so it must be publicly reachable with HTTPS.
-    # Single shared deployment serves the whole SaaS — the server is tenant-
-    # agnostic and uses whatever Bearer token the chat request carries.
+    # Microsoft 365 is backed by our self-hosted ms-365-mcp-server (Softeria).
+    # Azure OpenAI Responses API calls the URL server-side, so it must be
+    # publicly reachable with HTTPS.
+    #
+    # Per-environment subdomain via MS365_MCP_SERVER_URL: prod uses
+    # mcp-m365.beyondtheloop.ai (the hardcoded default), staging sets the
+    # env var to mcp-m365-staging.beyondtheloop.ai for isolation. Local dev
+    # points it at a Cloudflare tunnel.
+    ms365_url = (
+        os.getenv("MS365_MCP_SERVER_URL") or "https://mcp-m365.beyondtheloop.ai/mcp"
+    ).strip()
     templates.append(
         ConnectorTemplate(
             slug="microsoft-365",
@@ -80,7 +87,7 @@ def _build_catalog() -> list[ConnectorTemplate]:
                 "tenant ID and Entra app client ID at install."
             ),
             icon_url="https://www.google.com/s2/favicons?domain=microsoft.com&sz=128",
-            server_url="https://mcp-m365.beyondtheloop.ai/mcp",
+            server_url=ms365_url,
             transport="streamable_http",
             # `{tenant_id}` is substituted at install time from the form input.
             issuer_url="https://login.microsoftonline.com/{tenant_id}/v2.0",
