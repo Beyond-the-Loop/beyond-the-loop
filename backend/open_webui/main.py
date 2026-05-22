@@ -608,7 +608,7 @@ async def upload_file_openai(
             )
 
         # Call your existing internal upload_file function
-        file_item = upload_file(request=request, file=file, user=user)
+        file_item = upload_file(file=file, user=user)
 
         # Adapt response to OpenAI style
         return JSONResponse(

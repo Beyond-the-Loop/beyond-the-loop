@@ -3,7 +3,11 @@ import logging
 import sys
 
 from beyond_the_loop.models.files import Files
-from beyond_the_loop.retrieval.rag_engine import GoogleRagEngineClient
+from beyond_the_loop.retrieval.rag_engine import (
+    GoogleRagEngineClient,
+    rag_file_to_file_meta,
+)
+from beyond_the_loop.storage.provider import Storage
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -67,10 +71,14 @@ def main() -> int:
             continue
 
         try:
-            rag_file = client.import_gcs_file(file.path)
+            local_path = Storage.get_file(file.path)
+            rag_file = client.upload_file_to_corpus(
+                local_path,
+                display_name=file.path.rsplit("/", 1)[-1],
+            )
             Files.update_file_metadata_by_id(
                 file.id,
-                rag_file.to_file_meta(corpus=client.corpus, gcs_uri=file.path),
+                rag_file_to_file_meta(rag_file, corpus=client.corpus, gcs_uri=file.path),
             )
             migrated += 1
             log.info("migrated: %s (%s) -> %s", file.filename, file.id, rag_file.name)

@@ -8,16 +8,15 @@ This service handles automatic deletion of files after 3 months.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import List, Optional, Set
 
 from open_webui.internal.db import get_db
-from beyond_the_loop.models.files import File, Files
+from beyond_the_loop.models.files import File
 from beyond_the_loop.models.knowledge import Knowledge
 from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import User
-from beyond_the_loop.retrieval.rag_engine import delete_google_rag_file_from_meta
+from beyond_the_loop.services.file_service import delete_file_fully
 
 log = logging.getLogger(__name__)
 
@@ -163,28 +162,9 @@ class FileArchivalService:
         
         for file in files_to_delete:
             try:
-                try:
-                    delete_google_rag_file_from_meta(file.meta)
-                except Exception as e:
-                    log.warning(
-                        f"Could not delete Google RAG file for archived file {file.id}: {e}"
-                    )
-
-                # Delete physical file if it exists
-                if file.path and os.path.exists(file.path):
-                    try:
-                        os.remove(file.path)
-                        log.debug(f"Deleted physical file: {file.path}")
-                    except OSError as e:
-                        log.warning(f"Could not delete physical file {file.path}: {e}")
-
-                # Delete database record
-                if Files.delete_file_by_id(file.id):
-                    deleted_count += 1
-                    log.debug(f"Deleted file record: {file.id} ({file.filename})")
-                else:
-                    log.warning(f"Failed to delete file record: {file.id}")
-                    
+                delete_file_fully(file)
+                deleted_count += 1
+                log.debug(f"Deleted file: {file.id} ({file.filename})")
             except Exception as e:
                 log.error(f"Error deleting file {file.id}: {e}")
         

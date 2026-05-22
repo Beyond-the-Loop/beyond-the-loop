@@ -86,79 +86,6 @@ class LocalStorageProvider(StorageProvider):
         else:
             log.warning(f"Directory {UPLOAD_DIR} not found in local storage.")
 
-
-class S3StorageProvider(StorageProvider):
-    def __init__(self):
-        self.s3_client = boto3.client(
-            "s3",
-            region_name=S3_REGION_NAME,
-            endpoint_url=S3_ENDPOINT_URL,
-            aws_access_key_id=S3_ACCESS_KEY_ID,
-            aws_secret_access_key=S3_SECRET_ACCESS_KEY,
-        )
-        self.bucket_name = S3_BUCKET_NAME
-
-    def upload_file(self, file: BinaryIO, filename: str) -> Tuple[bytes, str]:
-        """Handles uploading of the file to S3 storage."""
-        _, file_path = LocalStorageProvider.upload_file(file, filename)
-        try:
-            self.s3_client.upload_file(file_path, self.bucket_name, filename)
-            return (
-                open(file_path, "rb").read(),
-                "s3://" + self.bucket_name + "/" + filename,
-            )
-        except ClientError as e:
-            raise RuntimeError(f"Error uploading file to S3: {e}")
-
-    def get_file(self, file_path: str) -> str:
-        """Handles downloading of the file from S3 storage."""
-        try:
-            bucket_name, key = file_path.split("//")[1].split("/")
-            local_file_path = f"{UPLOAD_DIR}/{key}"
-            self.s3_client.download_file(bucket_name, key, local_file_path)
-            return local_file_path
-        except ClientError as e:
-            raise RuntimeError(f"Error downloading file from S3: {e}")
-
-    def delete_file(self, file_path: str) -> None:
-        """Handles deletion of the file from S3 storage."""
-        filename = file_path.split("/")[-1]
-        try:
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=filename)
-        except ClientError as e:
-            raise RuntimeError(f"Error deleting file from S3: {e}")
-
-        # Always delete from local storage
-        LocalStorageProvider.delete_file(file_path)
-
-    def delete_all_files(self) -> None:
-        """Handles deletion of all files from S3 storage."""
-        try:
-            response = self.s3_client.list_objects_v2(Bucket=self.bucket_name)
-            if "Contents" in response:
-                for content in response["Contents"]:
-                    self.s3_client.delete_object(
-                        Bucket=self.bucket_name, Key=content["Key"]
-                    )
-        except ClientError as e:
-            raise RuntimeError(f"Error deleting all files from S3: {e}")
-
-        # Always delete from local storage
-        LocalStorageProvider.delete_all_files()
-
-    def get_presigned_url(self, file_path: str, expiry_seconds: int = 600) -> Optional[str]:
-        """Generate a pre-signed S3 URL valid for expiry_seconds seconds."""
-        try:
-            key = file_path.split("//")[1].split("/", 1)[1]
-            return self.s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": self.bucket_name, "Key": key},
-                ExpiresIn=expiry_seconds,
-            )
-        except ClientError as e:
-            raise RuntimeError(f"Error generating presigned URL for S3: {e}")
-
-
 class GCSStorageProvider(StorageProvider):
     def __init__(self):
         self.bucket_name = GCS_BUCKET_NAME
@@ -219,8 +146,6 @@ class GCSStorageProvider(StorageProvider):
 def get_storage_provider(storage_provider: str):
     if storage_provider == "local":
         Storage = LocalStorageProvider()
-    elif storage_provider == "s3":
-        Storage = S3StorageProvider()
     elif storage_provider == "gcs":
         Storage = GCSStorageProvider()
     else:
