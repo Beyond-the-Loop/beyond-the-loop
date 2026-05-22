@@ -5,6 +5,7 @@ from typing import Optional
 
 from open_webui.models.memories import Memories, MemoryModel
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.retrieval.vector.main import SearchResult
 from beyond_the_loop.socket.main import get_event_emitter
 from open_webui.utils.auth import get_verified_user
 from open_webui.env import SRC_LOG_LEVELS
@@ -84,6 +85,9 @@ class QueryMemoryForm(BaseModel):
 async def query_memory(
     request: Request, form_data: QueryMemoryForm, user=Depends(get_verified_user)
 ):
+    if not Memories.get_memories_by_user_id(user.id):
+        return SearchResult(ids=[[]], distances=[[]], documents=[[]], metadatas=[[]])
+
     event_emitter = None
     if form_data.chat_id and form_data.message_id and form_data.session_id:
         event_emitter = get_event_emitter(
