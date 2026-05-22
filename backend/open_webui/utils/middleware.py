@@ -813,10 +813,29 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             )
 
             if model_knowledge:
-                files.extend([{"type": "collection", "id": f"file-{file.id}"} for file in knowledge_files])
+                files.extend([
+                    {
+                        "type": "file",
+                        "id": file.id,
+                        "name": file.filename,
+                        "collection_name": f"file-{file.id}",
+                    }
+                    for file in knowledge_files
+                ])
 
             if model_files:
-                files.extend(model_files)
+                model_file_records = Files.get_files_by_ids(
+                    [f.get("id") for f in model_files if f.get("id")]
+                )
+                files.extend([
+                    {
+                        "type": "file",
+                        "id": file.id,
+                        "name": file.filename,
+                        "collection_name": f"file-{file.id}",
+                    }
+                    for file in model_file_records
+                ])
 
     # For code interpreter on OpenAI Responses API: skip RAG and text extraction entirely.
     # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
