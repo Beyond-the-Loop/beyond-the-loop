@@ -531,8 +531,6 @@ async def generate_chat_completion(
     # Convert the modified body back to JSON
     payload = json.dumps(payload)
 
-    print(payload)
-
     r = None
     streaming = False
     response = None

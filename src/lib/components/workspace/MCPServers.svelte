@@ -390,6 +390,16 @@
 				editingId = saved.id;
 				editingServer = saved;
 				createdInThisSession = true;
+			} else {
+				// Editing an existing row: persist the latest form values
+				// (name, URL, issuer, scope, …) before launching OAuth, so the
+				// popup runs against the current config — not the stale row.
+				const updated = await updateMCPServer(
+					localStorage.token,
+					editingId,
+					buildSavePayload()
+				);
+				editingServer = updated;
 			}
 			await runOAuthFlow(editingId);
 			await refreshEditingServer();

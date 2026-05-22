@@ -240,6 +240,21 @@ async def discover(issuer_url: str) -> dict:
         urljoin(base, ".well-known/openid-configuration"),
     ]
 
+    # When the issuer has a path, also probe the origin's well-known URIs.
+    # RFC 8414 strictly says path-suffix, but providers like Intercom host
+    # metadata once per host at the origin and 401 anything under the
+    # resource path — falling back to the origin recovers those.
+    parsed = urlparse(issuer_url)
+    if parsed.path.strip("/"):
+        origin = f"{parsed.scheme}://{parsed.netloc}/"
+        for path in (
+            ".well-known/oauth-authorization-server",
+            ".well-known/openid-configuration",
+        ):
+            url = urljoin(origin, path)
+            if url not in candidates:
+                candidates.append(url)
+
     last_err: Optional[str] = None
     async with httpx.AsyncClient(
         timeout=HTTP_TIMEOUT_SECONDS, headers={"User-Agent": USER_AGENT}
