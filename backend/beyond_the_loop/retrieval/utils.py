@@ -277,16 +277,13 @@ def get_sources_from_files(
             }
             full_context_results.append((context, file))
         else:
-            if file.get("type") == "text":
-                # text files carry their content inline, no vector search needed
-                search_tasks.append((file, None))
-                continue
-
             if file.get("collection_names"):
+                # legacy
                 collection_names = set(file["collection_names"])
             elif file.get("collection_name"):
                 collection_names = {file["collection_name"]}
             elif file.get("type") == "collection" and file.get("id"):
+                # legacy
                 collection_names = {file["id"]}
             elif file.get("meta", {}).get("collection_name"):
                 collection_names = {file["meta"]["collection_name"]}

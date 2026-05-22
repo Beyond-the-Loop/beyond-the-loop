@@ -895,10 +895,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     if file_id:
                         if file_item.get("type") == "web_search_results":
                             continue
-                        # Knowledge-base entries come in as
-                        # {type: "collection", id: "file-<uuid>"} — strip the
-                        # prefix so Files.get_file_by_id can resolve them and
-                        # the full document text is included on the FULL path.
+                        # legacy
                         if file_item.get("type") == "collection":
                             if isinstance(file_id, str) and file_id.startswith("file-"):
                                 file_id = file_id[5:]
