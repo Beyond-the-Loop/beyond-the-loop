@@ -70,7 +70,7 @@ class ImageEditDecision(BaseModel):
 
 
 class FileIntentDecision(BaseModel):
-    intent: Literal["FULL", "RAG"]
+    intent: Literal["FULL", "RAG", "NONE"]
 
 
 class KnowledgeUseDecision(BaseModel):

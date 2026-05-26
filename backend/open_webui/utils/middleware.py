@@ -74,16 +74,17 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 async def chat_file_intent_decision_handler(
         form_data: dict, user: UserModel, pii_session=None
-) -> tuple[dict, bool]:
+) -> tuple[dict, str]:
     """
-    Decide if the user's intent is RAG (search/query) or translation/content extraction.
-    Returns (modified_body, is_rag_task)
+    Decide if the attached files are needed for this turn.
+    Returns (modified_body, intent) where intent is one of "RAG", "FULL", "NONE".
+    On "NONE" the files are stripped from metadata so downstream handlers skip them.
     """
 
     files = form_data.get("metadata", {}).get("files", [])
 
     if not files:
-        return form_data, True  # No files, proceed normally
+        return form_data, "RAG"  # No files, downstream checks short-circuit
 
     # Filter out image files - only process non-image files
     non_image_files = []
@@ -110,12 +111,12 @@ async def chat_file_intent_decision_handler(
                 non_image_files.append(file_item)
 
     if not non_image_files:
-        return form_data, True  # No non-image files, proceed with normal RAG
+        return form_data, "RAG"  # No non-image files, proceed with normal RAG
 
     # Use DEFAULT_AGENT_MODEL to decide intent
     user_message = get_last_user_message(form_data["messages"])
     if not user_message:
-        return form_data, True  # No user message, proceed with RAG
+        return form_data, "RAG"  # No user message, proceed with RAG
 
     from beyond_the_loop.pii.session import anonymize_filename, pii_note_prefix
     file_name_str = ', '.join(
@@ -134,14 +135,19 @@ async def chat_file_intent_decision_handler(
             response_model=FileIntentDecision,
             model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
         )
-        is_rag_task = result.intent == "RAG"
-        log.debug(f"File intent decision: {result.intent} -> is_rag_task: {is_rag_task}")
+        intent = result.intent
+        log.debug(f"File intent decision: {intent}")
 
-        return form_data, is_rag_task
+        if intent == "NONE":
+            # Drop the files so the RAG handler, FULL extraction and
+            # litellm file-upload pipeline all skip them for this turn.
+            form_data.get("metadata", {}).pop("files", None)
+
+        return form_data, intent
 
     except Exception as e:
         log.exception(f"Error in file intent decision: {e}")
-        return form_data, True  # Fallback to RAG on error
+        return form_data, "RAG"  # Fallback to RAG on error
 
 
 def extract_file_content_with_loader(file_id: str) -> str:
@@ -860,18 +866,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     # vector search that returns nothing.
     if not skip_file_processing:
         try:
-            form_data, is_rag_task = await chat_file_intent_decision_handler(
+            form_data, file_intent = await chat_file_intent_decision_handler(
                 form_data, user, pii_session=pii_session
             )
         except Exception as e:
             log.exception(f"Error in file intent decision: {e}")
-            is_rag_task = True  # Fallback to RAG
+            file_intent = "RAG"  # Fallback to RAG
     else:
-        is_rag_task = False  # Skipped: code interpreter on responses API handles files directly
+        file_intent = "NONE"  # Skipped: code interpreter on responses API handles files directly
 
     await check_disconnect(request)
 
-    if not skip_file_processing and is_rag_task:
+    if not skip_file_processing and file_intent == "RAG":
         # Proceed with normal RAG processing
         try:
             form_data, flags = await chat_completion_files_handler(
@@ -881,7 +887,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             sources.extend(flags.get("sources", []))
         except Exception as e:
             log.exception(e)
-    elif not skip_file_processing:
+    elif not skip_file_processing and file_intent == "FULL":
         # Handle non-RAG task: extract file content and append to user prompt.
         # Anonymize each file separately so its source is tracked per-file
         # (the sidebar groups variables by source = file name).
@@ -940,7 +946,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             log.exception(f"Error processing files for content extraction: {e}")
 
     # If context is not empty, insert it into the messages (only for RAG tasks)
-    if len(sources) > 0 and is_rag_task:
+    if len(sources) > 0 and file_intent == "RAG":
         context_string = ""
         for source_idx, source in enumerate(sources):
             source_id = source.get("name", "")
@@ -1002,7 +1008,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             ),
             form_data["messages"],
         )
-    elif is_rag_task and (model_knowledge or model_files or files):
+    elif file_intent == "RAG" and (model_knowledge or model_files or files):
         # Retrieval ran but returned no hits. Without a notice the model would
         # answer "I don't see any file" — which confuses the user because the UI
         # just showed "searching knowledge". Instead, tell the model that the
@@ -1024,7 +1030,15 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         )
 
     # If there are citations, add them to the data_items
-    sources = [source for source in sources if source.get("name") or source.get("title") or source.get("file_id") or source.get("url")]
+    # Drop RAG sources whose retrieval came back empty — without this the UI
+    # would still render the file as a "source" even though no snippet matched.
+    def _has_identifier(s):
+        return bool(s.get("name") or s.get("title") or s.get("file_id") or s.get("url"))
+
+    def _is_empty_rag(s):
+        return s.get("type") == "rag" and not s.get("snippets")
+
+    sources = [source for source in sources if _has_identifier(source) and not _is_empty_rag(source)]
 
     if len(sources) > 0:
         events.append({"sources": sources})
