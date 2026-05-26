@@ -302,7 +302,7 @@ async def transcription(
 
     await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
 
-    if file.content_type not in ["audio/mpeg", "audio/wav", "audio/ogg", "audio/x-m4a"]:
+    if file.content_type not in ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/ogg", "audio/x-m4a"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.FILE_NOT_SUPPORTED,
