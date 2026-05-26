@@ -3,6 +3,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Optional
+from beyond_the_loop.utils.file_upload_validator import FileValidator
 from pydantic import BaseModel
 from urllib.parse import quote
 
@@ -43,6 +44,8 @@ def upload_file(
     try:
         unsanitized_filename = file.filename
         filename = os.path.basename(unsanitized_filename)
+
+        FileValidator.validate_upload(file)
 
         # replace filename with uuid
         id = str(uuid.uuid4())
@@ -85,7 +88,8 @@ def upload_file(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=ERROR_MESSAGES.DEFAULT,
             )
-
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception(e)
         raise HTTPException(
