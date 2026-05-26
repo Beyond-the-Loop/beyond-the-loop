@@ -233,8 +233,7 @@ async def chat_completion_files_handler(
                         ),
                         k=request.app.state.config.TOP_K,
                         reranking_function=request.app.state.rf,
-                        r=request.app.state.config.RELEVANCE_THRESHOLD,
-                        hybrid_search=request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
+                        r=request.app.state.config.RELEVANCE_THRESHOLD
                     ),
                 )
 

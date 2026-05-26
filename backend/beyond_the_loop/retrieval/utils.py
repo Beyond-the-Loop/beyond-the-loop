@@ -262,8 +262,7 @@ def get_sources_from_files(
     embedding_function,
     k,
     reranking_function,
-    r,
-    hybrid_search,
+    r
 ):
     extracted_collections = set()
     full_context_results = []
@@ -307,20 +306,6 @@ def get_sources_from_files(
         """Worker function executed in a thread for each file."""
         if collection_names is None:
             return file.get("content")
-
-        if hybrid_search:
-            try:
-                return query_collection_with_hybrid_search(
-                    collection_names=collection_names,
-                    queries=queries,
-                    query_embeddings=query_embeddings,
-                    embedding_function=embedding_function,
-                    k=k,
-                    reranking_function=reranking_function,
-                    r=r,
-                )
-            except Exception as e:
-                log.debug("Hybrid search failed, falling back to vector-only search.", e)
 
         return query_collection(
             collection_names=collection_names,

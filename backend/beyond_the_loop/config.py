@@ -146,7 +146,6 @@ DEFAULT_CONFIG = {
         "template": "### Task:\nRespond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.\n\n### Guidelines:\n- If you don't know the answer, clearly state that.\n- If uncertain, ask the user for clarification.\n- Respond in the same language as the user's query.\n- If the context is unreadable or of poor quality, inform the user and provide the best possible answer.\n- If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.\n- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**  \n- Do not cite if the <source_id> tag is not provided in the context.  \n- Do not use XML tags in your response.\n- Ensure citations are concise and directly related to the information provided.\n\n### Example of Citation:\nIf the user asks about a specific topic and the information is found in \"whitepaper.pdf\" with a provided <source_id>, the response should include the citation like so:  \n* \"According to the study, the proposed method increases efficiency by 20% [whitepaper.pdf].\"\nIf no <source_id> is present, the response should omit the citation.\n\n### Output:\nProvide a clear and direct response to the user's query, including inline citations in the format [source_id] only when the <source_id> tag is present in the context.\n\n<context>\n{{CONTEXT}}\n</context>\n\n<user_query>\n{{QUERY}}\n</user_query>\n",
         "top_k": 10,
         "relevance_threshold": 0.0,
-        "enable_hybrid_search": True,
         "embedding_engine": "openai",
         "embedding_model": "text-embedding-3-small",
         "embedding_batch_size": 2048,
@@ -865,12 +864,6 @@ RAG_RELEVANCE_THRESHOLD = PersistentConfig(
     "RAG_RELEVANCE_THRESHOLD",
     "rag.relevance_threshold",
     float(os.environ.get("RAG_RELEVANCE_THRESHOLD", "0.0")),
-)
-
-ENABLE_RAG_HYBRID_SEARCH = PersistentConfig(
-    "ENABLE_RAG_HYBRID_SEARCH",
-    "rag.enable_hybrid_search",
-    os.environ.get("ENABLE_RAG_HYBRID_SEARCH", "true").lower() == "true",
 )
 
 RAG_FILE_MAX_COUNT = PersistentConfig(

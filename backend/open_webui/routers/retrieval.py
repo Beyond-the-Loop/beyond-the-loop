@@ -35,8 +35,7 @@ from firecrawl.v2.types import Document as Firecrawl_Document
 from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
     get_model_path,
-    query_doc,
-    query_doc_with_hybrid_search,
+    query_doc
 )
 
 from open_webui.utils.misc import (
@@ -281,8 +280,7 @@ async def get_query_settings(request: Request, user=Depends(get_admin_user)):
         "status": True,
         "template": request.app.state.config.RAG_TEMPLATE,
         "k": request.app.state.config.TOP_K,
-        "r": request.app.state.config.RELEVANCE_THRESHOLD,
-        "hybrid": request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
+        "r": request.app.state.config.RELEVANCE_THRESHOLD
     }
 
 
@@ -734,32 +732,14 @@ def query_doc_handler(
     user=Depends(get_verified_user),
 ):
     try:
-        if request.app.state.config.ENABLE_RAG_HYBRID_SEARCH:
-            embedding_function = lambda text: request.app.state.EMBEDDING_FUNCTION(
-                text, user=user
-            )
-            return query_doc_with_hybrid_search(
-                collection_name=form_data.collection_name,
-                query=form_data.query,
-                query_embedding=embedding_function(form_data.query),
-                embedding_function=embedding_function,
-                k=form_data.k if form_data.k else request.app.state.config.TOP_K,
-                reranking_function=request.app.state.rf,
-                r=(
-                    form_data.r
-                    if form_data.r
-                    else request.app.state.config.RELEVANCE_THRESHOLD
-                ),
-            )
-        else:
-            return query_doc(
-                collection_name=form_data.collection_name,
-                query_embedding=request.app.state.EMBEDDING_FUNCTION(
-                    form_data.query, user=user
-                ),
-                k=form_data.k if form_data.k else request.app.state.config.TOP_K,
-                user=user,
-            )
+        return query_doc(
+            collection_name=form_data.collection_name,
+            query_embedding=request.app.state.EMBEDDING_FUNCTION(
+                form_data.query, user=user
+            ),
+            k=form_data.k if form_data.k else request.app.state.config.TOP_K,
+            user=user,
+        )
     except Exception as e:
         log.exception(e)
         raise HTTPException(
