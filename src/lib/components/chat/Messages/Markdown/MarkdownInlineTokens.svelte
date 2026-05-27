@@ -16,6 +16,8 @@
 	import KatexRenderer from './KatexRenderer.svelte';
 	import Source from './Source.svelte';
 	import CitationBadge from './CitationBadge.svelte';
+	import Spinner from '$lib/components/common/Spinner.svelte';
+	import Tooltip from '$lib/components/common/Tooltip.svelte';
 
 	export let id: string;
 	export let tokens: Token[];
@@ -69,6 +71,20 @@
 			>
 				{token.tokens?.[0]?.text?.replace(/^\[|\]$/g, '') ?? token.text}
 			</a>
+		{:else if token.href?.startsWith('sandbox:/mnt/data/')}
+			<button aria-disabled="true" class="opacity-60 flex gap-2 cursor-not-allowed inline-flex justify-center text-xs leading-0 items-center px-[.4rem] py-[.1875rem] bg-lightGray-400 dark:bg-[#2d2f2f] text-lightGray-100 dark:text-customGray-100 border-lightGray-500 rounded-md mr-1">
+				<Tooltip content="Datei wird bereitgestellt...">
+					{token.tokens?.[0]?.text?.replace(/^\[|\]$/g, '') ?? token.text}
+				</Tooltip>
+			</button>
+		{:else if token.href?.startsWith('unavailable://')}
+		
+			<button aria-disabled="true" class="opacity-40 flex gap-2 cursor-not-allowed inline-flex justify-center text-xs leading-0 items-center px-[.4rem] py-[.1875rem] bg-lightGray-400 dark:bg-[#2d2f2f] text-lightGray-100 dark:text-customGray-100 border-lightGray-500 rounded-md mr-1">
+				<Tooltip content="Datei nicht verfügbar">
+					{token.tokens?.[0]?.text?.replace(/^\[|\]$/g, '') ?? token.text}
+				</Tooltip>
+			</button>
+		
 		{:else if token.tokens}
 			{#if isPlainText(token.tokens)}
 				<a

@@ -1923,6 +1923,14 @@ async def process_chat_response(
 
                 await stream_body_handler(response)
 
+                for block in content_blocks:
+                    if block.get("type") == "text" and "sandbox:/mnt/data/" in block.get("content", ""):
+                        block["content"] = re.sub(
+                            r'\(sandbox:/mnt/data/([^)]+)\)',
+                            r'(unavailable://\1)',
+                            block["content"]
+                        )
+
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {
