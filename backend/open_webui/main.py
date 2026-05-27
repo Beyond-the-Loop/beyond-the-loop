@@ -41,7 +41,7 @@ from beyond_the_loop.config import (
     RAG_EMBEDDING_ENGINE,
     RAG_EMBEDDING_BATCH_SIZE,
     RAG_RELEVANCE_THRESHOLD,
-    RAG_FILE_MAX_COUNT,
+    UPLOAD_FILE_MAX_COUNT,
     UPLOAD_FILE_MAX_SIZE,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
@@ -296,9 +296,6 @@ app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 
 app.state.config.TOP_K = RAG_TOP_K
 app.state.config.RELEVANCE_THRESHOLD = RAG_RELEVANCE_THRESHOLD
-app.state.config.FILE_MAX_SIZE = UPLOAD_FILE_MAX_SIZE
-app.state.config.FILE_MAX_COUNT = RAG_FILE_MAX_COUNT
-
 app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION = (
     ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION
 )
@@ -878,8 +875,8 @@ async def get_app_config(request: Request):
                     }
                 },
                 "file": {
-                    "max_size": app.state.config.FILE_MAX_SIZE,
-                    "max_count": app.state.config.FILE_MAX_COUNT,
+                    "max_size": UPLOAD_FILE_MAX_SIZE,
+                    "max_count": UPLOAD_FILE_MAX_COUNT,
                 },
                 "google_drive": {
                     "client_id": GOOGLE_DRIVE_CLIENT_ID.value,

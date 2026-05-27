@@ -70,6 +70,7 @@ RUN apt-get update && apt-get install -y \
     curl jq bash ffmpeg \
     poppler-utils \
     tesseract-ocr \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # copy backend files

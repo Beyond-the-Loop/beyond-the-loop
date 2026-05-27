@@ -866,7 +866,7 @@ RAG_RELEVANCE_THRESHOLD = PersistentConfig(
     float(os.environ.get("RAG_RELEVANCE_THRESHOLD", "0.0")),
 )
 
-RAG_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
+UPLOAD_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
 
 UPLOAD_FILE_MAX_SIZE = int(os.environ.get("UPLOAD_FILE_MAX_SIZE", 25))
 
