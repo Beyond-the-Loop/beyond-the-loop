@@ -77,7 +77,7 @@ from beyond_the_loop.config import (
     TITLE_GENERATION_PROMPT_TEMPLATE,
     TAGS_GENERATION_PROMPT_TEMPLATE,
     AppConfig,
-    reset_config,
+    reset_config, UPLOAD_FILE_MAX_SIZE, UPLOAD_FILE_MAX_COUNT,
 )
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.alert import Alerts

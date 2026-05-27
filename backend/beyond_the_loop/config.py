@@ -591,7 +591,7 @@ GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "bchat-uploads-dev")
 # File Upload DIR
 ####################################
 
-RAG_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
+UPLOAD_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
 
 UPLOAD_FILE_MAX_SIZE = int(os.environ.get("UPLOAD_FILE_MAX_SIZE", 25))
 
