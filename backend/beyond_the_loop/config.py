@@ -866,25 +866,9 @@ RAG_RELEVANCE_THRESHOLD = PersistentConfig(
     float(os.environ.get("RAG_RELEVANCE_THRESHOLD", "0.0")),
 )
 
-RAG_FILE_MAX_COUNT = PersistentConfig(
-    "RAG_FILE_MAX_COUNT",
-    "rag.file.max_count",
-    (
-        int(os.environ.get("RAG_FILE_MAX_COUNT"))
-        if os.environ.get("RAG_FILE_MAX_COUNT")
-        else None
-    ),
-)
+RAG_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
 
-RAG_FILE_MAX_SIZE = PersistentConfig(
-    "RAG_FILE_MAX_SIZE",
-    "rag.file.max_size",
-    (
-        int(os.environ.get("RAG_FILE_MAX_SIZE"))
-        if os.environ.get("RAG_FILE_MAX_SIZE")
-        else None
-    ),
-)
+UPLOAD_FILE_MAX_SIZE = int(os.environ.get("UPLOAD_FILE_MAX_SIZE", 25))
 
 ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION = PersistentConfig(
     "ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION",

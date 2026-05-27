@@ -1,7 +1,7 @@
 import magic
 from pathlib import Path
 from fastapi import HTTPException, UploadFile, status
-from beyond_the_loop.config import RAG_FILE_MAX_SIZE
+from beyond_the_loop.config import UPLOAD_FILE_MAX_SIZE
 
 # Maps extension -> set of allowed MIME types (detected from file content)
 EXTENSION_MIME_MAP: dict[str, set[str]] = {
@@ -50,7 +50,7 @@ EXTENSION_MIME_MAP: dict[str, set[str]] = {
 
 SUPPORTED_FILE_EXTENSIONS: set[str] = set(EXTENSION_MIME_MAP.keys())
 
-MAX_FILE_SIZE_BYTES = RAG_FILE_MAX_SIZE.value * 1024 * 1024
+MAX_FILE_SIZE_BYTES = UPLOAD_FILE_MAX_SIZE * 1024 * 1024
 
 
 class FileValidator:
