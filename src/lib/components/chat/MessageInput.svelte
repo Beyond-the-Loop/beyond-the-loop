@@ -31,7 +31,6 @@
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import ToolsMenu from './MessageInput/ToolsMenu.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
-	import MCPIndicator from './MessageInput/MCPIndicator.svelte';
 	import FilesOverlay from './MessageInput/FilesOverlay.svelte';
 	import Commands from './MessageInput/Commands.svelte';
 
@@ -1266,20 +1265,18 @@
 												canImageGen = (selectedModelInfo?.supports_image_generation ?? false)}
 											{@const
 												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (selectedModelInfo?.supports_code_execution ?? false))}
+											{@const
+												canMcp = (!!selectedModelInfo?.supports_mcp && !!$_user?.permissions?.workspace?.mcp_connections)}
 
 											<ToolsMenu
 												{canWebSearch}
 												{canImageGen}
 												{canCodeInterpreter}
+												{canMcp}
 												bind:webSearchEnabled
 												bind:imageGenerationEnabled
 												bind:codeInterpreterEnabled
 												bind:autoToolsEnabled
-											/>
-
-											<MCPIndicator
-												{selectedModelInfo}
-												bind:mcpEnabled
 												bind:mcpDisabledServerIds
 											/>
 

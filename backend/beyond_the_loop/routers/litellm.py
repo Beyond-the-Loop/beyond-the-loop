@@ -435,6 +435,8 @@ async def generate_chat_completion(
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
+    print(payload)
+
     # Check model access
     if not agent_or_task_prompt and not(
         model.is_active and (user.id == model.user_id or (not model.base_model_id and user.role == "admin") or has_access(
@@ -593,6 +595,7 @@ async def generate_chat_completion(
                     log_all_until_completed = False
                     web_search_active = False
                     last_web_search_status = None
+                    mcp_server_labels: dict[str, str] = {}
 
                     async for chunk in r.content:
                         chunk_str = chunk.decode("utf-8", errors="replace")
@@ -635,7 +638,8 @@ async def generate_chat_completion(
 
                                     elif event == "response.output_item.added":
                                         item = data.get("item", {})
-                                        if item.get("type") == "web_search_call":
+                                        item_type = item.get("type")
+                                        if item_type == "web_search_call":
                                             web_search_active = True
                                             last_web_search_status = {
                                                 "action": "web_search",
@@ -643,6 +647,22 @@ async def generate_chat_completion(
                                                 "description": "Searching the web",
                                             }
                                             yield f"data: {json.dumps({'status_event': last_web_search_status})}\n\n".encode()
+                                        elif item_type == "mcp_list_tools":
+                                            mcp_item_id = item.get("id", "")
+                                            mcp_label = item.get("server_label") or "MCP server"
+                                            if mcp_item_id:
+                                                mcp_server_labels[mcp_item_id] = mcp_label
+                                            yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': False, 'description': f'Connecting to {mcp_label}'}})}\n\n".encode()
+
+                                    elif event == "response.mcp_list_tools.completed":
+                                        mcp_item_id = data.get("item_id", "")
+                                        mcp_label = mcp_server_labels.get(mcp_item_id, "MCP server")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': True, 'description': f'Connected to {mcp_label}'}})}\n\n".encode()
+
+                                    elif event == "response.mcp_list_tools.failed":
+                                        mcp_item_id = data.get("item_id", "")
+                                        mcp_label = mcp_server_labels.get(mcp_item_id, "MCP server")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': True, 'description': f'Failed to connect to {mcp_label}'}})}\n\n".encode()
 
                                     elif event == "response.code_interpreter_call.in_progress":
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Writing code'}})}\n\n".encode()
