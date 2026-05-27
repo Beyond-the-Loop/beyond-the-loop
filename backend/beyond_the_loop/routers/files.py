@@ -2,11 +2,8 @@ import logging
 import os
 import tempfile
 import uuid
-from pathlib import Path
 from typing import Optional
 from beyond_the_loop.utils.file_upload_validator import FileValidator
-from pydantic import BaseModel
-from urllib.parse import quote
 
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.rag_engine import (

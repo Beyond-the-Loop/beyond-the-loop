@@ -132,17 +132,10 @@ def reset_config(company_id):
 
 
 DEFAULT_CONFIG = {
-    "concurrent_requests": 10,
-    "google_drive": {"enable": False},
     "audio": {
         "tts": {
             "voice": "alloy",
         }
-    },
-    "image_generation": {
-        "engine": "flux",
-        "model": "flux-kontext-max",
-        "size": "1024x1024"
     },
     "data": {
         "chat_retention_days": 90,
@@ -509,7 +502,6 @@ OAUTH_ALLOWED_DOMAINS = PersistentConfig(
     ],
 )
 
-
 def load_oauth_providers():
     OAUTH_PROVIDERS.clear()
     if GOOGLE_CLIENT_ID.value and GOOGLE_CLIENT_SECRET.value:
@@ -598,6 +590,10 @@ GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "bchat-uploads-dev")
 ####################################
 # File Upload DIR
 ####################################
+
+RAG_FILE_MAX_COUNT = int(os.environ.get("RAG_FILE_MAX_COUNT", 10))
+
+UPLOAD_FILE_MAX_SIZE = int(os.environ.get("UPLOAD_FILE_MAX_SIZE", 25))
 
 UPLOAD_DIR = f"{DATA_DIR}/uploads"
 Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
