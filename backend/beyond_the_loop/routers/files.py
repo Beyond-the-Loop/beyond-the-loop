@@ -1,6 +1,7 @@
 import logging
 import os
 import tempfile
+import time
 import uuid
 from typing import Optional
 from beyond_the_loop.utils.file_upload_validator import FileValidator
@@ -41,19 +42,38 @@ def upload_file(
     file: UploadFile = File(...),
     user=Depends(get_verified_user)
 ):
-    log.info(f"file.content_type: {file.content_type}")
+    t_request_start = time.perf_counter()
+    log.info(
+        "[UPLOAD_TIMING] step=request_start filename=%s content_type=%s",
+        file.filename,
+        file.content_type,
+    )
     try:
         unsanitized_filename = file.filename
         filename = os.path.basename(unsanitized_filename)
 
+        t0 = time.perf_counter()
         FileValidator.validate_upload(file)
+        log.info(
+            "[UPLOAD_TIMING] step=validate_upload duration_ms=%.2f",
+            (time.perf_counter() - t0) * 1000,
+        )
 
         # replace filename with uuid
         id = str(uuid.uuid4())
         name = filename
         filename = f"{id}_{filename}"
-        contents, file_path = Storage.upload_file(file.file, filename)
 
+        t0 = time.perf_counter()
+        contents, file_path = Storage.upload_file(file.file, filename)
+        log.info(
+            "[UPLOAD_TIMING] step=storage_upload duration_ms=%.2f size_bytes=%d file_path=%s",
+            (time.perf_counter() - t0) * 1000,
+            len(contents),
+            file_path,
+        )
+
+        t0 = time.perf_counter()
         file_item = Files.insert_new_file(
             user.id,
             FileForm(
@@ -69,16 +89,42 @@ def upload_file(
                 }
             ),
         )
+        log.info(
+            "[UPLOAD_TIMING] step=db_insert_new_file duration_ms=%.2f id=%s",
+            (time.perf_counter() - t0) * 1000,
+            id,
+        )
 
         try:
+            t0 = time.perf_counter()
             google_rag = get_google_rag_client()
+            log.info(
+                "[UPLOAD_TIMING] step=get_google_rag_client duration_ms=%.2f",
+                (time.perf_counter() - t0) * 1000,
+            )
+
             with tempfile.NamedTemporaryFile(
                 suffix=os.path.splitext(name)[1] or None,
                 delete=True,
             ) as tmp:
+                t0 = time.perf_counter()
                 tmp.write(contents)
                 tmp.flush()
+                log.info(
+                    "[UPLOAD_TIMING] step=write_tempfile duration_ms=%.2f path=%s",
+                    (time.perf_counter() - t0) * 1000,
+                    tmp.name,
+                )
+
+                t0 = time.perf_counter()
                 rag_file = google_rag.upload_file_to_corpus(tmp.name, display_name=filename)
+                log.info(
+                    "[UPLOAD_TIMING] step=rag_upload_file_to_corpus duration_ms=%.2f rag_file=%s",
+                    (time.perf_counter() - t0) * 1000,
+                    getattr(rag_file, "name", "<unknown>"),
+                )
+
+            t0 = time.perf_counter()
             file_item = Files.update_file_metadata_by_id(
                 id,
                 rag_file_to_file_meta(
@@ -86,6 +132,11 @@ def upload_file(
                     corpus=google_rag.corpus,
                     gcs_uri=file_path,
                 ),
+            )
+            log.info(
+                "[UPLOAD_TIMING] step=db_update_metadata duration_ms=%.2f id=%s",
+                (time.perf_counter() - t0) * 1000,
+                id,
             )
             log.info(
                 "Uploaded file %s into Google RAG Engine as %s",
@@ -109,6 +160,12 @@ def upload_file(
                     "error": str(e),
                 }
             )
+
+        log.info(
+            "[UPLOAD_TIMING] step=request_total duration_ms=%.2f id=%s",
+            (time.perf_counter() - t_request_start) * 1000,
+            id,
+        )
 
         if file_item:
             return file_item

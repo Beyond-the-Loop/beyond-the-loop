@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 from functools import lru_cache
 from os.path import basename
 
@@ -30,11 +31,29 @@ class GoogleRagEngineClient:
             raise ValueError("GOOGLE_RAG_LOCATION is not configured")
 
     def upload_file_to_corpus(self, local_path: str, display_name: str | None = None):
+        t0 = time.perf_counter()
         rag = self._rag()
+        log.info(
+            "[UPLOAD_TIMING] step=rag_vertexai_init duration_ms=%.2f",
+            (time.perf_counter() - t0) * 1000,
+        )
+
+        try:
+            file_size = os.path.getsize(local_path)
+        except OSError:
+            file_size = -1
+
+        t0 = time.perf_counter()
         rag_file = rag.upload_file(
             corpus_name=self.corpus,
             path=local_path,
             display_name=display_name or basename(local_path),
+        )
+        log.info(
+            "[UPLOAD_TIMING] step=rag_upload_file_api duration_ms=%.2f bytes=%d rag_file=%s",
+            (time.perf_counter() - t0) * 1000,
+            file_size,
+            getattr(rag_file, "name", "<unknown>"),
         )
         log.info("Google RAG file uploaded: %s", getattr(rag_file, "name", "<unknown>"))
         return rag_file
@@ -95,17 +114,19 @@ class GoogleRagEngineClient:
             source_name = basename(source_uri) if source_uri else "Google RAG"
             sources.append(
                 {
-                    "source": {"name": source_name},
-                    "document": [context["text"]],
+                    "type": "rag",
+                    "name": source_name,
+                    "file_id": None,
+                    "snippets": [context["text"]],
+                    "scores": (
+                        [context["score"]] if context.get("score") is not None else []
+                    ),
                     "metadata": [
                         {
                             "source": source_name,
                             "source_uri": source_uri,
                         }
                     ],
-                    "distances": (
-                        [context["score"]] if context.get("score") is not None else []
-                    ),
                 }
             )
 
@@ -187,7 +208,9 @@ def get_sources_from_google_rag(files, queries):
         info = info_by_gcs_uri.get(source_uri) if source_uri else None
         if info:
             if info.get("name"):
-                source["source"]["name"] = info["name"]
+                source["name"] = info["name"]
+            if info.get("file_id"):
+                source["file_id"] = info["file_id"]
             for meta in metadata_list:
                 if info.get("name"):
                     meta["source"] = info["name"]

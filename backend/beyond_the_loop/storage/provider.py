@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import time
 from abc import ABC, abstractmethod
 from typing import BinaryIO, Optional, Tuple
 
@@ -47,12 +48,24 @@ class StorageProvider(ABC):
 class LocalStorageProvider(StorageProvider):
     @staticmethod
     def upload_file(file: BinaryIO, filename: str) -> Tuple[bytes, str]:
+        t0 = time.perf_counter()
         contents = file.read()
+        log.info(
+            "[UPLOAD_TIMING] step=local_read_stream duration_ms=%.2f bytes=%d",
+            (time.perf_counter() - t0) * 1000,
+            len(contents),
+        )
         if not contents:
             raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
         file_path = f"{UPLOAD_DIR}/{filename}"
+        t0 = time.perf_counter()
         with open(file_path, "wb") as f:
             f.write(contents)
+        log.info(
+            "[UPLOAD_TIMING] step=local_write_to_disk duration_ms=%.2f path=%s",
+            (time.perf_counter() - t0) * 1000,
+            file_path,
+        )
         return contents, file_path
 
     @staticmethod
@@ -97,8 +110,16 @@ class GCSStorageProvider(StorageProvider):
         """Handles uploading of the file to GCS storage."""
         contents, file_path = LocalStorageProvider.upload_file(file, filename)
         try:
+            t0 = time.perf_counter()
             blob = self.bucket.blob(filename)
             blob.upload_from_filename(file_path)
+            log.info(
+                "[UPLOAD_TIMING] step=gcs_upload_from_filename duration_ms=%.2f bucket=%s blob=%s bytes=%d",
+                (time.perf_counter() - t0) * 1000,
+                self.bucket_name,
+                filename,
+                len(contents),
+            )
             return contents, "gs://" + self.bucket_name + "/" + filename
         except GoogleCloudError as e:
             raise RuntimeError(f"Error uploading file to GCS: {e}")

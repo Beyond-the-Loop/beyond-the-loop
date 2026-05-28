@@ -117,7 +117,7 @@ async def chat_file_intent_decision_handler(
 
     if has_google_rag_scope(files):
         log.info("Google RAG scope detected; using RAG retrieval")
-        return form_data, True
+        return form_data, "RAG"
 
     # Filter out image files - only process non-image files
     non_image_files = []
