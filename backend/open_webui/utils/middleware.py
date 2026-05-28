@@ -133,7 +133,8 @@ async def chat_file_intent_decision_handler(
                 }
             ],
             response_model=FileIntentDecision,
-            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
+            user=user,
         )
         intent = result.intent
         log.debug(f"File intent decision: {intent}")
@@ -367,6 +368,7 @@ async def _smart_router_model_selection(
             messages=[{"role": "user", "content": prompt}],
             response_model=SmartRouterDecision,
             model=agent_model,
+            user=user,
         )
 
         target_score = max(1.0, min(5.0, decision.intelligence_score))
@@ -597,6 +599,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 chat_id=chat_id,
                 event_emitter=event_emitter,
                 pii_active=pii_session is not None,
+                user=user,
             )
     except Exception as e:
         log.exception(f"[chat_compression] failed, continuing without compression: {e}")
@@ -801,7 +804,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             ],
             response_model=KnowledgeUseDecision,
-            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
+            user=user,
         )
         use_model_knowledge_or_files = knowledge_result.needs_knowledge == "YES"
 

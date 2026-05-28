@@ -119,6 +119,7 @@ async def _generate_summary(
     messages_to_summarize: list[dict],
     agent_model: ModelModel,
     pii_active: bool = False,
+    user=None,
 ) -> str:
     from beyond_the_loop.prompts import CHAT_SUMMARY_PROMPT
     from beyond_the_loop.pii.session import pii_note_prefix
@@ -143,6 +144,7 @@ async def _generate_summary(
         ],
         response_model=ChatSummaryResponse,
         model=agent_model,
+        user=user,
     )
 
     return result.summary
@@ -195,6 +197,7 @@ async def maybe_compress_chat(
     chat_id: str,
     event_emitter=None,
     pii_active: bool = False,
+    user=None,
 ) -> dict:
     all_messages: list[dict] = form_data.get("messages", [])
 
@@ -260,6 +263,7 @@ async def maybe_compress_chat(
             messages_to_summarize=messages_to_compress,
             agent_model=model,
             pii_active=pii_active,
+            user=user,
         )
         compression["summary"] = new_summary
 

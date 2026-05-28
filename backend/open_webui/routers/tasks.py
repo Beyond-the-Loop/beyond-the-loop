@@ -167,6 +167,7 @@ async def generate_queries(
             messages=[{"role": "user", "content": content}],
             response_model=SearchQueriesResponse,
             model=task_model,
+            user=user,
         )
         return {"queries": [q.model_dump() for q in result.queries]}
     else:
@@ -176,5 +177,6 @@ async def generate_queries(
             messages=[{"role": "user", "content": content}],
             response_model=RagQueriesResponse,
             model=task_model,
+            user=user,
         )
         return {"queries": result.queries}

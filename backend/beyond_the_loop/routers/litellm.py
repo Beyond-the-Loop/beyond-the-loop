@@ -712,7 +712,6 @@ async def generate_chat_completion(
                                             assistant=model.name if model.base_model_id else None,
                                             agent_or_task_prompt=agent_or_task_prompt,
                                             subscription=subscription,
-                                            should_subtract_credits=has_chat_id,
                                         )
                                         if annotations:
                                             replaced_content = accumulated_content
@@ -786,7 +785,6 @@ async def generate_chat_completion(
                                     assistant=model.name if model.base_model_id else None,
                                     agent_or_task_prompt=agent_or_task_prompt,
                                     subscription=subscription,
-                                    should_subtract_credits=has_chat_id,
                                 )
                         except json.JSONDecodeError:
                             log.debug(f"JSON decode error for chunk: {chunk_str}")
@@ -840,7 +838,6 @@ async def generate_chat_completion(
                 assistant=model.name if model.base_model_id else None,
                 agent_or_task_prompt=agent_or_task_prompt,
                 subscription=subscription,
-                should_subtract_credits=has_chat_id,
             )
 
             return response, model
