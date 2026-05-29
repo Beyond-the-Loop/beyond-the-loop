@@ -25,8 +25,8 @@
 		getUserTagsForPrompts
 	} from '$lib/apis/prompts';
 
-	import PromptMenu from './Prompts/PromptMenu.svelte';
-	import EllipsisHorizontal from '../icons/EllipsisHorizontal.svelte';
+	import MessageEditIcon from '../icons/MessageEditIcon.svelte';
+	import DeleteIcon from '../icons/DeleteIcon.svelte';
 	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import Search from '../icons/Search.svelte';
 	import Plus from '../icons/Plus.svelte';
@@ -523,40 +523,30 @@
 							</div>
 							{#if !prompt.prebuilt && (prompt.user_id === $user?.id || $user?.role === 'admin' || $user?.permissions?.workspace?.edit_prompts)}
 								<div
-									class={hoveredPrompt === prompt.command || menuIdOpened === prompt.command
-										? 'md:visible'
-										: 'md:invisible'}
+									class="{hoveredPrompt === prompt.command
+										? 'md:opacity-100 md:pointer-events-auto'
+										: 'md:opacity-0 md:pointer-events-none'} transition-opacity duration-100 flex items-center gap-0.5"
 								>
-									<PromptMenu
-										{prompt}
-										shareHandler={() => {
-											shareHandler(prompt);
-										}}
-										cloneHandler={() => {
-											cloneHandler(prompt);
-										}}
-										exportHandler={() => {
-											exportHandler(prompt);
-										}}
-										deleteHandler={async () => {
-											deletePrompt = prompt;
-											showDeleteConfirm = true;
-										}}
-										onClose={() => {}}
-										on:openMenu={() => {
-											menuIdOpened = prompt.command;
-										}}
-										on:closeMenu={() => {
-											menuIdOpened = null;
-										}}
-									>
-										<button
-											class="self-center w-fit text-sm px-0.5 h-[21px] dark:text-white dark:hover:text-white rounded-md"
-											type="button"
+									<Tooltip content={$i18n.t('Edit')} placement="top">
+										<a
+											class="flex p-1 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-md"
+											href={`/workspace/prompts/edit?command=${encodeURIComponent(prompt.command)}`}
 										>
-											<EllipsisHorizontal className="size-5" />
+											<MessageEditIcon width={14} height={13} />
+										</a>
+									</Tooltip>
+									<Tooltip content={$i18n.t('Delete')} placement="top">
+										<button
+											class="p-1 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-md"
+											type="button"
+											on:click={() => {
+												deletePrompt = prompt;
+												showDeleteConfirm = true;
+											}}
+										>
+											<DeleteIcon />
 										</button>
-									</PromptMenu>
+									</Tooltip>
 								</div>
 							{/if}
 						</div>

@@ -29,8 +29,9 @@
 	import { getModels } from '$lib/apis';
 	import { getGroups } from '$lib/apis/groups';
 
-	import EllipsisHorizontal from '../icons/EllipsisHorizontal.svelte';
-	import ModelMenu from './Models/ModelMenu.svelte';
+	import CloneIcon from '../icons/CloneIcon.svelte';
+	import MessageEditIcon from '../icons/MessageEditIcon.svelte';
+	import DeleteIcon from '../icons/DeleteIcon.svelte';
 	import ModelDeleteConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
 	import Search from '../icons/Search.svelte';
@@ -689,45 +690,39 @@
 							
 							{#if $user?.permissions?.workspace?.edit_assistants}
 							<div
-								class="{hoveredModel === model.id || menuIdOpened === model.id
-									? 'md:visible'
-									: 'md:invisible'} "
+								class="{hoveredModel === model.id
+									? 'md:opacity-100 md:pointer-events-auto'
+									: 'md:opacity-0 md:pointer-events-none'} transition-opacity duration-100 flex items-center gap-0.5 mt-1"
 							>
-								<ModelMenu
-									user={$user}
-									{model}
-									shareHandler={() => {
-										shareModelHandler(model);
-									}}
-									cloneHandler={() => {
-										cloneModelHandler(model);
-									}}
-									exportHandler={() => {
-										exportModelHandler(model);
-									}}
-									hideHandler={() => {
-										hideModelHandler(model);
-									}}
-									deleteHandler={() => {
-										selectedModel = model;
-										showModelDeleteConfirm = true;
-									}}
-									onClose={() => {}}
-									on:openMenu={() => {
-										menuIdOpened = model.id;
-									}}
-									on:closeMenu={() => {
-										menuIdOpened = null;
-									}}
-									{cloneModelHandler}
-								>
+								<Tooltip content={$i18n.t('Clone')} placement="top">
 									<button
-										class="self-center w-fit text-sm px-0.5 h-[21px] dark:text-white dark:hover:text-white hover:bg-black/5 rounded-md"
+										class="p-1 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-md"
 										type="button"
+										on:click={() => cloneModelHandler(model)}
 									>
-										<EllipsisHorizontal className="size-5" />
+										<CloneIcon />
 									</button>
-								</ModelMenu>
+								</Tooltip>
+								<Tooltip content={$i18n.t('Edit')} placement="top">
+									<a
+										class="flex p-1 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-md"
+										href={`/workspace/models/edit?id=${encodeURIComponent(model.id)}`}
+									>
+										<MessageEditIcon width={14} height={13} strokeWidth={0.9} />
+									</a>
+								</Tooltip>
+								<Tooltip content={$i18n.t('Delete')} placement="top">
+									<button
+										class="p-1 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-md"
+										type="button"
+										on:click={() => {
+											selectedModel = model;
+											showModelDeleteConfirm = true;
+										}}
+									>
+										<DeleteIcon />
+									</button>
+								</Tooltip>
 							</div>
 							{/if}
 						</div>
