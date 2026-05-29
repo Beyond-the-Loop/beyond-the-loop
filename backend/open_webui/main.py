@@ -578,8 +578,8 @@ async def get_active_models(user=Depends(get_verified_user)):
 
 _DISPLAY_METADATA_FIELDS = {
     'context_window', 'category', 'costFactor', 'description', 'hosted_in',
-    'intelligence_score', 'knowledge_cutoff', 'multimodal', 'organization',
-    'reasoning', 'research', 'speed', 'tokens_per_second', 'zdr',
+    'intelligence_score', 'knowledge_cutoff', 'organization',
+    'reasoning', 'speed', 'tokens_per_second',
     'supports_web_search', 'supports_code_execution', 'supports_image_generation',
     'supports_document_input', 'supports_image_input'
 }
