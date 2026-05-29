@@ -213,7 +213,7 @@
 			</ul>
 		{/if}
 	{:else if token.type === 'details'}
-		<Collapsible title={token.summary} attributes={token?.attributes} className="w-full select-none mb-1">
+		<Collapsible title={token.summary} attributes={token.attributes} content={token.text} className="w-full select-none mb-1">
 			<div class="select-text mt-1 mb-1" slot="content">
 				<svelte:self
 					id={`${id}-${tokenIdx}-d`}

@@ -44,6 +44,17 @@
 
 	export let disabled = false;
 	export let hide = false;
+	export let content = '';
+
+	function getLastWrappedSegment(str: string) {
+		const matches = [...str.matchAll(/\*\*([^*]+)\*\*/g)];
+		return matches.length ? matches[matches.length - 1][1] : '';
+	}
+	let thinking_header = ''
+	$: if (content != '')
+	{
+		thinking_header = getLastWrappedSegment(content);
+	}
 </script>
 
 <div class={className}>
@@ -80,7 +91,12 @@
 						{:else if attributes?.done === 'true'}
 							{$i18n.t('Thinking stopped')}
 						{:else}
-							{$i18n.t('Thinking...')}
+						
+							{#if thinking_header != ''}
+								{thinking_header}...
+							{:else}	
+								{$i18n.t('Thinking...')}
+							{/if}
 						{/if}
 					{:else if attributes?.type === 'code_interpreter'}
 						{#if attributes?.done === 'true'}
