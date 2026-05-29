@@ -121,7 +121,7 @@
 					{#if accessControl !== null}
 						{$i18n.t('Only select users and groups with permission can access')}
 					{:else}
-						{$i18n.t('Accessible to all users')}
+						{$i18n.t('Accessible for all workspace members')}
 					{/if}
 				</div>
 			</div>
