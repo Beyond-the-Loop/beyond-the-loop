@@ -32,7 +32,12 @@ def _extract_url_from_source_obj(obj: dict) -> str | None:
         pass
 
     try:
-        docs = obj.get("document")
+        candidates.append(obj.get("name"))
+    except Exception:
+        pass
+
+    try:
+        docs = obj.get("document") or obj.get("snippets")
         if isinstance(docs, list) and docs:
             candidates.append(docs[0])
     except Exception:

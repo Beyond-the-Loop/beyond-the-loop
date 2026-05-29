@@ -8,16 +8,15 @@ This service handles automatic deletion of files after 3 months.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import List, Optional, Set
 
 from open_webui.internal.db import get_db
-from beyond_the_loop.models.files import File, Files
+from beyond_the_loop.models.files import File
 from beyond_the_loop.models.knowledge import Knowledge
 from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import User
-from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.services.file_service import delete_file_fully
 
 log = logging.getLogger(__name__)
 
@@ -163,30 +162,9 @@ class FileArchivalService:
         
         for file in files_to_delete:
             try:
-                # Delete physical file if it exists
-                if file.path and os.path.exists(file.path):
-                    try:
-                        os.remove(file.path)
-                        log.debug(f"Deleted physical file: {file.path}")
-                    except OSError as e:
-                        log.warning(f"Could not delete physical file {file.path}: {e}")
-
-                # Delete vector chunks
-                try:
-                    collection_name = f"file-{file.id}"
-                    if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-                        VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
-                        log.debug(f"Deleted vector collection: {collection_name}")
-                except Exception as e:
-                    log.warning(f"Could not delete vector collection for file {file.id}: {e}")
-
-                # Delete database record
-                if Files.delete_file_by_id(file.id):
-                    deleted_count += 1
-                    log.debug(f"Deleted file record: {file.id} ({file.filename})")
-                else:
-                    log.warning(f"Failed to delete file record: {file.id}")
-                    
+                delete_file_fully(file)
+                deleted_count += 1
+                log.debug(f"Deleted file: {file.id} ({file.filename})")
             except Exception as e:
                 log.error(f"Error deleting file {file.id}: {e}")
         
