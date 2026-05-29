@@ -586,10 +586,10 @@
 						<RobotIcon className="size-14"/>
 					</div>
 					
-					<div class="text-lg">Huch, hier sind noch keine Assistenten angelegt.</div>
+					<div class="text-lg">{$i18n.t('Whoops, no assistants have been set up here yet.')}</div>
 					
 					{#if $user?.permissions?.workspace?.edit_assistants}
-						<div class="text-sm mb-3">Erstelle einen ersten Assistenten, um loszulegen.</div>
+						<div class="text-sm mb-3">{$i18n.t('Create your first assistant to get started.')}</div>
 						<div>
 							<a
 								class=" px-2 py-2.5 md:w-[220px] rounded-lg leading-none border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-200 dark:hover:text-white transition font-medium text-xs flex items-center justify-center space-x-1"
