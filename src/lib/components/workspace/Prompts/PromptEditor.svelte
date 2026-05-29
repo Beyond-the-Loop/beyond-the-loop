@@ -179,7 +179,7 @@
 						<div class="text-xs absolute left-2 top-1 text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('Prompt content')}</div>
 					{/if}
 					<Textarea
-						className={`px-2.5 py-2 text-sm ${content ? "pt-4" : "pt-2"} w-full text-lightGray-100 placeholder:text-lightGray-100 h-20 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
+						className={`px-2.5 py-2 text-sm ${content ? "pt-4 min-h-[100px]" : "min-h-[104px]"} w-full text-lightGray-100 placeholder:text-lightGray-100 bg-transparent dark:text-white dark:placeholder:text-customGray-100 outline-none`}
 						placeholder={$i18n.t('Prompt content')}
 						bind:value={content}
 						rows={4}
