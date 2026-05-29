@@ -128,7 +128,7 @@ class CompanyTable:
     def get_all():
         try:
             with get_db() as db:
-                companies = db.query(Company).all()
+                companies = db.query(Company).filter(~Company.id.in_(("system", "NO_COMPANY", "NEW"))).all()
                 return [CompanyModel.model_validate(company) for company in companies]
         except Exception as e:
             log.error(f"Error getting companies: {e}")
