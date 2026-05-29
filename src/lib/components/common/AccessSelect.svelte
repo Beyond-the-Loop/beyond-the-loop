@@ -156,14 +156,14 @@
 					}}
 				>
 					<div>
-						<div class="flex items-center gap-2 text-xs dark:text-customGray-100">
-							<PrivateIcon className="size-3" />{$i18n.t('Private')}
+						<div class="flex items-center gap-2 text-sm dark:text-customGray-100">
+							<PrivateIcon className="size-4" />{$i18n.t('Private')}
                             {#if accessControl !== null && activeGroupIds.length < 1}
                                 <CheckmarkIcon className="size-4" />
                             {/if}
 						</div>
 						<p class="text-xs dark:text-customGray-100/50">
-							{$i18n.t('Only select user can access')}
+							{$i18n.t('Only you can see this')}
 						</p>
 					</div>
 					<p class="text-xs text-lightGray-100/50 dark:text-customGray-100/50">{$i18n.t('By default')}</p>
@@ -178,14 +178,14 @@
 					}}
 				>
 					<div>
-						<div class="flex items-center gap-2 text-xs dark:text-customGray-100">
-							<PublicIcon className="size-3" />{$i18n.t('Public')}
+						<div class="flex items-center gap-2 text-sm dark:text-customGray-100">
+							<PublicIcon className="size-4" />{$i18n.t('All users')}
                             {#if accessControl === null}
                                 <CheckmarkIcon className="size-4" />
                             {/if}
 						</div>
 						<p class="text-xs dark:text-customGray-100/50">
-							{$i18n.t('Accessible to all users')}
+							{$i18n.t('Accessible for all workspace members')}
 						</p>
 					</div>
 				</button>
