@@ -10,19 +10,9 @@ from PIL import Image
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import or_
-
-from beyond_the_loop.config import Config, save_config, get_config
-from beyond_the_loop.models.auths import Auth
-from beyond_the_loop.models.chats import Chat
-from beyond_the_loop.models.companies import Company
-from beyond_the_loop.models.completions import Completion
+from beyond_the_loop.config import save_config, get_config
 from beyond_the_loop.models.files import File
-from beyond_the_loop.models.folders import Folder
-from beyond_the_loop.models.groups import Group
-from beyond_the_loop.models.knowledge import Knowledge
-from beyond_the_loop.models.models import Model, ModelForm, ModelMeta, ModelParams, Models
-from beyond_the_loop.models.prompts import Prompt
+from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
 from beyond_the_loop.models.users import User, Users
 from beyond_the_loop.routers import litellm
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
@@ -47,11 +37,6 @@ from beyond_the_loop.socket.main import (
 from beyond_the_loop.storage.provider import Storage
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.internal.db import get_db
-from open_webui.models.channels import Channel
-from open_webui.models.feedbacks import Feedback
-from open_webui.models.memories import Memory
-from open_webui.models.messages import Message, MessageReaction
-from open_webui.models.tags import Tag
 from open_webui.utils.auth import get_current_user, get_admin_user
 
 router = APIRouter()
@@ -401,38 +386,16 @@ async def delete_company(form_data: DeleteCompanyRequest, user=Depends(get_admin
 
     try:
         with get_db() as db:
-            db_company = db.query(Company).filter_by(id=company_id).first()
-            if not db_company:
-                raise HTTPException(status_code=404, detail="Company not found")
+            file_cleanup = [
+                (file_id, file_path)
+                for file_id, file_path in db.query(File.id, File.path)
+                .join(User, File.user_id == User.id)
+                .filter(User.company_id == company_id)
+                .all()
+            ]
 
-            user_ids = [r[0] for r in db.query(User.id).filter_by(company_id=company_id).all()]
-
-            if user_ids:
-                file_cleanup = [(f.id, f.path) for f in db.query(File.id, File.path).filter(File.user_id.in_(user_ids)).all()]
-
-                channel_ids = [r[0] for r in db.query(Channel.id).filter(Channel.user_id.in_(user_ids)).all()]
-                msg_filter = or_(Message.user_id.in_(user_ids), *([Message.channel_id.in_(channel_ids)] if channel_ids else []))
-                msg_ids = [r[0] for r in db.query(Message.id).filter(msg_filter).all()]
-
-                if msg_ids:
-                    db.query(MessageReaction).filter(MessageReaction.message_id.in_(msg_ids)).delete(synchronize_session=False)
-                db.query(Message).filter(msg_filter).delete(synchronize_session=False)
-
-                for model, col in [
-                    (Channel, Channel.user_id), (Feedback, Feedback.user_id), (Memory, Memory.user_id),
-                    (Tag, Tag.user_id), (Chat, Chat.user_id), (Folder, Folder.user_id),
-                    (File, File.user_id), (Completion, Completion.user_id), (Auth, Auth.id),
-                ]:
-                    db.query(model).filter(col.in_(user_ids)).delete(synchronize_session=False)
-
-            for model, col in [
-                (Model, Model.company_id), (Prompt, Prompt.company_id), (Knowledge, Knowledge.company_id),
-                (Group, Group.company_id), (Config, Config.company_id),
-            ]:
-                db.query(model).filter(col == company_id).delete(synchronize_session=False)
-
-            db.delete(db_company)
-            db.commit()
+        if not Companies.delete_company_by_id(company_id):
+            raise HTTPException(status_code=404, detail="Company not found")
 
     except HTTPException:
         raise
