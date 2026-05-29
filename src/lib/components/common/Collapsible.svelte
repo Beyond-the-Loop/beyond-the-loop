@@ -59,7 +59,7 @@
 			}}
 		>
 			<div
-				class=" w-full font-medium flex items-center justify-between gap-2 mb-2 {attributes?.done &&
+				class=" w-full font-medium flex items-center justify-between gap-2 {attributes?.done &&
 				attributes?.done !== 'true'
 					? 'shimmer'
 					: ''}
@@ -134,7 +134,7 @@
 
 	{#if !grow}
 		{#if open && !hide}
-			<div transition:slide={{ duration: 300, easing: quintOut, axis: 'y' }}>
+			<div class="flow-root" transition:slide={{ duration: 300, easing: quintOut, axis: 'y' }}>
 				<slot name="content" />
 			</div>
 		{/if}
