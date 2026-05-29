@@ -18,6 +18,23 @@ from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE
     STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
 
 
+def _next_monthly_anchor_after(anchor_dt: datetime, after_dt: datetime) -> datetime:
+    """Find the next datetime with anchor_dt's day-of-month and time-of-day
+    that is strictly after ``after_dt``. Month-end days clamp naturally via
+    ``relativedelta`` (anchor day 31 → 28/29 Feb).
+    """
+    candidate = after_dt + relativedelta(
+        day=anchor_dt.day,
+        hour=anchor_dt.hour,
+        minute=anchor_dt.minute,
+        second=anchor_dt.second,
+        microsecond=0,
+    )
+    while candidate <= after_dt:
+        candidate = candidate + relativedelta(months=1, day=anchor_dt.day)
+    return candidate
+
+
 def _advance_next_credit_recharge_by_one_month(company):
     """Used by the daily cron: advance the existing date by one month so the
     day-of-month stays stable even when the cron runs a few days late. If the
@@ -47,11 +64,14 @@ def _advance_next_credit_recharge_by_one_month(company):
         )
 
 
-def _set_next_credit_recharge_one_month_from_now(company):
+def _set_next_credit_recharge_to_anchor(company, anchor_timestamp):
     """Used when a fresh billing period begins (subscription created, plan
-    change, reactivation). Anchors the next monthly recharge to today."""
+    change, reactivation). Anchors the next monthly recharge to the next
+    occurrence of the Stripe billing-cycle anchor day-of-month after now.
+    """
     try:
-        next_check_dt = datetime.now() + relativedelta(months=1)
+        anchor_dt = datetime.fromtimestamp(anchor_timestamp)
+        next_check_dt = _next_monthly_anchor_after(anchor_dt, datetime.now())
 
         Companies.update_company_by_id(
             company.id,
@@ -495,7 +515,14 @@ class PaymentsService:
                     "budget_mail_80_sent": False,
                     "budget_mail_100_sent": False
                 })
-                _set_next_credit_recharge_one_month_from_now(company)
+                anchor_ts = event_data.get("billing_cycle_anchor") or event_data.get("start_date")
+                if anchor_ts:
+                    _set_next_credit_recharge_to_anchor(company, anchor_ts)
+                else:
+                    log.warning(
+                        f"No billing_cycle_anchor or start_date on subscription "
+                        f"for company {company.id}; next_credit_charge_check not set"
+                    )
 
             return company, credits_per_month, plan_id
 
