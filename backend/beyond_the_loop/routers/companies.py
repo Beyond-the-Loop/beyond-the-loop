@@ -9,8 +9,21 @@ import httpx
 from PIL import Image
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy import or_
 
-from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
+from beyond_the_loop.config import Config, save_config, get_config
+from beyond_the_loop.models.auths import Auth
+from beyond_the_loop.models.chats import Chat
+from beyond_the_loop.models.companies import Company
+from beyond_the_loop.models.completions import Completion
+from beyond_the_loop.models.files import File
+from beyond_the_loop.models.folders import Folder
+from beyond_the_loop.models.groups import Group
+from beyond_the_loop.models.knowledge import Knowledge
+from beyond_the_loop.models.models import Model, ModelForm, ModelMeta, ModelParams, Models
+from beyond_the_loop.models.prompts import Prompt
+from beyond_the_loop.models.users import User, Users
 from beyond_the_loop.routers import litellm
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
@@ -22,12 +35,24 @@ from beyond_the_loop.models.companies import (
     UpdateCompanyForm,
     CreateCompanyForm,
 )
-from open_webui.utils.auth import get_current_user, get_admin_user
-from open_webui.env import SRC_LOG_LEVELS
-from beyond_the_loop.config import save_config, get_config
-from beyond_the_loop.models.users import Users
+from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
+from beyond_the_loop.socket.main import (
+    COMPANY_CONFIG_CACHE,
+    STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE,
+    STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE,
+)
+from beyond_the_loop.storage.provider import Storage
+from open_webui.env import SRC_LOG_LEVELS
+from open_webui.internal.db import get_db
+from open_webui.models.channels import Channel
+from open_webui.models.feedbacks import Feedback
+from open_webui.models.memories import Memory
+from open_webui.models.messages import Message, MessageReaction
+from open_webui.models.tags import Tag
+from open_webui.utils.auth import get_current_user, get_admin_user
 
 router = APIRouter()
 
@@ -347,6 +372,100 @@ async def create_company(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating company: {str(e)}"
         )
+
+
+############################
+# Company Deletion
+############################
+
+class DeleteCompanyRequest(BaseModel):
+    confirmation: str
+
+
+@router.delete("", response_model=bool)
+async def delete_company(form_data: DeleteCompanyRequest, user=Depends(get_admin_user)):
+    company_id = user.company_id
+    if not company_id or company_id == NO_COMPANY:
+        raise HTTPException(status_code=400, detail="User is not associated with a company")
+
+    company = Companies.get_company_by_id(company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    if form_data.confirmation.strip() != company.name:
+        raise HTTPException(status_code=400, detail="Company name confirmation does not match")
+
+    payments_service.cancel_company_subscription(company_id)
+
+    file_cleanup: list[tuple[str, str | None]] = []
+
+    try:
+        with get_db() as db:
+            db_company = db.query(Company).filter_by(id=company_id).first()
+            if not db_company:
+                raise HTTPException(status_code=404, detail="Company not found")
+
+            user_ids = [r[0] for r in db.query(User.id).filter_by(company_id=company_id).all()]
+
+            if user_ids:
+                file_cleanup = [(f.id, f.path) for f in db.query(File.id, File.path).filter(File.user_id.in_(user_ids)).all()]
+
+                channel_ids = [r[0] for r in db.query(Channel.id).filter(Channel.user_id.in_(user_ids)).all()]
+                msg_filter = or_(Message.user_id.in_(user_ids), *([Message.channel_id.in_(channel_ids)] if channel_ids else []))
+                msg_ids = [r[0] for r in db.query(Message.id).filter(msg_filter).all()]
+
+                if msg_ids:
+                    db.query(MessageReaction).filter(MessageReaction.message_id.in_(msg_ids)).delete(synchronize_session=False)
+                db.query(Message).filter(msg_filter).delete(synchronize_session=False)
+
+                for model, col in [
+                    (Channel, Channel.user_id), (Feedback, Feedback.user_id), (Memory, Memory.user_id),
+                    (Tag, Tag.user_id), (Chat, Chat.user_id), (Folder, Folder.user_id),
+                    (File, File.user_id), (Completion, Completion.user_id), (Auth, Auth.id),
+                ]:
+                    db.query(model).filter(col.in_(user_ids)).delete(synchronize_session=False)
+
+            for model, col in [
+                (Model, Model.company_id), (Prompt, Prompt.company_id), (Knowledge, Knowledge.company_id),
+                (Group, Group.company_id), (Config, Config.company_id),
+            ]:
+                db.query(model).filter(col == company_id).delete(synchronize_session=False)
+
+            db.delete(db_company)
+            db.commit()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to delete company {company_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete company")
+
+    for file_id, file_path in file_cleanup:
+        collection_name = f"file-{file_id}"
+        try:
+            if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+                VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+        except Exception as e:
+            log.warning(f"Failed to delete vector collection {collection_name}: {e}")
+
+        if file_path:
+            try:
+                Storage.delete_file(file_path)
+            except Exception as e:
+                log.warning(f"Failed to delete file {file_path} from storage: {e}")
+
+    for cache in (
+        STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE,
+        STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE,
+        COMPANY_CONFIG_CACHE,
+    ):
+        try:
+            if company_id in cache:
+                del cache[company_id]
+        except Exception as e:
+            log.warning(f"Failed to clear company cache for {company_id}: {e}")
+
+    return True
 
 
 ############################
