@@ -426,11 +426,9 @@
 									<Tooltip content={$i18n.t('Text')} placement="bottom">
 										<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700  dark:bg-customGray-800 dark:text-lightGray-200 text-[0.9em] font-serif flex items-center justify-center">T</div>
 									</Tooltip>
-									{#if m?.supports_document_input}
-										<Tooltip content={$i18n.t('Documents')} placement="bottom">
-											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700 dark:bg-customGray-800 dark:text-lightGray-200 text-xs flex items-center justify-center"> <Document className="size-4"/></div>
-										</Tooltip>
-									{/if}
+									<Tooltip content={$i18n.t('Documents')} placement="bottom">
+										<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700 dark:bg-customGray-800 dark:text-lightGray-200 text-xs flex items-center justify-center"> <Document className="size-4"/></div>
+									</Tooltip>
 									{#if m?.supports_image_input}
 										<Tooltip content={$i18n.t('Images')} placement="bottom">
 											<div class="size-7 p-auto border border-gray-200 rounded-lg bg-lightGray-300 text-lightGray-100/80 dark:border-customGray-700 dark:bg-customGray-800 dark:text-lightGray-200 text-xs flex items-center justify-center"> <ImageGenerateIcon className="size-4"/></div>
