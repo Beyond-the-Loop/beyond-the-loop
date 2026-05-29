@@ -878,6 +878,7 @@ model_list:
       model: "vertex_ai/gemini-2.5-flash-image"
       vertex_project: 'beyond-chat-1111'
       vertex_location: 'global'
+      modalities: ["image", "text"]
     model_info:
       intelligence_score: 1
       allowed_messages_per_three_hours_free: 50
