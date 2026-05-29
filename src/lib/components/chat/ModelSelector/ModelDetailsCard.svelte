@@ -20,7 +20,7 @@
 	$: contextWindow = info?.context_window ?? null;
 	$: knowledgeCutoff = formatCutoff(info?.knowledge_cutoff);
 	$: hosted = (info?.hosted_in ?? null) as string | null;
-	$: multimodal = Boolean(info?.multimodal);
+	$: supportsImageInput = Boolean(info?.supports_image_input);
 
 	function toScore(v: unknown): number {
 		const n = Number(v);
@@ -146,7 +146,7 @@
 			</svg>
 			<span class="font-medium">{$i18n.t('Text')}</span>
 		</span>
-		{#if multimodal}
+		{#if supportsImageInput}
 			<span class="flex items-center gap-1">
 				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 					<rect x="3" y="3" width="18" height="18" rx="2" />
