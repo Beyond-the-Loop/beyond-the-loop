@@ -556,6 +556,29 @@ class ChatTable:
             )
             return [ChatModel.model_validate(chat) for chat in all_chats]
 
+    def get_pinned_chat_title_id_list_by_user_id(
+        self, user_id: str
+    ) -> list[ChatTitleIdResponse]:
+        with get_db() as db:
+            rows = (
+                db.query(Chat)
+                .filter_by(user_id=user_id, pinned=True, archived=False)
+                .order_by(Chat.updated_at.desc())
+                .with_entities(Chat.id, Chat.title, Chat.updated_at, Chat.created_at)
+                .all()
+            )
+            return [
+                ChatTitleIdResponse.model_validate(
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "updated_at": row[2],
+                        "created_at": row[3],
+                    }
+                )
+                for row in rows
+            ]
+
     def get_archived_chats_by_user_id(self, user_id: str) -> list[ChatModel]:
         with get_db() as db:
             all_chats = (

@@ -11,7 +11,6 @@
 		cloneChatById,
 		deleteChatById,
 		getAllTags,
-		getChatById,
 		getChatList,
 		getChatListByTagName,
 		getPinnedChatList,
@@ -49,21 +48,8 @@
 	export let selected = false;
 	export let shiftKey = false;
 
-	let chat = null;
-
 	let mouseOver = false;
-	let draggable = false;
-	$: if (mouseOver) {
-		loadChat();
-	}
-
-	const loadChat = async () => {
-		if (!chat) {
-			draggable = false;
-			chat = await getChatById(localStorage.token, id);
-			draggable = true;
-		}
-	};
+	let draggable = true;
 
 	let showShareChatModal = false;
 	let confirmEdit = false;
@@ -160,8 +146,7 @@
 			'text/plain',
 			JSON.stringify({
 				type: 'chat',
-				id: id,
-				item: chat
+				id: id
 			})
 		);
 
