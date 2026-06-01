@@ -78,10 +78,7 @@
 	export let codeInterpreterEnabled = false;
 	export let autoToolsEnabled = false;
 
-	// MCP toggle state — same shape as web search etc., owned by Chat.svelte.
-	// `mcpEnabled` is the master per-chat toggle; `mcpDisabledServerIds` is the
-	// per-server opt-out list (client state, not persisted).
-	export let mcpEnabled: boolean = true;
+	// Per-server MCP opt-outs for this chat, owned by Chat.svelte (not persisted).
 	export let mcpDisabledServerIds: string[] = [];
 
 	// PII toggle button rendered next to the tools menu. State + click handler

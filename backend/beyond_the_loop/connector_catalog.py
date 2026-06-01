@@ -62,6 +62,27 @@ def _build_catalog() -> list[ConnectorTemplate]:
             # selection during consent decides what the token sees.
             scope=None,
         ),
+        ConnectorTemplate(
+            slug="confluence",
+            name="Confluence",
+            description=(
+                "Search and read your Confluence spaces and pages (and Jira "
+                "issues — Atlassian's MCP server covers both products under a "
+                "single connection). Lets the assistant answer questions about "
+                "documentation, decisions, and tickets you have access to."
+            ),
+            icon_url="https://www.google.com/s2/favicons?domain=atlassian.com&sz=128",
+            # `/v1/mcp` is the streamable-HTTP endpoint; the older `/v1/sse`
+            # is being retired by Atlassian on 2026-06-30.
+            server_url="https://mcp.atlassian.com/v1/mcp",
+            transport="streamable_http",
+            # Discovery returns issuer = https://cf.mcp.atlassian.com (Atlassian's
+            # auth subdomain), not the MCP server's own hostname.
+            issuer_url="https://cf.mcp.atlassian.com",
+            # Atlassian's authorize endpoint derives scopes from the consent
+            # screen — passing an explicit `scope` is not required.
+            scope=None,
+        ),
     ]
 
     # Microsoft 365 is backed by our self-hosted ms-365-mcp-server (Softeria).

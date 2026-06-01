@@ -364,10 +364,25 @@
 			};
 			window.addEventListener('message', handler);
 
-			// Fallback: user closed the popup without completing the flow.
-			const pollId = window.setInterval(() => {
+			// Fallback: popup closed without a postMessage. Could be (a) the
+			// user cancelled, or (b) the OAuth callback IS on a different
+			// origin than the workspace page (typical in dev: backend on
+			// :8080, Vite on :5173) and the `event.origin` check filtered
+			// the success message out. Re-check the row server-side before
+			// declaring failure.
+			const pollId = window.setInterval(async () => {
 				if (settled) return;
-				if (popup.closed) finish(false);
+				if (!popup.closed) return;
+				window.clearInterval(pollId);
+				try {
+					const fresh = await getMCPServer(localStorage.token, serverId);
+					if (fresh?.has_oauth_access_token) {
+						toast.success($i18n.t('Connected.'));
+						finish(true);
+						return;
+					}
+				} catch {}
+				finish(false);
 			}, 500);
 		});
 	}
@@ -401,8 +416,26 @@
 				);
 				editingServer = updated;
 			}
-			await runOAuthFlow(editingId);
-			await refreshEditingServer();
+			// Track whether this was a reconnect of an already-working server,
+			// so we don't blow away a healthy connection when the user simply
+			// closes the reconnect popup without finishing.
+			const wasConnected = !!editingServer?.has_oauth_access_token;
+			const success = await runOAuthFlow(editingId);
+			if (!success && !wasConnected) {
+				// Initial connect was cancelled or failed — wipe the row (and
+				// the DCR client at the provider) and close the editor so the
+				// next attempt starts from a clean slate.
+				const orphanId = editingId;
+				try {
+					await disconnectMCPOAuth(localStorage.token, orphanId);
+				} catch {}
+				editingId = null;
+				editingServer = null;
+				createdInThisSession = false;
+				showEditor = false;
+			} else {
+				await refreshEditingServer();
+			}
 			await reload();
 		} catch (e) {
 			toast.error(`${e}`);
@@ -440,8 +473,18 @@
 					tenant_id: installTenantId.trim() || undefined
 				}
 			);
+			// Don't wipe a healthy reconnect attempt if the user just closes
+			// the popup — only clean up rows that came in fresh.
+			const wasConnected = !!server.has_oauth_access_token;
 			// Drop straight into the OAuth popup — the user expects "one click".
-			await runOAuthFlow(server.id);
+			const success = await runOAuthFlow(server.id);
+			if (!success && !wasConnected) {
+				// Initial connect cancelled or failed — wipe the row (+ DCR
+				// client at provider) so the next install starts clean.
+				try {
+					await disconnectMCPOAuth(localStorage.token, server.id);
+				} catch {}
+			}
 			await reload();
 			// Leave the modal open so the user sees the updated Connected state.
 		} catch (e) {

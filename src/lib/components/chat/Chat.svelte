@@ -110,9 +110,7 @@
 	let webSearchEnabled = true;
 	let codeInterpreterEnabled = true;
 	let autoToolsEnabled = true;
-	// MCP per-chat state — `mcpEnabled` is the master toggle, `mcpDisabledServerIds`
-	// the per-server opt-outs. Both reset per chat (not persisted server-side).
-	let mcpEnabled = true;
+	// Per-server MCP opt-outs for this chat (not persisted server-side).
 	let mcpDisabledServerIds: string[] = [];
 	// Per-chat PII filter toggle. Lives here (not in MessageInput) so it
 	// survives the composer's mount/unmount during send. Sent with every
@@ -1694,7 +1692,6 @@
 								: false
 					},
 
-				mcp_enabled: mcpEnabled,
 				mcp_disabled_server_ids: mcpDisabledServerIds,
 
 				auto_tools: autoToolsEnabled
@@ -2185,7 +2182,6 @@
 									bind:webSearchEnabled
 									bind:autoToolsEnabled
 									bind:atSelectedModel
-									bind:mcpEnabled
 									bind:mcpDisabledServerIds
 									{piiEnabled}
 									showPiiToggle={canRelaxPii}
@@ -2265,7 +2261,6 @@
 								bind:webSearchEnabled
 								bind:autoToolsEnabled
 								bind:atSelectedModel
-								bind:mcpEnabled
 								bind:mcpDisabledServerIds
 								{piiEnabled}
 								showPiiToggle={canRelaxPii}
