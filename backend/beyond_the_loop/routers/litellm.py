@@ -400,12 +400,19 @@ async def generate_chat_completion(
     # so plaintext tokens never sit in metadata or chat state.
     mcp_servers_resolved = metadata.get("mcp_servers_resolved", [])
     if mcp_servers_resolved and use_responses_api:
+        # Tool Search defers the per-tool parameter schemas of every MCP server
+        # marked with `defer_loading: true` — the model sees only the server's
+        # name+description until it decides it needs a tool, then loads the
+        # schemas on demand. Cuts upfront tokens/latency on chats with many
+        # MCP servers (Notion/Attio/Gmail/etc. each ship 20-40 tools).
+        tools.append({"type": "tool_search"})
         for s in mcp_servers_resolved:
             entry = {
                 "type": "mcp",
                 "server_label": _sanitize_mcp_server_label(s["name"]),
                 "server_url": s["url"],
                 "require_approval": "never",
+                "defer_loading": True,
             }
             # `access_token_plain` is already decrypted (and refreshed if it was
             # an OAuth token nearing expiry) by middleware.process_chat_payload.

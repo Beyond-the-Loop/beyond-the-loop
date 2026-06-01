@@ -604,6 +604,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.5"
     litellm_params:
