@@ -52,7 +52,6 @@
 	import { getModelIcon } from '$lib/utils';
 	import DocumentIcon from '../icons/DocumentIcon.svelte';
 	import FolderIcon from '../icons/FolderIcon.svelte';
-	import RobotIcon from '../icons/RobotIcon.svelte';
 
 	let loaded = false;
 
@@ -582,9 +581,6 @@
 		>
 			{#if filteredModels?.length < 1}
 				<div class="flex flex-col h-[calc(100dvh-200px)] w-full justify-center items-center text-center gap-2">
-					<div class="rounded-full p-3 bg-gray-200 text-gray-700 mb-1">
-						<RobotIcon className="size-14"/>
-					</div>
 					
 					<div class="text-lg">{$i18n.t('Whoops, no assistants have been set up here yet.')}</div>
 					

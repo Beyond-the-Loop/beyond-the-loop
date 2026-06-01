@@ -64,7 +64,7 @@
 	let tags = [];
 	let selectedTags = new Set();
 	let filteredItems = [];
-	let accessFilter = 'all';
+	let accessFilter = 'private';
 	let groupsForPrompts = [];
 
 	let loadingBookmark = null;
@@ -427,11 +427,24 @@
 						</div>
 					</div>
 				{:else}
-					<div class="flex h-[calc(100dvh-200px)] w-full justify-center items-center">
-						<div class="text-sm dark:text-customGray-100/50">
-							{$i18n.t('No prompts created yet')}
+					<div class="flex flex-col h-[calc(100dvh-200px)] w-full justify-center items-center text-center gap-2">
+					
+					<div class="text-lg">{$i18n.t('Whoops, no prompts have been set up here yet.')}</div>
+					
+					{#if $user?.permissions?.workspace?.edit_assistants}
+						<div class="text-sm mb-3">{$i18n.t('Create your first prompt to get started.')}</div>
+						<div>
+							<a
+								class=" px-2 py-2.5 md:w-[220px] rounded-lg leading-none border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-100 dark:text-customGray-200 dark:hover:text-white transition font-medium text-xs flex items-center justify-center space-x-1"
+								href="/workspace/prompts/create"
+							>
+								<Plus className="size-3.5" />
+								<span class="">{$i18n.t('Create new')}</span>
+							</a>
 						</div>
-					</div>
+					{/if}
+					<button></button>
+				</div>
 				{/if}
 			{/if}
 			<!-- {#if prompts?.length < 1}
