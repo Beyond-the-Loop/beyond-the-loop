@@ -399,10 +399,10 @@
 		});
 	}
 
-	function getAssistantIcon(assistantName: string) {
-		if (!assistantName) return null;
+	function getAssistantIcon(assistantName: string): string {
+		if (!assistantName) return '';
 		const a = assistantRows.find((r) => r.assistant === assistantName);
-		return a?.profile_image_url ?? null;
+		return a?.profile_image_url ?? '';
 	}
 
 	// --- CSV export ---
@@ -818,7 +818,9 @@
 														{#if row.top_assistant && getAssistantIcon(row.top_assistant).length > 5}
 															<img
 																class="rounded-md size-6 object-cover shrink-0"
-																src={getAssistantIcon(row.top_assistant)}
+																src={getAssistantIcon(row.top_assistant) === '/static/favicon.png'
+																	? '/logo_light.png'
+																	: getAssistantIcon(row.top_assistant)}
 																alt=""
 															/>
 														{:else if row.top_assistant}
@@ -1152,7 +1154,10 @@
 									<div class="flex flex-row items-center">
 										{#if !row.profile_image_url || row.profile_image_url.length > 5}
 											<img
-												src={row.profile_image_url}
+												src={!row.profile_image_url ||
+												row.profile_image_url === '/static/favicon.png'
+													? '/logo_light.png'
+													: row.profile_image_url}
 												alt="modelfile profile"
 												class="rounded-md size-6 object-cover mr-2.5"
 											/>
