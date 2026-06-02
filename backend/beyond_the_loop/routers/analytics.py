@@ -14,7 +14,6 @@ import logging
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.services.analytics_service import AnalyticsService
-from beyond_the_loop.services.payments_service import payments_service
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])

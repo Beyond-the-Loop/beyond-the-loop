@@ -76,7 +76,6 @@ class AnalyticsService:
                     ),    
                 )
                 .filter(
-                    Completion.assistant == None,
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
@@ -94,7 +93,6 @@ class AnalyticsService:
             real_count = (
                 db.query(func.count(Completion.id))
                 .filter(
-                    Completion.assistant == None,
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     Completion.user_id.in_(company_user_ids),
@@ -237,7 +235,10 @@ class AnalyticsService:
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
-                .outerjoin(Model, Completion.assistant == Model.name)
+                .outerjoin(
+                    Model,
+                    and_(Completion.assistant == Model.name, Model.company_id == company_id),
+                )
                 .filter(
                     Completion.assistant != None,
                     Completion.created_at >= int(start_date_dt.timestamp()),
@@ -350,7 +351,8 @@ class AnalyticsService:
                 User.last_name,
                 User.email,
                 User.profile_image_url,
-                func.count(Completion.id).label("message_count")
+                func.count(Completion.id).label("message_count"),
+                func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used")
             ).join(
                 Completion, User.id == Completion.user_id
             ).filter(
@@ -373,9 +375,10 @@ class AnalyticsService:
                     "last_name": last_name,
                     "email": email,
                     "profile_image_url": profile_image_url,
-                    "message_count": message_count
+                    "message_count": message_count,
+                    "credits_used": float(credits_used or 0),
                 }
-                for user_id, first_name, last_name, email, profile_image_url, message_count in power_users_query
+                for user_id, first_name, last_name, email, profile_image_url, message_count, credits_used in power_users_query
             ]
 
             # Get total number of users in the company for percentage calculation
