@@ -64,17 +64,6 @@
 		await tick();
 	};
 
-	const confirmSelectYoutube = async (url) => {
-		dispatch('youtube', url);
-
-		prompt = removeLastWordFromString(prompt, command);
-		const chatInputElement = document.getElementById('chat-input');
-
-		await tick();
-		chatInputElement?.focus();
-		await tick();
-	};
-
 	onMount(() => {
 		let legacy_documents = $knowledge
 			.filter((item) => item?.meta?.document)
@@ -263,34 +252,7 @@
 							</div> -->
 					{/each}
 
-					{#if prompt
-						.split(' ')
-						.some((s) => s.substring(1).startsWith('https://www.youtube.com') || s
-									.substring(1)
-									.startsWith('https://youtu.be'))}
-						<button
-							class="px-3 py-1.5 rounded-xl w-full text-left bg-gray-50 dark:bg-gray-850 dark:text-gray-100 selected-command-option-button"
-							type="button"
-							on:click={() => {
-								const url = prompt.split(' ')?.at(0)?.substring(1);
-								if (isValidHttpUrl(url)) {
-									confirmSelectYoutube(url);
-								} else {
-									toast.error(
-										$i18n.t(
-											'Oops! Looks like the URL is invalid. Please double-check and try again.'
-										)
-									);
-								}
-							}}
-						>
-							<div class=" font-medium text-black dark:text-gray-100 line-clamp-1">
-								{prompt.split(' ')?.at(0)?.substring(1)}
-							</div>
-
-							<div class=" text-xs text-gray-600 line-clamp-1">{$i18n.t('Youtube')}</div>
-						</button>
-					{:else if prompt.split(' ')?.at(0)?.substring(1).startsWith('http')}
+					{#if prompt.split(' ')?.at(0)?.substring(1).startsWith('http')}
 						<button
 							class="px-3 py-1.5 rounded-xl w-full text-left bg-gray-50 dark:bg-gray-850 dark:text-gray-100 selected-command-option-button"
 							type="button"

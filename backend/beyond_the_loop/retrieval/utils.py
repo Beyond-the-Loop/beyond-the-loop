@@ -270,9 +270,16 @@ def get_sources_from_files(
 
     for file in files:
         if file.get("context") == "full":
+            # Re-extract content from the file record by id instead of relying on it being
+            # embedded in the chat payload. The chat row no longer carries the full extracted
+            # text, so the source of truth is the `file` table.
+            from open_webui.utils.middleware import extract_file_content_with_loader
+
+            file_id = file.get("id")
+            content = extract_file_content_with_loader(file_id) if file_id else None
             context = {
-                "documents": [[file.get("file", {}).get("data", {}).get("content")]],
-                "metadatas": [[{"file_id": file.get("id"), "name": file.get("name")}]],
+                "documents": [[content]],
+                "metadatas": [[{"file_id": file_id, "name": file.get("name")}]],
             }
             full_context_results.append((context, file))
         else:

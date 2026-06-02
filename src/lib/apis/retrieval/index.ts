@@ -36,18 +36,11 @@ type ContentExtractConfigForm = {
 	engine: string;
 };
 
-type YoutubeConfigForm = {
-	language: string[];
-	translation?: string | null;
-	proxy_url: string;
-};
-
 type RAGConfigForm = {
 	enable_google_drive_integration?: boolean;
 	chunk?: ChunkConfigForm;
 	content_extraction?: ContentExtractConfigForm;
 	web_loader_ssl_verification?: boolean;
-	youtube?: YoutubeConfigForm;
 };
 
 export const updateRAGConfig = async (token: string, payload: RAGConfigForm) => {
@@ -323,37 +316,6 @@ export const processFile = async (
 		body: JSON.stringify({
 			file_id: file_id,
 			collection_name: collection_name ? collection_name : undefined
-		})
-	})
-		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
-		})
-		.catch((err) => {
-			error = err.detail;
-			console.log(err);
-			return null;
-		});
-
-	if (error) {
-		throw error;
-	}
-
-	return res;
-};
-
-export const processYoutubeVideo = async (token: string, url: string) => {
-	let error = null;
-
-	const res = await fetch(`${RETRIEVAL_API_BASE_URL}/process/youtube`, {
-		method: 'POST',
-		headers: {
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-			authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			url: url
 		})
 	})
 		.then(async (res) => {

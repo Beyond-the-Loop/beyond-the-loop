@@ -210,11 +210,6 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
             "max_size": request.app.state.config.FILE_MAX_SIZE,
             "max_count": request.app.state.config.FILE_MAX_COUNT,
         },
-        "youtube": {
-            "language": request.app.state.config.YOUTUBE_LOADER_LANGUAGE,
-            "translation": request.app.state.YOUTUBE_LOADER_TRANSLATION,
-            "proxy_url": request.app.state.config.YOUTUBE_LOADER_PROXY_URL,
-        },
         "web": {
             "web_loader_ssl_verification": request.app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
             "search": {
@@ -240,12 +235,6 @@ class ChunkParamUpdateForm(BaseModel):
     chunk_overlap: int
 
 
-class YoutubeLoaderConfig(BaseModel):
-    language: list[str]
-    translation: Optional[str] = None
-    proxy_url: str = ""
-
-
 class WebSearchConfig(BaseModel):
     enabled: bool
     result_count: Optional[int] = None
@@ -262,7 +251,6 @@ class ConfigUpdateForm(BaseModel):
     file: Optional[FileConfig] = None
     content_extraction: Optional[ContentExtractionConfig] = None
     chunk: Optional[ChunkParamUpdateForm] = None
-    youtube: Optional[YoutubeLoaderConfig] = None
     web: Optional[WebConfig] = None
 
 

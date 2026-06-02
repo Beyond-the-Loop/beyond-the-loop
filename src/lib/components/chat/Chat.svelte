@@ -52,7 +52,7 @@
 
 	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
-	import { processWeb, processYoutubeVideo } from '$lib/apis/retrieval';
+	import { processWeb } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
 	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
@@ -673,9 +673,14 @@
 				throw new Error('Server returned null response for file upload');
 			}
 
+			// Drop `data` (contains the full extracted file content) before persisting in chat state — the
+			// backend re-extracts content from the file record on demand, so keeping it here would bloat
+			// the chat row in the DB and every chat load by megabytes per attached file.
+			const { data: _omitFileData, ...fileWithoutData } = uploadedFile;
+
 			// Update file item with upload results
 			fileItem.status = 'uploaded';
-			fileItem.file = uploadedFile;
+			fileItem.file = fileWithoutData;
 			fileItem.id = uploadedFile.id;
 			fileItem.size = file.size;
 			fileItem.collection_name = uploadedFile?.meta?.collection_name;
@@ -725,37 +730,6 @@
 		}
 	};
 
-	const uploadYoutubeTranscription = async (url) => {
-		const fileItem = {
-			type: 'doc',
-			name: url,
-			collection_name: '',
-			status: 'uploading',
-			context: 'full',
-			url: url,
-			error: ''
-		};
-
-		try {
-			files = [...files, fileItem];
-			const res = await processYoutubeVideo(localStorage.token, url);
-
-			if (res) {
-				fileItem.status = 'uploaded';
-				fileItem.collection_name = res.collection_name;
-				fileItem.file = {
-					...res.file,
-					...fileItem.file
-				};
-				files = files;
-			}
-		} catch (e) {
-			// Remove the failed doc from the files array
-			files = files.filter((f) => f.name !== url);
-			toast.error(`${e}`);
-		}
-	};
-
 	//////////////////////////
 	// Web functions
 	//////////////////////////
@@ -791,11 +765,6 @@
 		codeInterpreterEnabled = true;
 		autoToolsEnabled = true;
 
-		if ($page.url.searchParams.get('youtube')) {
-			uploadYoutubeTranscription(
-				`https://www.youtube.com/watch?v=${$page.url.searchParams.get('youtube')}`
-			);
-		}
 		if ($page.url.searchParams.get('web-search') === 'true') {
 			webSearchEnabled = true;
 		}
@@ -2233,8 +2202,6 @@
 
 										if (type === 'web') {
 											await uploadWeb(data);
-										} else if (type === 'youtube') {
-											await uploadYoutubeTranscription(data);
 										} else if (type === 'google-drive') {
 											await uploadGoogleDriveFile(data);
 										}
@@ -2304,8 +2271,6 @@
 
 									if (type === 'web') {
 										await uploadWeb(data);
-									} else if (type === 'youtube') {
-										await uploadYoutubeTranscription(data);
 									}
 								}}
 								on:submit={async (e) => {

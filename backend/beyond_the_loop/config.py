@@ -134,8 +134,6 @@ def reset_config(company_id):
 DEFAULT_CONFIG = {
     "concurrent_requests": 10,
     "rag": {
-        "youtube_loader_language": ["en"],
-        "youtube_loader_proxy_url": "",
         "enable_web_loader_ssl_verification": False,
         "web": {
             "search": {

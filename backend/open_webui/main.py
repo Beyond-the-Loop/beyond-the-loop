@@ -6,7 +6,6 @@ import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
-from urllib.parse import urlencode, parse_qs, urlparse
 
 import aiohttp
 from fastapi import (
@@ -19,7 +18,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -319,8 +318,6 @@ app.state.EMBEDDING_FUNCTION = None
 app.state.ef = None
 app.state.rf = None
 
-app.state.YOUTUBE_LOADER_TRANSLATION = None
-
 try:
     app.state.ef = get_ef(
         app.state.config.RAG_EMBEDDING_ENGINE,
@@ -380,25 +377,6 @@ app.state.config.TAGS_GENERATION_PROMPT_TEMPLATE = TAGS_GENERATION_PROMPT_TEMPLA
 #
 ########################################
 
-class RedirectMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Check if the request is a GET request
-        if request.method == "GET":
-            path = request.url.path
-            query_params = dict(parse_qs(urlparse(str(request.url)).query))
-
-            # Check for the specific watch path and the presence of 'v' parameter
-            if path.endswith("/watch") and "v" in query_params:
-                video_id = query_params["v"][0]  # Extract the first 'v' parameter
-                encoded_video_id = urlencode({"youtube": video_id})
-                redirect_url = f"/?{encoded_video_id}"
-                return RedirectResponse(url=redirect_url)
-
-        # Proceed with the normal flow of other requests
-        response = await call_next(request)
-        return response
-
-
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Extracts or generates a request ID and injects it into the log context."""
     async def dispatch(self, request: Request, call_next):
@@ -420,7 +398,6 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 # Add the middleware to the app
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(RedirectMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 
