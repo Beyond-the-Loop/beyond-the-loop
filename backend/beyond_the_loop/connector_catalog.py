@@ -63,6 +63,31 @@ def _build_catalog() -> list[ConnectorTemplate]:
             scope=None,
         ),
         ConnectorTemplate(
+            slug="hubspot",
+            name="HubSpot",
+            description=(
+                "Search and read your HubSpot CRM — contacts, companies, "
+                "deals, tickets, and engagements. Lets the assistant answer "
+                "questions about your pipeline, accounts, and customer "
+                "interactions. Requires a HubSpot public app: paste its "
+                "client ID and client secret at install."
+            ),
+            icon_url="https://www.google.com/s2/favicons?domain=hubspot.com&sz=128",
+            server_url="https://mcp.hubspot.com",
+            transport="streamable_http",
+            # HubSpot's OAuth metadata exposes no `registration_endpoint`, so
+            # DCR is unavailable — each user (or workspace admin) registers a
+            # HubSpot public app in their developer portal and pastes the
+            # resulting client_id/client_secret at install. Scopes are
+            # configured on the app itself, so the authorize call passes none.
+            issuer_url="https://mcp.hubspot.com",
+            scope=None,
+            requires_user_credentials=True,
+            credentials_help_url=(
+                "https://developers.hubspot.com/docs/guides/apps/public-apps/overview"
+            ),
+        ),
+        ConnectorTemplate(
             slug="confluence",
             name="Confluence",
             description=(

@@ -930,11 +930,6 @@
 							{#if editingServer?.has_oauth_access_token}
 								<div class="text-xs dark:text-customGray-100 mb-2">
 									<span class="font-medium">{$i18n.t('Connected')}</span>
-									{#if editingServer.oauth_principal_label}
-										<span class="text-lightGray-1200 dark:text-customGray-100/60">
-											{$i18n.t('as')} {editingServer.oauth_principal_label}
-										</span>
-									{/if}
 									{#if editingServer.oauth_granted_scope}
 										<div class="text-lightGray-1200 dark:text-customGray-100/60 mt-1">
 											{$i18n.t('Scope')}: {editingServer.oauth_granted_scope}
@@ -1075,14 +1070,9 @@
 
 				{#if selectedConnected}
 					<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 p-3 text-xs dark:text-customGray-100">
-						<div class="flex items-center gap-2 font-medium mb-1">
+						<div class="flex items-center gap-2 leading-none font-medium">
 							<span class="size-1.5 rounded-full bg-green-500"></span>
 							{$i18n.t('Connected')}
-							{#if selectedRow?.oauth_principal_label}
-								<span class="text-lightGray-1200 dark:text-customGray-100/70 font-normal">
-									{$i18n.t('as')} {selectedRow.oauth_principal_label}
-								</span>
-							{/if}
 						</div>
 						{#if selectedRow?.oauth_last_error}
 							<div class="text-red-600 dark:text-red-400 mt-1">
