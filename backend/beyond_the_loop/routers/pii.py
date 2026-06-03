@@ -45,7 +45,7 @@ class PIIAnalyzeResponse(BaseModel):
 
 
 @router.post("/analyze", response_model=PIIAnalyzeResponse)
-async def analyze(form_data: PIIAnalyzeRequest, user=Depends(get_verified_user)):
+def analyze(form_data: PIIAnalyzeRequest, user=Depends(get_verified_user)):
     if not is_pii_filter_enabled(user.company_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
