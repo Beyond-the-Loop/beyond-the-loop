@@ -136,7 +136,7 @@
 	let detectedPIIEntities: PIISpan[] = [];
 	let piiAbortController: AbortController | null = null;
 	let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	const PII_DEBOUNCE_MS = 350;
+	const PII_DEBOUNCE_MS = 800;
 	const PII_MIN_CHARS = 3;
 
 	// Drives sidebar + privacy button visibility. The disable-toggle UI in

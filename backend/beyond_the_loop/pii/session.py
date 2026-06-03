@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, Iterable, List, Optional, Protocol, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple
 
+from presidio_analyzer import RecognizerResult
 from sqlalchemy.orm.attributes import flag_modified
 
 from beyond_the_loop.pii.service import PresidioService
@@ -151,6 +152,15 @@ class PIISession:
         self.sources: Dict[str, Set[str]] = {
             k: set(v) for k, v in data.get("sources", {}).items()
         }
+        # Cache of `presidio.analyze` results keyed by raw text. Re-anonymizing
+        # the same prior-turn message on every send (anonymize_messages iterates
+        # the whole history) would otherwise rerun the transformer NER on text
+        # we've already analyzed — the dominant cost. Cache values are plain
+        # dicts so they round-trip through JSON storage; spans are rebuilt as
+        # RecognizerResult on read.
+        self.analyze_cache: Dict[str, List[Dict[str, Any]]] = data.get(
+            "analyze_cache", {}
+        )
 
     def save(self) -> None:
         self.storage.save(
@@ -160,6 +170,7 @@ class PIISession:
                 "reverse": self.reverse,
                 "counters": self.counters,
                 "sources": {k: sorted(v) for k, v in self.sources.items()},
+                "analyze_cache": self.analyze_cache,
             },
         )
 
@@ -192,7 +203,7 @@ class PIISession:
 
         released_set: Set[str] = set(released) if released else set()
 
-        spans = self.presidio.analyze(text)
+        spans = self._analyze_cached(text)
 
         # Replace right-to-left so earlier offsets stay valid.
         out = text
@@ -255,6 +266,34 @@ class PIISession:
         from beyond_the_loop.pii.streaming import StreamingDeanonymizer
 
         return StreamingDeanonymizer(self.reverse)
+
+    def _analyze_cached(self, text: str) -> List[RecognizerResult]:
+        cached = self.analyze_cache.get(text)
+        if cached is not None:
+            return [
+                RecognizerResult(
+                    entity_type=s["entity_type"],
+                    start=s["start"],
+                    end=s["end"],
+                    score=s["score"],
+                )
+                for s in cached
+            ]
+        spans = self.presidio.analyze(text)
+        # Coerce to plain Python types — RecognizerResult.score is numpy.float32
+        # under the transformer backend, which json.dumps refuses. A failed save
+        # here silently aborts the whole transaction, including the forward map,
+        # leaving placeholders un-deanonymized in the streamed response.
+        self.analyze_cache[text] = [
+            {
+                "entity_type": s.entity_type,
+                "start": int(s.start),
+                "end": int(s.end),
+                "score": float(s.score),
+            }
+            for s in spans
+        ]
+        return spans
 
     def _sweep_known(
         self,

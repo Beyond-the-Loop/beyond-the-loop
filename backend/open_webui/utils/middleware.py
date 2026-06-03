@@ -547,6 +547,20 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             if is_pii_filter_enabled(user.company_id) and client_pii_enabled:
                 pii_session = PIISession(chat_id)
+                # Surface the anonymization step in the UI — the work can
+                # take a few seconds on long histories / many RAG chunks
+                # under MAX_CONCURRENT_ANALYZES=1, and an unannotated spinner
+                # in that window feels broken.
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "anonymizing",
+                            "description": "Anonymizing personal data",
+                            "done": False,
+                        },
+                    }
+                )
                 try:
                     pii_total_detected, pii_anonymized, ru = anonymize_messages(
                         form_data["messages"], pii_session,
@@ -566,6 +580,19 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 filtered_user_content = get_last_user_message(form_data["messages"])
                 form_data["messages"].insert(
                     0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                )
+                # Empty description + done=true clears the status — the next
+                # real step (smart router / RAG / generating_response) will
+                # take over the status slot when it kicks in.
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "anonymizing",
+                            "description": "",
+                            "done": True,
+                        },
+                    }
                 )
         except PIIRedactionError:
             # Bubble up — the chat endpoint maps this to a 4xx for the client.
