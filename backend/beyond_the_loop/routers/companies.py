@@ -11,9 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from beyond_the_loop.config import save_config, get_config
-from beyond_the_loop.models.files import File
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
-from beyond_the_loop.models.users import User, Users
+from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import litellm
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
@@ -29,14 +28,9 @@ from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
-from beyond_the_loop.socket.main import (
-    COMPANY_CONFIG_CACHE,
-    STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE,
-    STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE,
-)
+from beyond_the_loop.socket.main import COMPANY_CONFIG_CACHE
 from beyond_the_loop.storage.provider import Storage
 from open_webui.env import SRC_LOG_LEVELS
-from open_webui.internal.db import get_db
 from open_webui.utils.auth import get_current_user, get_admin_user
 
 router = APIRouter()
@@ -370,8 +364,6 @@ class DeleteCompanyRequest(BaseModel):
 @router.delete("", response_model=bool)
 async def delete_company(form_data: DeleteCompanyRequest, user=Depends(get_admin_user)):
     company_id = user.company_id
-    if not company_id or company_id == NO_COMPANY:
-        raise HTTPException(status_code=400, detail="User is not associated with a company")
 
     company = Companies.get_company_by_id(company_id)
     if not company:
@@ -380,28 +372,12 @@ async def delete_company(form_data: DeleteCompanyRequest, user=Depends(get_admin
     if form_data.confirmation.strip() != company.name:
         raise HTTPException(status_code=400, detail="Company name confirmation does not match")
 
+    # Cancels the Stripe subscription and clears the subscription caches.
     payments_service.cancel_company_subscription(company_id)
 
-    file_cleanup: list[tuple[str, str | None]] = []
-
-    try:
-        with get_db() as db:
-            file_cleanup = [
-                (file_id, file_path)
-                for file_id, file_path in db.query(File.id, File.path)
-                .join(User, File.user_id == User.id)
-                .filter(User.company_id == company_id)
-                .all()
-            ]
-
-        if not Companies.delete_company_by_id(company_id):
-            raise HTTPException(status_code=404, detail="Company not found")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        log.error(f"Failed to delete company {company_id}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete company")
+    # DB ON DELETE CASCADE rules remove all company/user-related rows; the
+    # returned files are cleaned up from external storage / vector DB below.
+    file_cleanup = Companies.delete_company_and_collect_files(company_id)
 
     for file_id, file_path in file_cleanup:
         collection_name = f"file-{file_id}"
@@ -417,16 +393,8 @@ async def delete_company(form_data: DeleteCompanyRequest, user=Depends(get_admin
             except Exception as e:
                 log.warning(f"Failed to delete file {file_path} from storage: {e}")
 
-    for cache in (
-        STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE,
-        STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE,
-        COMPANY_CONFIG_CACHE,
-    ):
-        try:
-            if company_id in cache:
-                del cache[company_id]
-        except Exception as e:
-            log.warning(f"Failed to clear company cache for {company_id}: {e}")
+    if company_id in COMPANY_CONFIG_CACHE:
+        del COMPANY_CONFIG_CACHE[company_id]
 
     return True
 
