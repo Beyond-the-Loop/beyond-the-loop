@@ -5,6 +5,7 @@ from typing import Optional
 from open_webui.internal.db import Base, JSONField, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
+from beyond_the_loop.config import LITELLM_MODEL_CONFIG
 from beyond_the_loop.models.users import UserResponse, Users
 from beyond_the_loop.models.prompts import Prompt
 from beyond_the_loop.models.files import Files
@@ -493,3 +494,39 @@ class ModelsTable:
 
 
 Models = ModelsTable()
+
+
+PERPLEXITY_ALLOWED_COMPANY_IDS = (
+    "c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4",
+    "995d24a9-fc30-43b3-b88b-e8650586d938",
+)
+PERPLEXITY_MODELS = (
+    "Perplexity Sonar Pro",
+    "Perplexity Sonar Deep Research",
+    "Perplexity Sonar Reasoning Pro",
+)
+
+
+def filter_base_models_by_plan(base_models, plan: str | None, company_id: str):
+    # Why: mirrors the access logic in main.py:get_active_models so the public API
+    # exposes the same set of base models that the regular chat path can call.
+    if plan not in ("free", "premium"):
+        return base_models
+
+    allowed_premium = {
+        name for name, cfg in LITELLM_MODEL_CONFIG.items()
+        if cfg.get("allowed_messages_per_three_hours_premium")
+    }
+    base_models = [m for m in base_models if m.name in allowed_premium]
+
+    if plan == "free":
+        allowed_free = {
+            name for name, cfg in LITELLM_MODEL_CONFIG.items()
+            if cfg.get("allowed_messages_per_three_hours_free")
+        }
+        base_models = [m for m in base_models if m.name in allowed_free]
+
+    if company_id not in PERPLEXITY_ALLOWED_COMPANY_IDS:
+        base_models = [m for m in base_models if m.name not in PERPLEXITY_MODELS]
+
+    return base_models
