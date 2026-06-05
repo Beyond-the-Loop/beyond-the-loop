@@ -7,7 +7,7 @@ from open_webui.internal.db import Base, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import BigInteger, Column, String, Text, JSON, func
+from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, JSON, func
 
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Group(Base):
     __tablename__ = "group"
 
     id = Column(Text, unique=True, primary_key=True)
-    company_id = Column(Text, nullable=False)
+    company_id = Column(Text, ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
 
     name = Column(Text, nullable=False)
     description = Column(Text)

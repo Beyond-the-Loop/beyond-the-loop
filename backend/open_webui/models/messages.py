@@ -8,7 +8,7 @@ from open_webui.models.tags import TagModel, Tag, Tags
 
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Boolean, Column, String, Text, JSON
+from sqlalchemy import BigInteger, Boolean, Column, ForeignKey, String, Text, JSON
 from sqlalchemy import or_, func, select, and_, text
 from sqlalchemy.sql import exists
 
@@ -21,7 +21,7 @@ class MessageReaction(Base):
     __tablename__ = "message_reaction"
     id = Column(Text, primary_key=True)
     user_id = Column(Text, nullable=False)
-    message_id = Column(Text, nullable=False)
+    message_id = Column(Text, ForeignKey("message.id", ondelete="CASCADE"), nullable=False)
     name = Column(Text, nullable=False)
     created_at = Column(BigInteger, nullable=False)
 
@@ -41,9 +41,9 @@ class Message(Base):
     id = Column(Text, primary_key=True)
 
     user_id = Column(Text, nullable=False)
-    channel_id = Column(Text, nullable=False)
+    channel_id = Column(Text, ForeignKey("channel.id", ondelete="CASCADE"), nullable=False)
 
-    parent_id = Column(Text, nullable=True)
+    parent_id = Column(Text, ForeignKey("message.id", ondelete="CASCADE"), nullable=True)
 
     content = Column(Text, nullable=False)
     data = Column(JSON, nullable=True)
@@ -253,25 +253,10 @@ class MessageTable:
             db.commit()
             return True
 
-    def delete_reactions_by_id(self, id: str) -> bool:
-        with get_db() as db:
-            db.query(MessageReaction).filter_by(message_id=id).delete()
-            db.commit()
-            return True
-
-    def delete_replies_by_id(self, id: str) -> bool:
-        with get_db() as db:
-            db.query(Message).filter_by(parent_id=id).delete()
-            db.commit()
-            return True
-
     def delete_message_by_id(self, id: str) -> bool:
+        """Delete a message; replies and reactions cascade via FK (migration 039)."""
         with get_db() as db:
             db.query(Message).filter_by(id=id).delete()
-
-            # Delete all reactions to this message
-            db.query(MessageReaction).filter_by(message_id=id).delete()
-
             db.commit()
             return True
 
