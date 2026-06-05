@@ -81,7 +81,7 @@
 			localStorage.removeItem('token');
 			window.location.href = '/login';
 		} catch (e) {
-			toast.error(e);
+			toast.error($i18n.t(typeof e === 'string' ? e : 'Failed to delete company'));
 		}
 	};
 
@@ -512,7 +512,7 @@
 		</div>
 	</div>
 
-	<div class="flex justify-between items-center pt-3 text-sm font-medium">
+	<div class="flex justify-between items-center pt-8 pb-8 text-sm font-medium">
 		<button
 			type="button"
 			class="text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-red-500 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-red-400 border dark:border-customGray-700 flex justify-center items-center"
@@ -535,13 +535,5 @@
 				</div>
 			{/if}
 		</button>
-	</div>
-	<div class="flex justify-between items-start pt-3 pb-5">
-		<a
-			href="https://thoreduecker.notion.site/208a1ab099c980c1905eeccd32ea53cd"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="underline">{$i18n.t('Contact us')}</a
-		>
 	</div>
 </div>

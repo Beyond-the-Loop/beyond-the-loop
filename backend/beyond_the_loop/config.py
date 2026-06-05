@@ -212,13 +212,17 @@ def get_config_value(config_path: str, company_id):
 PERSISTENT_CONFIG_REGISTRY = []
 
 
+def invalidate_company_config_cache(company_id: str) -> None:
+    if company_id in COMPANY_CONFIG_CACHE:
+        del COMPANY_CONFIG_CACHE[company_id]
+
+
 def save_config(config, company_id):
     # If company_id is None, we can't save to the database (company_id is required)
     if company_id is None:
         return False
 
-    if company_id in COMPANY_CONFIG_CACHE:
-        del COMPANY_CONFIG_CACHE[company_id]
+    invalidate_company_config_cache(company_id)
 
     global CONFIG_DATA
     global PERSISTENT_CONFIG_REGISTRY

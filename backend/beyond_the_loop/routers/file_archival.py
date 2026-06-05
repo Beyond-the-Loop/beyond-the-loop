@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from open_webui.utils.auth import get_current_user, get_admin_user
-from beyond_the_loop.services.file_archival_service import file_archival_service
+from beyond_the_loop.services.file_service import file_service
 from beyond_the_loop.scheduler import task_scheduler
 
 router = APIRouter()
@@ -73,7 +73,7 @@ async def get_file_cleanup_stats(user=Depends(get_current_user)):
         if not company_id:
             raise HTTPException(status_code=400, detail="User is not associated with a company")
         
-        stats = file_archival_service.get_cleanup_stats(company_id)
+        stats = file_service.get_cleanup_stats(company_id)
         return FileCleanupStatsResponse(**stats)
         
     except Exception as e:
@@ -97,7 +97,7 @@ async def preview_file_cleanup_candidates(user=Depends(get_admin_user)):
         if not company_id:
             raise HTTPException(status_code=400, detail="User is not associated with a company")
         
-        preview = file_archival_service.preview_cleanup_candidates(company_id)
+        preview = file_service.preview_cleanup_candidates(company_id)
         return FileCleanupPreviewResponse(**preview)
         
     except Exception as e:
@@ -159,7 +159,7 @@ async def get_global_file_cleanup_stats(user=Depends(get_admin_user)):
         FileCleanupStatsResponse: Global statistics about file cleanup
     """
     try:
-        stats = file_archival_service.get_cleanup_stats()  # No company_id = global stats
+        stats = file_service.get_cleanup_stats()  # No company_id = global stats
         return FileCleanupStatsResponse(**stats)
         
     except Exception as e:

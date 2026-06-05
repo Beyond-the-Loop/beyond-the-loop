@@ -7,7 +7,7 @@ from open_webui.internal.db import Base, get_db
 from beyond_the_loop.models.chats import Chats
 from open_webui.env import SRC_LOG_LEVELS
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, Text, JSON, Boolean
+from sqlalchemy import BigInteger, Column, ForeignKey, Text, JSON, Boolean
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -21,7 +21,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 class Folder(Base):
     __tablename__ = "folder"
     id = Column(Text, primary_key=True)
-    parent_id = Column(Text, nullable=True)
+    parent_id = Column(Text, ForeignKey("folder.id", ondelete="CASCADE"), nullable=True)
     user_id = Column(Text, nullable=False)
     name = Column(Text, nullable=False)
     items = Column(JSON, nullable=True)
@@ -234,31 +234,14 @@ class FolderTable:
             return
 
     def delete_folder_by_id_and_user_id(self, id: str, user_id: str) -> bool:
+        """Delete a folder. Subfolders cascade via folder.parent_id, chats
+        cascade via chat.folder_id (both set up in migration 039)."""
         try:
             with get_db() as db:
                 folder = db.query(Folder).filter_by(id=id, user_id=user_id).first()
                 if not folder:
                     return False
 
-                # Delete all chats in the folder
-                Chats.delete_chats_by_user_id_and_folder_id(user_id, folder.id)
-
-                # Delete all children folders
-                def delete_children(folder):
-                    folder_children = self.get_folders_by_parent_id_and_user_id(
-                        folder.id, user_id
-                    )
-                    for folder_child in folder_children:
-                        Chats.delete_chats_by_user_id_and_folder_id(
-                            user_id, folder_child.id
-                        )
-                        delete_children(folder_child)
-
-                        folder = db.query(Folder).filter_by(id=folder_child.id).first()
-                        db.delete(folder)
-                        db.commit()
-
-                delete_children(folder)
                 db.delete(folder)
                 db.commit()
                 return True

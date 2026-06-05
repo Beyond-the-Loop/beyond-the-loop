@@ -38,7 +38,10 @@ class Company(Base):
     next_credit_charge_check = Column(BigInteger, nullable=True)
     public_signup_token = Column(String, nullable=True, unique=True)
 
-    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    # No `users` relationship: user.company_id has no DB-level FK (sentinel
+    # values 'NEW' / 'NO_COMPANY' don't reference real companies). User
+    # cleanup on company delete is handled by Users.delete_users_by_company_id
+    # in dissolve_company (see routers/companies.py).
     domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
 
 class CompanyModel(BaseModel):
@@ -361,43 +364,6 @@ class CompanyTable:
         except Exception as e:
             log.error(f"Error deleting company {company_id}: {e}")
             return False
-
-    def delete_company_and_collect_files(
-        self, company_id: str
-    ) -> list[tuple[str, Optional[str]]]:
-        """Delete a company and return the (file_id, file_path) pairs of its
-        users' files so the caller can clean up external storage / vector
-        collections afterwards.
-
-        The DB ON DELETE CASCADE rules remove all company- and user-related
-        rows automatically; this method only adds the bit of extra information
-        the router needs for the non-DB cleanup. Returns an empty list if the
-        company no longer exists.
-        """
-        from beyond_the_loop.models.files import File
-        from beyond_the_loop.models.users import User
-
-        try:
-            with get_db() as db:
-                company = db.query(Company).filter_by(id=company_id).first()
-                if not company:
-                    return []
-
-                file_cleanup = [
-                    (file_id, file_path)
-                    for file_id, file_path in db.query(File.id, File.path)
-                    .join(User, File.user_id == User.id)
-                    .filter(User.company_id == company_id)
-                    .all()
-                ]
-
-                db.delete(company)
-                db.commit()
-
-                return file_cleanup
-        except Exception as e:
-            log.error(f"Error deleting company {company_id}: {e}")
-            return []
 
     def get_company_by_stripe_customer_id(self, stripe_customer_id: str) -> Optional[CompanyModel]:
         try:
