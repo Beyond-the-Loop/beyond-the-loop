@@ -1070,7 +1070,7 @@
 						{$i18n.t('Need help with setup?')}
 						<a
 							class="underline ml-1"
-							href="https://www.notion.so/beyond-the-loop/M365-MCP-Server-verbinden-375a1ab099c9809d91f9c1d85ead2c45?source=copy_link"
+							href="https://beyond-the-loop.notion.site/m365-mcp"
 							target="_blank"
 							rel="noopener noreferrer"
 						>
@@ -1307,6 +1307,18 @@
 						</div>
 					</button>
 				{/each}
+			</div>
+
+			<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50 pb-4 pt-1">
+				{$i18n.t('Connector not listed?')}
+				<a
+					class="underline ml-1 hover:text-lightGray-100 dark:hover:text-customGray-100"
+					href="https://beyond-the-loop.notion.site/mcp"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					{$i18n.t('Request it for the library')}
+				</a>
 			</div>
 		</div>
 	</div>
