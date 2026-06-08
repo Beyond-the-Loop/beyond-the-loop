@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import mimetypes
+import re
 import time
 import uuid
 from pathlib import Path
@@ -18,6 +19,7 @@ from fastapi.responses import FileResponse, StreamingResponse, Response
 from starlette.background import BackgroundTask
 from openai import OpenAI
 from beyond_the_loop.models.models import Models
+from beyond_the_loop.models.mcp_servers import MCPServers
 
 
 from beyond_the_loop.config import (
@@ -56,6 +58,23 @@ log.setLevel(SRC_LOG_LEVELS["OPENAI"])
 ##########################################
 
 session: aiohttp.ClientSession | None = None
+
+
+# Azure OpenAI Responses API constrains `tools[*].server_label` to match
+# `^[A-Za-z][A-Za-z0-9_-]*$`. Connector names like "Microsoft 365" contain
+# a space and get rejected with `invalid_request_error`. This sanitises the
+# display name into a valid label without leaking server IDs to the provider.
+_MCP_LABEL_PATTERN = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _sanitize_mcp_server_label(name: str) -> str:
+    cleaned = _MCP_LABEL_PATTERN.sub("-", name or "").strip("-")
+    if not cleaned:
+        return "mcp"
+    if not cleaned[0].isalpha():
+        cleaned = f"mcp-{cleaned}"
+    return cleaned
+
 
 async def _get_session() -> aiohttp.ClientSession:
     global session
@@ -369,6 +388,63 @@ async def generate_chat_completion(
         else:
             tools.append({"codeExecution": {}})
 
+    # MCP server injection. Only the Azure OpenAI Responses API supports
+    # server-side MCP natively (the provider acts as MCP client). For every
+    # other route — Vertex Claude, Vertex/Direct Gemini, Azure Foundry models,
+    # Perplexity — there is no equivalent feature, so the block is silently
+    # dropped here rather than sent and rejected (or worse, ignored).
+    #
+    # The `supports_mcp` flag in `litellm-config.yaml` should already gate
+    # metadata population, but this is the defensive backstop.
+    #
+    # Encrypted tokens travel through metadata and are decrypted just-in-time
+    # so plaintext tokens never sit in metadata or chat state.
+    mcp_servers_resolved = metadata.get("mcp_servers_resolved", [])
+    # Sanitized server label → server id. The SSE handler uses this to map
+    # back the `mcp_list_tools` items OpenAI emits so they can be persisted
+    # on the originating mcp_server row for the next request.
+    mcp_label_to_server_id: dict[str, str] = {}
+    # Cached `mcp_list_tools` items to prepend to `input` so OpenAI skips
+    # re-discovery against the MCP server. Format is whatever OpenAI gave
+    # us back on a previous turn — we just hand it back verbatim.
+    cached_mcp_list_tools_items: list[dict] = []
+    if mcp_servers_resolved and use_responses_api:
+        # Tool Search defers the per-tool parameter schemas of every MCP server
+        # marked with `defer_loading: true` — the model sees only the server's
+        # name+description until it decides it needs a tool, then loads the
+        # schemas on demand. Cuts upfront tokens/latency on chats with many
+        # MCP servers (Notion/Attio/Gmail/etc. each ship 20-40 tools).
+        tools.append({"type": "tool_search"})
+        for s in mcp_servers_resolved:
+            label = _sanitize_mcp_server_label(s["name"])
+            mcp_label_to_server_id[label] = s["id"]
+            entry = {
+                "type": "mcp",
+                "server_label": label,
+                "server_url": s["url"],
+                "require_approval": "never",
+                "defer_loading": True,
+            }
+            # `access_token_plain` is already decrypted (and refreshed if it was
+            # an OAuth token nearing expiry) by middleware.process_chat_payload.
+            if s.get("access_token_plain"):
+                entry["headers"] = {
+                    "Authorization": f"Bearer {s['access_token_plain']}"
+                }
+            if s.get("tool_filter"):
+                entry["allowed_tools"] = s["tool_filter"]
+            tools.append(entry)
+
+            cached_item = s.get("cached_list_tools_item")
+            if cached_item:
+                cached_mcp_list_tools_items.append(cached_item)
+    elif mcp_servers_resolved:
+        log.info(
+            "[mcp] dropping %d server(s) for model %r — non-Responses-API route has no native MCP support",
+            len(mcp_servers_resolved),
+            model_name,
+        )
+
     if tools:
         payload["tools"] = tools
 
@@ -470,6 +546,12 @@ async def generate_chat_completion(
         if carried_images:
             input_items.append({"role": "user", "content": carried_images})
 
+        # Re-injecting `mcp_list_tools` items from a previous response tells
+        # the Responses API the tool catalog is already in context — it skips
+        # tools/list against the MCP server entirely.
+        if cached_mcp_list_tools_items:
+            input_items = cached_mcp_list_tools_items + input_items
+
         payload["input"] = input_items
     elif payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
@@ -539,6 +621,7 @@ async def generate_chat_completion(
                     log_all_until_completed = False
                     web_search_active = False
                     last_web_search_status = None
+                    mcp_server_labels: dict[str, str] = {}
 
                     async for chunk in r.content:
                         chunk_str = chunk.decode("utf-8", errors="replace")
@@ -581,7 +664,8 @@ async def generate_chat_completion(
 
                                     elif event == "response.output_item.added":
                                         item = data.get("item", {})
-                                        if item.get("type") == "web_search_call":
+                                        item_type = item.get("type")
+                                        if item_type == "web_search_call":
                                             web_search_active = True
                                             last_web_search_status = {
                                                 "action": "web_search",
@@ -589,6 +673,22 @@ async def generate_chat_completion(
                                                 "description": "Searching the web",
                                             }
                                             yield f"data: {json.dumps({'status_event': last_web_search_status})}\n\n".encode()
+                                        elif item_type == "mcp_list_tools":
+                                            mcp_item_id = item.get("id", "")
+                                            mcp_label = item.get("server_label") or "MCP server"
+                                            if mcp_item_id:
+                                                mcp_server_labels[mcp_item_id] = mcp_label
+                                            yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': False, 'description': f'Connecting to {mcp_label}'}})}\n\n".encode()
+
+                                    elif event == "response.mcp_list_tools.completed":
+                                        mcp_item_id = data.get("item_id", "")
+                                        mcp_label = mcp_server_labels.get(mcp_item_id, "MCP server")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': True, 'description': f'Connected to {mcp_label}'}})}\n\n".encode()
+
+                                    elif event == "response.mcp_list_tools.failed":
+                                        mcp_item_id = data.get("item_id", "")
+                                        mcp_label = mcp_server_labels.get(mcp_item_id, "MCP server")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': True, 'description': f'Failed to connect to {mcp_label}'}})}\n\n".encode()
 
                                     elif event == "response.code_interpreter_call.in_progress":
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Writing code'}})}\n\n".encode()
@@ -621,6 +721,18 @@ async def generate_chat_completion(
 
                                     elif event == "response.output_item.done":
                                         item = data.get("item", {})
+                                        if item.get("type") == "mcp_list_tools":
+                                            # Persist the full item so the next request can re-inject
+                                            # it via `input` and OpenAI skips re-discovery. Only when
+                                            # the tools array actually came back (a failed discovery
+                                            # produces a done event with no tools, which would
+                                            # poison the cache).
+                                            server_label = item.get("server_label") or ""
+                                            server_id = mcp_label_to_server_id.get(server_label)
+                                            if server_id and item.get("tools"):
+                                                MCPServers.set_cached_list_tools_item(
+                                                    server_id, user.id, item
+                                                )
                                         if item.get("type") == "web_search_call":
                                             action = item.get("action", {})
                                             action_type = action.get("type")

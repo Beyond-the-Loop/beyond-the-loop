@@ -1,7 +1,7 @@
 """Drop is_image_generation from completion table
 
-Revision ID: 039
-Revises: 038
+Revision ID: 042
+Revises: 041
 Create Date: 2026-05-28 00:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '039'
-down_revision: Union[str, None] = '038'
+revision: str = '042'
+down_revision: Union[str, None] = '041'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

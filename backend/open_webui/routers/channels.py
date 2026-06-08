@@ -299,7 +299,7 @@ async def post_new_message(
 
             background_tasks.add_task(
                 send_notification,
-                request.app.state.config.WEBUI_URL,
+                str(request.base_url).rstrip("/"),
                 channel,
                 message,
                 active_user_ids,

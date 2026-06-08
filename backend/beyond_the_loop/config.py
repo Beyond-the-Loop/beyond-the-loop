@@ -656,10 +656,6 @@ OPENAI_API_CONFIGS = PersistentConfig(
 ####################################
 
 
-WEBUI_URL = PersistentConfig(
-    "WEBUI_URL", "webui.url", os.environ.get("WEBUI_URL", "http://localhost:3000")
-)
-
 DEFAULT_LOCALE = PersistentConfig(
     "DEFAULT_LOCALE",
     "ui.default_locale",

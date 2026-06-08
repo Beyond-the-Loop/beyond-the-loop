@@ -356,11 +356,39 @@ async def _smart_router_model_selection(
                     lines.append(f"{label}: {str(content)[:400]}")
                 context_section = "### Recent Conversation:\n" + "\n".join(lines) + "\n\n"
 
+        # Fetch user's enabled MCP servers so the classifier can decide whether
+        # the request needs a connector. We pass name + description (the only
+        # parts the LLM needs); credentials/URLs are irrelevant here.
+        from beyond_the_loop.models.mcp_servers import MCPServers
+        try:
+            mcp_servers = MCPServers.get_active_servers_for_user(user.id)
+        except Exception:
+            mcp_servers = []
+
+        if mcp_servers:
+            lines = []
+            for s in mcp_servers:
+                desc = (s.description or "").strip().replace("\n", " ")
+                if desc:
+                    lines.append(f"- {s.name}: {desc[:200]}")
+                else:
+                    lines.append(f"- {s.name}")
+            connectors_section = (
+                "### Available Connectors (MCP servers the user has installed):\n"
+                + "\n".join(lines) + "\n\n"
+            )
+        else:
+            connectors_section = (
+                "### Available Connectors (MCP servers the user has installed):\n"
+                "(none)\n\n"
+            )
+
         from beyond_the_loop.pii.session import pii_note_prefix
         prompt = (
             pii_note_prefix(pii_active)
             + SMART_ROUTER_PROMPT
             .replace("{{CONVERSATION_CONTEXT}}", context_section)
+            .replace("{{AVAILABLE_CONNECTORS}}", connectors_section)
             .replace("{{USER_MESSAGE}}", user_message)
         )
 
@@ -400,6 +428,8 @@ async def _smart_router_model_selection(
                 continue
             if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
                 continue
+            if decision.needs_mcp and not cfg.get("supports_mcp", False):
+                continue
             if has_image_input and not cfg.get("supports_image_input", False):
                 continue
             candidates.append(m)
@@ -411,6 +441,7 @@ async def _smart_router_model_selection(
                 decision.needs_web_search
                 or decision.needs_code_execution
                 or decision.needs_image_generation
+                or decision.needs_mcp
                 or has_image_input
             )
             if needs_capability:
@@ -421,6 +452,8 @@ async def _smart_router_model_selection(
                     if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
                         continue
                     if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
+                        continue
+                    if decision.needs_mcp and not cfg.get("supports_mcp", False):
                         continue
                     if has_image_input and not cfg.get("supports_image_input", False):
                         continue
@@ -778,6 +811,59 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         metadata["image_generation_enabled"] = True
     if features.get("code_interpreter") and _model_cfg.get("supports_code_execution"):
         metadata["code_interpreter_enabled"] = True
+
+    # MCP servers: resolve user-visible enabled servers if the model supports MCP.
+    # Client may opt out of individual servers per chat via `mcp_disabled_server_ids`
+    # (client-state, not persisted). Encrypted auth tokens travel through metadata;
+    # decryption happens just-in-time in `litellm.py` when the provider-specific
+    # payload is assembled.
+    mcp_disabled_ids = set(form_data.pop("mcp_disabled_server_ids", None) or [])
+
+    if _model_cfg.get("supports_mcp"):
+        from beyond_the_loop.models.mcp_servers import MCPServers
+        from beyond_the_loop.utils.access_control import has_permission as _has_perm
+        from beyond_the_loop.utils.mcp_oauth import get_fresh_bearer
+
+        if _has_perm(user.id, "workspace.mcp_connections"):
+            try:
+                active_servers = MCPServers.get_active_servers_for_user(user.id)
+                resolved = []
+                for s in active_servers:
+                    if s.id in mcp_disabled_ids:
+                        continue
+                    # Resolve the bearer token *now* — for OAuth servers this
+                    # triggers a proactive refresh if expiry is within 60s.
+                    # We never put the encrypted blob into metadata; only the
+                    # decrypted access token for this single request.
+                    access_token = await get_fresh_bearer(s)
+                    if (s.auth_type in {"bearer", "oauth"}) and not access_token:
+                        # OAuth never connected, or refresh failed — skip this
+                        # server rather than send a header-less MCP call that
+                        # the provider would just reject.
+                        log.info(
+                            "[mcp] skipping %s for user %s: no usable token",
+                            s.id, user.id,
+                        )
+                        continue
+                    resolved.append({
+                        "id": s.id,
+                        "name": s.name,
+                        "url": s.url,
+                        "transport": s.transport,
+                        "auth_type": s.auth_type,
+                        "access_token_plain": access_token,
+                        "tool_filter": s.tool_filter,
+                        # If we've already cached the mcp_list_tools item
+                        # for this server, the Responses-API path injects it
+                        # as a past input item so OpenAI skips re-discovery.
+                        "cached_list_tools_item": s.cached_list_tools_item,
+                    })
+                if resolved:
+                    metadata["mcp_servers_resolved"] = resolved
+            except Exception as e:
+                log.warning(
+                    "[mcp] failed to resolve servers for user %s: %s", user.id, e
+                )
 
     model_knowledge = Knowledges.get_knowledge_by_ids(
         [knowledge.get("id", "") for knowledge in model.meta.knowledge]) if model.meta.knowledge else None

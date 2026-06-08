@@ -78,6 +78,9 @@
 	export let codeInterpreterEnabled = false;
 	export let autoToolsEnabled = false;
 
+	// Per-server MCP opt-outs for this chat, owned by Chat.svelte (not persisted).
+	export let mcpDisabledServerIds: string[] = [];
+
 	// PII toggle button rendered next to the tools menu. State + click handler
 	// owned by the parent (Chat.svelte) so it survives composer remounts.
 	export let piiEnabled = true;
@@ -1259,15 +1262,19 @@
 												canImageGen = (selectedModelInfo?.supports_image_generation ?? false)}
 											{@const
 												canCodeInterpreter = (($_user.role === 'admin' || $_user?.permissions?.features?.code_interpreter) && (selectedModelInfo?.supports_code_execution ?? false))}
+											{@const
+												canMcp = (!!selectedModelInfo?.supports_mcp && !!$_user?.permissions?.workspace?.mcp_connections)}
 
 											<ToolsMenu
 												{canWebSearch}
 												{canImageGen}
 												{canCodeInterpreter}
+												{canMcp}
 												bind:webSearchEnabled
 												bind:imageGenerationEnabled
 												bind:codeInterpreterEnabled
 												bind:autoToolsEnabled
+												bind:mcpDisabledServerIds
 											/>
 
 											{#if showPiiToggle}

@@ -9,9 +9,9 @@ export PYTHONPATH="${PROJECT_ROOT}/backend:${PYTHONPATH}"
 
 PORT="${PORT:-8080}"
 
-# Start the LiteLLM container in the background
+# Start the LiteLLM, infra, and MCP containers in the background
 cd "${PROJECT_ROOT}" || exit 1
-docker-compose -f docker-compose-local.yaml up -d litellm redis postgresql
+docker-compose -f docker-compose-local.yaml up -d litellm redis postgresql ms365-mcp
 
 # Start the uvicorn server
 cd "${PROJECT_ROOT}/backend" || exit 1

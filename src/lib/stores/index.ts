@@ -58,6 +58,7 @@ export const modelsInfo: Writable<Record<string, any>> = writable({});
 
 export const prompts: Writable<null | Prompt[]> = writable(null);
 export const knowledge: Writable<null | Document[]> = writable(null);
+export const mcpServers: Writable<null | any[]> = writable(null);
 
 export const settings: Writable<Settings> = writable({});
 
@@ -239,6 +240,7 @@ type SessionUser = {
 			edit_assistants?: boolean;
 			view_prompts?: boolean;
 			edit_prompts?: boolean;
+			mcp_connections?: boolean;
 		};
 		chat?: {
 			assistants_only?: boolean;

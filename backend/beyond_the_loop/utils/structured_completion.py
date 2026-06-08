@@ -83,6 +83,7 @@ class SmartRouterDecision(BaseModel):
     needs_web_search: bool
     needs_code_execution: bool
     needs_image_generation: bool
+    needs_mcp: bool
 
 
 class ChatSummaryResponse(BaseModel):

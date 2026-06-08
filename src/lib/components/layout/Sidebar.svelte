@@ -63,6 +63,7 @@
 	import Assistans from '../icons/Assistans.svelte';
 	import Knowledge from '../icons/Knowledge.svelte';
 	import Prompts from '../icons/Prompts.svelte';
+	import Cube from '../icons/Cube.svelte';
 	import PromptMenu from '../workspace/Prompts/PromptMenu.svelte';
 	import ChevronDown from '../icons/ChevronDown.svelte';
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
@@ -674,6 +675,29 @@
 							}
 						}}
 						draggable="false">{$i18n.t('Prompts')}</a
+					>
+				</div>
+			{/if}
+
+			{#if $user?.permissions?.workspace?.mcp_connections}
+				<div
+					class="{$page.url.pathname.startsWith('/workspace/mcp')
+						? 'dark:bg-customGray-900 bg-lightGray-700'
+						: ''} font-medium flex items-center space-x-[10px] rounded-[5px] px-2 py-1.5 text-lightGray-100 dark:text-customGray-100 dark:hover:text-white hover:bg-lightGray-700 dark:hover:bg-customGray-900 transition"
+				>
+					<Cube className="w-4 h-4" strokeWidth="1.5" />
+					<a
+						class="w-full text-sm"
+						href="/workspace/mcp"
+						on:click={() => {
+							selectedChatId = null;
+							chatId.set('');
+
+							if ($mobile) {
+								showSidebar.set(false);
+							}
+						}}
+						draggable="false">{$i18n.t('Connectors')}</a
 					>
 				</div>
 			{/if}

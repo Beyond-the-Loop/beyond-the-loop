@@ -9,6 +9,7 @@ from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.groups import Groups, GroupForm
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.chats import Chats
+from beyond_the_loop.models.mcp_servers import MCPServers
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.prompts import Prompts
 from beyond_the_loop.models.knowledge import Knowledges
@@ -561,10 +562,11 @@ class UserEntitiesResponse(BaseModel):
     models: list[EntityItem]
     prompts: list[EntityItem]
     knowledge: list[EntityItem]
+    mcp_servers: list[EntityItem] = []
 
 
 class TransferItem(BaseModel):
-    entity_type: str  # "model" | "prompt" | "knowledge"
+    entity_type: str  # "model" | "prompt" | "knowledge" | "mcp_server"
     entity_id: str
     new_user_id: str
 
@@ -588,8 +590,9 @@ async def get_user_entities(user_id: str, user=Depends(get_verified_user)):
     models = [EntityItem(id=m.id, name=m.name) for m in Models.get_models_owned_by_user(user_id, company_id)]
     prompts = [EntityItem(id=p.command, name=p.title) for p in Prompts.get_prompts_owned_by_user(user_id, company_id)]
     knowledge = [EntityItem(id=k.id, name=k.name) for k in Knowledges.get_knowledge_owned_by_user(user_id, company_id)]
+    mcp_servers = [EntityItem(id=s.id, name=s.name) for s in MCPServers.get_servers_owned_by_user(user_id, company_id)]
 
-    return UserEntitiesResponse(models=models, prompts=prompts, knowledge=knowledge)
+    return UserEntitiesResponse(models=models, prompts=prompts, knowledge=knowledge, mcp_servers=mcp_servers)
 
 
 @router.post("/{user_id}/transfer-entities", response_model=bool)
@@ -607,6 +610,7 @@ async def transfer_user_entities(user_id: str, form_data: TransferEntitiesForm, 
     model_assignments: dict[str, list[str]] = {}
     prompt_assignments: dict[str, list[str]] = {}
     knowledge_assignments: dict[str, list[str]] = {}
+    mcp_server_assignments: dict[str, list[str]] = {}
 
     for assignment in form_data.assignments:
         if assignment.entity_type == "model":
@@ -615,6 +619,8 @@ async def transfer_user_entities(user_id: str, form_data: TransferEntitiesForm, 
             prompt_assignments.setdefault(assignment.new_user_id, []).append(assignment.entity_id)
         elif assignment.entity_type == "knowledge":
             knowledge_assignments.setdefault(assignment.new_user_id, []).append(assignment.entity_id)
+        elif assignment.entity_type == "mcp_server":
+            mcp_server_assignments.setdefault(assignment.new_user_id, []).append(assignment.entity_id)
 
     for new_user_id, ids in model_assignments.items():
         Models.transfer_models_to_user(ids, new_user_id, company_id)
@@ -624,6 +630,9 @@ async def transfer_user_entities(user_id: str, form_data: TransferEntitiesForm, 
 
     for new_user_id, ids in knowledge_assignments.items():
         Knowledges.transfer_knowledge_to_user(ids, new_user_id, company_id)
+
+    for new_user_id, ids in mcp_server_assignments.items():
+        MCPServers.transfer_servers_to_user(ids, new_user_id, company_id)
 
     return True
 

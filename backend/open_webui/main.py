@@ -87,7 +87,6 @@ from beyond_the_loop.config import (
     CORS_ALLOW_ORIGIN,
     DEFAULT_LOCALE,
     OAUTH_PROVIDERS,
-    WEBUI_URL,
     # Tasks
     ENABLE_TAGS_GENERATION,
     TITLE_GENERATION_PROMPT_TEMPLATE,
@@ -109,6 +108,7 @@ from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import file_archival
 from beyond_the_loop.routers import intercom
 from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
+from beyond_the_loop.routers import mcp_servers
 from beyond_the_loop.routers import models
 from beyond_the_loop.routers import litellm, audio
 from beyond_the_loop.routers import payments
@@ -242,8 +242,6 @@ app.state.config = AppConfig()
 # WEBUI
 #
 ########################################
-
-app.state.config.WEBUI_URL = WEBUI_URL
 
 app.state.config.JWT_EXPIRES_IN = JWT_EXPIRES_IN
 
@@ -461,6 +459,7 @@ app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
 app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
 app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["prompts"])
+app.include_router(mcp_servers.router, prefix="/api/v1/mcp-servers", tags=["mcp-servers"])
 
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
@@ -556,8 +555,7 @@ _DISPLAY_METADATA_FIELDS = {
     'context_window', 'category', 'costFactor', 'description', 'hosted_in',
     'intelligence_score', 'knowledge_cutoff', 'organization',
     'reasoning', 'speed', 'tokens_per_second',
-    'supports_web_search', 'supports_code_execution', 'supports_image_generation',
-    'supports_image_input'
+    'supports_web_search', 'supports_code_execution', 'supports_image_generation', 'supports_mcp'
 }
 
 
@@ -878,15 +876,18 @@ async def get_manifest_json():
 
 
 @app.get("/opensearch.xml")
-async def get_opensearch_xml():
+async def get_opensearch_xml(request: Request):
+    # Derive base URL from the incoming request so the descriptor is correct
+    # for whichever host the user hit (staging vs prod vs custom).
+    base_url = str(request.base_url).rstrip("/")
     xml_content = rf"""
     <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
     <ShortName>{"Beyond the Loop"}</ShortName>
     <Description>Search {"Beyond the Loop"}</Description>
     <InputEncoding>UTF-8</InputEncoding>
-    <Image width="16" height="16" type="image/x-icon">{app.state.config.WEBUI_URL}/static/favicon.png</Image>
-    <Url type="text/html" method="get" template="{app.state.config.WEBUI_URL}/?q={"{searchTerms}"}"/>
-    <moz:SearchForm>{app.state.config.WEBUI_URL}</moz:SearchForm>
+    <Image width="16" height="16" type="image/x-icon">{base_url}/static/favicon.png</Image>
+    <Url type="text/html" method="get" template="{base_url}/?q={"{searchTerms}"}"/>
+    <moz:SearchForm>{base_url}</moz:SearchForm>
     </OpenSearchDescription>
     """
     return Response(content=xml_content, media_type="application/xml")
