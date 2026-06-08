@@ -197,6 +197,10 @@ def upgrade() -> None:
     # folder still has the Peewee-era composite primary key (id, user_id);
     # normalize it to a simple PK on id so we can target it from FKs. Folder
     # ids are UUIDs, so id-alone uniqueness is already guaranteed in practice.
+    # Drop any FKs that depend on the existing PK first so the PK drop
+    # succeeds (they get re-added with CASCADE further down).
+    conn.execute(sa.text("ALTER TABLE chat DROP CONSTRAINT IF EXISTS chat_folder_id_fkey"))
+    conn.execute(sa.text("ALTER TABLE folder DROP CONSTRAINT IF EXISTS folder_parent_id_fkey"))
     conn.execute(sa.text("""
         DO $$
         DECLARE
