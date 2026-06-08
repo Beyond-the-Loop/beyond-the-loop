@@ -684,13 +684,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     sources = []
 
     features = form_data.pop("features", {}) or {}
-    auto_tools = form_data.pop("auto_tools", None)
-
-    # When auto selection is active the frontend sends features={} and auto_tools=[...].
-    # Merge auto_tools into features so the rest of the pipeline sees the same structure.
-    if isinstance(auto_tools, list):
-        for tool in auto_tools:
-            features[tool] = True
 
     user_message = get_last_user_message(form_data["messages"])
 
