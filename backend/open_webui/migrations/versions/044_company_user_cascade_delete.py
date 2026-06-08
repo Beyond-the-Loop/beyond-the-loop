@@ -1,7 +1,7 @@
 """Tighten company cascade chain and drop unused legacy tables
 
-Revision ID: 042
-Revises: 041
+Revision ID: 044
+Revises: 043
 Create Date: 2026-05-29 00:00:00.000000
 
 Schema cleanups:
@@ -75,8 +75,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "042"
-down_revision: Union[str, None] = "041"
+revision: str = "044"
+down_revision: Union[str, None] = "043"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
