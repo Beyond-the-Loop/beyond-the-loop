@@ -76,7 +76,6 @@
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
-	export let autoToolsEnabled = false;
 
 	// Per-server MCP opt-outs for this chat, owned by Chat.svelte (not persisted).
 	export let mcpDisabledServerIds: string[] = [];
@@ -91,8 +90,7 @@
 		prompt,
 		files,
 		imageGenerationEnabled,
-		webSearchEnabled,
-		autoToolsEnabled
+		webSearchEnabled
 	});
 
 	let loaded = false;
@@ -1273,7 +1271,6 @@
 												bind:webSearchEnabled
 												bind:imageGenerationEnabled
 												bind:codeInterpreterEnabled
-												bind:autoToolsEnabled
 												bind:mcpDisabledServerIds
 											/>
 

@@ -1,8 +1,5 @@
 <script lang="ts">
 	import Fuse from 'fuse.js';
-	import dayjs from 'dayjs';
-	import relativeTime from 'dayjs/plugin/relativeTime';
-	dayjs.extend(relativeTime);
 
 	import { toast } from 'svelte-sonner';
 	import { onMount, getContext } from 'svelte';
@@ -70,10 +67,6 @@
 	// Delete confirm
 	let showDeleteConfirm = false;
 	let selectedItem: MCPServerResponse | null = null;
-
-	// Show-more modal
-	let showMore = false;
-	let showServer: MCPServerResponse | null = null;
 
 	// Create/edit modal
 	let showEditor = false;
@@ -654,88 +647,6 @@
 		on:confirm={confirmDelete}
 	/>
 
-	<!-- Show-more modal -->
-	<Modal
-		size="sm"
-		containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]"
-		bind:show={showMore}
-	>
-		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
-			<div class="flex justify-between items-center pb-2.5">
-				<div
-					class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-1500 leading-[1.2]"
-				>
-					{showServer?.name}
-				</div>
-				<button
-					type="button"
-					class="dark:text-white"
-					on:click={() => {
-						showMore = false;
-					}}
-				>
-					<CloseIcon />
-				</button>
-			</div>
-			<div class="max-h-[30rem] overflow-y-auto">
-				{#if showServer?.description}
-					<div
-						class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700"
-					>
-						{showServer.description}
-					</div>
-				{/if}
-				<div class="flex items-center mt-2.5 mb-1.5">
-					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
-						{$i18n.t('URL')}:
-					</div>
-					<div class="text-sm font-mono text-lightGray-1400/80 dark:text-customGray-100/80 break-all">
-						{showServer?.url}
-					</div>
-				</div>
-				<div class="flex items-center mb-1.5">
-					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
-						{$i18n.t('Transport')}:
-					</div>
-					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
-						{showServer?.transport}
-					</div>
-				</div>
-				<div class="flex items-center mb-1.5">
-					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
-						{$i18n.t('Auth')}:
-					</div>
-					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
-						{#if showServer?.auth_type === 'bearer'}
-							{$i18n.t('Bearer token')}
-							{showServer?.has_auth_token ? '' : ` (${$i18n.t('not set')})`}
-						{:else if showServer?.auth_type === 'oauth'}
-							{$i18n.t('OAuth 2.0')}
-							{#if showServer?.has_oauth_access_token}
-								— {$i18n.t('connected')}
-								{#if showServer.oauth_principal_label}
-									({showServer.oauth_principal_label})
-								{/if}
-							{:else}
-								— {$i18n.t('not connected')}
-							{/if}
-						{:else}
-							{$i18n.t('None')}
-						{/if}
-					</div>
-				</div>
-				<div class="flex items-center">
-					<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">
-						{$i18n.t('Status')}:
-					</div>
-					<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
-						{showServer?.enabled ? $i18n.t('Enabled') : $i18n.t('Disabled')}
-					</div>
-				</div>
-			</div>
-		</div>
-	</Modal>
-
 	<!-- Create / Edit modal -->
 	<Modal
 		size="md"
@@ -1152,6 +1063,22 @@
 					{/if}
 				{/if}
 
+				{#if selectedTemplate.slug === 'microsoft-365'}
+					<div
+						class="mt-4 pt-3 border-t border-lightGray-400 dark:border-customGray-700 text-xs text-lightGray-1200/80 dark:text-customGray-100/60"
+					>
+						{$i18n.t('Need help with setup?')}
+						<a
+							class="underline ml-1"
+							href="https://www.notion.so/beyond-the-loop/M365-MCP-Server-verbinden-375a1ab099c9809d91f9c1d85ead2c45?source=copy_link"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{$i18n.t('Book a joint setup session')}
+						</a>
+					</div>
+				{/if}
+
 				<div class="flex items-center justify-end gap-2 mt-5">
 					{#if selectedConnected}
 						<button
@@ -1310,6 +1237,13 @@
 											class="shrink-0 size-6 object-contain"
 											loading="lazy"
 										/>
+									{:else if item.kind === 'custom'}
+										<img
+											src="/logo_light.png"
+											alt=""
+											class="shrink-0 size-6 object-contain rounded ring-1 ring-black/10 dark:ring-white/15"
+											loading="lazy"
+										/>
 									{/if}
 									{#if item.active}
 										<span
@@ -1319,19 +1253,12 @@
 											{$i18n.t('Connected')}
 										</span>
 									{/if}
-									{#if item.kind === 'custom'}
+									{#if item.kind === 'custom' && !item.server.enabled}
 										<div
-											class="flex items-center text-xs dark:bg-customGray-900 px-[6px] py-[3px] rounded-md bg-lightGray-400 font-medium {hoveredId === item.id || menuIdOpened === item.id ? 'dark:text-white' : 'text-lightGray-100 dark:text-customGray-300'}"
+											class="flex items-center text-xs dark:bg-customGray-900 px-[6px] py-[3px] rounded-md bg-lightGray-400 font-medium text-lightGray-100 dark:text-customGray-300"
 										>
-											{item.server.transport}
+											{$i18n.t('Disabled')}
 										</div>
-										{#if !item.server.enabled}
-											<div
-												class="flex items-center text-xs dark:bg-customGray-900 px-[6px] py-[3px] rounded-md bg-lightGray-400 font-medium text-lightGray-100 dark:text-customGray-300"
-											>
-												{$i18n.t('Disabled')}
-											</div>
-										{/if}
 									{/if}
 								</div>
 
@@ -1371,37 +1298,13 @@
 										{item.server.url}
 									</div>
 								{/if}
-								<div class="flex justify-between items-center mb-2">
-									<div
-										class="text-left overflow-hidden text-ellipsis line-clamp-2 text-xs text-lightGray-1200 dark:text-customGray-100/50"
-									>
-										{item.kind === 'template' ? $i18n.t(item.description) : item.description}
-									</div>
-									{#if item.kind === 'custom'}
-										<button
-											class="text-xs shrink-0 ml-2 hover:underline font-medium"
-											on:click={(e) => {
-												e.stopPropagation();
-												showMore = !showMore;
-												showServer = item.server;
-											}}
-										>
-											{$i18n.t('Show more')}
-										</button>
-									{/if}
+								<div
+									class="text-left overflow-hidden text-ellipsis line-clamp-2 text-xs text-lightGray-1200 dark:text-customGray-100/50 mb-2"
+								>
+									{item.kind === 'template' ? $i18n.t(item.description) : item.description}
 								</div>
 							</div>
 						</div>
-
-						{#if item.kind === 'custom'}
-							<div
-								class="flex justify-end mt-auto items-center px-0.5 pt-2.5 pb-[2px] border-t border-[#A7A7A7]/10 dark:border-customGray-700"
-							>
-								<div class="text-xs text-gray-500 line-clamp-1 dark:text-customGray-100/50">
-									{dayjs(item.server.updated_at * 1000).format('DD.MM.YYYY')}
-								</div>
-							</div>
-						{/if}
 					</button>
 				{/each}
 			</div>
