@@ -3,6 +3,7 @@ import uuid
 from typing import Optional
 
 from open_webui.internal.db import Base, get_db
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access
 
 from pydantic import BaseModel, ConfigDict
@@ -95,11 +96,12 @@ class ChannelTable:
         self, user_id: str, permission: str = "read"
     ) -> list[ChannelModel]:
         channels = self.get_channels()
+        user_groups = Groups.get_groups_by_member_id(user_id)
         return [
             channel
             for channel in channels
             if channel.user_id == user_id
-            or has_access(user_id, permission, channel.access_control)
+            or has_access(user_id, user_groups, permission, channel.access_control)
         ]
 
     def get_channel_by_id(self, id: str) -> Optional[ChannelModel]:

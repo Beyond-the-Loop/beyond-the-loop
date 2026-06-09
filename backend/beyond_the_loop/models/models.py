@@ -18,6 +18,7 @@ from sqlalchemy import select, delete, insert
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import JSONB
 
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access
 
 
@@ -209,20 +210,22 @@ class ModelsTable:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id).all()
 
-            return [
-                ModelModel.model_validate(model)
-                for model in models
-                if has_access(user_id, "read", model.access_control) or role == "admin"
-            ]
-    
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        return [
+            ModelModel.model_validate(model)
+            for model in models
+            if has_access(user_id, user_groups, "read", model.access_control) or role == "admin"
+        ]
+
     def get_active_base_models_by_company_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active).all()
-            return [
-                ModelModel.model_validate(model)
-                for model in models
-                if has_access(user_id, "read", model.access_control) or role == "admin"
-            ]
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        return [
+            ModelModel.model_validate(model)
+            for model in models
+            if has_access(user_id, user_groups, "read", model.access_control) or role == "admin"
+        ]
 
     def get_assistants_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read", is_kickstart_customer = False
@@ -254,6 +257,7 @@ class ModelsTable:
                 )
             )
 
+        user_groups = Groups.get_groups_by_member_id(user_id)
         filtered_assistants = []
 
         allowed_kickstart_models = {
@@ -265,7 +269,7 @@ class ModelsTable:
         for assistant in assistants:
             if (
                 assistant.user_id == user_id
-                or has_access(user_id, permission, assistant.access_control)
+                or has_access(user_id, user_groups, permission, assistant.access_control)
                     and (assistant.meta.is_kickstart_assistant is None or is_kickstart_customer or assistant.name in allowed_kickstart_models)
             ):
                 # Resolve system model base_model_id from name to actual ID using the pre-fetched map
