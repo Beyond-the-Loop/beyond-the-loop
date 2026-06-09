@@ -205,10 +205,11 @@ class ModelsTable:
         with get_db() as db:
             return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.company_id == "system")).all()]
 
-    def get_assistants(self) -> list[ModelUserResponse]:
+    def get_assistants(self, user_id: str, company_id: str) -> list[ModelUserResponse]:
         with get_db() as db:
             model_rows = db.query(Model).filter(
-                Model.base_model_id != None
+                Model.base_model_id != None,
+                or_(Model.company_id == company_id, Model.user_id == user_id),
             ).all()
 
             # Batch-fetch all users in one query instead of N+1 individual queries
@@ -256,7 +257,7 @@ class ModelsTable:
             )
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-        assistants = self.get_assistants()
+        assistants = self.get_assistants(user_id, company_id)
 
         # Pre-fetch all company models by name to resolve system model base_model IDs in one query
         company_models_by_name = {m.name: m.id for m in self.get_all_models_by_company(company_id)}
