@@ -203,31 +203,7 @@ class ModelsTable:
 
     def get_all_models_by_company(self, company_id: str) -> list[ModelModel]:
         with get_db() as db:
-            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.company_id == "system")).all()]
-
-    def get_assistants(self, user_id: str, company_id: str) -> list[ModelUserResponse]:
-        with get_db() as db:
-            model_rows = db.query(Model).filter(
-                Model.base_model_id != None,
-                or_(Model.company_id == company_id, Model.user_id == user_id),
-            ).all()
-
-            # Batch-fetch all users in one query instead of N+1 individual queries
-            user_ids = list({m.user_id for m in model_rows if m.user_id != "system"})
-            users_map = {u.id: u for u in Users.get_users_by_user_ids(user_ids)} if user_ids else {}
-
-            models = []
-            for model in model_rows:
-                user = users_map.get(model.user_id) if model.user_id != "system" else None
-                models.append(
-                    ModelUserResponse.model_validate(
-                        {
-                            **ModelModel.model_validate(model).model_dump(),
-                            "user": user.model_dump() if user else None,
-                        }
-                    )
-                )
-            return models
+            return [ModelModel.model_validate(model) for model in db.query(Model).filter(Model.company_id == company_id).all()]
 
     def get_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
@@ -239,7 +215,7 @@ class ModelsTable:
                 if has_access(user_id, "read", model.access_control) or role == "admin"
             ]
     
-    def get_active_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
+    def get_active_base_models_by_company_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active).all()
             return [
@@ -257,12 +233,28 @@ class ModelsTable:
             )
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-        assistants = self.get_assistants(user_id, company_id)
+        
+        models = self.get_all_models_by_company(company_id)
+        assistants = [model for model in models if model.base_model_id]
 
-        # Pre-fetch all company models by name to resolve system model base_model IDs in one query
-        company_models_by_name = {m.name: m.id for m in self.get_all_models_by_company(company_id)}
 
-        filtered_models = []
+        # Batch-fetch all users in one query instead of N+1 individual queries
+        user_ids = list({m.user_id for m in assistants if m.user_id != "system"})
+        users_map = {u.id: u for u in Users.get_users_by_user_ids(user_ids)} if user_ids else {}
+
+        models_user_responses = []
+        for assistant in assistants:
+            user = users_map.get(assistant.user_id) if assistant.user_id != "system" else None
+            models_user_responses.append(
+                ModelUserResponse.model_validate(
+                    {
+                        **ModelModel.model_validate(assistant).model_dump(),
+                        "user": user.model_dump() if user else None,
+                    }
+                )
+            )
+
+        filtered_assistants = []
 
         allowed_kickstart_models = {
             "Scout, der KI-Einsatz-Berater",
@@ -270,28 +262,28 @@ class ModelsTable:
             "Tom, der Rechercheassistent"
         }
 
-        for model in assistants:
+        for assistant in assistants:
             if (
-                model.user_id == user_id
-                or (model.company_id == company_id and has_access(user_id, permission, model.access_control) 
-                    and (model.meta.is_kickstart_assistant is None or is_kickstart_customer or model.name in allowed_kickstart_models))
+                assistant.user_id == user_id
+                or has_access(user_id, permission, assistant.access_control)
+                    and (assistant.meta.is_kickstart_assistant is None or is_kickstart_customer or assistant.name in allowed_kickstart_models)
             ):
                 # Resolve system model base_model_id from name to actual ID using the pre-fetched map
-                if model.user_id == "system":
-                    resolved_id = company_models_by_name.get(model.base_model_id)
+                if assistant.user_id == "system":
+                    resolved_id = {m.name: m.id for m in models}.get(assistant.base_model_id)
                     if resolved_id:
-                        model.base_model_id = resolved_id
+                        assistant.base_model_id = resolved_id
 
-                model_dict = model.model_dump()
-                model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
-                filtered_models.append(ModelUserResponse(**model_dict))
+                model_dict = assistant.model_dump()
+                model_dict["bookmarked_by_user"] = assistant.id in bookmarked_model_ids
+                filtered_assistants.append(ModelUserResponse(**model_dict))
 
-        filtered_models.sort(
+        filtered_assistants.sort(
             key=lambda m: (m.bookmarked_by_user, m.created_at),
             reverse=True
         )
 
-        return filtered_models
+        return filtered_assistants
 
     def get_assistants_lite_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read", is_kickstart_customer = False

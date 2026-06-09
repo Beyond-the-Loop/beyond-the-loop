@@ -127,7 +127,7 @@ def _responses_usage_as_chat_completion(response: dict) -> dict:
 async def list_models(user=Depends(get_current_api_key_user)):
     subscription = payments_service.get_subscription(user.company_id)
     plan = subscription.get("plan")
-    base_models = Models.get_active_base_models_by_comany_and_user(
+    base_models = Models.get_active_base_models_by_company_and_user(
         user.company_id, user.id, user.role
     )
     base_models = filter_base_models_by_plan(base_models, plan, user.company_id)
