@@ -34,6 +34,7 @@ from pydantic import BaseModel
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.misc import validate_email_format, is_business_email
 from beyond_the_loop.services.email_service import EmailService
+from beyond_the_loop.services.payments_service import is_flat_rate_plan
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
@@ -61,7 +62,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
         subscription_details = get_subscription(user)
 
-        if not company.subscription_not_required and not subscription_details.get("plan") == "free" and not subscription_details.get("plan") == "premium":
+        if not is_flat_rate_plan(subscription_details.get("plan")):
             # Get subscription details
             subscription_details = get_subscription(user)
 

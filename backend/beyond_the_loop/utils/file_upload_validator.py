@@ -8,9 +8,9 @@ EXTENSION_MIME_MAP: dict[str, set[str]] = {
     # Documents
     "pdf":  {"application/pdf"},
     "doc":  {"application/msword"},
-    "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-    "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-    "pptx": {"application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+    "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip", "application/octet-stream"},
+    "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip", "application/octet-stream"},
+    "pptx": {"application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/zip", "application/octet-stream"},
     "tex":  {"text/x-tex", "text/plain"},
 
     # Text / Code (python-magic gibt hier meist "text/plain" zurück)
@@ -88,6 +88,8 @@ class FileValidator:
 
         detected_mime: str = magic.from_buffer(head, mime=True) or ""
         allowed_mimes: set[str] = EXTENSION_MIME_MAP[ext]
+
+        print("DETECTED", detected_mime)
 
         if detected_mime not in allowed_mimes:
             raise HTTPException(

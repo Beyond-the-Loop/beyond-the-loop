@@ -90,6 +90,13 @@ _stub_module(
 # beyond_the_loop.routers.payments stub (get_subscription is imported at top level)
 _stub_module("beyond_the_loop.routers.payments", get_subscription=MagicMock())
 
+# beyond_the_loop.services.payments_service stub (is_flat_rate_plan is imported at top level)
+_stub_module(
+    "beyond_the_loop.services.payments_service",
+    is_flat_rate_plan=lambda plan: plan in {"free", "premium", "unlimited"},
+    FLAT_RATE_PLANS=frozenset({"free", "premium", "unlimited"}),
+)
+
 # beyond_the_loop.models.completions stub — replace insert_new_completion with a spy
 _Completions = MagicMock()
 _Completions.insert_new_completion = MagicMock()
@@ -281,6 +288,7 @@ class TestRecordCompletion:
 class TestSubtractCreditCost:
     @pytest.mark.anyio
     async def test_computes_then_subtracts(self, user, usage_response):
+        cs.get_subscription.return_value = {"plan": "team_monthly"}
         _litellm.completion_cost.return_value = 2.0
         result = await cs.CreditService.subtract_credit_cost_by_user_and_response(user, usage_response)
         # 2 USD * 1.25 * 0.9 = 2.25 EUR
@@ -289,3 +297,33 @@ class TestSubtractCreditCost:
         # Verify the amount actually subtracted matches
         subtracted_amount = _Companies.subtract_credit_balance.call_args[0][1]
         assert subtracted_amount == pytest.approx(2.25)
+
+class TestPublicApiAccessGate:
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("plan", ["free", "premium"])
+    async def test_rejects_free_and_premium(self, user, plan):
+        # Public /api/openai endpoints must reject flat-rate, scope-limited plans
+        # because usage there is unmetered and would let customers bypass billing.
+        from fastapi import HTTPException
+        cs.get_subscription.return_value = {"plan": plan}
+        with pytest.raises(HTTPException) as exc_info:
+            await cs.CreditService.check_public_api_access(user)
+        assert exc_info.value.status_code == 402
+
+    @pytest.mark.anyio
+    async def test_allows_unlimited_and_returns_subscription(self, user):
+        # Kickstart customers (plan="unlimited") have full access by contract,
+        # including the public API. The gate must let them through AND return
+        # the subscription dict so callers can branch on the plan (to skip the
+        # credit-subtract call for flat-rate plans).
+        subscription = {"plan": "unlimited"}
+        cs.get_subscription.return_value = subscription
+        result = await cs.CreditService.check_public_api_access(user)
+        assert result == subscription
+
+    @pytest.mark.anyio
+    async def test_credit_based_plan_returns_subscription(self, user):
+        subscription = {"plan": "team_monthly", "status": "active", "seats": 5, "seats_taken": 1}
+        cs.get_subscription.return_value = subscription
+        result = await cs.CreditService.check_public_api_access(user)
+        assert result == subscription

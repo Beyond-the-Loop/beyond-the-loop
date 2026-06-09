@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
 from open_webui.utils.auth import get_verified_user
-from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.services.payments_service import payments_service, is_flat_rate_plan
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE
 
@@ -260,7 +260,7 @@ async def update_auto_recharge(request: UpdateAutoRechargeRequest, user=Depends(
     try:
         subscription = payments_service.get_subscription(user.company_id)
 
-        if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
+        if is_flat_rate_plan(subscription.get("plan")):
             raise HTTPException(status_code=403, detail="Failed to update auto-recharge setting: Not available for Free or Premium companies")
 
         result = Companies.update_auto_recharge(user.company_id, request.auto_recharge)
@@ -289,7 +289,7 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
     try:
         subscription = payments_service.get_subscription(user.company_id)
 
-        if subscription.get("plan") == "free" or subscription.get("plan") == "premium":
+        if is_flat_rate_plan(subscription.get("plan")):
             raise HTTPException(status_code=403, detail="Failed to update auto-recharge setting: Not available for Free or Premium companies")
 
         company = Companies.get_company_by_id(user.company_id)
