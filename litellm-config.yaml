@@ -120,8 +120,8 @@ model_list:
       vertex_location: 'global'
     model_info:
       context_window: '1M'
-      category: 3
-      costFactor: 3.5
+      category: 2
+      costFactor: 2
       description: "Latest Gemini Flash with high throughput and 1M context for everyday multimodal tasks."
       hosted_in: 'EU'
       intelligence_score: 5

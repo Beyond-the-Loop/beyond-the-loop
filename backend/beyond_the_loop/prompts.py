@@ -155,37 +155,35 @@ KNOWLEDGE_INTENT_DECISION_PROMPT = "You are an AI assistant that determines user
 # Smart Router
 # ---------------------------------------------------------------------------
 
-SMART_ROUTER_PROMPT = """### Task:
-Analyze the user's message and determine:
-1. The required intelligence level to answer it correctly.
-2. Which tools are required to fulfill the request.
-
-### Intelligence Scale (float between 1.0 and 5.0):
-1.0 - Very simple: greetings, basic factual questions, simple yes/no, trivial tasks
-2.0 - Simple: straightforward questions, basic writing, simple translations, easy explanations
-3.0 - Moderate: multi-step reasoning, detailed explanations, standard coding tasks, analysis
-4.0 - Complex: advanced reasoning, complex coding, nuanced writing, in-depth analysis, research
-5.0 - Very complex: cutting-edge research, highly technical problems, complex multi-domain reasoning, advanced mathematics
-
-Use intermediate values (e.g. 2.5, 3.5) when the request falls between two levels.
-
-### Tool Detection Rules:
-- needs_web_search: true if the request requires current/real-time information, news, live data, recent events, or facts that may change over time. Also true if the user is agreeing or responding positively to a previous assistant suggestion to perform a web search (e.g. "yes please", "ja bitte", "go ahead", "sure"). false for general knowledge, reasoning, or static tasks.
-- needs_code_execution: true if the request explicitly requires running code, calculating results programmatically, generating or editing documents, data analysis with execution, or producing verified computational output. false for writing or explaining code without execution.
-- needs_image_generation: true if the request asks to create, draw, generate, or produce an image/picture/illustration. false for describing, analyzing, or discussing images.
-- needs_mcp: true if the request requires reading or acting on data from one of the user's available connectors listed below (e.g. searching Notion pages, reading Confluence/Jira tickets, looking up files in SharePoint/OneDrive). false if no connectors are listed, or if the request is unrelated to any of them.
-
-{{AVAILABLE_CONNECTORS}}
-### Intelligence Rules:
-- Return a float between 1.0 and 5.0.
-- Err on the side of lower scores for straightforward requests.
-- Err on the side of higher scores for complex, technical, or ambiguous requests.
-- When in doubt, prefer a lower score.
-
-{{CONVERSATION_CONTEXT}}
-### User Message:
-{{USER_MESSAGE}}
-"""
+SMART_ROUTER_PROMPT = (
+    "Du bist ein Klassifizierer. Du bekommst einen User-Prompt und gibst AUSSCHLIESSLICH ein valides JSON-Objekt zurück."
+    " Kein Text davor oder danach, keine Erklärung, kein Markdown.\n"
+    "Klassifiziere nach diesen vier Feldern:\n\n"
+    '1. "required_tools" (Liste): Teilmenge aus '
+    + '"web_search", "document_creation", "code_execution", "image_generation", "mcp_connector"'
+    + ".\n"
+    "   - web_search: aktuelle/externe Informationen nötig. Auch wenn der User positiv auf einen vorherigen"
+    ' Vorschlag des Assistenten reagiert, eine Websuche durchzuführen (z.B. "ja bitte", "go ahead", "sure").\n'
+    "   - document_creation: ein Dokument/Datei soll erstellt werden. Insbesondere PDF, Excel, CSV, Word-Dokument, PPTX.\n"
+    "   - code_execution: für hoch-komplexe mathematische Berechnungen wie Fourier-Transformationen, sowie Verarbeitung / Visualisierung von Daten aus CSV Dateien. WÄHLE code_execution NICHT BEI CODING AUFGABEN. \n"
+    "   - image_generation: ein Bild/Illustration soll erstellt werden.\n"
+    "   - mcp_connector: true if the request requires reading or acting on data from one of the user's available connectors listed below (e.g. searching Notion pages, reading Confluence/Jira tickets, looking up files in SharePoint/OneDrive). false if no connectors are listed, or if the request is unrelated to any of them." 
+    "{{AVAILABLE_CONNECTORS}}"
+    "   Leere Liste [] wenn keins zutrifft.\n\n"
+    '2. "domain" (genau einer dieser Werte oder null):\n'
+    + '"industry-software-and-it-services", "industry-life-and-physical-and-social-science", "industry-entertainment-and-sports-and-media", '
+    + '"industry-business-and-management-and-financial-operations", "industry-legal-and-government", "industry-medicine-and-healthcare", ' 
+    + '"industry-mathematical", "industry-writing-and-literature-and-language" '
+    + "\n"
+    '3. "task_type" (genau einer dieser Werte oder null):\n'
+    + '"coding", "creative-writing", "math", "instruction-following"'
+    + "\n"
+    '4. "complexity" (Integer 1-4): Bewerte die Komplexität anhand nötiger Denkschritte und nötigem Expertenwissen.\n\n'
+    "{{CONVERSATION_CONTEXT}}"
+    "Antworte NUR mit JSON in exakt diesem Format:\n"
+    '{"required_tools": [], "domain": "industry-software-and-it-services", "task_type": "coding", "complexity": 2}\n\n'
+    "### User Message:\n{{USER_MESSAGE}}"
+)
 
 # ---------------------------------------------------------------------------
 # Chat History Compression / Summarisation
