@@ -22,7 +22,7 @@ from typing import Any
 
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.retrievers import BaseRetriever
-from openai import AzureOpenAI
+from openai import AzureOpenAI, BadRequestError
 
 
 class VectorSearchRetriever(BaseRetriever):
@@ -244,9 +244,12 @@ def get_embedding_function(
             if isinstance(query, list):
                 embeddings = []
                 for i in range(0, len(query), embedding_batch_size):
-                    embeddings.extend(
-                        func(query[i : i + embedding_batch_size], user=user)
-                    )
+                    batch_result = func(query[i : i + embedding_batch_size], user=user)
+                    if batch_result is None:
+                        raise RuntimeError(
+                            "Embedding generation failed for a batch (see preceding logs)."
+                        )
+                    embeddings.extend(batch_result)
                 return embeddings
             else:
                 return func(query, user)
@@ -419,6 +422,8 @@ def generate_openai_batch_embeddings(
     model: str,
     texts: list[str],
 ) -> Optional[list[list[float]]]:
+    if not texts:
+        return []
     try:
         client = AzureOpenAI(
             api_version="2023-05-15"
@@ -430,6 +435,19 @@ def generate_openai_batch_embeddings(
         )
 
         return [response.data[i].embedding for i in range(len(texts))]
+    except BadRequestError as e:
+        # OpenAI caps each embeddings request at 300k tokens total. If we hit
+        # that with a multi-text batch, split and retry — a single chunk is
+        # always small enough on its own, so the recursion converges.
+        if len(texts) > 1 and "maximum request size" in str(e):
+            mid = len(texts) // 2
+            first = generate_openai_batch_embeddings(model, texts[:mid])
+            second = generate_openai_batch_embeddings(model, texts[mid:])
+            if first is None or second is None:
+                return None
+            return first + second
+        log.exception(e)
+        return None
     except Exception as e:
         log.exception(e)
         return None

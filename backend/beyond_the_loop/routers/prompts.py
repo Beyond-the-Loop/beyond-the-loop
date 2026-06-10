@@ -9,12 +9,13 @@ from beyond_the_loop.models.prompts import (
 from open_webui.constants import ERROR_MESSAGES
 from fastapi import APIRouter, Depends, HTTPException, status
 from open_webui.utils.auth import get_verified_user
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access, has_permission
 
 router = APIRouter()
 
 
-def _validate_prompt_write_access(prompt: PromptModel, user):
+def _validate_prompt_write_access(prompt: PromptModel, user, user_groups):
     """
     Validates that a user has write access to a prompt.
     Raises HTTPException if access is denied.
@@ -33,13 +34,13 @@ def _validate_prompt_write_access(prompt: PromptModel, user):
 
     if (user.role != "admin"
             and prompt.user_id != user.id
-            and (not has_access(user.id, "write", prompt.access_control) or not has_permission(user.id, "workspace.edit_prompts"))):
+            and (not has_access(user.id, user_groups, "write", prompt.access_control) or not has_permission(user.id, "workspace.edit_prompts"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-def _validate_prompt_read_access(prompt: PromptModel, user):
+def _validate_prompt_read_access(prompt: PromptModel, user, user_groups):
     if not prompt:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -48,7 +49,7 @@ def _validate_prompt_read_access(prompt: PromptModel, user):
 
     if (user.role != "admin"
             and prompt.user_id != user.id
-            and (not has_access(user.id, "read", prompt.access_control) or not has_permission(user.id, "workspace.view_prompts"))):
+            and (not has_access(user.id, user_groups, "read", prompt.access_control) or not has_permission(user.id, "workspace.view_prompts"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -126,7 +127,8 @@ async def create_new_prompt(
 async def get_prompt_by_command(command: str, user=Depends(get_verified_user)):
     prompt = Prompts.get_prompt_by_command_and_company_or_system(f"/{command}", user.company_id)
 
-    _validate_prompt_read_access(prompt, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_prompt_read_access(prompt, user, user_groups)
 
     return prompt
 
@@ -135,7 +137,8 @@ async def get_prompt_by_command(command: str, user=Depends(get_verified_user)):
 async def update_prompt_bookmark(command: str, user=Depends(get_verified_user)):
     prompt = Prompts.get_prompt_by_command_and_company_or_system(f"/{command}", user.company_id)
 
-    _validate_prompt_read_access(prompt, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_prompt_read_access(prompt, user, user_groups)
 
     bookmarked_prompt = Prompts.toggle_bookmark(prompt.command, user.id)
 
@@ -154,7 +157,8 @@ async def update_prompt_by_command(
 ):
     prompt = Prompts.get_prompt_by_command_and_company(f"/{command}", user.company_id)
 
-    _validate_prompt_write_access(prompt, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_prompt_write_access(prompt, user, user_groups)
 
     prompt = Prompts.update_prompt_by_command_and_company(f"/{command}", form_data, user.company_id)
 
@@ -179,7 +183,8 @@ async def delete_prompt_by_command(
 ):
     prompt = Prompts.get_prompt_by_command_and_company(f"/{command}", user.company_id)
 
-    _validate_prompt_write_access(prompt, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_prompt_write_access(prompt, user, user_groups)
 
     result = Prompts.delete_prompt_by_command_and_company(f"/{command}", user.company_id)
 

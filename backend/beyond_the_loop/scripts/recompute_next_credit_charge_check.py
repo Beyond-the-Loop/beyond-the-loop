@@ -61,15 +61,13 @@ from beyond_the_loop.models.prompts import user_prompt_bookmark  # noqa: F401
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.services.payments_service import (
+    FLAT_RATE_PLANS,
     _next_monthly_anchor_after,
     payments_service,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
-
-
-FLAT_RATE_PLANS = {"free", "premium", "unlimited"}
 
 
 def _fetch_stripe_subscription(company, status):

@@ -14,6 +14,7 @@ from beyond_the_loop.models.users import Users, UserResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, Text, JSON
 
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access
 
 log = logging.getLogger(__name__)
@@ -157,11 +158,12 @@ class KnowledgeTable:
         self, user_id: str, company_id: str, permission: str = "write"
     ) -> list[KnowledgeUserModel]:
         knowledge_bases = self.get_knowledge_bases()
+        user_groups = Groups.get_groups_by_member_id(user_id)
         return [
             knowledge_base
             for knowledge_base in knowledge_bases
             if knowledge_base.user_id == user_id
-            or (knowledge_base.company_id == company_id and has_access(user_id, permission, knowledge_base.access_control))
+            or (knowledge_base.company_id == company_id and has_access(user_id, user_groups, permission, knowledge_base.access_control))
         ]
 
     def get_knowledge_ids_by_user_id(self, user_id: str) -> list[str]:

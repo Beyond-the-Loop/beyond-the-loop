@@ -17,6 +17,15 @@ import re
 from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, \
     STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
 
+FLAT_RATE_PLANS = frozenset({"free", "premium", "unlimited"})
+
+
+def is_flat_rate_plan(plan: str | None) -> bool:
+    """True for plans that are not billed per credit. Use this instead of
+    hand-rolled ``plan in ("free", "premium")`` checks — those silently miss
+    "unlimited" (Kickstart) customers."""
+    return plan in FLAT_RATE_PLANS
+
 
 def _next_monthly_anchor_after(anchor_dt: datetime, after_dt: datetime) -> datetime:
     """Find the next datetime with anchor_dt's day-of-month and time-of-day
