@@ -495,7 +495,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-        routed_model, routing_decision = await smart_router_select_model(
+        routed_model, routing_decision, candidates_info = await smart_router_select_model(
             user_message, user, messages=form_data["messages"],
             has_image_input=has_image_input, pii_active=pii_session is not None,
         )
@@ -525,6 +525,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 features["image_generation"] = True
             if "mcp" in routing_decision.required_tools:
                 features["mcp"] = True
+
+            debug_info = {
+                "required_tools": list(routing_decision.required_tools),
+                "domain": routing_decision.domain,
+                "task_type": routing_decision.task_type,
+                "complexity": routing_decision.complexity,
+                "candidates": candidates_info,
+            }
+            metadata["smart_router_debug"] = debug_info
+            await event_emitter({"type": "smart_router_debug", "data": debug_info})
 
         await event_emitter(
             {
