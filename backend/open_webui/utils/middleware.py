@@ -20,20 +20,21 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import (
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
-    SMART_ROUTER_PROMPT,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
     FileIntentDecision,
     KnowledgeUseDecision,
-    SmartRouterDecision,
+)
+from beyond_the_loop.utils.smart_router import (
+    SMART_ROUTER_MODEL,
+    select_model as smart_router_select_model,
 )
 from beyond_the_loop.socket.main import (
     get_event_call,
     get_event_emitter,
 )
 from beyond_the_loop.models.knowledge import Knowledges
-from beyond_the_loop.models.models import ModelMeta, ModelParams
 from open_webui.routers.tasks import (
     generate_queries,
     generate_title,
@@ -306,187 +307,6 @@ async def check_disconnect(request):
         raise ClientDisconnectedError("Client disconnected")
 
 
-SMART_ROUTER_MODEL = ModelModel(
-    id="Smart Router",
-    name="Smart Router",
-    meta=ModelMeta(),
-    params=ModelParams(),
-    is_active=True,
-    updated_at=int(time.time()),
-    created_at=int(time.time()),
-    user_id=None,
-    company_id="",
-    base_model_id=None,
-    access_control=None,
-)
-
-
-async def _smart_router_model_selection(
-    user_message: str, user, messages: list[dict] | None = None,
-    has_image_input: bool = False, pii_active: bool = False,
-) -> tuple[ModelModel | None, SmartRouterDecision | None]:
-    """
-    Score the user message complexity (1–5) via structured completion, then pick
-    the best model from all candidates whose intelligence_score >= that score.
-    Among qualifying models, rank by efficiency: costFactor (60%, lower=better)
-    + speed (40%, higher=better), both normalized 0-1 within the candidate set.
-    Returns (None, None) if no suitable model can be found.
-    """
-    try:
-        agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-
-        # Build conversation context from the last few turns so follow-up messages
-        # like "ja bitte" (agreeing to a suggested web search) are routed correctly.
-        context_section = ""
-        if messages:
-            prior = [
-                m for m in messages
-                if m.get("role") in ("user", "assistant")
-            ][:-1][-3:]
-            if prior:
-                lines = []
-                for m in prior:
-                    content = m.get("content", "")
-                    if isinstance(content, list):
-                        content = next(
-                            (p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"),
-                            "",
-                        )
-                    label = "User" if m.get("role") == "user" else "Assistant"
-                    lines.append(f"{label}: {str(content)[:400]}")
-                context_section = "### Recent Conversation:\n" + "\n".join(lines) + "\n\n"
-
-        from beyond_the_loop.pii.session import pii_note_prefix
-        prompt = (
-            pii_note_prefix(pii_active)
-            + SMART_ROUTER_PROMPT
-            .replace("{{CONVERSATION_CONTEXT}}", context_section)
-            .replace("{{USER_MESSAGE}}", user_message)
-        )
-
-        decision = await structured_completion(
-            messages=[{"role": "user", "content": prompt}],
-            response_model=SmartRouterDecision,
-            model=agent_model,
-            user=user,
-        )
-
-        target_score = max(1.0, min(5.0, decision.intelligence_score))
-
-        # Lazy import to avoid circular dependency (main.py imports middleware.py)
-        from open_webui.main import get_active_models
-
-        active_models_result = await get_active_models(user=user)
-
-        routable_models = [
-            m for m in active_models_result["data"]
-            if m.base_model_id is None  # no assistants
-               and m.name != SMART_ROUTER_MODEL.name  # not Smart Router itself
-               and m.is_active  # active (e.g. not locked in free plan)
-               and not getattr(m, "fair_usage_limit_reached", False)  # fair usage not exhausted
-        ]
-
-        # Filter to models meeting the minimum intelligence requirement and required capabilities
-        candidates = []
-
-        for m in routable_models:
-            cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
-            score = cfg.get("intelligence_score")
-            if score is None or score < target_score:
-                continue
-            if decision.needs_web_search and not cfg.get("supports_web_search", False):
-                continue
-            if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
-                continue
-            if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
-                continue
-            if has_image_input and not cfg.get("supports_image_input", False):
-                continue
-            candidates.append(m)
-
-        # If no candidates passed the intelligence filter, fall back to capability-only matching.
-        # Capability is a hard requirement; intelligence score is a soft preference.
-        if not candidates:
-            needs_capability = (
-                decision.needs_web_search
-                or decision.needs_code_execution
-                or decision.needs_image_generation
-                or has_image_input
-            )
-            if needs_capability:
-                for m in routable_models:
-                    cfg = LITELLM_MODEL_CONFIG.get(m.name, {})
-                    if decision.needs_web_search and not cfg.get("supports_web_search", False):
-                        continue
-                    if decision.needs_code_execution and not cfg.get("supports_code_execution", False):
-                        continue
-                    if decision.needs_image_generation and not cfg.get("supports_image_generation", False):
-                        continue
-                    if has_image_input and not cfg.get("supports_image_input", False):
-                        continue
-                    candidates.append(m)
-
-        if not candidates:
-            return None, decision
-
-        # Build efficiency score from costFactor (60%, lower=better) and speed (40%, higher=better)
-        cost_values = {
-            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("costFactor")
-            for m in candidates
-        }
-
-        speed_values = {
-            m.name: LITELLM_MODEL_CONFIG.get(m.name, {}).get("speed")
-            for m in candidates
-        }
-
-        valid_costs = [v for v in cost_values.values() if v is not None]
-        valid_speeds = [v for v in speed_values.values() if v is not None]
-
-        min_cost, max_cost = (min(valid_costs), max(valid_costs)) if valid_costs else (None, None)
-        min_speed, max_speed = (min(valid_speeds), max(valid_speeds)) if valid_speeds else (None, None)
-
-        def efficiency_score(model_name: str) -> float:
-            cost = cost_values.get(model_name)
-            speed = speed_values.get(model_name)
-
-            cost_score = None
-
-            if cost is not None and min_cost is not None and max_cost is not None:
-                if max_cost == min_cost:
-                    cost_score = 1.0
-                else:
-                    cost_score = 1.0 - (cost - min_cost) / (max_cost - min_cost)
-
-            speed_score = None
-
-            if speed is not None and min_speed is not None and max_speed is not None:
-                if max_speed == min_speed:
-                    speed_score = 1.0
-                else:
-                    speed_score = (speed - min_speed) / (max_speed - min_speed)
-
-            if cost_score is not None and speed_score is not None:
-                return 0.6 * cost_score + 0.4 * speed_score
-            elif cost_score is not None:
-                return cost_score
-            elif speed_score is not None:
-                return speed_score
-            return 0.0
-
-        scored_candidates = sorted(
-            candidates, key=lambda m: efficiency_score(m.name), reverse=True
-        )
-
-        top_candidates = scored_candidates[:3]
-        best_model = random.choice(top_candidates)
-
-        return best_model, decision
-    except Exception as e:
-        log.exception(f"Smart Router model selection failed: {e}")
-        return None, None
-
-
 async def process_chat_payload(request, form_data, metadata, user, model: ModelModel):
     form_data = apply_params_to_form_data(form_data)
 
@@ -667,7 +487,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         for p in (last_user_msg_item.get("content") or [])
     )
 
-    if model.name == SMART_ROUTER_MODEL.name and user_message:
+    is_smart_router_model = model.name == SMART_ROUTER_MODEL.name
+    is_smart_router_assistant = model.base_model_id == SMART_ROUTER_MODEL.id
+
+    if (is_smart_router_model or is_smart_router_assistant) and user_message:
         await event_emitter(
             {
                 "type": "status",
@@ -679,76 +502,34 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
             }
         )
 
-        routed_model, routing_decision = await _smart_router_model_selection(
+        routed_model, routing_decision = await smart_router_select_model(
             user_message, user, messages=form_data["messages"],
             has_image_input=has_image_input, pii_active=pii_session is not None,
         )
 
-        if routed_model:
-            model = routed_model
-            form_data["model"] = routed_model.id
-            metadata["selected_model_id"] = routed_model.id
-        else:
-            # Fallback: smart router couldn't select a model — use DEFAULT_AGENT_MODEL
-            model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-            form_data["model"] = model.id
-            metadata["selected_model_id"] = model.id
+        # Fallback to DEFAULT_AGENT_MODEL when the router can't pick anything.
+        target = routed_model or Models.get_model_by_name_and_company(
+            os.getenv("DEFAULT_AGENT_MODEL"), user.company_id
+        )
+
+        if target:
+            if is_smart_router_model:
+                model = target
+                form_data["model"] = target.id
+            else:
+                # Assistant: keep system prompt/params, only swap base_model_id.
+                model = model.model_copy(update={"base_model_id": target.id})
+            metadata["selected_model_id"] = target.id
 
         # Propagate tool needs from routing decision into features so the
         # web_search / code_interpreter tools are actually passed to the model.
         if routing_decision:
-            if routing_decision.needs_web_search:
+            if "web_search" in routing_decision.required_tools:
                 features["web_search"] = True
-            if routing_decision.needs_code_execution:
+            if "code_execution" in routing_decision.required_tools or "document_creation" in routing_decision.required_tools:
                 features["code_interpreter"] = True
-            if routing_decision.needs_image_generation:
+            if "image_generation" in routing_decision.required_tools:
                 features["image_generation"] = True
-
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "smart_router",
-                    "description": "Selecting the most suitable model",
-                    "done": True,
-                    "hidden": True,
-                },
-            }
-        )
-
-    elif model.base_model_id == SMART_ROUTER_MODEL.id and user_message:
-        # Assistant whose base model is "Smart Router": run routing but keep the
-        # assistant's system prompt and params by only swapping out base_model_id.
-        await event_emitter(
-            {
-                "type": "status",
-                "data": {
-                    "action": "smart_router",
-                    "description": "Selecting the most suitable model",
-                    "done": False,
-                },
-            }
-        )
-
-        routed_model, routing_decision = await _smart_router_model_selection(
-            user_message, user, messages=form_data["messages"],
-            has_image_input=has_image_input, pii_active=pii_session is not None,
-        )
-
-        if routed_model:
-            model = model.model_copy(update={"base_model_id": routed_model.id})
-            metadata["selected_model_id"] = routed_model.id
-        else:
-            fallback = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
-            if fallback:
-                model = model.model_copy(update={"base_model_id": fallback.id})
-                metadata["selected_model_id"] = fallback.id
-
-        if routing_decision:
-            if routing_decision.needs_web_search:
-                features["web_search"] = True
-            if routing_decision.needs_code_execution:
-                features["code_interpreter"] = True
 
         await event_emitter(
             {
