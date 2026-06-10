@@ -266,7 +266,7 @@ class ModelsTable:
             "Tom, der Rechercheassistent"
         }
 
-        for assistant in assistants:
+        for assistant in models_user_responses:
             if (
                 assistant.user_id == user_id
                 or has_access(user_id, user_groups, permission, assistant.access_control)
