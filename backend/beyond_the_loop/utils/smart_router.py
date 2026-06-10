@@ -118,14 +118,16 @@ async def select_model(
     messages: list[dict] | None = None,
     has_image_input: bool = False,
     pii_active: bool = False,
-) -> tuple[ModelModel | None, SmartRouterDecision | None]:
+) -> tuple[ModelModel | None, SmartRouterDecision | None, list[dict]]:
     """
     Classify the user message via structured completion, then pick the best model:
     1. Hard-filter by required_tools and image_input capability.
     2. If image_generation required → only image-capable models survive (handled in step 1).
     3. Hard-filter by complexity → costFactor limit (complexity = max allowed costFactor, 1-4).
     4. Rank survivors by arena ranking score (domain + task_type, lower = better).
-    Returns (None, None) if no suitable model can be found.
+    Returns (best_model, decision, ranked_candidates_info). On failure returns
+    (None, None, []) or (None, decision, []) if classification succeeded but no
+    model is selectable.
     """
     try:
         decision = await _classify(user_message, user, messages, pii_active)
@@ -166,7 +168,7 @@ async def select_model(
             candidates.append(m)
 
         if not candidates:
-            return None, decision
+            return None, decision, []
 
         # --- Step 3: complexity → costFactor filter ---
         def cost_of(m):
@@ -182,8 +184,9 @@ async def select_model(
         candidates = cost_filtered
 
         # --- Step 4: arena ranking (domain + task_type, lower score = better) ---
-        best_model = min(candidates, key=lambda m: _arena_score(m.name, decision))
-        return best_model, decision
+        scored = sorted(candidates, key=lambda m: _arena_score(m.name, decision))
+        candidates_info = [{"name": m.name, "score": _arena_score(m.name, decision)} for m in scored]
+        return scored[0], decision, candidates_info
 
     except Exception as e:
         log.exception(f"Smart Router model selection failed: {e}")
