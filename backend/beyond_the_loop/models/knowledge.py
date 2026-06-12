@@ -166,6 +166,13 @@ class KnowledgeTable:
             or (knowledge_base.company_id == company_id and has_access(user_id, user_groups, permission, knowledge_base.access_control))
         ]
 
+    def get_knowledge_ids_by_user_id(self, user_id: str) -> list[str]:
+        with get_db() as db:
+            return [
+                k_id
+                for (k_id,) in db.query(Knowledge.id).filter_by(user_id=user_id).all()
+            ]
+
     def get_knowledge_by_id(self, id: str) -> Optional[KnowledgeModel]:
         try:
             with get_db() as db:

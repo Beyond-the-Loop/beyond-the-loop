@@ -9,8 +9,10 @@ import httpx
 from PIL import Image
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-
+from pydantic import BaseModel
+from beyond_the_loop.config import save_config, get_config, invalidate_company_config_cache
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
+from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import litellm
 from beyond_the_loop.routers.auths import INITIAL_CREDIT_BALANCE
 from beyond_the_loop.models.companies import (
@@ -22,12 +24,11 @@ from beyond_the_loop.models.companies import (
     UpdateCompanyForm,
     CreateCompanyForm,
 )
-from open_webui.utils.auth import get_current_user, get_admin_user
-from open_webui.env import SRC_LOG_LEVELS
-from beyond_the_loop.config import save_config, get_config
-from beyond_the_loop.models.users import Users
+from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
+from open_webui.env import SRC_LOG_LEVELS
+from open_webui.utils.auth import get_current_user, get_admin_user
 
 router = APIRouter()
 
@@ -347,6 +348,57 @@ async def create_company(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating company: {str(e)}"
         )
+
+
+############################
+# Company Deletion
+############################
+
+class DeleteCompanyRequest(BaseModel):
+    confirmation: str
+
+
+def dissolve_company(company_id: str) -> None:
+    """Tear down a company in the correct order: subscription, users (which
+    cascades all user-owned rows + cleans external artifacts), the company
+    row itself, config cache, and a soft-delete in CRM / Loops.
+
+    Used by the explicit company-delete endpoint and by the user-delete
+    endpoint's "last active user" branches. Caller is responsible for
+    confirming the company exists and the requester is authorized.
+    """
+    company = Companies.get_company_by_id(company_id)
+    if not company:
+        return
+
+    company_name = company.name
+    user_emails = [u.email for u in Users.get_users_by_company_id(company_id)]
+
+    payments_service.cancel_company_subscription(company_id)
+    Users.delete_users_by_company_id(company_id)
+    Companies.delete_company_by_id(company_id)
+    invalidate_company_config_cache(company_id)
+
+    crm_service.update_company_plan(company_name, "Deleted")
+    for email in user_emails:
+        loops_service.mark_contact_deleted(email)
+
+
+@router.delete("", response_model=bool)
+async def delete_company(form_data: DeleteCompanyRequest, user=Depends(get_admin_user)):
+    company_id = user.company_id
+
+    company = Companies.get_company_by_id(company_id)
+
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    if form_data.confirmation.strip() != company.name:
+        raise HTTPException(status_code=400, detail="Company name confirmation does not match")
+
+    dissolve_company(company_id)
+
+    return True
 
 
 ############################

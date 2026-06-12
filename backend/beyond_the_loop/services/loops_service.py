@@ -1,8 +1,12 @@
+import logging
 import requests
 import os
 
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.services.payments_service import payments_service
+
+log = logging.getLogger(__name__)
+
 
 class LoopsService:
 
@@ -58,6 +62,32 @@ class LoopsService:
 
         if not response.json().get("success"):
             raise Exception(response.json())
+
+    def mark_contact_deleted(self, email: str):
+        """Mark a Loops contact as Deleted via userGroup, instead of removing it.
+
+        Lets us keep historical reports/audiences intact while excluding the
+        contact from any active-user segments.
+        """
+        if not os.getenv("LOOPS_SYNC", "false") == "true":
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {"email": email, "userGroup": "Deleted"}
+
+        try:
+            response = requests.post(
+                self.api_url + "/contacts/update", json=payload, headers=headers
+            )
+            if not response.json().get("success"):
+                log.warning(
+                    f"Loops mark_contact_deleted failed for {email}: {response.text}"
+                )
+        except Exception as e:
+            log.warning(f"Loops mark_contact_deleted exception for {email}: {e}")
 
     def send_transactional_email(
             self,

@@ -599,10 +599,10 @@
 		{/if} -->
 	</div>
 
-	<div class="flex justify-between pt-3 text-sm font-medium {$user.role === 'admin' ? 'pb-8' : ''}">
+	<div class="flex justify-between pt-8 pb-8 text-sm font-medium">
 		<button
 			type="button"
-			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-lightGray-100 hover:text-red-500 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-customGray-200 dark:hover:text-red-400 border dark:border-customGray-700 flex justify-center items-center"
+			class="text-xs w-[132px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-red-500 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-red-400 border dark:border-customGray-700 flex justify-center items-center"
 			on:click={() => {
 						showDeleteConfirm = true;
 					}}
@@ -624,24 +624,5 @@
 			{$i18n.t('Save')}
 		</button>
 	</div>
-	{#if $user.role === 'user'}
-		<div class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2">
-			<div class="flex w-full justify-between items-center">
-				<div class="text-xs dark:text-customGray-300">{$i18n.t('Delete account')}</div>
-			</div>
-		</div>
-	
-		<div class="flex justify-between items-start pt-3 pb-5">
-			<a
-				href="https://thoreduecker.notion.site/208a1ab099c980c1905eeccd32ea53cd"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="underline">{$i18n.t('Contact us')}</a
-			>
-			<div class="shrink-0 w-[180px] md:w-[218px] dark:text-customGray-100/50 text-xs">
-				{$i18n.t('To delete your account, please contact us.')}
-			</div>
-		</div>
-	{/if}
 </div>
 	

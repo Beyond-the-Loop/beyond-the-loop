@@ -1,14 +1,11 @@
 """
-File Archival Service
+File Service
 
-This service handles automatic deletion of files after 3 months.
-- Deletes files older than 3 months (90 days)
-- Excludes files that are part of Knowledge bases (referenced in data.file_ids)
-- Excludes files that are attached to Assistants/Models (referenced in meta.files)
+Handles file-related side-effect cleanup (vector collections, blob storage) and
+the scheduled archival of files older than the retention threshold.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import List, Optional, Set
 
@@ -18,12 +15,62 @@ from beyond_the_loop.models.knowledge import Knowledge
 from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import User
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
+from beyond_the_loop.storage.provider import Storage
 
 log = logging.getLogger(__name__)
 
-class FileArchivalService:
+
+def _delete_file_artifacts(file_id: str, file_path: Optional[str]) -> None:
+    """Remove a file's vector collection and storage blob.
+
+    DB row removal is the caller's responsibility (explicit delete or CASCADE).
+    Failures are logged so one bad file doesn't abort bulk cleanups.
+    """
+    collection_name = f"file-{file_id}"
+    try:
+        if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+            VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+    except Exception as e:
+        log.warning(f"Failed to delete vector collection {collection_name}: {e}")
+
+    if file_path:
+        try:
+            Storage.delete_file(file_path)
+        except Exception as e:
+            log.warning(f"Failed to delete file {file_path} from storage: {e}")
+
+
+def _delete_vector_collection(collection_name: str) -> None:
+    try:
+        if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+            VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+    except Exception as e:
+        log.warning(f"Failed to delete vector collection {collection_name}: {e}")
+
+
+def delete_user_external_artifacts(user_id: str) -> None:
+    """Remove all external (non-DB) artifacts owned by a user: storage blobs
+    and pgvector collections for files, knowledge bases, and the per-user
+    memory collection.
+
+    Must be called BEFORE the user DB row is deleted — the lookups walk
+    file.user_id / knowledge.user_id, which CASCADE removes with the user.
+    The DB rows themselves are handled by the user→X CASCADE chain.
+    """
+    from beyond_the_loop.models.knowledge import Knowledges
+
+    for file in Files.get_files_by_user_id(user_id):
+        _delete_file_artifacts(file.id, file.path)
+
+    for knowledge_id in Knowledges.get_knowledge_ids_by_user_id(user_id):
+        _delete_vector_collection(knowledge_id)
+
+    _delete_vector_collection(f"user-memory-{user_id}")
+
+
+class FileService:
     """Service for handling file deletion operations"""
-    
+
     DELETION_THRESHOLD_DAYS = 90  # 3 months
     
     def __init__(self):
@@ -158,38 +205,21 @@ class FileArchivalService:
     def _delete_company_files(self, company_id: str, files_to_delete: List[File]) -> None:
         """Delete files for a specific company"""
         log.info(f"Processing {len(files_to_delete)} files for company {company_id}")
-        
+
         deleted_count = 0
-        
+
         for file in files_to_delete:
             try:
-                # Delete physical file if it exists
-                if file.path and os.path.exists(file.path):
-                    try:
-                        os.remove(file.path)
-                        log.debug(f"Deleted physical file: {file.path}")
-                    except OSError as e:
-                        log.warning(f"Could not delete physical file {file.path}: {e}")
+                _delete_file_artifacts(file.id, file.path)
 
-                # Delete vector chunks
-                try:
-                    collection_name = f"file-{file.id}"
-                    if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-                        VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
-                        log.debug(f"Deleted vector collection: {collection_name}")
-                except Exception as e:
-                    log.warning(f"Could not delete vector collection for file {file.id}: {e}")
-
-                # Delete database record
                 if Files.delete_file_by_id(file.id):
                     deleted_count += 1
-                    log.debug(f"Deleted file record: {file.id} ({file.filename})")
                 else:
                     log.warning(f"Failed to delete file record: {file.id}")
-                    
+
             except Exception as e:
                 log.error(f"Error deleting file {file.id}: {e}")
-        
+
         self.deleted_count += deleted_count
         log.info(f"Deleted {deleted_count} files for company {company_id}")
     
@@ -311,4 +341,4 @@ class FileArchivalService:
 
 
 # Global instance
-file_archival_service = FileArchivalService()
+file_service = FileService()

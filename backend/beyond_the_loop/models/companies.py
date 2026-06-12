@@ -38,7 +38,10 @@ class Company(Base):
     next_credit_charge_check = Column(BigInteger, nullable=True)
     public_signup_token = Column(String, nullable=True, unique=True)
 
-    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    # No `users` relationship: user.company_id has no DB-level FK (sentinel
+    # values 'NEW' / 'NO_COMPANY' don't reference real companies). User
+    # cleanup on company delete is handled by Users.delete_users_by_company_id
+    # in dissolve_company (see routers/companies.py).
     domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
 
 class CompanyModel(BaseModel):
@@ -128,7 +131,7 @@ class CompanyTable:
     def get_all():
         try:
             with get_db() as db:
-                companies = db.query(Company).all()
+                companies = db.query(Company).filter(Company.id != "system").all()
                 return [CompanyModel.model_validate(company) for company in companies]
         except Exception as e:
             log.error(f"Error getting companies: {e}")

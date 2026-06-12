@@ -238,8 +238,10 @@ class PaymentsService:
                 if sub.get("status") in ("active", "trialing"):
                     stripe.Subscription.cancel(sub.get("id"))
 
-            STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
-            STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
+            if company_id in STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE:
+                del STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company_id]
+            if company_id in STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE:
+                del STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company_id]
 
         except Exception as e:
             log.error(f"Failed to cancel subscription for company {company_id}: {e}")

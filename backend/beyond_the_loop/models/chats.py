@@ -13,7 +13,7 @@ from open_webui.models.tags import TagModel, Tags
 
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Boolean, Column, String, Text, JSON
+from sqlalchemy import BigInteger, Boolean, Column, ForeignKey, String, Text, JSON
 from sqlalchemy import or_, and_, text
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -38,7 +38,7 @@ class Chat(Base):
     pinned = Column(Boolean, nullable=False, default=False)
 
     meta = Column(JSON, server_default="{}")
-    folder_id = Column(Text, nullable=True)
+    folder_id = Column(Text, ForeignKey("folder.id", ondelete="CASCADE"), nullable=True)
 
 
 class ChatModel(BaseModel):
@@ -928,19 +928,6 @@ class ChatTable:
                 db.commit()
 
                 return True and self.delete_shared_chat_by_chat_id(id)
-        except Exception:
-            return False
-
-
-    def delete_chats_by_user_id_and_folder_id(
-        self, user_id: str, folder_id: str
-    ) -> bool:
-        try:
-            with get_db() as db:
-                db.query(Chat).filter_by(user_id=user_id, folder_id=folder_id).delete()
-                db.commit()
-
-                return True
         except Exception:
             return False
 

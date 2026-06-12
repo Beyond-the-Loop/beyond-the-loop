@@ -4,11 +4,8 @@ import random
 import uuid
 from typing import Optional
 
-from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
-from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
-from beyond_the_loop.models.files import Files
 from beyond_the_loop.models.groups import Groups, GroupForm
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.chats import Chats
@@ -26,7 +23,8 @@ from beyond_the_loop.models.users import (
 )
 
 
-from beyond_the_loop.socket.main import get_active_status_by_user_id, COMPANY_CONFIG_CACHE, STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE
+from beyond_the_loop.socket.main import get_active_status_by_user_id
+from beyond_the_loop.routers.companies import dissolve_company
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -657,60 +655,20 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
 
     company_id = target_user.company_id
 
-    # Always fetch files before deletion for storage cleanup
-    user_files = Files.get_files_by_user_id(user_id)
-
-    def _cleanup_files():
-        for file in user_files:
-            collection_name = f"file-{file.id}"
-
-            try:
-                if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-                    VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
-            except Exception as e:
-                log.warning(f"Failed to delete vector collection {collection_name}: {e}")
-
-            try:
-                Storage.delete_file(file.path)
-            except Exception as e:
-                log.warning(f"Failed to delete file {file.path} from storage: {e}")
-
-    def _clear_company_caches():
-        for cache, name in (
-            (STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, "STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE"),
-            (STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, "STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE"),
-            (COMPANY_CONFIG_CACHE, "COMPANY_CONFIG_CACHE"),
-        ):
-            try:
-                if company_id in cache:
-                    del cache[company_id]
-            except Exception as e:
-                log.warning(f"Failed to clear {name} for company {company_id}: {e}")
-
     # ------------------------------------------------------------------
     # Last-user check: if this is the only user left in the company,
-    # cancel the Stripe subscription and delete the entire company
-    # (PG cascades handle user + all dependent rows).
+    # dissolve the whole company instead of leaving the user as an orphan.
     # ------------------------------------------------------------------
     total_users = Users.count_users_by_company_id(company_id)
 
     if total_users == 1:
-        _cleanup_files()
-        payments_service.cancel_company_subscription(company_id)
-        _clear_company_caches()
-
-        if not Companies.delete_company_by_id(company_id):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=ERROR_MESSAGES.DELETE_USER_ERROR,
-            )
-
+        dissolve_company(company_id)
         return True
 
     # ------------------------------------------------------------------
     # Last-admin check: if this is the only admin left, promote a random
     # non-pending user. If ALL remaining users are pending there is nobody
-    # to promote — treat it as "last active user" and delete the company.
+    # to promote — treat it as "last active user" and dissolve the company.
     # ------------------------------------------------------------------
     if target_user.role == "admin":
         admin_users = Users.get_admin_users_by_company(company_id)
@@ -732,29 +690,17 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
                     f"{user_id} was deleted in company {company_id}"
                 )
             else:
-                # Only pending invites remain — no one can ever log in.
-                # Delete the company (cascades through everything).
-                _cleanup_files()
-                payments_service.cancel_company_subscription(company_id)
-                _clear_company_caches()
-                if not Companies.delete_company_by_id(company_id):
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=ERROR_MESSAGES.DELETE_USER_ERROR,
-                    )
+                dissolve_company(company_id)
                 return True
 
-    success = Users.delete_user_by_id(user_id)
+    if not Users.delete_user_by_id(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DELETE_USER_ERROR,
+        )
 
-    if success:
-        _cleanup_files()
-        payments_service.update_premium_seat_count(company_id)
-        return True
-
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=ERROR_MESSAGES.DELETE_USER_ERROR,
-    )
+    payments_service.update_premium_seat_count(company_id)
+    return True
 
 
 ############################
