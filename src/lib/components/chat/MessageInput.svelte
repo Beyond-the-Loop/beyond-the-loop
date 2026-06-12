@@ -235,8 +235,10 @@
 				});
 
 				if (uploadedFile.error) {
-					console.warn('File upload warning:', uploadedFile.error);
-					toast.warning(uploadedFile.error);
+					console.error('File upload error:', uploadedFile.error);
+					toast.error($i18n.t(uploadedFile.error));
+					files = files.filter(item => item?.itemId !== tempItemId);
+					return;
 				}
 
 				fileItem.status = 'uploaded';
@@ -760,16 +762,17 @@
 													loading={file.status === 'uploading'}
 													dismissible={true}
 													edit={true}
-													on:dismiss={async () => {
-														if (file.type !== 'collection' && !file?.collection) {
-															if (file.id) {
-																	await deleteFileById(localStorage.token, file.id);
-															}
-														}
-
-														// Remove from UI state
+													on:dismiss={() => {
+														// Remove from UI state immediately (optimistic update)
 														files.splice(fileIdx, 1);
 														files = files;
+
+														// Delete on backend in the background
+														if (file.type !== 'collection' && !file?.collection && file.id) {
+															deleteFileById(localStorage.token, file.id).catch((err) => {
+																console.error('Delete failed:', err);
+															});
+														}
 													}}
 												/>
 											{/if}

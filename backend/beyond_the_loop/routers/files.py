@@ -1,9 +1,11 @@
+import io
 import logging
 import os
 import tempfile
 import time
 import uuid
 from typing import Optional
+from beyond_the_loop.utils.file_conversion import convert_for_rag
 from beyond_the_loop.utils.file_upload_validator import FileValidator
 
 from beyond_the_loop.storage.provider import Storage
@@ -59,13 +61,24 @@ def upload_file(
             (time.perf_counter() - t0) * 1000,
         )
 
-        # replace filename with uuid
+        # Convert non-RAG-supported file types (e.g. .py -> .txt) before upload
+        t0 = time.perf_counter()
+        file.file.seek(0)
+        original_bytes = file.file.read()
+        converted_bytes, name = convert_for_rag(original_bytes, filename)
+        log.info(
+            "[UPLOAD_TIMING] step=convert_for_rag duration_ms=%.2f original=%s converted=%s",
+            (time.perf_counter() - t0) * 1000,
+            filename,
+            name,
+        )
+
+        # replace filename with uuid (using converted name so storage matches)
         id = str(uuid.uuid4())
-        name = filename
-        filename = f"{id}_{filename}"
+        filename = f"{id}_{name}"
 
         t0 = time.perf_counter()
-        contents, file_path = Storage.upload_file(file.file, filename)
+        contents, file_path = Storage.upload_file(io.BytesIO(converted_bytes), filename)
         log.info(
             "[UPLOAD_TIMING] step=storage_upload duration_ms=%.2f size_bytes=%d file_path=%s",
             (time.perf_counter() - t0) * 1000,
