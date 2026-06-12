@@ -339,6 +339,7 @@ class PaymentsService:
                     'credits_remaining': company.credit_balance,
                     'flex_credits_remaining': company.flex_credit_balance,
                     'credits_per_month': plan.get("credits_per_month", 0),
+                    'custom_credit_amount': int(trial_subscription.get("metadata", {}).get("custom_credit_amount")) if trial_subscription.get("metadata", {}).get("custom_credit_amount") is not None else None,
                     'plan': plan_id,
                     'is_trial': True,
                     "seats": plan.get("seats", 0),
