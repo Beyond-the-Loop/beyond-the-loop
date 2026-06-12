@@ -931,5 +931,23 @@ class ChatTable:
         except Exception:
             return False
 
+    def get_pii_session(self, chat_id: str) -> Optional[dict]:
+        with get_db() as db:
+            chat_item = db.get(Chat, chat_id)
+            if chat_item is None or not isinstance(chat_item.chat, dict):
+                return None
+            return chat_item.chat.get("pii_session")
+
+    def save_pii_session(self, chat_id: str, data: dict) -> None:
+        with get_db() as db:
+            chat_item = db.get(Chat, chat_id)
+            if chat_item is None:
+                log.warning("[pii] cannot persist session: chat row %s not found", chat_id)
+                return
+            if not isinstance(chat_item.chat, dict):
+                chat_item.chat = {}
+            chat_item.chat["pii_session"] = data
+            flag_modified(chat_item, "chat")
+            db.commit()
 
 Chats = ChatTable()

@@ -334,8 +334,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     pii_session = None
     filtered_user_content = None
     pii_released_entities: list = []
-    pii_total_detected = 0
-    pii_anonymized = 0
     pii_released_used: list = []
     if chat_id and form_data.get("messages"):
         try:
@@ -349,6 +347,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             client_pii_enabled = form_data.pop("pii_enabled", True) is not False
             client_released_raw = form_data.pop("pii_released_entities", None) or []
+            client_manual_entities_raw = form_data.pop("pii_manual_entities", None) or []
+            client_manual_entities = [
+                str(x) for x in client_manual_entities_raw
+                if isinstance(x, str) and x.strip()
+            ] if isinstance(client_manual_entities_raw, list) else []
             client_released = [
                 str(x) for x in client_released_raw if isinstance(x, (str, int))
             ] if isinstance(client_released_raw, list) else []
@@ -368,6 +371,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             if is_pii_filter_enabled(user.company_id) and client_pii_enabled:
                 pii_session = PIISession(chat_id)
+                for entity in client_manual_entities:
+                    pii_session.register_manual(entity)
                 # Surface the anonymization step in the UI — the work can
                 # take a few seconds on long histories / many RAG chunks
                 # under MAX_CONCURRENT_ANALYZES=1, and an unannotated spinner
@@ -383,7 +388,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     }
                 )
                 try:
-                    pii_total_detected, pii_anonymized, ru = anonymize_messages(
+                    ru = anonymize_messages(
                         form_data["messages"], pii_session,
                         released=pii_released_entities, source="prompt",
                     )
@@ -815,12 +820,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                     content = extract_file_content_with_loader(file_id)
                                     if pii_session is not None:
                                         try:
-                                            content, _t, _a, _ru = pii_session.anonymize(
+                                            content, _ru = pii_session.anonymize(
                                                 content, pii_released_entities,
                                                 source=f"file:{file_record.filename}",
                                             )
-                                            pii_total_detected += _t
-                                            pii_anonymized += _a
                                             pii_released_used.extend(_ru)
                                         except Exception:
                                             log.exception(
@@ -899,12 +902,10 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                                         resolved = f_rec.filename
                             except Exception:
                                 pass
-                            doc_context, _t, _a, _ru = pii_session.anonymize(
+                            doc_context, _ru = pii_session.anonymize(
                                 doc_context, pii_released_entities,
                                 source=f"file:{resolved}",
                             )
-                            pii_total_detected += _t
-                            pii_anonymized += _a
                             pii_released_used.extend(_ru)
                         except Exception:
                             log.exception("[pii] failed to anonymize RAG chunk; sending unredacted")
@@ -996,19 +997,11 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     # Persist the session once after every anonymization pass (user message,
     # file extract, RAG) has populated the forward/reverse maps, then echo
-    # the filtered user message + full variable map + per-message status to
-    # the UI in a single event. The frontend uses this to render the badge
-    # (always shown when the filter was active for this send, even if no PII
-    # was detected — confirms to the user that protection was on).
+    # the filtered user message + variable map + released list to the UI in
+    # a single event. The frontend derives the badge state from the presence
+    # of `variables` (filter ran) and the length of `released_entities`
+    # (full vs. partial). No separate status field is sent or persisted.
     if pii_session is not None:
-        # "partial" only when at least one detected entity was released; "full"
-        # otherwise (whether something was actually replaced or nothing was
-        # detected — both indicate the filter ran without compromise).
-        pii_status = (
-            "partial"
-            if pii_total_detected > 0 and pii_anonymized < pii_total_detected
-            else "full"
-        )
         try:
             pii_session.save()
             metadata["pii_session"] = pii_session
@@ -1020,7 +1013,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                             "filtered_content": filtered_user_content,
                             "variables": dict(pii_session.forward),
                             "variable_sources": pii_session.sources_serialized(),
-                            "pii_status": pii_status,
                             "released_entities": sorted(set(pii_released_used)),
                         },
                     }

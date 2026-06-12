@@ -67,21 +67,17 @@
 		});
 	})();
 
+	// Keys must match the placeholder labels produced by the backend
+	// (see _PLACEHOLDER_LABEL in backend/beyond_the_loop/pii/session.py).
 	const entityLabels: Record<string, string> = {
 		PERSON: 'Name',
-		LOCATION: 'Standort',
-		ORG: 'Organisation',
+		ADDRESS: 'Adresse',
 		EMAIL: 'E-Mail',
 		PHONE: 'Telefon',
-		DATUM: 'Datum',
-		CARD: 'Kreditkarte',
-		IBAN: 'IBAN',
-		BIC: 'BIC',
-		IP: 'IP',
 		URL: 'URL',
-		STEUERID: 'Steuer-ID',
-		SVNR: 'SV-Nummer',
-		ADDRESS: 'Adresse'
+		DATE: 'Datum',
+		ACCOUNT: 'Kontonummer',
+		SECRET: 'Geheimnis'
 	};
 
 	function sourceLabel(src: string): string {
