@@ -18,15 +18,10 @@ import logging
 import re
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple
 
-from presidio_analyzer import RecognizerResult
-from sqlalchemy.orm.attributes import flag_modified
-
-from beyond_the_loop.pii.service import PresidioService
+from beyond_the_loop.pii.service import PiiSpan, PrivacyFilterService
 from beyond_the_loop.prompts import PII_PLACEHOLDER_NOTE
 
 log = logging.getLogger(__name__)
-
-PII_SESSION_KEY = "pii_session"
 
 
 def pii_note_prefix(pii_active: bool) -> str:
@@ -45,25 +40,17 @@ def is_pii_filter_enabled(company_id) -> bool:
     value = get_config_value("privacy.pii_filter_enabled", company_id)
     return False if value is None else bool(value)
 
-# Map Presidio entity type → short placeholder label. Shorter is friendlier
-# for the LLM to preserve verbatim.
-_PLACEHOLDER_LABEL: Dict[str, str] = {
-    "PERSON": "PERSON",
-    "LOCATION": "LOCATION",
-    "ORGANIZATION": "ORG",
-    "EMAIL_ADDRESS": "EMAIL",
-    "PHONE_NUMBER": "PHONE",
-    "DATE_TIME": "DATUM",
-    "CREDIT_CARD": "CARD",
-    "IBAN_CODE": "IBAN",
-    "BIC_CODE": "BIC",
-    "IP_ADDRESS": "IP",
-    "URL": "URL",
-    "DE_STEUER_ID": "STEUERID",
-    "DE_SOZIALVERSICHERUNGSNUMMER": "SVNR",
-    "DE_ADDRESS": "ADDRESS",
-}
 
+_PLACEHOLDER_LABEL: Dict[str, str] = {
+    "private_person": "PERSON",
+    "private_address": "ADDRESS",
+    "private_email": "EMAIL",
+    "private_phone": "PHONE",
+    "private_url": "URL",
+    "private_date": "DATE",
+    "account_number": "ACCOUNT",
+    "secret": "SECRET",
+}
 
 class PIIStorage(Protocol):
     def load(self, chat_id: str) -> Optional[dict]: ...
@@ -71,42 +58,13 @@ class PIIStorage(Protocol):
 
 
 class DBPIIStorage:
-    """Persists session state in the chat row's `chat` JSON under `pii_session`.
-
-    Lives for the lifetime of the chat — no TTL. If the chat row does not
-    yet exist (first message before /chats/new), save is a no-op and the
-    next request reloads an empty mapping; the deanonymizer would then leave
-    placeholders in the response. In practice the frontend creates the chat
-    row before calling the chat completion endpoint, so this is a guard,
-    not a hot path.
-    """
-
     def load(self, chat_id: str) -> Optional[dict]:
-        from open_webui.internal.db import get_db
-        from beyond_the_loop.models.chats import Chat
-
-        with get_db() as db:
-            chat_item = db.get(Chat, chat_id)
-            if chat_item is None or not isinstance(chat_item.chat, dict):
-                return None
-            return chat_item.chat.get(PII_SESSION_KEY)
+        from beyond_the_loop.models.chats import Chats
+        return Chats.get_pii_session(chat_id)
 
     def save(self, chat_id: str, data: dict) -> None:
-        from open_webui.internal.db import get_db
-        from beyond_the_loop.models.chats import Chat
-
-        with get_db() as db:
-            chat_item = db.get(Chat, chat_id)
-            if chat_item is None:
-                log.warning(
-                    "[pii] cannot persist session: chat row %s not found", chat_id
-                )
-                return
-            if not isinstance(chat_item.chat, dict):
-                chat_item.chat = {}
-            chat_item.chat[PII_SESSION_KEY] = data
-            flag_modified(chat_item, "chat")
-            db.commit()
+        from beyond_the_loop.models.chats import Chats
+        Chats.save_pii_session(chat_id, data)
 
 
 class InMemoryPIIStorage:
@@ -137,11 +95,11 @@ class PIISession:
         self,
         chat_id: str,
         storage: Optional[PIIStorage] = None,
-        presidio: Optional[PresidioService] = None,
+        service: Optional[PrivacyFilterService] = None,
     ) -> None:
         self.chat_id = chat_id
         self.storage = storage if storage is not None else get_default_storage()
-        self.presidio = presidio if presidio is not None else PresidioService.instance()
+        self.service = service if service is not None else PrivacyFilterService.instance()
 
         data = self.storage.load(chat_id) or {}
         self.forward: Dict[str, str] = data.get("forward", {})
@@ -152,12 +110,12 @@ class PIISession:
         self.sources: Dict[str, Set[str]] = {
             k: set(v) for k, v in data.get("sources", {}).items()
         }
-        # Cache of `presidio.analyze` results keyed by raw text. Re-anonymizing
-        # the same prior-turn message on every send (anonymize_messages iterates
-        # the whole history) would otherwise rerun the transformer NER on text
-        # we've already analyzed — the dominant cost. Cache values are plain
-        # dicts so they round-trip through JSON storage; spans are rebuilt as
-        # RecognizerResult on read.
+        # Cache of analyze results keyed by raw text. Re-anonymizing the same
+        # prior-turn message on every send (anonymize_messages iterates the
+        # whole history) would otherwise rerun the transformer on text we've
+        # already analyzed — the dominant cost. Cache values are plain dicts
+        # so they round-trip through JSON storage; spans are rebuilt as
+        # PiiSpan on read.
         self.analyze_cache: Dict[str, List[Dict[str, Any]]] = data.get(
             "analyze_cache", {}
         )
@@ -193,7 +151,7 @@ class PIISession:
         entity. Defaults to "prompt" for backwards-compat with callers that
         haven't been updated.
 
-        - total_detected: spans Presidio kept after overlap resolution
+        - total_detected: spans detected by the model after overlap resolution
         - anonymized: spans actually replaced (i.e. not in `released`)
         - released_used: original strings that WERE skipped (subset of
           `released` that actually appeared in `text` as a detected entity).
@@ -267,11 +225,11 @@ class PIISession:
 
         return StreamingDeanonymizer(self.reverse)
 
-    def _analyze_cached(self, text: str) -> List[RecognizerResult]:
+    def _analyze_cached(self, text: str) -> List[PiiSpan]:
         cached = self.analyze_cache.get(text)
         if cached is not None:
             return [
-                RecognizerResult(
+                PiiSpan(
                     entity_type=s["entity_type"],
                     start=s["start"],
                     end=s["end"],
@@ -279,11 +237,7 @@ class PIISession:
                 )
                 for s in cached
             ]
-        spans = self.presidio.analyze(text)
-        # Coerce to plain Python types — RecognizerResult.score is numpy.float32
-        # under the transformer backend, which json.dumps refuses. A failed save
-        # here silently aborts the whole transaction, including the forward map,
-        # leaving placeholders un-deanonymized in the streamed response.
+        spans = self.service.analyze(text)
         self.analyze_cache[text] = [
             {
                 "entity_type": s.entity_type,
@@ -381,11 +335,9 @@ def anonymize_messages(
     partial / none) and report which user-released entities actually appeared.
 
     System messages are skipped: they're platform-controlled (default prompts,
-    assistant configs) and contain no user PII, but their formatting/capability
-    descriptions cause heavy false positives in the German spaCy NER (e.g.
-    "Blockquotes", "Bolding", "slides"). RAG and extracted document content
-    are anonymized via the dedicated hooks before they're ever merged into a
-    system message, so skipping system role here is safe.
+    assistant configs) and contain no user PII. RAG and extracted document
+    content are anonymized via the dedicated hooks before they're ever merged
+    into a system message, so skipping system role here is safe.
 
     Handles both string content and OpenAI-style multimodal content
     (list of parts); only text parts are touched, image parts pass through.

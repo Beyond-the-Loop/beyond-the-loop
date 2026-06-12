@@ -1,21 +1,11 @@
 """
-Tests for PIISession (in-memory storage, real PresidioService).
+Tests for PIISession (in-memory storage, real PrivacyFilterService).
 
 Run with:
     cd backend
     pytest beyond_the_loop/tests/test_pii_session.py -v
 """
 import pytest
-
-pytest.importorskip("presidio_analyzer")
-pytest.importorskip("spacy_huggingface_pipelines")
-spacy = pytest.importorskip("spacy")
-
-if not spacy.util.is_package("de_core_news_sm"):
-    pytest.skip(
-        "de_core_news_sm spaCy model not installed",
-        allow_module_level=True,
-    )
 
 from beyond_the_loop.pii.session import InMemoryPIIStorage, PIISession
 
