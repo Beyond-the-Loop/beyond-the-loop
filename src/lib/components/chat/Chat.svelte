@@ -19,6 +19,7 @@
 		chatId,
 		chats,
 		chatTitle,
+		pendingContinuationSeed,
 		companyConfig,
 		config,
 		currentChatPage,
@@ -50,7 +51,7 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
+	import { createNewChat, getAllTags, getChatById, getChatList, getContinuationCompression, getTagsById, updateChatById } from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
@@ -69,6 +70,7 @@
 	import Spinner from '../common/Spinner.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
+	import ChatBubbleOvalEllipsis from '../icons/ChatBubbleOvalEllipsis.svelte';
 	import DOMPurify from 'dompurify';
 	import type { Alert } from '$lib/types';
 
@@ -734,7 +736,11 @@
 	// Web functions
 	//////////////////////////
 
-	const initNewChat = async () => {
+	const initNewChat = async ({ keepContinuationSeed = false } = {}) => {
+		if (!keepContinuationSeed) {
+			pendingContinuationSeed.set(null);
+		}
+
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
 
 		await showControls.set(false);
@@ -799,8 +805,43 @@
 		setTimeout(() => chatInput?.focus(), 0);
 	};
 
+	let continuingInNewChat = false;
+
+	const continueInNewChat = async () => {
+		const sourceChatId = $chatId;
+		if (continuingInNewChat || !sourceChatId) {
+			return;
+		}
+
+		continuingInNewChat = true;
+
+		try {
+			const res = await getContinuationCompression(localStorage.token, sourceChatId);
+			if ($chatId !== sourceChatId) {
+				return;
+			}
+
+			if (typeof res?.compression?.summary !== 'string' || !res.compression.summary.trim()) {
+				toast.error($i18n.t('Could not carry over this chat context.'));
+				return;
+			}
+
+			pendingContinuationSeed.set({
+				compression: res.compression,
+				...(res.pii_session ? { pii_session: res.pii_session } : {})
+			});
+			toast.success($i18n.t('The context of this conversation will be carried into the new chat.'));
+			await initNewChat({ keepContinuationSeed: true });
+		} catch (e) {
+			toast.error(`${e}`);
+		} finally {
+			continuingInNewChat = false;
+		}
+	};
+
 	const loadChat = async () => {
 		chatId.set(chatIdProp);
+		pendingContinuationSeed.set(null);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
 			return;
@@ -1961,6 +2002,8 @@
 	const initChatHandler = async (history) => {
 		let _chatId = $chatId;
 
+		const continuationSeed = $pendingContinuationSeed;
+
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(localStorage.token, {
 				id: _chatId,
@@ -1971,8 +2014,14 @@
 				history: history,
 				messages: createMessagesList(history, history.currentId),
 				tags: [],
-				timestamp: Date.now()
+				timestamp: Date.now(),
+				...(continuationSeed?.compression ? { compression: continuationSeed.compression } : {}),
+				...(continuationSeed?.pii_session ? { pii_session: continuationSeed.pii_session } : {})
 			});
+
+			if (continuationSeed) {
+				pendingContinuationSeed.set(null);
+			}
 
 			_chatId = chat.id;
 			await chatId.set(_chatId);
@@ -1982,6 +2031,7 @@
 
 			window.history.replaceState(history.state, '', `/c/${_chatId}`);
 		} else {
+			pendingContinuationSeed.set(null);
 			_chatId = 'local';
 			await chatId.set('local');
 		}
@@ -2153,6 +2203,21 @@
 											<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
 										</button>
 									{/if}
+									{#if history?.currentId}
+										<button
+											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+											aria-label={$i18n.t('Continue in new chat')}
+											disabled={continuingInNewChat}
+											on:click={continueInNewChat}
+										>
+											{#if continuingInNewChat}
+												<Spinner className="size-3.5" />
+											{:else}
+												<ChatBubbleOvalEllipsis className="size-3.5" strokeWidth="1.5" />
+											{/if}
+											<span>{$i18n.t('Continue in new chat')}</span>
+										</button>
+									{/if}
 									<button
 										class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
 										on:click={() => showLibrary.set(!$showLibrary)}
@@ -2259,6 +2324,7 @@
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
 								piiAnonymizedCount={piiAnonymizedCount}
+								hideSuggestions={$pendingContinuationSeed !== null}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}

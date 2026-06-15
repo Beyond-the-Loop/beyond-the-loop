@@ -48,6 +48,8 @@ export const shortCodesToEmojis = writable(
 export const chatId = writable('');
 export const chatTitle = writable('');
 
+export const pendingContinuationSeed = writable<Record<string, any> | null>(null);
+
 export const channels = writable([]);
 export const chats = writable([]);
 export const pinnedChats = writable([]);

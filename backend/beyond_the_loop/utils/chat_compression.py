@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import litellm
 
@@ -151,6 +153,38 @@ async def _generate_summary(
 
 
 # ---------------------------------------------------------------------------
+# History extraction
+# ---------------------------------------------------------------------------
+
+
+def _extract_history_messages(chat: dict) -> list[dict]:
+    """Linearise a stored chat into an ordered [{role, content}] list: prefer the
+    flat "messages" list, else walk the history tree from currentId via parentId."""
+    flat = chat.get("messages")
+    if isinstance(flat, list) and flat:
+        return [
+            {"role": m.get("role"), "content": m.get("content", "")}
+            for m in flat
+            if isinstance(m, dict) and m.get("role")
+        ]
+
+    history = chat.get("history") or {}
+    messages = history.get("messages") or {}
+    node_id = history.get("currentId")
+
+    ordered: list[dict] = []
+    seen: set = set()
+    while node_id and node_id in messages and node_id not in seen:
+        seen.add(node_id)
+        msg = messages[node_id]
+        ordered.append({"role": msg.get("role"), "content": msg.get("content", "")})
+        node_id = msg.get("parentId")
+
+    ordered.reverse()
+    return [m for m in ordered if m.get("role")]
+
+
+# ---------------------------------------------------------------------------
 # Payload builder
 # ---------------------------------------------------------------------------
 
@@ -297,3 +331,47 @@ async def maybe_compress_chat(
     _save_compression_state(chat_id, compression)
 
     return form_data
+
+
+async def build_continuation_compression(
+    chat: dict,
+    agent_model: ModelModel,
+    chat_id: str | None = None,
+    pii_active: bool = False,
+    user=None,
+) -> dict | None:
+    """Seed payload for "Continue in new chat": reuse an existing summary, else
+    summarise the full history once on demand. None if there's nothing to carry."""
+    existing = chat.get("compression")
+    if isinstance(existing, dict) and existing.get("summary"):
+        return existing
+
+    messages = _extract_history_messages(chat)
+    if not messages:
+        return None
+
+    if pii_active and chat_id:
+        from beyond_the_loop.pii.session import PIISession, anonymize_messages
+
+        pii_session = PIISession(chat_id)
+        anonymize_messages(messages, pii_session)
+        pii_session.save()
+
+    # Summarised with the agent model (possibly smaller window), so drop oldest
+    # messages until within ~60% of its context to avoid overflow.
+    budget = int(_get_context_window(agent_model.name) * 0.6)
+    while len(messages) > 1 and _count_tokens(messages, agent_model.name) > budget:
+        messages.pop(0)
+
+    summary = await _generate_summary(
+        existing_summary=None,
+        messages_to_summarize=messages,
+        agent_model=agent_model,
+        pii_active=pii_active,
+        user=user,
+    )
+
+    if not summary or not summary.strip():
+        return None
+
+    return {"messages": [], "summary": summary}
