@@ -1087,13 +1087,14 @@ async def oauth_disconnect(server_id: str, user=Depends(get_verified_user)):
     )
 
     log.info(
-        f"[mcp-oauth] disconnect start server_id={server_id} "
-        f"template_slug={server.template_slug} "
-        f"has_access_token={bool(server.oauth_access_token_encrypted)} "
-        f"has_refresh_token={bool(server.oauth_refresh_token_encrypted)} "
-        f"has_revocation_endpoint={bool(server.oauth_revocation_endpoint)}"
-        f"registration_client_uri={server.oauth_registration_client_uri} "
-        f"revocation_endpoint={server.oauth_revocation_endpoint}"
+        "[mcp-oauth] disconnect start server_id=%s template_slug=%s "
+        "has_access_token=%s has_refresh_token=%s "
+        "has_revocation_endpoint=%s has_registration_client_uri=%s",
+        server_id, server.template_slug,
+        bool(server.oauth_access_token_encrypted),
+        bool(server.oauth_refresh_token_encrypted),
+        bool(server.oauth_revocation_endpoint),
+        bool(server.oauth_registration_client_uri),
     )
 
     def _try_decrypt(blob: Optional[str]) -> Optional[str]:
@@ -1160,9 +1161,11 @@ async def oauth_disconnect(server_id: str, user=Depends(get_verified_user)):
             log.info(f"[mcp-oauth] revoke crashed for {server_id}: {e}")
     else:
         log.info(
-            f"[mcp-oauth] revoke skipped for {server_id} "
-            f"(revocation_endpoint={server.oauth_revocation_endpoint}, "
-            f"has_refresh={bool(refresh_plain)})"
+            "[mcp-oauth] revoke skipped for %s "
+            "(has_revocation_endpoint=%s has_refresh=%s)",
+            server_id,
+            bool(server.oauth_revocation_endpoint),
+            bool(refresh_plain),
         )
 
     # Step 3: nuke the local row. Library-row delete is normally blocked by

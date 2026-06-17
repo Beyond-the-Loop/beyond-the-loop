@@ -165,11 +165,12 @@ async def discover_protected_resource(server_url: str) -> Optional[dict]:
             www_auth = resp.headers.get("www-authenticate") or ""
             m = _RESOURCE_METADATA_RE.search(www_auth)
             if m:
-                candidates.append(m.group(1))
-                log.info(
-                    "[mcp-oauth] PRM advertised via WWW-Authenticate: %s",
-                    candidates[0],
-                )
+                prm_url = m.group(1)
+                try:
+                    _assert_https_or_safe_http(prm_url)
+                    candidates.append(prm_url)
+                except OAuthError:
+                    pass
 
     # Path-2: construct well-known candidates at the server's origin.
     # RFC 8615 §3 says path-scoped well-known URIs are formed by inserting
@@ -508,10 +509,6 @@ async def revoke_token(
     # "unsupported_token_type" or "invalid_token" is also effectively a no-op
     # success for us — the token is either already invalid or the provider
     # doesn't support revoking that type.
-    log.info(
-        "[mcp-oauth] revoke attempt url=%s hint=%s status=%s body=%r",
-        revocation_endpoint, token_type_hint, resp.status_code, resp.text[:200],
-    )
     if resp.status_code in (200, 204):
         return True
     return False
@@ -577,13 +574,11 @@ async def delete_client_registration(
             try:
                 resp = await client.delete(registration_client_uri, headers=headers)
             except httpx.RequestError as e:
-                log.warning(
-                    "[mcp-oauth] DCR delete (%s) network error: %s", label, e
-                )
+                log.warning("[mcp-oauth] DCR delete network error: %s", e)
                 continue
             log.info(
-                "[mcp-oauth] DCR delete attempt url=%s auth=%s status=%s body=%r",
-                registration_client_uri, label, resp.status_code, resp.text[:200],
+                "[mcp-oauth] DCR delete attempt status=%s body=%r",
+                resp.status_code, resp.text[:200],
             )
             if 200 <= resp.status_code < 300:
                 return True

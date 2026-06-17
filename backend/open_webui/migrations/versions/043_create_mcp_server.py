@@ -21,8 +21,8 @@ Consolidated initial migration for the MCP feature. Creates the
 All operations use `IF NOT EXISTS` so re-running against a partially
 migrated dev DB is safe.
 
-Revision ID: 039
-Revises: 038
+Revision ID: 043
+Revises: 042
 Create Date: 2026-05-21 00:00:00.000000
 
 """
@@ -32,8 +32,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '039'
-down_revision: Union[str, None] = '038'
+revision: str = '043'
+down_revision: Union[str, None] = '042'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
