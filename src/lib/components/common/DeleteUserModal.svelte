@@ -2,6 +2,7 @@
 	import { getContext, createEventDispatcher } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Modal from './Modal.svelte';
+	import CloseIcon from '../icons/CloseIcon.svelte';
 	import {
 		getUserEntities,
 		transferUserEntities,
@@ -104,14 +105,20 @@
 	const hasEntities = () => models.length > 0 || prompts.length > 0 || knowledge.length > 0;
 </script>
 
-<Modal bind:show size="md" blockBackdropClick={deleting}>
-	<div class="flex flex-col gap-5 px-6 py-5 text-sm text-gray-800 dark:text-gray-200">
+<Modal bind:show size="md" blockBackdropClick={deleting}
+	overlayClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[7.44px]"
+	className="bg-lightGray-550 dark:bg-customGray-800 rounded-2xl"
+>
+	<div class="relative flex flex-col gap-5 px-6 pt-14 pb-5 text-sm text-gray-800 dark:text-gray-200">
+		<button class="absolute top-4 right-4 text-customGray-300" on:click={() => show = false}>
+			<CloseIcon />
+		</button>
 		<!-- Header -->
-		<div class="flex flex-col gap-1">
-			<h2 class="text-base font-semibold text-gray-900 dark:text-white">
+		<div class="flex flex-col gap-2.5">
+			<h2 class="text-base text-lightGray-100 dark:text-white text-center">
 				{$i18n.t('Delete user')}
 			</h2>
-			<p class="text-gray-500 dark:text-customGray-300 text-xs">
+			<p class="text-gray-500 dark:text-customGray-300 text-sm text-center">
 				{#if userName}
 					{$i18n.t('You are about to delete')}
 					<span class="font-semibold text-gray-800 dark:text-gray-100">{userName}</span>.
@@ -222,7 +229,7 @@
 				{/if}
 			</div>
 		{:else}
-			<p class="text-xs text-gray-500 dark:text-customGray-300">
+			<p class="text-sm text-gray-500 dark:text-customGray-300 text-center">
 				{$i18n.t('This user has no assistants, prompts, or knowledge bases.')}
 			</p>
 		{/if}

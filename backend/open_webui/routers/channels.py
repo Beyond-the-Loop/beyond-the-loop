@@ -22,6 +22,7 @@ from open_webui.env import SRC_LOG_LEVELS
 
 
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access, get_users_with_access
 from open_webui.utils.webhook import post_webhook
 
@@ -74,7 +75,7 @@ async def get_channel_by_id(id: str, user=Depends(get_verified_user)):
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -151,7 +152,7 @@ async def get_channel_messages(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -229,7 +230,7 @@ async def post_new_message(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -329,7 +330,7 @@ async def get_channel_message(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -378,7 +379,7 @@ async def get_channel_thread_messages(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -426,7 +427,7 @@ async def update_message_by_id(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -498,7 +499,7 @@ async def add_reaction_to_message(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -564,7 +565,7 @@ async def remove_reaction_by_id_and_user_id_and_name(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()
@@ -633,7 +634,7 @@ async def delete_message_by_id(
         )
 
     if user.role != "admin" and not has_access(
-        user.id, type="read", access_control=channel.access_control
+        user.id, Groups.get_groups_by_member_id(user.id), "read", channel.access_control
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.DEFAULT()

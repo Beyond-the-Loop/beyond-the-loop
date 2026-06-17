@@ -17,6 +17,15 @@ import re
 from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, \
     STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, STRIPE_PRODUCT_CACHE
 
+FLAT_RATE_PLANS = frozenset({"free", "premium", "unlimited"})
+
+
+def is_flat_rate_plan(plan: str | None) -> bool:
+    """True for plans that are not billed per credit. Use this instead of
+    hand-rolled ``plan in ("free", "premium")`` checks — those silently miss
+    "unlimited" (Kickstart) customers."""
+    return plan in FLAT_RATE_PLANS
+
 
 def _next_monthly_anchor_after(anchor_dt: datetime, after_dt: datetime) -> datetime:
     """Find the next datetime with anchor_dt's day-of-month and time-of-day
@@ -229,8 +238,10 @@ class PaymentsService:
                 if sub.get("status") in ("active", "trialing"):
                     stripe.Subscription.cancel(sub.get("id"))
 
-            STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE.pop(company_id, None)
-            STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE.pop(company_id, None)
+            if company_id in STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE:
+                del STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE[company_id]
+            if company_id in STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE:
+                del STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE[company_id]
 
         except Exception as e:
             log.error(f"Failed to cancel subscription for company {company_id}: {e}")
@@ -330,6 +341,7 @@ class PaymentsService:
                     'credits_remaining': company.credit_balance,
                     'flex_credits_remaining': company.flex_credit_balance,
                     'credits_per_month': plan.get("credits_per_month", 0),
+                    'custom_credit_amount': int(trial_subscription.get("metadata", {}).get("custom_credit_amount")) if trial_subscription.get("metadata", {}).get("custom_credit_amount") is not None else None,
                     'plan': plan_id,
                     'is_trial': True,
                     "seats": plan.get("seats", 0),

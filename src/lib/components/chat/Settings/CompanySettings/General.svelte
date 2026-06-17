@@ -3,7 +3,7 @@
 	import { onMount, getContext } from 'svelte';
 
 	import { user, config, settings, company, companyConfig } from '$lib/stores';
-	import { updateUserProfile, createAPIKey, getAPIKey, deleteUserProfile, updateCompanyConfig, getCompanyConfig, updateCompanyDetails } from '$lib/apis/auths';
+	import { updateUserProfile, createAPIKey, getAPIKey, deleteUserProfile, updateCompanyConfig, getCompanyConfig, updateCompanyDetails, deleteCompany } from '$lib/apis/auths';
 	import { getGravatarUrl } from '$lib/apis/utils';
 	import { generateInitialsImage, canvasPixelTest } from '$lib/utils';
 	import { copyToClipboard } from '$lib/utils';
@@ -43,6 +43,8 @@
 	let profileImageInputElement: HTMLInputElement;
 
 	let showDeleteConfirm = false;
+	let showDeleteCompanyConfirm = false;
+	let deleteCompanyConfirmation = '';
 
 	let userPermissions = {
 		websearch: false,
@@ -73,8 +75,18 @@
 		await deleteUserProfile(localStorage.token, userId);
 	}
 
+	const deleteCompanyHandler = async (event: CustomEvent<string>) => {
+		try {
+			await deleteCompany(localStorage.token, event.detail);
+			localStorage.removeItem('token');
+			window.location.href = '/login';
+		} catch (e) {
+			toast.error($i18n.t(typeof e === 'string' ? e : 'Failed to delete company'));
+		}
+	};
+
 	onMount(async () => {
-		companyName = $company?.name;
+		companyName = $company?.name ?? '';
 		profileImageUrl = $company?.profile_image_url;	
 		if($companyConfig?.config?.ui?.hide_model_logo_in_chat) {
 			hideModelLogo = $companyConfig?.config?.ui?.hide_model_logo_in_chat;
@@ -149,6 +161,20 @@
 		)}
 	</div>
 </DeleteConfirmDialog>
+
+<DeleteConfirmDialog
+	bind:show={showDeleteCompanyConfirm}
+	title={$i18n.t('Are you sure you want to delete your company?')}
+	message={$i18n.t('This will permanently delete your company and all associated users and data. This action cannot be undone.')}
+	additionalMessage={$i18n.t('Type the company name to confirm: {{name}}', { name: companyName })}
+	input
+	inputType="text"
+	inputPlaceholder={companyName}
+	bind:inputValue={deleteCompanyConfirmation}
+	on:confirm={deleteCompanyHandler}
+	confirmLabel={$i18n.t('Delete Company')}
+	destructive
+/>
 <div class="flex flex-col justify-between text-sm pt-5">
 	<div class=" ">
 		<input
@@ -486,7 +512,14 @@
 		</div>
 	</div>
 
-	<div class="flex justify-end pt-3 text-sm font-medium">
+	<div class="flex justify-between items-center pt-8 pb-8 text-sm font-medium">
+		<button
+			type="button"
+			class="text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg bg-lightGray-300 border-lightGray-400 text-red-500 font-medium hover:bg-lightGray-700 dark:bg-customGray-900 dark:hover:bg-customGray-950 dark:text-red-400 border dark:border-customGray-700 flex justify-center items-center"
+			on:click={() => { deleteCompanyConfirmation = ''; showDeleteCompanyConfirm = true; }}
+		>
+			{$i18n.t('Delete company')}
+		</button>
 		<button
 			class=" text-xs w-[168px] h-10 px-3 py-2 transition rounded-lg {loading
 				? ' cursor-not-allowed bg-lightGray-300 border-lightGray-400 text-lightGray-100 font-medium hover:bg-lightGray-700 dark:bg-customGray-950 dark:hover:bg-customGray-950 dark:text-white border dark:border-customGray-700'
@@ -502,27 +535,5 @@
 				</div>
 			{/if}
 		</button>
-	</div>
-	<div class="flex w-full justify-between items-center py-2.5 border-b border-lightGray-400 dark:border-customGray-700 mb-2">
-		<div class="flex w-full justify-between items-center">
-			<div class="text-xs text-lightGray-100 dark:text-customGray-300">{$i18n.t('Delete account')}</div>
-		</div>
-	</div>
-	<div class="flex justify-between items-start pt-3 pb-5">
-		<!-- <button type="button" class="flex items-center text-xs text-[#F65351]" on:click={() => {
-			showDeleteConfirm = true;
-		}}>
-			<DeleteIcon className="mr-1 size-4" />
-			{$i18n.t('Delete account')}
-		</button> -->
-		<a
-			href="https://thoreduecker.notion.site/208a1ab099c980c1905eeccd32ea53cd"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="underline">{$i18n.t('Contact us')}</a
-		>
-		<div class="shrink-0 w-[180px] md:w-[218px] dark:text-customGray-100/50 text-xs">
-			{$i18n.t('To delete your account, please contact us.')}
-		</div>
 	</div>
 </div>

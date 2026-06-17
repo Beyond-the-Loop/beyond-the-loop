@@ -11,7 +11,7 @@ from beyond_the_loop.models.groups import Groups
 from functools import partial
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, Text, ForeignKey
+from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.orm import relationship
 
 ####################
@@ -48,8 +48,11 @@ class User(Base):
     password_reset_token = Column(Text, nullable=True)
     password_reset_token_expires_at = Column(BigInteger, nullable=True)
 
-    company_id = Column(String, ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
-    company = relationship("Company", back_populates="users")
+    # No DB-level FK to company: historical "NEW" and "NO_COMPANY" sentinel
+    # values in company_id don't reference real company rows. User deletion
+    # on company delete is handled at the application layer via
+    # Users.delete_users_by_company_id (see migration 039).
+    company_id = Column(String, nullable=True)
 
     model_bookmarks = relationship(
         "Model",
@@ -415,16 +418,50 @@ class UsersTable:
 
     def delete_user_by_id(self, id: str) -> bool:
         try:
-            # Remove User from Groups
+            from beyond_the_loop.services.file_service import (
+                delete_user_external_artifacts,
+            )
+
+            delete_user_external_artifacts(id)
             Groups.remove_user_from_all_groups(id)
             with get_db() as db:
-                    # Delete User
-                    db.query(User).filter_by(id=id).delete()
-                    db.commit()
+                db.query(User).filter_by(id=id).delete()
+                db.commit()
 
             return True
         except Exception:
             return False
+
+    def delete_users_by_company_id(self, company_id: str) -> int:
+        """Delete every user belonging to a company.
+
+        Per user, runs the same pre-delete cleanup as the single-user path:
+        external artifacts (file blobs, vector collections) and group
+        memberships (the user_ids JSON arrays — no FK there). Then bulk-deletes
+        the user rows; dependent DB rows (chats, files, models, prompts, auth,
+        ...) cascade via the user→X constraints from migration 028. Returns
+        the number of deleted users.
+        """
+        from beyond_the_loop.services.file_service import (
+            delete_user_external_artifacts,
+        )
+
+        with get_db() as db:
+            user_ids = [
+                u_id
+                for (u_id,) in db.query(User.id)
+                .filter_by(company_id=company_id)
+                .all()
+            ]
+
+        for user_id in user_ids:
+            delete_user_external_artifacts(user_id)
+            Groups.remove_user_from_all_groups(user_id)
+
+        with get_db() as db:
+            count = db.query(User).filter_by(company_id=company_id).delete()
+            db.commit()
+            return count
 
     def delete_user_by_email(self, email: str) -> bool:
         """Delete a user by their email address.

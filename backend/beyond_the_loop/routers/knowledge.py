@@ -21,6 +21,7 @@ from open_webui.routers.retrieval import (
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access, has_permission
 
 
@@ -37,7 +38,7 @@ router = APIRouter()
 # getKnowledgeBases
 ############################
 
-def _validate_knowledge_write_access(knowledge: KnowledgeModel, user):
+def _validate_knowledge_write_access(knowledge: KnowledgeModel, user, user_groups):
     if not knowledge:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -49,13 +50,13 @@ def _validate_knowledge_write_access(knowledge: KnowledgeModel, user):
     if (is_free_user
             or user.role != "admin"
             and knowledge.user_id != user.id
-            and (not has_access(user.id, "write", knowledge.access_control) or not has_permission(user.id, "workspace.edit_knowledge"))):
+            and (not has_access(user.id, user_groups, "write", knowledge.access_control) or not has_permission(user.id, "workspace.edit_knowledge"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
 
-def validate_knowledge_read_access(knowledge: KnowledgeModel, user):
+def validate_knowledge_read_access(knowledge: KnowledgeModel, user, user_groups):
     if not knowledge:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,7 +68,7 @@ def validate_knowledge_read_access(knowledge: KnowledgeModel, user):
     if (is_free_user
             or user.role != "admin"
             and knowledge.user_id != user.id
-            and (not has_access(user.id, "read", knowledge.access_control) or not has_permission(user.id, "workspace.view_knowledge"))):
+            and (not has_access(user.id, user_groups, "read", knowledge.access_control) or not has_permission(user.id, "workspace.view_knowledge"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
@@ -175,7 +176,8 @@ class KnowledgeFilesResponse(KnowledgeResponse):
 async def get_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    validate_knowledge_read_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    validate_knowledge_read_access(knowledge, user, user_groups)
 
     file_ids = knowledge.data.get("file_ids", []) if knowledge.data else []
     files = Files.get_files_by_ids(file_ids)
@@ -199,7 +201,8 @@ async def update_knowledge_by_id(
 ):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     knowledge = Knowledges.update_knowledge_by_id(id=id, form_data=form_data)
 
@@ -236,7 +239,8 @@ def add_file_to_knowledge_by_id(
 ):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     file = Files.get_file_by_id(form_data.file_id)
 
@@ -303,7 +307,8 @@ def update_file_from_knowledge_by_id(
 ):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     file = Files.get_file_by_id(form_data.file_id)
 
@@ -355,7 +360,8 @@ def remove_file_from_knowledge_by_id(
 ):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     file = Files.get_file_by_id(form_data.file_id)
 
@@ -416,7 +422,8 @@ def remove_file_from_knowledge_by_id(
 async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     log.info(f"Deleting knowledge base: {id} (name: {knowledge.name})")
 
@@ -467,7 +474,8 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
 async def reset_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     try:
         VECTOR_DB_CLIENT.delete_collection(collection_name=id)
@@ -497,7 +505,8 @@ def add_files_to_knowledge_batch(
     """
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
-    _validate_knowledge_write_access(knowledge, user)
+    user_groups = Groups.get_groups_by_member_id(user.id)
+    _validate_knowledge_write_access(knowledge, user, user_groups)
 
     # Get files content
     log.debug(f"files/batch/add - {len(form_data)} files")

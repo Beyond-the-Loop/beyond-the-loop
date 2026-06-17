@@ -1150,3 +1150,22 @@ export const updateCompanyConfig = async (
 
 	return res;
 }
+
+export const deleteCompany = async (token: string, confirmation: string) => {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/companies`, {
+		method: 'DELETE',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		},
+		credentials: 'include',
+		body: JSON.stringify({ confirmation })
+	});
+
+	if (!res.ok) {
+		const error = await res.json();
+		throw error.detail ?? 'Failed to delete company';
+	}
+
+	return res.json();
+};

@@ -2110,6 +2110,36 @@ async def process_chat_response(
                     )
 
                 raise
+            except Exception as e:
+                # Catches unhandled errors during streaming (e.g. asyncio.TimeoutError from
+                # aiohttp when OpenAI's code interpreter exceeds AIOHTTP_CLIENT_TIMEOUT).
+                # Without this, the background task dies silently and the frontend is left
+                # showing "Writing code" / spinner forever because no done event is emitted.
+                log.exception(f"Unhandled error in streaming response: {e}")
+
+                await event_emitter(
+                    {
+                        "type": "chat:completion",
+                        "data": {
+                            "done": True,
+                            "content": serialize_content_blocks(content_blocks),
+                            "error": {"content": str(e)},
+                        },
+                    }
+                )
+
+                if not ENABLE_REALTIME_CHAT_SAVE:
+                    message = {
+                        "content": serialize_content_blocks(content_blocks),
+                        "error": {"content": str(e)},
+                    }
+                    if sources:
+                        message["sources"] = sources
+                    Chats.upsert_message_to_chat_by_id_and_message_id(
+                        metadata["chat_id"],
+                        metadata["message_id"],
+                        message
+                    )
 
             if response.background is not None:
                 await response.background()

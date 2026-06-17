@@ -13,6 +13,7 @@ from beyond_the_loop.services.email_service import EmailService
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG, LITELLM_MODEL_MAP
 
 from beyond_the_loop.routers.payments import get_subscription
+from beyond_the_loop.services.payments_service import is_flat_rate_plan
 
 PROFIT_MARGIN_FACTOR = 1.25
 EUR_PER_DOLLAR = 0.9
@@ -29,15 +30,23 @@ class CreditService:
     async def _subtract_credits_by_user_and_credits(self, user, credit_cost: float):
         """
         Subtract credits from a company's balance and handle low balance scenarios.
-        
+
+        Callers must pre-filter: this function assumes the user is on a credit-based
+        plan. Flat-rate plans (free / premium / unlimited) must never reach here,
+        otherwise the 80% warning email fires against a 0-balance and the balance
+        is driven negative. Gating happens at:
+          - audio.py (internal TTS/STT) — is_flat_rate_plan wrapper around the call
+          - litellm.py (web-UI chat) — record_completion's flat_rate branch
+          - public_api.py — check_public_api_access rejects free/premium, and
+            callers wrap or pass subscription= so unlimited skips the call too
+
         Args:
             user: The user making the request
             credit_cost: The number of credits to subtract
-            
+
         Returns:
             Total credit cost
         """
-
         # Get current balance
         current_base_credit_balance = Companies.get_base_credit_balance(user.company_id)
         current_credit_balance = self.get_credit_balance(user.company_id)
@@ -104,6 +113,13 @@ class CreditService:
     async def subtract_credits_by_user_for_stt(self, user, response):
         litellm_model = LITELLM_MODEL_MAP.get("STT", "")
 
+        # Why: LiteLLM's pricing table keys on the official model name. Our Azure
+        # deployment alias ("azure/whisper") isn't a recognized key — without an
+        # override, completion_cost throws "model isn't mapped yet" and STT
+        # silently bills $0. base_model points the price lookup at the known
+        # entry while keeping the original alias for routing.
+        base_model = "azure/whisper-1" if litellm_model == "azure/whisper" else litellm_model
+
         try:
             from litellm.types.utils import TranscriptionResponse
             duration_seconds = response.get("duration", 0)
@@ -112,6 +128,7 @@ class CreditService:
 
             cost_usd = litellm.completion_cost(
                 model=litellm_model,
+                base_model=base_model,
                 call_type="transcription",
                 completion_response=transcription_response,
             )
@@ -158,6 +175,26 @@ class CreditService:
         return Companies.get_credit_balance(company_id)
 
     @staticmethod
+    async def check_public_api_access(user):
+        """Gate for sk-... key endpoints under /api/openai. Reject plans that
+        are flat-rate AND scope-limited (free, premium): they don't pay per
+        credit, so giving them unmetered API access would bypass billing.
+        "unlimited" (Kickstart) is also flat-rate but is full-access by contract
+        and is allowed through. Everything else (credit-based plans) goes
+        through the standard balance/seat/subscription check.
+
+        Returns the subscription dict so callers can branch on the plan (e.g.
+        skip the credit-subtract call for flat-rate plans that came through)."""
+        subscription = get_subscription(user)
+        if subscription.get("plan") in {"free", "premium"}:
+            raise HTTPException(
+                status_code=402,
+                detail="API access requires a credit-based subscription plan.",
+            )
+        await CreditService.check_for_subscription_and_sufficient_balance_and_seats(user)
+        return subscription
+
+    @staticmethod
     async def check_for_subscription_and_sufficient_balance_and_seats(user):
         # First check if the user has an active subscription in Stripe
         company = Companies.get_company_by_id(user.company_id)
@@ -165,7 +202,7 @@ class CreditService:
         # Get the active subscription to check seat limits
         subscription_details = get_subscription(user)
 
-        if not company.subscription_not_required and not subscription_details.get("plan") == "free" and not subscription_details.get("plan") == "premium":
+        if not is_flat_rate_plan(subscription_details.get("plan")):
             # Get current seat count and limit
             seats_limit = subscription_details.get("seats", 0)
             seats_taken = subscription_details.get("seats_taken", 0)
@@ -227,9 +264,9 @@ class CreditService:
         """
         from beyond_the_loop.models.completions import Completions
 
-        is_flat_rate_plan = subscription is not None and subscription.get("plan") in ("free", "premium", "unlimited")
+        flat_rate = subscription is not None and is_flat_rate_plan(subscription.get("plan"))
 
-        if agent_or_task_prompt or is_flat_rate_plan:
+        if agent_or_task_prompt or flat_rate:
             credit_cost = self._compute_credit_cost(response)
         else:
             credit_cost = await self.subtract_credit_cost_by_user_and_response(user, response)

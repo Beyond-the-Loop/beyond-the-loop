@@ -15,7 +15,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.executors.pool import ThreadPoolExecutor
 
 from beyond_the_loop.services.chat_archival_service import chat_archival_service
-from beyond_the_loop.services.file_archival_service import file_archival_service
+from beyond_the_loop.services.file_service import file_service
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
@@ -172,7 +172,7 @@ class TaskScheduler:
         log.info("Starting scheduled file cleanup process")
         
         try:
-            result = file_archival_service.run_daily_file_cleanup()
+            result = file_service.run_daily_file_cleanup()
             
             if result["success"]:
                 log.info(f"File cleanup completed successfully: "
@@ -305,7 +305,7 @@ class TaskScheduler:
         log.info("Manually triggering file cleanup process")
         
         try:
-            result = file_archival_service.run_daily_file_cleanup()
+            result = file_service.run_daily_file_cleanup()
             log.info(f"Manual file cleanup completed: {result}")
             return result
         except Exception as e:

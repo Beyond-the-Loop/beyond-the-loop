@@ -10,7 +10,6 @@
 	import { blobToFile, compressImage } from '$lib/utils';
 
 	import Tooltip from '../common/Tooltip.svelte';
-	import RichTextInput from '../common/RichTextInput.svelte';
 	import VoiceRecording from '../chat/MessageInput/VoiceRecording.svelte';
 	import InputMenu from './MessageInput/InputMenu.svelte';
 	import { uploadFile } from '$lib/apis/files';
@@ -457,21 +456,17 @@
 							<div
 								class="scrollbar-hidden font-primary text-left bg-transparent dark:text-gray-100 outline-none w-full pt-3 px-1 rounded-xl resize-none h-fit max-h-80 overflow-auto"
 							>
-								<RichTextInput
-									bind:value={content}
+								<textarea
 									id={`chat-input-${id}`}
-									messageInput={true}
-									shiftEnter={!$mobile ||
-										!(
-											'ontouchstart' in window ||
-											navigator.maxTouchPoints > 0 ||
-											navigator.msMaxTouchPoints > 0
-										)}
+									class="scrollbar-hidden bg-transparent dark:text-gray-100 outline-none w-full resize-none"
+									bind:value={content}
 									{placeholder}
-									largeTextAsFile={$settings?.largeTextAsFile ?? false}
+									rows="1"
+									on:input={(e) => {
+										e.target.style.height = '';
+										e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+									}}
 									on:keydown={async (e) => {
-										e = e.detail.event;
-										const isCtrlPressed = e.ctrlKey || e.metaKey; // metaKey is for Cmd key on Mac
 										if (
 											!$mobile ||
 											!(
@@ -480,25 +475,13 @@
 												navigator.msMaxTouchPoints > 0
 											)
 										) {
-											// Prevent Enter key from creating a new line
-											// Uses keyCode '13' for Enter key for chinese/japanese keyboards
 											if (e.keyCode === 13 && !e.shiftKey) {
 												e.preventDefault();
-											}
-
-											// Submit the content when Enter key is pressed
-											if (content !== '' && e.keyCode === 13 && !e.shiftKey) {
-												submitHandler();
+												if (content !== '') {
+													submitHandler();
+												}
 											}
 										}
-
-										if (e.key === 'Escape') {
-											console.log('Escape');
-										}
-									}}
-									on:paste={async (e) => {
-										e = e.detail.event;
-										console.log(e);
 									}}
 								/>
 							</div>

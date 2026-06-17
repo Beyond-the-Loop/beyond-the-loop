@@ -336,7 +336,8 @@
 	$: orderMap = new Map(desiredOrder.map((name, index) => [name, index]));
 
 	function isTemperatureUnsupportedModel(model) {
-  		return /^(GPT\s*o|GPT-?5)/i.test(model?.name ?? '');
+		const name = model?.name ?? '';
+		return /^(GPT\s*o|GPT-?5)/i.test(name) || name === 'Smart Router';
 	}
 </script>
 

@@ -1307,11 +1307,6 @@
 			// Response not done
 			return;
 		}
-		if (messages.length != 0 && messages.at(-1).error) {
-			// Error in response
-			toast.error($i18n.t(`Oops! There was an error in the previous response.`));
-			return;
-		}
 		if (
 			files.length > 0 &&
 			files.filter((file) => file.type !== 'image' && file.status === 'uploading').length > 0
@@ -1779,6 +1774,8 @@
 		} else if ('message' in innerError) {
 			toast.error(innerError.message);
 			errorMessage = innerError.message;
+		} else if ('content' in innerError) {
+			errorMessage = innerError.content;
 		}
 
 		responseMessage.error = {
@@ -2181,21 +2178,13 @@
 									on:submit={async (e) => {
 										if (e.detail) {
 											await tick();
-											submitPrompt(
-												($settings?.richTextInput ?? true)
-													? e.detail.replaceAll('\n\n', '\n')
-													: e.detail
-											);
+											submitPrompt(e.detail);
 										}
 									}}
 									on:magicPrompt={async (e) => {
 										if (e.detail) {
 											await tick();
-											submitMagicPrompt(
-												($settings?.richTextInput ?? true)
-													? e.detail.replaceAll('\n\n', '\n')
-													: e.detail
-											);
+											submitMagicPrompt(e.detail);
 										}
 									}}
 								/>
@@ -2248,21 +2237,13 @@
 								on:submit={async (e) => {
 									if (e.detail) {
 										await tick();
-										submitPrompt(
-											($settings?.richTextInput ?? true)
-												? e.detail.replaceAll('\n\n', '\n')
-												: e.detail
-										);
+										submitPrompt(e.detail);
 									}
 								}}
 								on:magicPrompt={async (e) => {
 									if (e.detail) {
 										await tick();
-										submitMagicPrompt(
-											($settings?.richTextInput ?? true)
-												? e.detail.replaceAll('\n\n', '\n')
-												: e.detail
-										);
+										submitMagicPrompt(e.detail);
 									}
 								}}
 							/>
