@@ -2206,21 +2206,13 @@
 									on:submit={async (e) => {
 										if (e.detail) {
 											await tick();
-											submitPrompt(
-												($settings?.richTextInput ?? true)
-													? e.detail.replaceAll('\n\n', '\n')
-													: e.detail
-											);
+											submitPrompt(e.detail);
 										}
 									}}
 									on:magicPrompt={async (e) => {
 										if (e.detail) {
 											await tick();
-											submitMagicPrompt(
-												($settings?.richTextInput ?? true)
-													? e.detail.replaceAll('\n\n', '\n')
-													: e.detail
-											);
+											submitMagicPrompt(e.detail);
 										}
 									}}
 								/>
@@ -2273,21 +2265,13 @@
 								on:submit={async (e) => {
 									if (e.detail) {
 										await tick();
-										submitPrompt(
-											($settings?.richTextInput ?? true)
-												? e.detail.replaceAll('\n\n', '\n')
-												: e.detail
-										);
+										submitPrompt(e.detail);
 									}
 								}}
 								on:magicPrompt={async (e) => {
 									if (e.detail) {
 										await tick();
-										submitMagicPrompt(
-											($settings?.richTextInput ?? true)
-												? e.detail.replaceAll('\n\n', '\n')
-												: e.detail
-										);
+										submitMagicPrompt(e.detail);
 									}
 								}}
 							/>
