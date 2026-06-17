@@ -12,6 +12,7 @@ from sqlalchemy import BigInteger, String, Text, JSON, Boolean, Column, Table, F
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, delete, insert
 
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access
 
 ####################
@@ -184,15 +185,16 @@ class PromptsTable:
         """Returns PromptModel list without user data (avoids N+1 user queries)."""
         with get_db() as db:
             prompt_rows = db.query(Prompt).order_by(Prompt.timestamp.desc()).all()
-            return [
-                PromptModel.model_validate(prompt)
-                for prompt in prompt_rows
-                if (
-                    prompt.user_id == user_id
-                    or prompt.prebuilt
-                    or (prompt.company_id == company_id and has_access(user_id, permission, prompt.access_control))
-                )
-            ]
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        return [
+            PromptModel.model_validate(prompt)
+            for prompt in prompt_rows
+            if (
+                prompt.user_id == user_id
+                or prompt.prebuilt
+                or (prompt.company_id == company_id and has_access(user_id, user_groups, permission, prompt.access_control))
+            )
+        ]
 
     def get_prompt_list_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read"
@@ -206,19 +208,20 @@ class PromptsTable:
 
             prompt_rows = db.query(Prompt).order_by(Prompt.timestamp.desc()).all()
 
-            filtered_prompts = []
-            for prompt in prompt_rows:
-                if (
-                    prompt.user_id == user_id
-                    or prompt.prebuilt
-                    or (prompt.company_id == company_id and has_access(user_id, permission, prompt.access_control))
-                ):
-                    prompt_model = PromptModel.model_validate(prompt)
-                    prompt_dict = prompt_model.model_dump()
-                    prompt_dict["bookmarked_by_user"] = prompt.command in bookmarked_commands
-                    filtered_prompts.append(PromptUserResponse(**prompt_dict))
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        filtered_prompts = []
+        for prompt in prompt_rows:
+            if (
+                prompt.user_id == user_id
+                or prompt.prebuilt
+                or (prompt.company_id == company_id and has_access(user_id, user_groups, permission, prompt.access_control))
+            ):
+                prompt_model = PromptModel.model_validate(prompt)
+                prompt_dict = prompt_model.model_dump()
+                prompt_dict["bookmarked_by_user"] = prompt.command in bookmarked_commands
+                filtered_prompts.append(PromptUserResponse(**prompt_dict))
 
-            return filtered_prompts
+        return filtered_prompts
 
 
     def update_prompt_by_command_and_company(

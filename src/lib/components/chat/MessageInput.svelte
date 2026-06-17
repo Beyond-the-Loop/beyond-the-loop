@@ -241,8 +241,13 @@
 					return;
 				}
 
+				// Drop `data` (contains the full extracted file content) before persisting in chat state — the
+				// backend re-extracts content from the file record on demand, so keeping it here would bloat
+				// the chat row in the DB and every chat load by megabytes per attached file.
+				const { data: _omitFileData, ...fileWithoutData } = uploadedFile;
+
 				fileItem.status = 'uploaded';
-				fileItem.file = uploadedFile;
+				fileItem.file = fileWithoutData;
 				fileItem.id = uploadedFile.id;
 				fileItem.collection_name =
 					uploadedFile?.meta?.collection_name || uploadedFile?.collection_name;
@@ -261,7 +266,7 @@
 	const SUPPORTED_FILE_EXTENSIONS = new Set([
 		'c', 'cpp', 'css', 'csv', 'doc', 'docx', 'gif', 'go', 'html', 'java',
 		'jpeg', 'jpg', 'js', 'json', 'md', 'pdf', 'php', 'pkl', 'png', 'pptx',
-		'py', 'rb', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml'
+		'py', 'rb', 'sql', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml'
 	]);
 
 	const SUPPORTED_AUDIO_TYPES = new Set([

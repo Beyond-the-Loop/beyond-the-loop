@@ -166,7 +166,8 @@ async def chat_file_intent_decision_handler(
                 }
             ],
             response_model=FileIntentDecision,
-            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
+            user=user,
         )
         intent = result.intent
         log.debug(f"File intent decision: {intent}")
@@ -396,6 +397,7 @@ async def _smart_router_model_selection(
             messages=[{"role": "user", "content": prompt}],
             response_model=SmartRouterDecision,
             model=agent_model,
+            user=user,
         )
 
         target_score = max(1.0, min(5.0, decision.intelligence_score))
@@ -574,6 +576,20 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             if is_pii_filter_enabled(user.company_id) and client_pii_enabled:
                 pii_session = PIISession(chat_id)
+                # Surface the anonymization step in the UI — the work can
+                # take a few seconds on long histories / many RAG chunks
+                # under MAX_CONCURRENT_ANALYZES=1, and an unannotated spinner
+                # in that window feels broken.
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "anonymizing",
+                            "description": "Anonymizing personal data",
+                            "done": False,
+                        },
+                    }
+                )
                 try:
                     pii_total_detected, pii_anonymized, ru = anonymize_messages(
                         form_data["messages"], pii_session,
@@ -593,6 +609,19 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 filtered_user_content = get_last_user_message(form_data["messages"])
                 form_data["messages"].insert(
                     0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                )
+                # Empty description + done=true clears the status — the next
+                # real step (smart router / RAG / generating_response) will
+                # take over the status slot when it kicks in.
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "anonymizing",
+                            "description": "",
+                            "done": True,
+                        },
+                    }
                 )
         except PIIRedactionError:
             # Bubble up — the chat endpoint maps this to a 4xx for the client.
@@ -626,6 +655,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 chat_id=chat_id,
                 event_emitter=event_emitter,
                 pii_active=pii_session is not None,
+                user=user,
             )
     except Exception as e:
         log.exception(f"[chat_compression] failed, continuing without compression: {e}")
@@ -830,7 +860,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 }
             ],
             response_model=KnowledgeUseDecision,
-            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
+            model=Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id),
+            user=user,
         )
         use_model_knowledge_or_files = knowledge_result.needs_knowledge == "YES"
 
@@ -1954,6 +1985,14 @@ async def process_chat_response(
 
                 await stream_body_handler(response)
 
+                for block in content_blocks:
+                    if block.get("type") == "text" and "sandbox:/mnt/data/" in block.get("content", ""):
+                        block["content"] = re.sub(
+                            r'\(sandbox:/mnt/data/([^)]+)\)',
+                            r'(unavailable://\1)',
+                            block["content"]
+                        )
+
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
                 data = {
@@ -2023,6 +2062,36 @@ async def process_chat_response(
                     )
 
                 raise
+            except Exception as e:
+                # Catches unhandled errors during streaming (e.g. asyncio.TimeoutError from
+                # aiohttp when OpenAI's code interpreter exceeds AIOHTTP_CLIENT_TIMEOUT).
+                # Without this, the background task dies silently and the frontend is left
+                # showing "Writing code" / spinner forever because no done event is emitted.
+                log.exception(f"Unhandled error in streaming response: {e}")
+
+                await event_emitter(
+                    {
+                        "type": "chat:completion",
+                        "data": {
+                            "done": True,
+                            "content": serialize_content_blocks(content_blocks),
+                            "error": {"content": str(e)},
+                        },
+                    }
+                )
+
+                if not ENABLE_REALTIME_CHAT_SAVE:
+                    message = {
+                        "content": serialize_content_blocks(content_blocks),
+                        "error": {"content": str(e)},
+                    }
+                    if sources:
+                        message["sources"] = sources
+                    Chats.upsert_message_to_chat_by_id_and_message_id(
+                        metadata["chat_id"],
+                        metadata["message_id"],
+                        message
+                    )
 
             if response.background is not None:
                 await response.background()

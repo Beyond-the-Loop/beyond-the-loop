@@ -4,12 +4,12 @@ import random
 import uuid
 from typing import Optional
 
+from beyond_the_loop.models.files import Files
 from beyond_the_loop.services.file_service import delete_file_fully
 from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
-from beyond_the_loop.models.files import Files
 from beyond_the_loop.models.groups import Groups, GroupForm
-from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.models.companies import Companies, NO_COMPANY
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.prompts import Prompts
@@ -25,7 +25,9 @@ from beyond_the_loop.models.users import (
 )
 
 
-from beyond_the_loop.socket.main import get_active_status_by_user_id, COMPANY_CONFIG_CACHE, STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE
+from beyond_the_loop.socket.main import get_active_status_by_user_id, STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, \
+    STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, COMPANY_CONFIG_CACHE
+from beyond_the_loop.routers.companies import dissolve_company
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -33,6 +35,7 @@ from pydantic import BaseModel
 from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
 from open_webui.utils.misc import validate_email_format, is_business_email
 from beyond_the_loop.services.email_service import EmailService
+from beyond_the_loop.services.payments_service import is_flat_rate_plan
 from beyond_the_loop.utils.access_control import DEFAULT_USER_PERMISSIONS
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.services.loops_service import loops_service
@@ -60,7 +63,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
 
         subscription_details = get_subscription(user)
 
-        if not company.subscription_not_required and not subscription_details.get("plan") == "free" and not subscription_details.get("plan") == "premium":
+        if not is_flat_rate_plan(subscription_details.get("plan")):
             # Get subscription details
             subscription_details = get_subscription(user)
 
@@ -104,7 +107,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
             # Check if user already exists
             existing_user = Users.get_user_by_email(email)
 
-            if existing_user and not existing_user.company_id == NEW_INDICATOR and not existing_user.company_id == user.company_id:
+            if existing_user and existing_user.company_id not in (NEW_INDICATOR, NO_COMPANY) and not existing_user.company_id == user.company_id:
                 validation_errors.append({"reason": f"{email} is already associated with another company."})
                 
         # If any validation errors, throw exception with details
@@ -678,28 +681,18 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
                 log.warning(f"Failed to clear {name} for company {company_id}: {e}")
     # ------------------------------------------------------------------
     # Last-user check: if this is the only user left in the company,
-    # cancel the Stripe subscription and delete the entire company
-    # (PG cascades handle user + all dependent rows).
+    # dissolve the whole company instead of leaving the user as an orphan.
     # ------------------------------------------------------------------
     total_users = Users.count_users_by_company_id(company_id)
 
     if total_users == 1:
-        _cleanup_files()
-        payments_service.cancel_company_subscription(company_id)
-        _clear_company_caches()
-
-        if not Companies.delete_company_by_id(company_id):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=ERROR_MESSAGES.DELETE_USER_ERROR,
-            )
-
+        dissolve_company(company_id)
         return True
 
     # ------------------------------------------------------------------
     # Last-admin check: if this is the only admin left, promote a random
     # non-pending user. If ALL remaining users are pending there is nobody
-    # to promote — treat it as "last active user" and delete the company.
+    # to promote — treat it as "last active user" and dissolve the company.
     # ------------------------------------------------------------------
     if target_user.role == "admin":
         admin_users = Users.get_admin_users_by_company(company_id)
@@ -721,17 +714,14 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
                     f"{user_id} was deleted in company {company_id}"
                 )
             else:
-                # Only pending invites remain — no one can ever log in.
-                # Delete the company (cascades through everything).
-                _cleanup_files()
-                payments_service.cancel_company_subscription(company_id)
-                _clear_company_caches()
-                if not Companies.delete_company_by_id(company_id):
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=ERROR_MESSAGES.DELETE_USER_ERROR,
-                    )
+                dissolve_company(company_id)
                 return True
+
+    if not Users.delete_user_by_id(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DELETE_USER_ERROR,
+        )
 
     # Clean up files (DB row + RAG + GCS) BEFORE deleting the user, so that
     # delete_file_fully can find DB rows. Otherwise CASCADE would remove them
@@ -743,11 +733,6 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
     if success:
         payments_service.update_premium_seat_count(company_id)
         return True
-
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=ERROR_MESSAGES.DELETE_USER_ERROR,
-    )
 
 
 ############################

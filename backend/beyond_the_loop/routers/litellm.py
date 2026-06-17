@@ -40,6 +40,7 @@ from open_webui.utils.payload import (
 )
 
 from open_webui.utils.auth import get_verified_user, get_current_api_key_user
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
@@ -384,7 +385,7 @@ async def generate_chat_completion(
     # Check model access
     if not agent_or_task_prompt and not(
         model.is_active and (user.id == model.user_id or (not model.base_model_id and user.role == "admin") or has_access(
-            user.id, type="read", access_control=model.access_control
+            user.id, Groups.get_groups_by_member_id(user.id), "read", model.access_control
         ))
     ):
         raise HTTPException(
@@ -712,7 +713,6 @@ async def generate_chat_completion(
                                             assistant=model.name if model.base_model_id else None,
                                             agent_or_task_prompt=agent_or_task_prompt,
                                             subscription=subscription,
-                                            should_subtract_credits=has_chat_id,
                                         )
                                         if annotations:
                                             replaced_content = accumulated_content
@@ -786,7 +786,6 @@ async def generate_chat_completion(
                                     assistant=model.name if model.base_model_id else None,
                                     agent_or_task_prompt=agent_or_task_prompt,
                                     subscription=subscription,
-                                    should_subtract_credits=has_chat_id,
                                 )
                         except json.JSONDecodeError:
                             log.debug(f"JSON decode error for chunk: {chunk_str}")
@@ -840,7 +839,6 @@ async def generate_chat_completion(
                 assistant=model.name if model.base_model_id else None,
                 agent_or_task_prompt=agent_or_task_prompt,
                 subscription=subscription,
-                should_subtract_credits=has_chat_id,
             )
 
             return response, model

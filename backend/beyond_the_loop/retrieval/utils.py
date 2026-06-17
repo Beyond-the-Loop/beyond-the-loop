@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Union
 
+from litellm import BadRequestError
 from openai import AzureOpenAI
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -37,10 +38,25 @@ def generate_openai_batch_embeddings(
     model: str,
     texts: list[str],
 ) -> Optional[list[list[float]]]:
+    if not texts:
+        return []
     try:
         client = AzureOpenAI(api_version="2023-05-15")
         response = client.embeddings.create(input=texts, model=model)
         return [response.data[i].embedding for i in range(len(texts))]
+    except BadRequestError as e:
+        # OpenAI caps each embeddings request at 300k tokens total. If we hit
+        # that with a multi-text batch, split and retry — a single chunk is
+        # always small enough on its own, so the recursion converges.
+        if len(texts) > 1 and "maximum request size" in str(e):
+            mid = len(texts) // 2
+            first = generate_openai_batch_embeddings(model, texts[:mid])
+            second = generate_openai_batch_embeddings(model, texts[mid:])
+            if first is None or second is None:
+                return None
+            return first + second
+        log.exception(e)
+        return None
     except Exception as e:
         log.exception(e)
         return None

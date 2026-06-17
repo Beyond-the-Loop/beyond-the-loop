@@ -135,7 +135,7 @@
 	let detectedPIIEntities: PIISpan[] = [];
 	let piiAbortController: AbortController | null = null;
 	let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	const PII_DEBOUNCE_MS = 350;
+	const PII_DEBOUNCE_MS = 800;
 	const PII_MIN_CHARS = 3;
 
 	// Drives sidebar + privacy button visibility. The disable-toggle UI in
@@ -672,9 +672,14 @@
 				throw new Error('Server returned null response for file upload');
 			}
 
+			// Drop `data` (contains the full extracted file content) before persisting in chat state — the
+			// backend re-extracts content from the file record on demand, so keeping it here would bloat
+			// the chat row in the DB and every chat load by megabytes per attached file.
+			const { data: _omitFileData, ...fileWithoutData } = uploadedFile;
+
 			// Update file item with upload results
 			fileItem.status = 'uploaded';
-			fileItem.file = uploadedFile;
+			fileItem.file = fileWithoutData;
 			fileItem.id = uploadedFile.id;
 			fileItem.size = file.size;
 			fileItem.collection_name = uploadedFile?.meta?.collection_name;
@@ -1274,11 +1279,6 @@
 			// Response not done
 			return;
 		}
-		if (messages.length != 0 && messages.at(-1).error) {
-			// Error in response
-			toast.error($i18n.t(`Oops! There was an error in the previous response.`));
-			return;
-		}
 		if (
 			files.length > 0 &&
 			files.filter((file) => file.type !== 'image' && file.status === 'uploading').length > 0
@@ -1759,6 +1759,8 @@
 		} else if ('message' in innerError) {
 			toast.error(innerError.message);
 			errorMessage = innerError.message;
+		} else if ('content' in innerError) {
+			errorMessage = innerError.content;
 		}
 
 		responseMessage.error = {

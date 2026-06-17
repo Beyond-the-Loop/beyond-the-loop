@@ -18,6 +18,7 @@
 
 	export let cancelLabel = $i18n.t('Cancel');
 	export let confirmLabel = $i18n.t('Confirm');
+	export let destructive = false;
 
 	export let onConfirm = () => {};
 
@@ -102,7 +103,7 @@
 			</button>
 
 			<div class="px-10 pt-14 pb-6 py-6 flex flex-col text-center">
-				<div class=" text-base text-lightGray-100 dark:text-white mb-2.5 text-center">
+				<div class="text-base text-lightGray-100 dark:text-white mb-2.5 text-center">
 					{#if title !== ''}
 						{title}
 					{:else}
@@ -149,9 +150,9 @@
 					</div>
 				</slot>
 
-				<div class="mt-6 flex justify-end gap-7 font-medium">
+				<div class="mt-6 flex justify-end gap-2 font-medium">
 					<button
-						class="text-lightGray-100 w-fit text-xs dark:text-customGray-200 py-2.5 rounded-lg transition"
+						class="{destructive ? 'px-4 py-2 border border-lightGray-400 dark:border-customGray-700 bg-white dark:bg-customGray-900 hover:bg-lightGray-300 dark:hover:bg-customGray-950 text-gray-700 dark:text-customGray-200' : 'w-fit py-2.5 text-lightGray-100 dark:text-customGray-200'} text-xs rounded-lg transition"
 						on:click={() => {
 							show = false;
 							dispatch('cancel');
@@ -161,7 +162,7 @@
 						{cancelLabel}
 					</button>
 					<button
-						class="bg-lightGray-300 border-lighGray-400 hover:bg-lightGray-700 text-lightGray-100 text-xs dark:bg-customGray-900 border dark:border-customGray-700 dark:hover:bg-customGray-950 dark:text-customGray-200 w-1/2 py-2.5 rounded-lg transition"
+						class="{destructive ? 'px-4 py-2 bg-red-500 hover:bg-red-600 text-white' : 'bg-lightGray-300 border-lighGray-400 hover:bg-lightGray-700 text-lightGray-100 dark:bg-customGray-900 border dark:border-customGray-700 dark:hover:bg-customGray-950 dark:text-customGray-200 min-w-36 px-6 py-2.5'} text-xs rounded-lg transition"
 						on:click={() => {
 							confirmHandler();
 						}}

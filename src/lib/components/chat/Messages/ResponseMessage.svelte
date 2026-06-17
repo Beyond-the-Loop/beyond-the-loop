@@ -563,7 +563,7 @@
 					class="chat-{message.role} w-full min-w-full markdown-prose"
 				>
 					<div>
-						{#if !message.done}
+						{#if !message.done && !message.error}
 								<div class="status-description flex items-center gap-2 mb-1">
 									{#if !message.content}
 										<div class="py-1">

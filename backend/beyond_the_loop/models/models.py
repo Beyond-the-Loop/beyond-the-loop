@@ -5,6 +5,7 @@ from typing import Optional
 from open_webui.internal.db import Base, JSONField, get_db
 from open_webui.env import SRC_LOG_LEVELS
 
+from beyond_the_loop.config import LITELLM_MODEL_CONFIG
 from beyond_the_loop.models.users import UserResponse, Users
 from beyond_the_loop.models.prompts import Prompt
 from beyond_the_loop.models.files import Files
@@ -17,6 +18,7 @@ from sqlalchemy import select, delete, insert
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import JSONB
 
+from beyond_the_loop.models.groups import Groups
 from beyond_the_loop.utils.access_control import has_access
 
 
@@ -202,49 +204,28 @@ class ModelsTable:
 
     def get_all_models_by_company(self, company_id: str) -> list[ModelModel]:
         with get_db() as db:
-            return [ModelModel.model_validate(model) for model in db.query(Model).filter(or_(Model.company_id == company_id, Model.company_id == "system")).all()]
-
-    def get_assistants(self) -> list[ModelUserResponse]:
-        with get_db() as db:
-            model_rows = db.query(Model).filter(
-                Model.base_model_id != None
-            ).all()
-
-            # Batch-fetch all users in one query instead of N+1 individual queries
-            user_ids = list({m.user_id for m in model_rows if m.user_id != "system"})
-            users_map = {u.id: u for u in Users.get_users_by_user_ids(user_ids)} if user_ids else {}
-
-            models = []
-            for model in model_rows:
-                user = users_map.get(model.user_id) if model.user_id != "system" else None
-                models.append(
-                    ModelUserResponse.model_validate(
-                        {
-                            **ModelModel.model_validate(model).model_dump(),
-                            "user": user.model_dump() if user else None,
-                        }
-                    )
-                )
-            return models
+            return [ModelModel.model_validate(model) for model in db.query(Model).filter(Model.company_id == company_id).all()]
 
     def get_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id).all()
 
-            return [
-                ModelModel.model_validate(model)
-                for model in models
-                if has_access(user_id, "read", model.access_control) or role == "admin"
-            ]
-    
-    def get_active_base_models_by_comany_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        return [
+            ModelModel.model_validate(model)
+            for model in models
+            if has_access(user_id, user_groups, "read", model.access_control) or role == "admin"
+        ]
+
+    def get_active_base_models_by_company_and_user(self, company_id: str, user_id: str, role: str) -> list[ModelModel]:
         with get_db() as db:
             models = db.query(Model).filter(Model.base_model_id == None, Model.company_id == company_id, Model.is_active).all()
-            return [
-                ModelModel.model_validate(model)
-                for model in models
-                if has_access(user_id, "read", model.access_control) or role == "admin"
-            ]
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        return [
+            ModelModel.model_validate(model)
+            for model in models
+            if has_access(user_id, user_groups, "read", model.access_control) or role == "admin"
+        ]
 
     def get_assistants_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read", is_kickstart_customer = False
@@ -255,12 +236,29 @@ class ModelsTable:
             )
             bookmarked_model_ids = {row.model_id for row in result.fetchall()}
 
-        assistants = self.get_assistants()
+        
+        models = self.get_all_models_by_company(company_id)
+        assistants = [model for model in models if model.base_model_id]
 
-        # Pre-fetch all company models by name to resolve system model base_model IDs in one query
-        company_models_by_name = {m.name: m.id for m in self.get_all_models_by_company(company_id)}
 
-        filtered_models = []
+        # Batch-fetch all users in one query instead of N+1 individual queries
+        user_ids = list({m.user_id for m in assistants if m.user_id != "system"})
+        users_map = {u.id: u for u in Users.get_users_by_user_ids(user_ids)} if user_ids else {}
+
+        models_user_responses = []
+        for assistant in assistants:
+            user = users_map.get(assistant.user_id) if assistant.user_id != "system" else None
+            models_user_responses.append(
+                ModelUserResponse.model_validate(
+                    {
+                        **ModelModel.model_validate(assistant).model_dump(),
+                        "user": user.model_dump() if user else None,
+                    }
+                )
+            )
+
+        user_groups = Groups.get_groups_by_member_id(user_id)
+        filtered_assistants = []
 
         allowed_kickstart_models = {
             "Scout, der KI-Einsatz-Berater",
@@ -268,28 +266,28 @@ class ModelsTable:
             "Tom, der Rechercheassistent"
         }
 
-        for model in assistants:
+        for assistant in models_user_responses:
             if (
-                model.user_id == user_id
-                or (model.company_id == company_id and has_access(user_id, permission, model.access_control) 
-                    and (model.meta.is_kickstart_assistant is None or is_kickstart_customer or model.name in allowed_kickstart_models))
+                assistant.user_id == user_id
+                or has_access(user_id, user_groups, permission, assistant.access_control)
+                    and (assistant.meta.is_kickstart_assistant is None or is_kickstart_customer or assistant.name in allowed_kickstart_models)
             ):
                 # Resolve system model base_model_id from name to actual ID using the pre-fetched map
-                if model.user_id == "system":
-                    resolved_id = company_models_by_name.get(model.base_model_id)
+                if assistant.user_id == "system":
+                    resolved_id = {m.name: m.id for m in models}.get(assistant.base_model_id)
                     if resolved_id:
-                        model.base_model_id = resolved_id
+                        assistant.base_model_id = resolved_id
 
-                model_dict = model.model_dump()
-                model_dict["bookmarked_by_user"] = model.id in bookmarked_model_ids
-                filtered_models.append(ModelUserResponse(**model_dict))
+                model_dict = assistant.model_dump()
+                model_dict["bookmarked_by_user"] = assistant.id in bookmarked_model_ids
+                filtered_assistants.append(ModelUserResponse(**model_dict))
 
-        filtered_models.sort(
+        filtered_assistants.sort(
             key=lambda m: (m.bookmarked_by_user, m.created_at),
             reverse=True
         )
 
-        return filtered_models
+        return filtered_assistants
 
     def get_assistants_lite_by_user_and_company(
         self, user_id: str, company_id: str, permission: str = "read", is_kickstart_customer = False
@@ -493,3 +491,39 @@ class ModelsTable:
 
 
 Models = ModelsTable()
+
+
+PERPLEXITY_ALLOWED_COMPANY_IDS = (
+    "c57c8e55-67b5-4dc6-87cc-cbe3e4b201e4",
+    "995d24a9-fc30-43b3-b88b-e8650586d938",
+)
+PERPLEXITY_MODELS = (
+    "Perplexity Sonar Pro",
+    "Perplexity Sonar Deep Research",
+    "Perplexity Sonar Reasoning Pro",
+)
+
+
+def filter_base_models_by_plan(base_models, plan: str | None, company_id: str):
+    # Why: mirrors the access logic in main.py:get_active_models so the public API
+    # exposes the same set of base models that the regular chat path can call.
+    if plan not in ("free", "premium"):
+        return base_models
+
+    allowed_premium = {
+        name for name, cfg in LITELLM_MODEL_CONFIG.items()
+        if cfg.get("allowed_messages_per_three_hours_premium")
+    }
+    base_models = [m for m in base_models if m.name in allowed_premium]
+
+    if plan == "free":
+        allowed_free = {
+            name for name, cfg in LITELLM_MODEL_CONFIG.items()
+            if cfg.get("allowed_messages_per_three_hours_free")
+        }
+        base_models = [m for m in base_models if m.name in allowed_free]
+
+    if company_id not in PERPLEXITY_ALLOWED_COMPANY_IDS:
+        base_models = [m for m in base_models if m.name not in PERPLEXITY_MODELS]
+
+    return base_models

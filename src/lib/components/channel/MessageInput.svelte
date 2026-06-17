@@ -167,8 +167,13 @@
 					toast.warning(uploadedFile.error);
 				}
 
+				// Drop `data` (contains the full extracted file content) before persisting — the backend
+				// re-extracts content from the file record on demand, so keeping it here would bloat
+				// every channel message by megabytes per attached file.
+				const { data: _omitFileData, ...fileWithoutData } = uploadedFile;
+
 				fileItem.status = 'uploaded';
-				fileItem.file = uploadedFile;
+				fileItem.file = fileWithoutData;
 				fileItem.id = uploadedFile.id;
 				fileItem.collection_name =
 					uploadedFile?.meta?.collection_name || uploadedFile?.collection_name;

@@ -14,7 +14,7 @@ from fastapi import (
     HTTPException,
     Request,
     status,
-    applications, UploadFile,
+    applications,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -82,7 +82,6 @@ from beyond_the_loop.config import (
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.alert import Alerts
 from beyond_the_loop.models.completions import Completions
-from beyond_the_loop.models.files import Files
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG
 from beyond_the_loop.models.models import Models, ModelMeta, ModelParams, ModelResponse
 from beyond_the_loop.models.users import Users
@@ -99,8 +98,8 @@ from beyond_the_loop.routers import litellm, audio
 from beyond_the_loop.routers import payments
 from beyond_the_loop.routers import pii as pii_router
 from beyond_the_loop.routers import prompts
+from beyond_the_loop.routers import public_api
 from beyond_the_loop.routers import users
-from beyond_the_loop.routers.files import upload_file
 from beyond_the_loop.routers.litellm import generate_chat_completion as chat_completion_handler
 from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 from beyond_the_loop.services.credit_service import credit_service
@@ -110,7 +109,6 @@ from beyond_the_loop.socket.main import (
     app as socket_app,
 )
 from beyond_the_loop.utils.oauth import oauth_manager
-from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
     SAFE_MODE,
@@ -420,6 +418,7 @@ app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
 app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
 app.include_router(pii_router.router, prefix="/api/v1/pii", tags=["pii"])
+app.include_router(public_api.router, prefix="/api/openai", tags=["public-api"])
 
 
 ##################################
@@ -435,7 +434,7 @@ async def get_active_models(user=Depends(get_verified_user)):
 
     assistants = Models.get_assistants_by_user_and_company(user.id, user.company_id, is_kickstart_customer=is_kickstart_customer)
 
-    active_base_models = Models.get_active_base_models_by_comany_and_user(user.company_id, user.id, user.role)
+    active_base_models = Models.get_active_base_models_by_company_and_user(user.company_id, user.id, user.role)
     # Copy: SMART_ROUTER_MODEL is a module-level singleton and the free-plan
     # branch below mutates `is_active` on the elements of this list.
     active_base_models.append(SMART_ROUTER_MODEL.model_copy())
@@ -493,10 +492,10 @@ async def get_active_models(user=Depends(get_verified_user)):
 
 _DISPLAY_METADATA_FIELDS = {
     'context_window', 'category', 'costFactor', 'description', 'hosted_in',
-    'intelligence_score', 'knowledge_cutoff', 'multimodal', 'organization',
-    'reasoning', 'research', 'speed', 'tokens_per_second', 'zdr',
+    'intelligence_score', 'knowledge_cutoff', 'organization',
+    'reasoning', 'speed', 'tokens_per_second',
     'supports_web_search', 'supports_code_execution', 'supports_image_generation',
-    'supports_document_input', 'supports_image_input'
+    'supports_image_input'
 }
 
 
@@ -532,101 +531,6 @@ async def get_base_models(user=Depends(get_admin_user)):
     base_models = [SMART_ROUTER_MODEL] + list(base_models)
 
     return {"data": base_models}
-
-
-# Public API
-@app.post("/api/openai/chat/completions")
-async def chat_completion_openai(request: dict, user=Depends(get_current_api_key_user)):
-    await credit_service.check_for_subscription_and_sufficient_balance_and_seats(user)
-
-    request['stream'] = False
-
-    # Handle optional file
-    if request.get('metadata', {}).get('file_id'):
-        file = Files.get_file_by_id(request['metadata']['file_id'])
-        if file:
-            messages = request.get('messages', [])
-            last_user_message = [m for m in messages if m["role"] == "user"][-1] if messages else None
-            if last_user_message:
-                last_user_message['content'] = last_user_message.get('content', "") + file.data.get('content', "")
-        else:
-            raise HTTPException(status_code=404, detail="File not found")
-
-    async with aiohttp.ClientSession(
-            trust_env=True,
-            timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
-    ) as session:
-        async with session.post(
-                f"{os.getenv('OPENAI_API_BASE_URL')}/chat/completions",
-                json=request,
-                headers={
-                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-                    "Content-Type": "application/json"
-                }
-        ) as upstream:
-            try:
-                upstream.raise_for_status()  # Will raise if HTTP status >= 400
-                response = await upstream.json()  # Parse JSON only if status is OK
-            except aiohttp.ClientResponseError as exception:
-                # Handle HTTP errors from OpenAI API
-                detail = await upstream.text()  # Optional: include raw response text
-                raise HTTPException(
-                    status_code=exception.status,
-                    detail=f"Upstream API error: {detail}"
-                )
-            except Exception as ex:
-                # Handle JSON parsing errors or unexpected errors
-                raise HTTPException(status_code=500, detail=str(ex))
-
-            # Try to deduct credits and record completion
-            try:
-                await credit_service.record_completion(user, response, request.get("model"))
-            except Exception as err:
-                log.error("Error in chat completions public endpoint LiteLLM credit service: %s", err)
-
-            return response
-
-
-# Public API
-@app.post("/api/openai/files")
-async def upload_file_openai(
-        request: Request,
-        user=Depends(get_current_api_key_user),
-):
-    """
-    OpenAI-compatible wrapper around the existing `upload_file` function.
-    """
-    try:
-        # Extract file from multipart/form-data
-        form = await request.form()
-        file: UploadFile = form.get("file")
-
-        if not file:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No file provided."
-            )
-
-        # Call your existing internal upload_file function
-        file_item = upload_file(file=file, user=user)
-
-        # Adapt response to OpenAI style
-        return JSONResponse(
-            content={
-                "id": file_item.id,
-                "object": "file",
-                "filename": file_item.filename,
-                "bytes": file_item.meta.get("size"),
-                "status": "processed" if not getattr(file_item, "error", None) else "error",
-                "error": getattr(file_item, "error", None),
-                "created_at": file_item.created_at if hasattr(file_item, "created_at") else None,
-            }
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File upload failed." + str(exc)
-        )
 
 
 @app.post("/api/chat/completions")

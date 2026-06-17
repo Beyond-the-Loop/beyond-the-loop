@@ -22,6 +22,13 @@ import re
 import threading
 from typing import Iterable, List, Optional
 
+# Cap torch intra-op threads to 1. By default a single analyze() forward
+# grabs one OpenMP worker per physical core, so N concurrent requests scale
+# CPU as N×cores and saturate the box. Pinned at 1, per-call cost is
+# predictable and concurrency can be bounded separately.
+import torch
+torch.set_num_threads(1)
+
 # Drop transformers' INFO logs ("Device set to use cpu" etc.) but keep WARNING+.
 import transformers
 transformers.logging.set_verbosity_warning()
@@ -46,6 +53,13 @@ LANGUAGE = "de"
 # `sm` is sufficient and ~30x smaller than `lg`.
 SPACY_MODEL = "de_core_news_sm"
 NER_MODEL = "Davlan/xlm-roberta-base-ner-hrl"
+
+# Per-process concurrency cap. Combined with torch.set_num_threads(1) above,
+# this gives a hard ceiling of MAX_CONCURRENT_ANALYZES cores ever used for
+# PII work, regardless of how many requests pile up. Waiters block on the
+# semaphore in their anyio worker thread (no CPU spent waiting), FIFO.
+MAX_CONCURRENT_ANALYZES = 1
+_ANALYZE_SEM = threading.BoundedSemaphore(MAX_CONCURRENT_ANALYZES)
 
 # DATE_TIME and BIC_CODE are scoped through custom recognizers rather than
 # Presidio's broad default.
@@ -165,24 +179,25 @@ class PresidioService:
         if not text or not text.strip():
             return []
         ents = list(entities) if entities is not None else SUPPORTED_ENTITIES
-        base = self.analyzer.analyze(text=text, entities=ents, language=LANGUAGE)
+        with _ANALYZE_SEM:
+            base = self.analyzer.analyze(text=text, entities=ents, language=LANGUAGE)
 
-        # Cased NER barely fires on all-lowercase text ("anna", "hamburg").
-        # Re-run NER on a title-cased copy and merge in PERSON/LOCATION hits
-        # the original pass missed. str.title() preserves character offsets
-        # 1:1, so spans from the second pass map straight back onto `text`.
-        # Restricted to all-lowercase input to avoid false positives in
-        # mixed-case text where the title-cased version turns ordinary words
-        # ("ist", "in") into name-like tokens.
-        if any(c.isalpha() for c in text) and not any(c.isupper() for c in text):
-            ner_only = [e for e in ("PERSON", "LOCATION", "ORGANIZATION") if e in ents]
-            if ner_only:
-                extra = self.analyzer.analyze(
-                    text=text.title(),
-                    entities=ner_only,
-                    language=LANGUAGE,
-                )
-                base.extend(extra)
+            # Cased NER barely fires on all-lowercase text ("anna", "hamburg").
+            # Re-run NER on a title-cased copy and merge in PERSON/LOCATION hits
+            # the original pass missed. str.title() preserves character offsets
+            # 1:1, so spans from the second pass map straight back onto `text`.
+            # Restricted to all-lowercase input to avoid false positives in
+            # mixed-case text where the title-cased version turns ordinary words
+            # ("ist", "in") into name-like tokens.
+            if any(c.isalpha() for c in text) and not any(c.isupper() for c in text):
+                ner_only = [e for e in ("PERSON", "LOCATION", "ORGANIZATION") if e in ents]
+                if ner_only:
+                    extra = self.analyzer.analyze(
+                        text=text.title(),
+                        entities=ner_only,
+                        language=LANGUAGE,
+                    )
+                    base.extend(extra)
 
         # Transformer NER occasionally produces spans whose source slice is
         # whitespace-only (subword tokenizer alignment artifacts). Drop them

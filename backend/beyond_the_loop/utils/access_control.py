@@ -57,32 +57,30 @@ def get_permissions(
     def combine_permissions(
         permissions: Dict[str, Any], group_permissions: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Combine permissions from multiple groups by taking the most permissive value."""
+        """Combine permissions from multiple groups using OR logic: any group that grants a
+        permission wins, regardless of other groups that deny it."""
         for key, value in group_permissions.items():
             if isinstance(value, dict):
                 if key not in permissions:
                     permissions[key] = {}
                 permissions[key] = combine_permissions(permissions[key], value)
             else:
-                if key not in permissions:
-                    permissions[key] = value
-                else:
-                    # Use group permission value if defined, otherwise use regular permission value
-                    permissions[key] = value if value is not None else permissions[key]
+                if value is not None:
+                    # OR logic: True from any group wins over False from other groups
+                    permissions[key] = permissions.get(key) or value
 
         return permissions
 
     user_groups = Groups.get_groups_by_member_id(user_id)
 
-    # Deep copy default permissions to avoid modifying the original dict
-    permissions = json.loads(json.dumps(DEFAULT_USER_PERMISSIONS))
+    # Start empty — group permissions are OR'd together; defaults fill any unset keys at the end
+    permissions: Dict[str, Any] = {}
 
-    # Combine permissions from all user groups
+    # Combine permissions from all user groups.
+    # A group with NULL permissions is treated as granting all defaults (no restrictions).
     for group in user_groups:
-        group_permissions = group.permissions
-
-        if group_permissions:
-            permissions = combine_permissions(permissions, group_permissions)
+        effective = group.permissions if group.permissions else DEFAULT_USER_PERMISSIONS
+        permissions = combine_permissions(permissions, effective)
 
     # assistants_only is a restriction: if ANY group has it enabled, enforce it
     if any(
@@ -134,13 +132,13 @@ def has_permission(
 
 def has_access(
     user_id: str,
+    user_groups,
     type: str = "write",
     access_control: Optional[dict] = None,
 ) -> bool:
     if access_control is None:
         return type == "read"
 
-    user_groups = Groups.get_groups_by_member_id(user_id)
     user_group_ids = [group.id for group in user_groups]
     permission_access = access_control.get(type, {})
     permitted_group_ids = permission_access.get("group_ids", [])

@@ -20,6 +20,7 @@ import { concise_prompt } from '$lib/utils/default_prompts/concise';
 import { formal_prompt } from '$lib/utils/default_prompts/formal';
 import { explaining_prompt } from '$lib/utils/default_prompts/explaining';
 import { default_prompt } from '$lib/utils/default_prompts/default';
+import { image_generation_prompt } from '$lib/utils/default_prompts/image_generation';
 import { get } from 'svelte/store';
 import { modelsInfo } from '$lib/stores';
 //////////////////////////
@@ -1032,7 +1033,13 @@ export const promptTemplate = (
 	// Get the user's language
 	const userLanguage = localStorage.getItem('locale') || 'en-US';
 
-	let template = templates[instruction.promptStyle];
+	const currentModelsInfo = get(modelsInfo);
+	const isImageGenerationModel =
+		!!modelName && currentModelsInfo[modelName]?.supports_image_generation === true;
+
+	let template = isImageGenerationModel
+		? image_generation_prompt
+		: templates[instruction.promptStyle];
 
 	// Replace {{CURRENT_DATE}} in the template with the formatted date
 	template = template.replace('{{CURRENT_DATE}}', currentWeekday + ' ' + formattedDate);
@@ -1048,7 +1055,6 @@ export const promptTemplate = (
 		template = template.replace('{{ORGANIZATION}}', "Beyond the Loop");
 	}else
 	{
-		const currentModelsInfo = get(modelsInfo);
 		template = template.replace('{{ORGANIZATION}}', currentModelsInfo[modelName ?? '']?.organization ?? '');
 	}
 

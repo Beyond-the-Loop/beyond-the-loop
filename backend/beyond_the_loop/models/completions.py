@@ -25,7 +25,6 @@ class Completion(Base):
     created_at = Column(BigInteger, nullable=False)
     assistant = Column(Text)
     from_agent = Column(Boolean, nullable=False, default=False)
-    is_image_generation = Column(Boolean, nullable=False, default=False)
 
 class CompletionModel(BaseModel):
     id: str
@@ -35,13 +34,12 @@ class CompletionModel(BaseModel):
     created_at: int  # timestamp in epoch
     assistant: Optional[str]
     from_agent: Optional[bool]
-    is_image_generation: Optional[bool]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent, is_image_generation: bool = False) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent) -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
@@ -51,7 +49,6 @@ class CompletionTable:
                 "credits_used": credits_used,
                 "assistant": assistant,
                 "from_agent": from_agent,
-                "is_image_generation": is_image_generation,
             }
         )
 
