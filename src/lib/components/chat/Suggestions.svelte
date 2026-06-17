@@ -42,9 +42,13 @@
 	}
 
 	const getFilteredPrompts = (inputValue) => {
-		const newFilteredPrompts = inputValue.trim()
-			? fuse.search(inputValue.trim()).map((result) => result.item)
-			: sortedPrompts;
+		const tooLong = inputValue.length > 100; 
+		const trimmed = tooLong ? '' : inputValue.trim();
+		const newFilteredPrompts = trimmed
+			? fuse.search(trimmed).map((result) => result.item)
+			: tooLong
+				? []
+				: sortedPrompts;
 
 		// Compare with the oldFilteredPrompts
 		// If there's a difference, update array + version
