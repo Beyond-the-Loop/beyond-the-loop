@@ -212,7 +212,6 @@ def _parse_jsonrpc_response(resp: httpx.Response) -> dict:
 
 
 def _normalize_and_allowlist_mcp_url(url: str) -> str:
-    """Allow outbound MCP calls only to known connector endpoint origins."""
     parsed = urlparse(url)
     if parsed.scheme not in {"https", "http"}:
         raise HTTPException(
@@ -224,23 +223,6 @@ def _normalize_and_allowlist_mcp_url(url: str) -> str:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid MCP URL host.",
-        )
-
-    requested_origin = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
-
-    allowed_origins: set[str] = set()
-    for template in CONNECTOR_CATALOG:
-        base_url = getattr(template, "url", None)
-        if not base_url:
-            continue
-        t_parsed = urlparse(base_url)
-        if t_parsed.scheme in {"https", "http"} and t_parsed.netloc:
-            allowed_origins.add(f"{t_parsed.scheme}://{t_parsed.netloc}".rstrip("/"))
-
-    if requested_origin not in allowed_origins:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="MCP URL is not in the list of allowed connector endpoints.",
         )
 
     return url
