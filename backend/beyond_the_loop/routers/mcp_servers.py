@@ -1091,8 +1091,7 @@ async def oauth_disconnect(server_id: str, user=Depends(get_verified_user)):
         f"template_slug={server.template_slug} "
         f"has_access_token={bool(server.oauth_access_token_encrypted)} "
         f"has_refresh_token={bool(server.oauth_refresh_token_encrypted)} "
-        f"has_registration_client_uri={bool(server.oauth_registration_client_uri)} "
-        f"has_registration_access_token={bool(server.oauth_registration_access_token_encrypted)} "
+        f"has_revocation_endpoint={bool(server.oauth_revocation_endpoint)}"
         f"registration_client_uri={server.oauth_registration_client_uri} "
         f"revocation_endpoint={server.oauth_revocation_endpoint}"
     )
