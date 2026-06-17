@@ -31,10 +31,8 @@
 	import AddFilesPlaceholder from '$lib/components/AddFilesPlaceholder.svelte';
 
 	import AddContentMenu from './KnowledgeBase/AddContentMenu.svelte';
-	import AddTextContentModal from './KnowledgeBase/AddTextContentModal.svelte';
 
 	import SyncConfirmDialog from '../../common/ConfirmDialog.svelte';
-	import RichTextInput from '$lib/components/common/RichTextInput.svelte';
 	import EllipsisVertical from '$lib/components/icons/EllipsisVertical.svelte';
 	import Drawer from '$lib/components/common/Drawer.svelte';
 	import ChevronLeft from '$lib/components/icons/ChevronLeft.svelte';
@@ -61,7 +59,6 @@
 	let knowledge: Knowledge | null = null;
 	let query = '';
 
-	let showAddTextContentModal = false;
 	let showSyncConfirmModal = false;
 	let showAccessControlModal = false;
 
@@ -101,14 +98,6 @@
 	let debounceTimeout = null;
 	let mediaQuery;
 	let dragged = false;
-
-	const createFileFromText = (name, content) => {
-		const blob = new Blob([content], { type: 'text/plain' });
-		const file = blobToFile(blob, `${name}.txt`);
-
-		console.log(file);
-		return file;
-	};
 
 	const uploadFileHandler = async (file) => {
 		console.log(file);
@@ -580,14 +569,6 @@
 	}}
 />
 
-<AddTextContentModal
-	bind:show={showAddTextContentModal}
-	on:submit={(e) => {
-		const file = createFileFromText(e.detail.name, e.detail.content);
-		uploadFileHandler(file);
-	}}
-/>
-
 <input
 	id="files-input"
 	bind:files={inputFiles}
@@ -715,11 +696,10 @@
 								class=" flex-1 w-full h-full max-h-full text-sm bg-transparent outline-none overflow-y-auto scrollbar-hidden"
 							>
 								{#key selectedFile.id}
-									<RichTextInput
-										className="input-prose-sm"
+									<textarea
+										class="w-full h-full text-sm bg-transparent outline-none resize-none scrollbar-hidden"
 										bind:value={selectedFile.data.content}
 										placeholder={$i18n.t('Add content here')}
-										preserveBreaks={true}
 									/>
 								{/key}
 							</div>
@@ -773,11 +753,10 @@
 								class=" flex-1 w-full h-full max-h-full py-2.5 px-3.5 rounded-lg text-sm bg-transparent overflow-y-auto scrollbar-hidden"
 							>
 								{#key selectedFile.id}
-									<RichTextInput
-										className="input-prose-sm"
+									<textarea
+										class="w-full h-full text-sm bg-transparent outline-none resize-none scrollbar-hidden"
 										bind:value={selectedFile.data.content}
 										placeholder={$i18n.t('Add content here')}
-										preserveBreaks={true}
 									/>
 								{/key}
 							</div>
@@ -828,8 +807,6 @@
 										on:upload={(e) => {
 											if (e.detail.type === 'directory') {
 												uploadDirectoryHandler();
-											} else if (e.detail.type === 'text') {
-												showAddTextContentModal = true;
 											} else {
 												document.getElementById('files-input').click();
 											}
