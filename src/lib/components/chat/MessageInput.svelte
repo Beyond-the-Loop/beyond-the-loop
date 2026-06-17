@@ -264,7 +264,7 @@
 	const SUPPORTED_FILE_EXTENSIONS = new Set([
 		'c', 'cpp', 'css', 'csv', 'doc', 'docx', 'gif', 'go', 'html', 'java',
 		'jpeg', 'jpg', 'js', 'json', 'md', 'pdf', 'php', 'pkl', 'png', 'pptx',
-		'py', 'rb', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml'
+		'py', 'rb', 'sql', 'tex', 'ts', 'txt', 'webp', 'xlsx', 'xml'
 	]);
 
 	const SUPPORTED_AUDIO_TYPES = new Set([
