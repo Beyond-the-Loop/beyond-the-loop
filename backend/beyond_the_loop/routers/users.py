@@ -7,7 +7,7 @@ from typing import Optional
 from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.groups import Groups, GroupForm
-from beyond_the_loop.models.companies import Companies
+from beyond_the_loop.models.companies import Companies, NO_COMPANY
 from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.models import Models
 from beyond_the_loop.models.prompts import Prompts
@@ -104,7 +104,7 @@ async def invite_user(form_data: UserInviteForm, user=Depends(get_admin_user)):
             # Check if user already exists
             existing_user = Users.get_user_by_email(email)
 
-            if existing_user and not existing_user.company_id == NEW_INDICATOR and not existing_user.company_id == user.company_id:
+            if existing_user and existing_user.company_id not in (NEW_INDICATOR, NO_COMPANY) and not existing_user.company_id == user.company_id:
                 validation_errors.append({"reason": f"{email} is already associated with another company."})
                 
         # If any validation errors, throw exception with details
