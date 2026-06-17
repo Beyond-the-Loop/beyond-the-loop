@@ -52,6 +52,22 @@ services:
       - host.docker.internal:host-gateway
     restart: unless-stopped
 
+  ms365-mcp:
+    # Self-hosted Microsoft 365 MCP server (Softeria/ms-365-mcp-server).
+    # Accepts a per-request `Authorization: Bearer <token>` issued by Beyond
+    # the Loop's OAuth flow against the customer's Entra tenant, then uses
+    # that token to call Microsoft Graph. We do not configure a CLIENT_ID
+    # here — token issuance happens upstream in Beyond the Loop.
+    container_name: ms365-mcp
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npx -y @softeria/ms-365-mcp-server@latest --http 3000 --org-mode"
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
 volumes:
   beyond-the-loop: {}
   litellm: {}

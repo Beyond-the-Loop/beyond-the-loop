@@ -39,7 +39,9 @@
 	export let imageGenerationEnabled = false;
 	export let codeInterpreterEnabled = false;
 	export let webSearchEnabled = false;
-	export let autoToolsEnabled = false;
+
+	// MCP composer state — pass-through to MessageInput.
+	export let mcpDisabledServerIds: string[] = [];
 	export let isMagicLoading;
 	export let initNewChatCompleted;
 
@@ -265,8 +267,8 @@
 					bind:imageGenerationEnabled
 					bind:codeInterpreterEnabled
 					bind:webSearchEnabled
-					bind:autoToolsEnabled
 					bind:atSelectedModel
+					bind:mcpDisabledServerIds
 					{piiEnabled}
 					{showPiiToggle}
 					{onPiiToggle}

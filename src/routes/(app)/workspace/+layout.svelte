@@ -32,6 +32,11 @@
 				!$user?.permissions?.workspace?.view_prompts
 			) {
 				goto('/');
+			} else if (
+				$page.url.pathname.includes('/mcp') &&
+				!$user?.permissions?.workspace?.mcp_connections
+			) {
+				goto('/');
 			}
 		}
 

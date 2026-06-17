@@ -12,6 +12,7 @@ DEFAULT_USER_PERMISSIONS = {
         "edit_prompts": True,
         "view_assistants": True,
         "edit_assistants": True,
+        "mcp_connections": True,
         "tools": True,
     },
     "features": {
@@ -96,6 +97,7 @@ def get_permissions(
             "edit_prompts": False,
             "view_knowledge": False,
             "edit_knowledge": False,
+            "mcp_connections": False,
         })
 
     # Ensure all fields from default_permissions are present and filled in

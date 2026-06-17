@@ -281,9 +281,6 @@ class CreditService:
         litellm_model = LITELLM_MODEL_MAP.get(model_name, "")
         pricing_model = litellm_model.replace("azure/responses/", "azure/")
 
-        if pricing_model != "azure/gpt-5.1-chat" and pricing_model != "azure/gpt-5.3-chat":
-            pricing_model = pricing_model.replace("azure/", "azure_ai/")
-
         if pricing_model == "azure_ai/deepseek-r1-0528":
             pricing_model = "lambda_ai/deepseek-r1-0528"
 

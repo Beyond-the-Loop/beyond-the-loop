@@ -109,7 +109,8 @@
 	let imageGenerationEnabled = true;
 	let webSearchEnabled = true;
 	let codeInterpreterEnabled = true;
-	let autoToolsEnabled = true;
+	// Per-server MCP opt-outs for this chat (not persisted server-side).
+	let mcpDisabledServerIds: string[] = [];
 	// Per-chat PII filter toggle. Lives here (not in MessageInput) so it
 	// survives the composer's mount/unmount during send. Sent with every
 	// chat-completion request as `pii_enabled`. Backend forces it back to
@@ -309,7 +310,6 @@
 						files = input.files;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-						autoToolsEnabled = input.autoToolsEnabled ?? true;
 					} catch (e) {
 					}
 				}
@@ -560,13 +560,11 @@
 				files = input.files;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
-				autoToolsEnabled = input.autoToolsEnabled ?? true;
 			} catch (e) {
 				prompt = '';
 				files = [];
 				webSearchEnabled = true;
 				imageGenerationEnabled = true;
-				autoToolsEnabled = true;
 			}
 		}
 
@@ -763,7 +761,6 @@
 		webSearchEnabled = true;
 		imageGenerationEnabled = true;
 		codeInterpreterEnabled = true;
-		autoToolsEnabled = true;
 
 		if ($page.url.searchParams.get('web-search') === 'true') {
 			webSearchEnabled = true;
@@ -1670,45 +1667,20 @@
 
 				files: (files?.length ?? 0) > 0 ? files : undefined,
 
-				features: autoToolsEnabled
-					? {}
-					: {
-						image_generation: imageGenerationEnabled,
-						code_interpreter:
-							$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
-								? codeInterpreterEnabled
-								: false,
-						web_search:
-							$config?.features?.enable_web_search &&
-							($user.role === 'admin' || $user?.permissions?.features?.web_search)
-								? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
-								: false
-					},
+				features: {
+					image_generation: imageGenerationEnabled,
+					code_interpreter:
+						$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
+							? codeInterpreterEnabled
+							: false,
+					web_search:
+						$config?.features?.enable_web_search &&
+						($user.role === 'admin' || $user?.permissions?.features?.web_search)
+							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
+							: false
+				},
 
-				auto_tools: autoToolsEnabled
-					? (() => {
-							const _baseModel = model.base_model_id
-								? $models.find((m) => m.id === model.base_model_id)
-								: undefined;
-							const _meta = _baseModel
-								? $modelsInfo[_baseModel?.name]
-								: $modelsInfo[model?.name];
-							return [
-								...($companyConfig?.config?.rag?.web?.search?.enable &&
-								($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
-								(_meta?.supports_web_search ?? false)
-									? ['web_search']
-									: []),
-								...((_meta?.supports_image_generation ?? false)
-									? ['image_generation']
-									: []),
-								...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
-								(_meta?.supports_code_execution ?? false)
-									? ['code_interpreter']
-									: [])
-							];
-						})()
-					: undefined,
+				mcp_disabled_server_ids: mcpDisabledServerIds,
 
 				session_id: $socket?.id,
 				chat_id: _chatId,
@@ -2173,8 +2145,8 @@
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
-									bind:autoToolsEnabled
 									bind:atSelectedModel
+									bind:mcpDisabledServerIds
 									{piiEnabled}
 									showPiiToggle={canRelaxPii}
 									onPiiToggle={handlePiiToggleClick}
@@ -2243,8 +2215,8 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
-								bind:autoToolsEnabled
 								bind:atSelectedModel
+								bind:mcpDisabledServerIds
 								{piiEnabled}
 								showPiiToggle={canRelaxPii}
 								onPiiToggle={handlePiiToggleClick}

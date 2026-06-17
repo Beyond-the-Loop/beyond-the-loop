@@ -36,7 +36,6 @@ model_list:
       tokens_per_second: 48
       supports_web_search: true
       supports_image_input: true
-      
 
   - model_name: "Claude Sonnet 4.6"
     litellm_params:
@@ -222,7 +221,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 150
       supports_web_search: true
       supports_image_input: true
-      
+
   - model_name: "GPT o3"
     litellm_params:
       model: "azure/responses/o3"
@@ -582,6 +581,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.4"
     litellm_params:
@@ -604,6 +604,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.5"
     litellm_params:
@@ -626,6 +627,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.3 Codex"
     litellm_params:
