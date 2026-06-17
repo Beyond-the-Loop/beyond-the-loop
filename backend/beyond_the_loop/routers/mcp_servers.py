@@ -312,7 +312,9 @@ async def _run_connection_test(
         # the endpoint accepts a request with the configured auth. Full tool listing
         # comes in a follow-up iteration.
         try:
-            async with httpx.AsyncClient(timeout=TEST_CONNECTION_TIMEOUT_SECONDS) as client:
+            async with httpx.AsyncClient(
+                timeout=TEST_CONNECTION_TIMEOUT_SECONDS, follow_redirects=False
+            ) as client:
                 resp = await client.get(url, headers=headers)
             if resp.status_code >= 400:
                 return TestConnectionResult(
