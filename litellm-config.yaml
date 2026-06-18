@@ -697,14 +697,14 @@ model_list:
     litellm_params:
       model: "vertex_ai/gemini-2.5-flash-image"
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'global'
+      vertex_location: 'europe-west1'
       modalities: ["image", "text"]
     model_info:
       intelligence_score: 1
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       organization: 'Google'
-      hosted_in: 'Global'
+      hosted_in: 'EU'
       speed: 3
       category: 4
       context_window: '1M'
