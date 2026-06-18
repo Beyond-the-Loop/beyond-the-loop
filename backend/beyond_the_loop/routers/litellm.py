@@ -117,8 +117,9 @@ async def _upload_files_to_openai(files: list) -> list:
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT_GERMANY")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY_GERMANY")
+
     if not endpoint or not api_key:
         return []
 

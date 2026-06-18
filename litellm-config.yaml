@@ -269,8 +269,8 @@ model_list:
   - model_name: "GPT-5"
     litellm_params:
       model: "azure/responses/gpt-5"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT_GERMANY
+      api_key: os.environ/AZURE_OPENAI_API_KEY_GERMANY
       reasoning_effort: medium
     model_info:
       context_window: '400K'
@@ -563,8 +563,8 @@ model_list:
   - model_name: "GPT-5.4 Pro"
     litellm_params:
       model: "azure/responses/gpt-5.4-pro"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT_GERMANY
+      api_key: os.environ/AZURE_OPENAI_API_KEY_GERMANY
       reasoning_effort: medium
     model_info:
       context_window: '1M'
@@ -729,8 +729,8 @@ router_settings:
     # Code-interpreter models fall back to other code-interpreter models first
     # to preserve the capability before degrading to a non-code-interpreter model.
     - {"GPT-5": ["GPT-5.4", "GPT-5.5"]}
-    - {"GPT-5.4": ["GPT-5.5", "GPT-5"]}
-    - {"GPT-5.5": ["GPT-5.4", "GPT-5"]}
+    - {"GPT-5.4": ["GPT-5.5"]}
+    - {"GPT-5.5": ["GPT-5.4"]}
     - {"GPT-5.4 Pro": ["GPT-5.5", "GPT-5.4"]}
 
     # Non-code-interpreter GPT models fall back to GPT-5 mini.
