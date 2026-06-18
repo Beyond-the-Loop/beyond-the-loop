@@ -234,8 +234,10 @@
 				});
 
 				if (uploadedFile.error) {
-					console.warn('File upload warning:', uploadedFile.error);
-					toast.warning(uploadedFile.error);
+					console.error('File upload error:', uploadedFile.error);
+					toast.error($i18n.t(uploadedFile.error));
+					files = files.filter(item => item?.itemId !== tempItemId);
+					return;
 				}
 
 				// Drop `data` (contains the full extracted file content) before persisting in chat state — the
@@ -279,22 +281,6 @@
 				size: file.size,
 				extension: file.name.split('.').at(-1)
 			});
-
-			if (
-				($config?.file?.max_size ?? null) !== null &&
-				file.size > ($config?.file?.max_size ?? 0) * 1024 * 1024
-			) {
-				console.log('File exceeds max size limit:', {
-					fileSize: file.size,
-					maxSize: ($config?.file?.max_size ?? 0) * 1024 * 1024
-				});
-				toast.error(
-					$i18n.t(`File size should not exceed {{maxSize}} MB.`, {
-						maxSize: $config?.file?.max_size
-					})
-				);
-				return;
-			}
 
 			const fileExtension = file.name.split('.').at(-1)?.toLowerCase() ?? '';
 			if (!SUPPORTED_FILE_EXTENSIONS.has(fileExtension) && !SUPPORTED_AUDIO_TYPES.has(file.type)) {
@@ -780,17 +766,17 @@
 													loading={file.status === 'uploading'}
 													dismissible={true}
 													edit={true}
-													on:dismiss={async () => {
-														if (file.type !== 'collection' && !file?.collection) {
-															if (file.id) {
-																// This will handle both file deletion and Chroma cleanup
-																await deleteFileById(localStorage.token, file.id);
-															}
-														}
-
-														// Remove from UI state
+													on:dismiss={() => {
+														// Remove from UI state immediately (optimistic update)
 														files.splice(fileIdx, 1);
 														files = files;
+
+														// Delete on backend in the background
+														if (file.type !== 'collection' && !file?.collection && file.id) {
+															deleteFileById(localStorage.token, file.id).catch((err) => {
+																console.error('Delete failed:', err);
+															});
+														}
 													}}
 												/>
 											{/if}

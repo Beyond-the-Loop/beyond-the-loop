@@ -6,6 +6,7 @@ import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
+
 import aiohttp
 from fastapi import (
     Depends,
@@ -31,24 +32,8 @@ from beyond_the_loop.config import (
     AUDIO_TTS_VOICE,
     WHISPER_MODEL,
     # Retrieval
-    RAG_TEMPLATE,
-    RAG_EMBEDDING_MODEL,
-    RAG_EMBEDDING_MODEL_AUTO_UPDATE,
-    RAG_RERANKING_MODEL,
-    RAG_RERANKING_MODEL_AUTO_UPDATE,
-    RAG_EMBEDDING_ENGINE,
-    RAG_EMBEDDING_BATCH_SIZE,
-    RAG_RELEVANCE_THRESHOLD,
-    UPLOAD_FILE_MAX_COUNT,
-    UPLOAD_FILE_MAX_SIZE,
-    CHUNK_OVERLAP,
-    CHUNK_SIZE,
-    CONTENT_EXTRACTION_ENGINE,
-    RAG_TOP_K,
-    RAG_TEXT_SPLITTER,
     GOOGLE_DRIVE_CLIENT_ID,
     GOOGLE_DRIVE_API_KEY,
-    ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION,
     ENABLE_GOOGLE_DRIVE_INTEGRATION,
     JWT_EXPIRES_IN,
     ENABLE_CHANNELS,
@@ -91,7 +76,7 @@ from beyond_the_loop.config import (
     TITLE_GENERATION_PROMPT_TEMPLATE,
     TAGS_GENERATION_PROMPT_TEMPLATE,
     AppConfig,
-    reset_config,
+    reset_config, UPLOAD_FILE_MAX_SIZE, UPLOAD_FILE_MAX_COUNT,
 )
 from beyond_the_loop.config import WEBHOOK_URL
 from beyond_the_loop.models.alert import Alerts
@@ -146,12 +131,7 @@ from open_webui.routers import (
     evaluations,
     utils,
 )
-from open_webui.routers import retrieval
-from open_webui.routers.retrieval import (
-    get_embedding_function,
-    get_ef,
-    get_rf,
-)
+from beyond_the_loop.retrieval.utils import get_embedding_function
 from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
 from open_webui.utils.auth import (
     decode_token,
@@ -287,52 +267,12 @@ app.state.AUTH_TRUSTED_NAME_HEADER = WEBUI_AUTH_TRUSTED_NAME_HEADER
 #
 ########################################
 
-
-app.state.config.TOP_K = RAG_TOP_K
-app.state.config.RELEVANCE_THRESHOLD = RAG_RELEVANCE_THRESHOLD
-app.state.config.ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION = (
-    ENABLE_RAG_WEB_LOADER_SSL_VERIFICATION
-)
-
-app.state.config.CONTENT_EXTRACTION_ENGINE = CONTENT_EXTRACTION_ENGINE
-
-app.state.config.TEXT_SPLITTER = RAG_TEXT_SPLITTER
-
-app.state.config.CHUNK_SIZE = CHUNK_SIZE
-app.state.config.CHUNK_OVERLAP = CHUNK_OVERLAP
-
-app.state.config.RAG_EMBEDDING_ENGINE = RAG_EMBEDDING_ENGINE
-app.state.config.RAG_EMBEDDING_MODEL = RAG_EMBEDDING_MODEL
-app.state.config.RAG_EMBEDDING_BATCH_SIZE = RAG_EMBEDDING_BATCH_SIZE
-app.state.config.RAG_RERANKING_MODEL = RAG_RERANKING_MODEL
-app.state.config.RAG_TEMPLATE = RAG_TEMPLATE
-
 app.state.config.ENABLE_GOOGLE_DRIVE_INTEGRATION = ENABLE_GOOGLE_DRIVE_INTEGRATION
 
-app.state.EMBEDDING_FUNCTION = None
-app.state.ef = None
-app.state.rf = None
-
-try:
-    app.state.ef = get_ef(
-        app.state.config.RAG_EMBEDDING_ENGINE,
-        app.state.config.RAG_EMBEDDING_MODEL,
-        RAG_EMBEDDING_MODEL_AUTO_UPDATE,
-    )
-
-    app.state.rf = get_rf(
-        app.state.config.RAG_RERANKING_MODEL,
-        RAG_RERANKING_MODEL_AUTO_UPDATE,
-    )
-except Exception as e:
-    log.error(f"Error updating models: {e}")
-    pass
-
 app.state.EMBEDDING_FUNCTION = get_embedding_function(
-    app.state.config.RAG_EMBEDDING_ENGINE,
-    app.state.config.RAG_EMBEDDING_MODEL,
-    app.state.ef,
-    app.state.config.RAG_EMBEDDING_BATCH_SIZE,
+    os.getenv("RAG_EMBEDDING_ENGINE", "openai"),
+    os.getenv("RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
+    int(os.getenv("RAG_EMBEDDING_BATCH_SIZE") or os.getenv("RAG_EMBEDDING_OPENAI_BATCH_SIZE", "1")),
 )
 
 ########################################
@@ -445,7 +385,6 @@ app.include_router(litellm.router, prefix="/openai", tags=["openai"])
 
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(audio.router, prefix="/api/v1/audio", tags=["audio"])
-app.include_router(retrieval.router, prefix="/api/v1/retrieval", tags=["retrieval"])
 
 app.include_router(configs.router, prefix="/api/v1/configs", tags=["configs"])
 

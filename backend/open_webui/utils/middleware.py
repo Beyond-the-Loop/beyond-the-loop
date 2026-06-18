@@ -18,6 +18,7 @@ from beyond_the_loop.models.chats import Chats
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import (
+    DEFAULT_RAG_TEMPLATE,
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
     SMART_ROUTER_PROMPT,
@@ -40,7 +41,7 @@ from open_webui.routers.tasks import (
 )
 from beyond_the_loop.models.users import UserModel
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.retrieval.utils import get_sources_from_files
+from beyond_the_loop.retrieval.rag_engine import get_sources_from_google_rag
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
@@ -72,6 +73,34 @@ log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
+def has_google_rag_scope(files: list[dict]) -> bool:
+    for file_item in files:
+        if not isinstance(file_item, dict):
+            continue
+
+        if file_item.get("type") == "collection":
+            return True
+
+        meta = file_item.get("meta") or {}
+        if meta.get("rag_file_id") or meta.get("rag_file_name"):
+            return True
+
+        file_id = file_item.get("id")
+        if not file_id:
+            continue
+
+        try:
+            file_record = Files.get_file_by_id(file_id)
+        except Exception:
+            continue
+
+        file_meta = file_record.meta if file_record else {}
+        if (file_meta or {}).get("rag_file_id") or (file_meta or {}).get("rag_file_name"):
+            return True
+
+    return False
+
+
 async def chat_file_intent_decision_handler(
         form_data: dict, user: UserModel, pii_session=None
 ) -> tuple[dict, str]:
@@ -85,6 +114,10 @@ async def chat_file_intent_decision_handler(
 
     if not files:
         return form_data, "RAG"  # No files, downstream checks short-circuit
+
+    if has_google_rag_scope(files):
+        log.info("Google RAG scope detected; using RAG retrieval")
+        return form_data, "RAG"
 
     # Filter out image files - only process non-image files
     non_image_files = []
@@ -227,22 +260,18 @@ async def chat_completion_files_handler(
             queries = [get_last_user_message(form_data["messages"])]
 
         try:
-            # Offload get_sources_from_files to a separate thread
+            # Offload retrieval to a separate thread
             loop = asyncio.get_running_loop()
+            log.info("Calling Google RAG retrieval for %d scoped files", len(files))
             with ThreadPoolExecutor() as executor:
                 sources = await loop.run_in_executor(
                     executor,
-                    lambda: get_sources_from_files(
+                    lambda: get_sources_from_google_rag(
                         files=files,
                         queries=queries,
-                        embedding_function=lambda query: request.app.state.EMBEDDING_FUNCTION(
-                            query, user=user
-                        ),
-                        k=request.app.state.config.TOP_K,
-                        reranking_function=request.app.state.rf,
-                        r=request.app.state.config.RELEVANCE_THRESHOLD
                     ),
                 )
+            log.info("Google RAG retrieval returned %d sources", len(sources))
 
         except Exception as e:
             log.exception(e)
@@ -948,6 +977,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     for file in model_file_records
                 ])
 
+            form_data["metadata"]["files"] = files
+
     # For code interpreter on OpenAI Responses API: skip RAG and text extraction entirely.
     # Files stay in metadata["files"] so litellm.py can upload them to OpenAI Files API.
     # For other providers (e.g. Gemini codeExecution), still extract file content as text
@@ -1059,7 +1090,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             if "snippets" in source:
                 for doc_idx, doc_context in enumerate(source["snippets"]):
-                    doc_source_id = source.get("file_id") or source_id 
+                    doc_source_id = source.get("file_id") or source_id
 
                     # Same session as the user-message anonymization — same
                     # name in prompt and retrieved doc → same placeholder.
@@ -1101,7 +1132,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         if prompt is None:
             raise Exception("No user message found")
         if (
-                request.app.state.config.RELEVANCE_THRESHOLD == 0
+                float(os.getenv("RAG_RELEVANCE_THRESHOLD", "0.0")) == 0
                 and context_string.strip() == ""
         ):
             log.debug(
@@ -1110,7 +1141,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         form_data["messages"] = add_or_update_system_message(
             rag_template(
-                request.app.state.config.RAG_TEMPLATE, context_string, prompt
+                os.getenv("RAG_TEMPLATE") or DEFAULT_RAG_TEMPLATE, context_string, prompt
             ),
             form_data["messages"],
         )
@@ -1776,7 +1807,7 @@ async def process_chat_response(
                                                 },
                                             })
                                             used_search_queries.append(query)
-                                            if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event 
+                                            if content_blocks[-1].get("content") != '': # Claude doesn't add \n after web_search event
                                                 content_blocks.append(
                                                         {
                                                             "type": "text",
@@ -1795,7 +1826,7 @@ async def process_chat_response(
                                                 )
                                             pending_search_index = None  # fertig, nicht nochmal feuern
                                         except json.JSONDecodeError:
-                                            pass  # arguments noch unvollständig, weiter 
+                                            pass  # arguments noch unvollständig, weiter
 
                                 reasoning_content = (
                                         delta.get("reasoning_content")
@@ -1850,13 +1881,13 @@ async def process_chat_response(
                                             "sources": sources,
                                         },
                                     })
-                                    await event_emitter({                                                                                                                                                                              
+                                    await event_emitter({
                                         "type": "status",
                                         "data": {
-                                            "action": "web_search", 
+                                            "action": "web_search",
                                             "done": True,
                                         }
-                                    }) 
+                                    })
 
                                 inline_citations = get_inline_citations(delta, data, sources)
                                 for inline_citation in inline_citations:
@@ -1873,7 +1904,7 @@ async def process_chat_response(
                                         None,
                                     )
                                     if re.search(r'\(\[([^\]]+)\]\(([^)]+)\)\)', last_text_block["content"]): # remove chatgpt markdown citations
-                                        last_text_block["content"] = re.sub(r'\(\[([^\]]+)\]\(([^)]+)\)\)', '', last_text_block["content"]) 
+                                        last_text_block["content"] = re.sub(r'\(\[([^\]]+)\]\(([^)]+)\)\)', '', last_text_block["content"])
                                     elif re.search(r'\[([^\]]+)\]\(([^)]+)\)', last_text_block["content"]):
                                         last_text_block["content"] = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', '', last_text_block["content"])
                                     await event_emitter(
@@ -2161,4 +2192,3 @@ async def process_chat_response(
             headers=dict(response.headers),
             background=response.background,
         )
-

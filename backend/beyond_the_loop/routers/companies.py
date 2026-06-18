@@ -73,11 +73,6 @@ async def get_company_config(user=Depends(get_current_user)):
 
         config.get("image_generation", {}).get("openai", {}).pop("api_key", None)
 
-        config.get("rag", {}).pop("openai_api_key", None)
-
-        config.get("rag", {}).get("web", {}).get("search", {}).pop("google_pse_api_key", None)
-        config.get("rag", {}).get("web", {}).get("search", {}).pop("google_pse_engine_id", None)
-
         return {"config": config}
     except Exception as e:
         log.error(f"Error getting company config: {e}")

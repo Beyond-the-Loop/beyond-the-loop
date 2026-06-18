@@ -13,18 +13,13 @@
 
 	import { updateFileDataContentById, uploadFile, deleteFileById } from '$lib/apis/files';
 	import {
-		addFileToKnowledgeById,
 		getKnowledgeById,
 		getKnowledgeBases,
-		removeFileFromKnowledgeById,
-		resetKnowledgeById,
-		updateFileFromKnowledgeById,
 		updateKnowledgeById
 	} from '$lib/apis/knowledge';
 
 	import { transcribeAudio } from '$lib/apis/audio';
 	import { blobToFile } from '$lib/utils';
-	import { processFile } from '$lib/apis/retrieval';
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import Files from './KnowledgeBase/Files.svelte';
@@ -153,7 +148,12 @@
 					delete item.itemId;
 					return item;
 				});
-				await addFileHandler(uploadedFile.id);
+				knowledge.data = knowledge.data ?? { file_ids: [] };
+				if (!knowledge.data.file_ids.includes(uploadedFile.id)) {
+					knowledge.data.file_ids = [...knowledge.data.file_ids, uploadedFile.id];
+				}
+				changeDebounceHandler();
+				toast.success($i18n.t('File added successfully.'));
 			} else {
 				toast.error($i18n.t('Failed to upload file.'));
 			}
@@ -327,76 +327,36 @@
 	// Helper function to maintain file paths within zip
 	const syncDirectoryHandler = async () => {
 		if ((knowledge?.files ?? []).length > 0) {
-			const res = await resetKnowledgeById(localStorage.token, id).catch((e) => {
-				toast.error(`${e}`);
-			});
+			knowledge.files = [];
+			knowledge.data = { ...(knowledge.data ?? {}), file_ids: [] };
+			changeDebounceHandler();
+			toast.success($i18n.t('Knowledge reset successfully.'));
 
-			if (res) {
-				knowledge = res;
-				toast.success($i18n.t('Knowledge reset successfully.'));
-
-				// Upload directory
-				uploadDirectoryHandler();
-			}
+			uploadDirectoryHandler();
 		} else {
 			uploadDirectoryHandler();
 		}
 	};
 
-	const addFileHandler = async (fileId) => {
-		const updatedKnowledge = await addFileToKnowledgeById(localStorage.token, id, fileId).catch(
-			(e) => {
-				toast.error(`${e}`);
-				return null;
-			}
-		);
-
-		if (updatedKnowledge) {
-			knowledge = updatedKnowledge;
-			toast.success($i18n.t('File added successfully.'));
-		} else {
-			toast.error($i18n.t('Failed to add file.'));
-			knowledge.files = knowledge.files.filter((file) => file.id !== fileId);
+	const deleteFileHandler = (fileId) => {
+		knowledge.files = (knowledge.files ?? []).filter((file) => file.id !== fileId);
+		if (knowledge.data?.file_ids) {
+			knowledge.data.file_ids = knowledge.data.file_ids.filter((id) => id !== fileId);
 		}
-	};
-
-	const deleteFileHandler = async (fileId) => {
-		try {
-			console.log('Starting file deletion process for:', fileId);
-
-			// Remove from knowledge base only
-			const updatedKnowledge = await removeFileFromKnowledgeById(localStorage.token, id, fileId);
-
-			console.log('Knowledge base updated:', updatedKnowledge);
-
-			if (updatedKnowledge) {
-				knowledge = updatedKnowledge;
-				toast.success($i18n.t('File removed successfully.'));
-			}
-		} catch (e) {
-			console.error('Error in deleteFileHandler:', e);
-			toast.error(`${e}`);
-		}
+		changeDebounceHandler();
+		toast.success($i18n.t('File removed successfully.'));
 	};
 
 	const updateFileContentHandler = async () => {
 		const fileId = selectedFile.id;
 		const content = selectedFile.data.content;
 
-		const res = updateFileDataContentById(localStorage.token, fileId, content).catch((e) => {
+		const res = await updateFileDataContentById(localStorage.token, fileId, content).catch((e) => {
 			toast.error(`${e}`);
+			return null;
 		});
 
-		const updatedKnowledge = await updateFileFromKnowledgeById(
-			localStorage.token,
-			id,
-			fileId
-		).catch((e) => {
-			toast.error(`${e}`);
-		});
-
-		if (res && updatedKnowledge) {
-			knowledge = updatedKnowledge;
+		if (res) {
 			toast.success($i18n.t('File content updated successfully.'));
 		}
 	};

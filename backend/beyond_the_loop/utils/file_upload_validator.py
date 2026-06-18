@@ -1,7 +1,12 @@
+import logging
+import time
+
 import magic
 from pathlib import Path
 from fastapi import HTTPException, UploadFile, status
 from beyond_the_loop.config import UPLOAD_FILE_MAX_SIZE
+
+log = logging.getLogger(__name__)
 
 # Maps extension -> set of allowed MIME types (detected from file content)
 EXTENSION_MIME_MAP: dict[str, set[str]] = {
@@ -22,14 +27,14 @@ EXTENSION_MIME_MAP: dict[str, set[str]] = {
     "html": {"text/html", "text/plain"},
     "css":  {"text/plain", "text/css"},
     "js":   {"text/plain", "application/javascript"},
-    "ts":   {"text/plain"},
+    "ts":   {"text/plain", "application/typescript"},
     "py":   {"text/plain", "text/x-python", "text/x-script.python"},
-    "rb":   {"text/plain"},
+    "rb":   {"text/plain", "text/x-ruby"},
     "php":  {"text/plain", "text/x-php"},
-    "java": {"text/plain"},
-    "c":    {"text/plain"},
-    "cpp":  {"text/plain"},
-    "go":   {"text/plain"},
+    "java": {"text/plain", "text/x-java", "text/x-java-source", "text/x-c"},
+    "c":    {"text/plain", "text/x-c", "text/x-csrc"},
+    "cpp":  {"text/plain", "text/x-c", "text/x-c++", "text/x-c++src"},
+    "go":   {"text/plain", "text/x-go"},
 
     # Images
     "jpg":  {"image/jpeg"},
@@ -65,7 +70,13 @@ class FileValidator:
         """
 
         # --- Layer 0: Size check ---
+        t0 = time.perf_counter()
         head = file.file.read(MAX_FILE_SIZE_BYTES + 1)  # 1 Byte mehr als Limit lesen
+        log.info(
+            "[UPLOAD_TIMING] step=validate_size_read duration_ms=%.2f bytes_read=%d",
+            (time.perf_counter() - t0) * 1000,
+            len(head),
+        )
         if len(head) > MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -83,10 +94,17 @@ class FileValidator:
             )
 
         # --- Layer 2: MIME sniffing ---
+        t0 = time.perf_counter()
         head = file.file.read(FileValidator.READ_HEAD_BYTES)
         file.file.seek(0)  # Pointer zurücksetzen für nachfolgende Verarbeitung
 
         detected_mime: str = magic.from_buffer(head, mime=True) or ""
+        log.info(
+            "[UPLOAD_TIMING] step=validate_mime_sniff duration_ms=%.2f detected_mime=%s ext=%s",
+            (time.perf_counter() - t0) * 1000,
+            detected_mime,
+            ext,
+        )
         allowed_mimes: set[str] = EXTENSION_MIME_MAP[ext]
 
         print("DETECTED", detected_mime)
