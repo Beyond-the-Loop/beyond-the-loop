@@ -4,7 +4,9 @@ import os
 import tempfile
 import time
 import uuid
+from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 from beyond_the_loop.utils.file_conversion import convert_for_rag
 from beyond_the_loop.utils.file_upload_validator import FileValidator
 
@@ -214,6 +216,98 @@ async def get_file_by_id(id: str, user=Depends(get_verified_user)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
+
+############################
+# Get File Content By Id
+############################
+
+
+@router.get("/{id}/content")
+async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
+    file = Files.get_file_by_id(id)
+    if not file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    file_user = Users.get_user_by_id(file.user_id)
+    if not (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    try:
+        file_path = Path(Storage.get_file(file.path))
+
+        if not file_path.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=ERROR_MESSAGES.NOT_FOUND,
+            )
+
+        filename = file.meta.get("name", file.filename)
+        encoded_filename = quote(filename)
+
+        headers = {}
+        if file.meta.get("content_type") not in ["application/pdf", "text/plain"]:
+            headers["Content-Disposition"] = (
+                f"attachment; filename*=UTF-8''{encoded_filename}"
+            )
+
+        return FileResponse(file_path, headers=headers)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT("Error getting file content"),
+        )
+
+
+@router.get("/{id}/content/{file_name}")
+async def get_file_content_by_id_with_name(id: str, file_name: str, user=Depends(get_verified_user)):
+    file = Files.get_file_by_id(id)
+    if not file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    file_user = Users.get_user_by_id(file.user_id)
+    if not (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    try:
+        file_path = Path(Storage.get_file(file.path))
+
+        if not file_path.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=ERROR_MESSAGES.NOT_FOUND,
+            )
+
+        filename = file.meta.get("name", file.filename)
+        encoded_filename = quote(filename)
+        headers = {
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+        }
+
+        return FileResponse(file_path, headers=headers)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT("Error getting file content"),
+        )
+
 
 ############################
 # Delete File By Id
