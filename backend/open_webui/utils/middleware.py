@@ -846,10 +846,6 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                         "auth_type": s.auth_type,
                         "access_token_plain": access_token,
                         "tool_filter": s.tool_filter,
-                        # If we've already cached the mcp_list_tools item
-                        # for this server, the Responses-API path injects it
-                        # as a past input item so OpenAI skips re-discovery.
-                        "cached_list_tools_item": s.cached_list_tools_item,
                     })
                 if resolved:
                     metadata["mcp_servers_resolved"] = resolved

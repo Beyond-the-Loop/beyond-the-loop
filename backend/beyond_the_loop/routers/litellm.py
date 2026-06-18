@@ -19,7 +19,6 @@ from fastapi.responses import FileResponse, StreamingResponse, Response
 from starlette.background import BackgroundTask
 from openai import OpenAI
 from beyond_the_loop.models.models import Models
-from beyond_the_loop.models.mcp_servers import MCPServers
 
 
 from beyond_the_loop.config import (
@@ -402,13 +401,10 @@ async def generate_chat_completion(
     # so plaintext tokens never sit in metadata or chat state.
     mcp_servers_resolved = metadata.get("mcp_servers_resolved", [])
     # Sanitized server label → server id. The SSE handler uses this to map
-    # back the `mcp_list_tools` items OpenAI emits so they can be persisted
-    # on the originating mcp_server row for the next request.
+    # back the `mcp_list_tools` items OpenAI emits — kept so the SSE handler
+    # can still resolve server_label → server_id when surfacing status events
+    # to the frontend.
     mcp_label_to_server_id: dict[str, str] = {}
-    # Cached `mcp_list_tools` items to prepend to `input` so OpenAI skips
-    # re-discovery against the MCP server. Format is whatever OpenAI gave
-    # us back on a previous turn — we just hand it back verbatim.
-    cached_mcp_list_tools_items: list[dict] = []
     if mcp_servers_resolved and use_responses_api:
         # Tool Search defers the per-tool parameter schemas of every MCP server
         # marked with `defer_loading: true` — the model sees only the server's
@@ -435,10 +431,6 @@ async def generate_chat_completion(
             if s.get("tool_filter"):
                 entry["allowed_tools"] = s["tool_filter"]
             tools.append(entry)
-
-            cached_item = s.get("cached_list_tools_item")
-            if cached_item:
-                cached_mcp_list_tools_items.append(cached_item)
     elif mcp_servers_resolved:
         log.info(
             "[mcp] dropping %d server(s) for model %r — non-Responses-API route has no native MCP support",
@@ -546,12 +538,6 @@ async def generate_chat_completion(
         # as a standalone user message so they are not lost.
         if carried_images:
             input_items.append({"role": "user", "content": carried_images})
-
-        # Re-injecting `mcp_list_tools` items from a previous response tells
-        # the Responses API the tool catalog is already in context — it skips
-        # tools/list against the MCP server entirely.
-        if cached_mcp_list_tools_items:
-            input_items = cached_mcp_list_tools_items + input_items
 
         payload["input"] = input_items
     elif payload["stream"]:
@@ -722,18 +708,6 @@ async def generate_chat_completion(
 
                                     elif event == "response.output_item.done":
                                         item = data.get("item", {})
-                                        if item.get("type") == "mcp_list_tools":
-                                            # Persist the full item so the next request can re-inject
-                                            # it via `input` and OpenAI skips re-discovery. Only when
-                                            # the tools array actually came back (a failed discovery
-                                            # produces a done event with no tools, which would
-                                            # poison the cache).
-                                            server_label = item.get("server_label") or ""
-                                            server_id = mcp_label_to_server_id.get(server_label)
-                                            if server_id and item.get("tools"):
-                                                MCPServers.set_cached_list_tools_item(
-                                                    server_id, user.id, item
-                                                )
                                         if item.get("type") == "web_search_call":
                                             action = item.get("action", {})
                                             action_type = action.get("type")

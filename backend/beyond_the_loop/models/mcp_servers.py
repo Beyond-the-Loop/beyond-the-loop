@@ -72,11 +72,6 @@ class MCPServer(Base):
     oauth_pending_code_verifier = Column(String, nullable=True)
     oauth_pending_created_at = Column(BigInteger, nullable=True)
 
-    # Last `mcp_list_tools` item OpenAI's Responses API returned for this
-    # server. Re-injected as a past input item on subsequent requests so
-    # OpenAI does not call tools/list against the MCP server again.
-    cached_list_tools_item = Column(JSON, nullable=True)
-
     created_at = Column(BigInteger, nullable=False)
     updated_at = Column(BigInteger, nullable=False)
 
@@ -130,8 +125,6 @@ class MCPServerModel(BaseModel):
     oauth_pending_state: Optional[str] = None
     oauth_pending_code_verifier: Optional[str] = None
     oauth_pending_created_at: Optional[int] = None
-
-    cached_list_tools_item: Optional[dict] = None
 
     created_at: int
     updated_at: int
@@ -333,17 +326,6 @@ class MCPServersTable:
                 )
                 if row is None:
                     return None
-
-                # Invalidate the cached mcp_list_tools item when the server
-                # identity changes — the cached payload is bound to the
-                # specific URL/transport/scope that produced it.
-                if (
-                    row.url != form_data.url
-                    or row.transport != form_data.transport
-                    or row.auth_type != form_data.auth_type
-                    or row.oauth_scope != form_data.oauth_scope
-                ):
-                    row.cached_list_tools_item = None
 
                 row.name = form_data.name
                 row.description = form_data.description
@@ -564,43 +546,6 @@ class MCPServersTable:
                 db.commit()
         except Exception as e:
             log.error(f"Error setting oauth last_error for {server_id}: {e}")
-
-    ####################
-    # MCP tools cache
-    ####################
-
-    def set_cached_list_tools_item(
-        self, server_id: str, user_id: str, item: dict
-    ) -> bool:
-        """Persist the most recent `mcp_list_tools` item OpenAI returned for
-        this server. Re-injected on subsequent requests to skip discovery.
-        """
-        try:
-            with get_db() as db:
-                row = (
-                    db.query(MCPServer)
-                    .filter_by(id=server_id, user_id=user_id)
-                    .first()
-                )
-                if row is None:
-                    return False
-                row.cached_list_tools_item = item
-                db.commit()
-                return True
-        except Exception as e:
-            log.error(f"Error caching mcp_list_tools for {server_id}: {e}")
-            return False
-
-    def clear_cached_list_tools_item(self, server_id: str) -> None:
-        try:
-            with get_db() as db:
-                row = db.query(MCPServer).filter_by(id=server_id).first()
-                if row is None:
-                    return
-                row.cached_list_tools_item = None
-                db.commit()
-        except Exception as e:
-            log.error(f"Error clearing mcp_list_tools cache for {server_id}: {e}")
 
     def clear_oauth_tokens(self, server_id: str, user_id: str) -> bool:
         try:

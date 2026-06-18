@@ -22,6 +22,7 @@
 		companyConfig,
 		config,
 		currentChatPage,
+		mcpServers,
 		mobile,
 		type Model,
 		models,
@@ -110,7 +111,18 @@
 	let webSearchEnabled = true;
 	let codeInterpreterEnabled = true;
 	// Per-server MCP opt-outs for this chat (not persisted server-side).
+	// Default: every enabled MCP server starts opted-out — users opt individual
+	// servers in via the tools menu. Keeps prompts lean and avoids paying the
+	// Azure tools/list discovery cost on chats that don't need connectors.
 	let mcpDisabledServerIds: string[] = [];
+	let mcpDefaultsApplied = false;
+
+	$: if (!mcpDefaultsApplied && Array.isArray($mcpServers)) {
+		mcpDisabledServerIds = ($mcpServers as any[])
+			.filter((s) => s?.enabled)
+			.map((s) => s.id);
+		mcpDefaultsApplied = true;
+	}
 	// Per-chat PII filter toggle. Lives here (not in MessageInput) so it
 	// survives the composer's mount/unmount during send. Sent with every
 	// chat-completion request as `pii_enabled`. Backend forces it back to
