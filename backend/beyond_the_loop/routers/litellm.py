@@ -175,8 +175,8 @@ async def _download_and_store_container_file(
     from beyond_the_loop.models.files import FileForm, Files
     from beyond_the_loop.storage.provider import Storage
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT_GERMANY")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY_GERMANY")
     if not endpoint or not api_key:
         return None
 
