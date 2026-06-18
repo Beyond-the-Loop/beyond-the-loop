@@ -19,6 +19,7 @@
 		chatId,
 		chats,
 		chatTitle,
+		pendingContinuationSeed,
 		companyConfig,
 		config,
 		currentChatPage,
@@ -51,7 +52,7 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
+	import { createNewChat, getAllTags, getChatById, getChatList, getContinuationCompression, getTagsById, updateChatById } from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { queryMemory } from '$lib/apis/memories';
@@ -69,6 +70,7 @@
 	import Spinner from '../common/Spinner.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
+	import ChatBubbleOvalEllipsis from '../icons/ChatBubbleOvalEllipsis.svelte';
 	import DOMPurify from 'dompurify';
 	import type { Alert } from '$lib/types';
 
@@ -714,6 +716,7 @@
 	//////////////////////////
 
 	const initNewChat = async () => {
+		// Don't clear pendingContinuationSeed here — re-runs on remount would wipe a fresh seed.
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
 
 		await showControls.set(false);
@@ -777,8 +780,45 @@
 		setTimeout(() => chatInput?.focus(), 0);
 	};
 
+	let continuingInNewChat = false;
+
+	const continueInNewChat = async () => {
+		const sourceChatId = $chatId;
+		if (continuingInNewChat || !sourceChatId) {
+			return;
+		}
+
+		continuingInNewChat = true;
+
+		try {
+			const res = await getContinuationCompression(localStorage.token, sourceChatId);
+			// [cont] debug — remove after diagnosis
+			console.log('[cont] FE received for', sourceChatId, '→ summary:', res?.compression?.summary?.slice?.(0, 120), '| pii_session?', !!res?.pii_session);
+			if ($chatId !== sourceChatId) {
+				return;
+			}
+
+			if (typeof res?.compression?.summary !== 'string' || !res.compression.summary.trim()) {
+				toast.error($i18n.t('Could not carry over this chat context.'));
+				return;
+			}
+
+			pendingContinuationSeed.set({
+				compression: res.compression,
+				...(res.pii_session ? { pii_session: res.pii_session } : {})
+			});
+			toast.success($i18n.t('The context of this conversation will be carried into the new chat.'));
+			await initNewChat();
+		} catch (e) {
+			toast.error(`${e}`);
+		} finally {
+			continuingInNewChat = false;
+		}
+	};
+
 	const loadChat = async () => {
 		chatId.set(chatIdProp);
+		pendingContinuationSeed.set(null);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
 			return;
@@ -1902,6 +1942,10 @@
 	const initChatHandler = async (history) => {
 		let _chatId = $chatId;
 
+		const continuationSeed = $pendingContinuationSeed;
+		// [cont] debug — remove after diagnosis
+		console.log('[cont] initChatHandler seeding compression?', !!continuationSeed?.compression, '→', continuationSeed?.compression?.summary?.slice?.(0, 120));
+
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(localStorage.token, {
 				id: _chatId,
@@ -1912,8 +1956,21 @@
 				history: history,
 				messages: createMessagesList(history, history.currentId),
 				tags: [],
-				timestamp: Date.now()
+				timestamp: Date.now(),
+				...(continuationSeed?.compression ? { compression: continuationSeed.compression } : {}),
+				...(continuationSeed?.pii_session ? { pii_session: continuationSeed.pii_session } : {})
 			});
+			// [cont] debug — remove after diagnosis
+			console.log('[cont] createNewChat result', chat?.id, {
+				hasChatCompression: !!chat?.chat?.compression,
+				hasTopLevelCompression: !!chat?.compression,
+				summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
+				piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
+			});
+
+			if (continuationSeed) {
+				pendingContinuationSeed.set(null);
+			}
 
 			_chatId = chat.id;
 			await chatId.set(_chatId);
@@ -1923,6 +1980,7 @@
 
 			window.history.replaceState(history.state, '', `/c/${_chatId}`);
 		} else {
+			pendingContinuationSeed.set(null);
 			_chatId = 'local';
 			await chatId.set('local');
 		}
@@ -1934,6 +1992,13 @@
 	const saveChatHandler = async (_chatId, history) => {
 		if ($chatId == _chatId) {
 			if (!$temporaryChatEnabled) {
+				// [cont] debug — remove after diagnosis
+				console.log('[cont] saveChatHandler before update', _chatId, {
+					hasChatCompression: !!chat?.chat?.compression,
+					hasTopLevelCompression: !!chat?.compression,
+					summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
+					piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
+				});
 				chat = await updateChatById(localStorage.token, _chatId, {
 					models: selectedModels,
 					history: history,
@@ -1941,6 +2006,13 @@
 					params: params,
 					files: chatFiles,
 					pii_released_entities: piiReleasedEntities
+				});
+				// [cont] debug — remove after diagnosis
+				console.log('[cont] saveChatHandler after update', _chatId, {
+					hasChatCompression: !!chat?.chat?.compression,
+					hasTopLevelCompression: !!chat?.compression,
+					summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
+					piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
 				});
 				currentChatPage.set(1);
 				await chats.set(await getChatList(localStorage.token, $currentChatPage));
@@ -2094,6 +2166,21 @@
 											<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
 										</button>
 									{/if}
+									{#if history?.currentId}
+										<button
+											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+											aria-label={$i18n.t('Continue in new chat')}
+											disabled={continuingInNewChat}
+											on:click={continueInNewChat}
+										>
+											{#if continuingInNewChat}
+												<Spinner className="size-3.5" />
+											{:else}
+												<ChatBubbleOvalEllipsis className="size-3.5" strokeWidth="1.5" />
+											{/if}
+											<span>{$i18n.t('Continue in new chat')}</span>
+										</button>
+									{/if}
 									<button
 										class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
 										on:click={() => showLibrary.set(!$showLibrary)}
@@ -2190,6 +2277,7 @@
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
 								piiAnonymizedCount={piiAnonymizedCount}
+								hideSuggestions={$pendingContinuationSeed !== null}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}

@@ -10,8 +10,11 @@ from beyond_the_loop.models.chats import (
     ChatTitleIdResponse,
 )
 from beyond_the_loop.models.users import Users
+from beyond_the_loop.models.models import Models
 from open_webui.models.tags import TagModel, Tags
 from beyond_the_loop.models.folders import Folders
+from beyond_the_loop.utils.chat_compression import build_continuation_compression
+from beyond_the_loop.pii.session import is_pii_filter_enabled
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
@@ -62,6 +65,73 @@ async def create_new_chat(form_data: ChatForm, user=Depends(get_verified_user)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.DEFAULT
         )
+
+
+############################
+# ContinuationCompression
+############################
+
+
+class ContinuationCompressionResponse(BaseModel):
+    compression: Optional[dict] = None
+    pii_session: Optional[dict] = None
+
+
+@router.post(
+    "/{id}/continuation-compression",
+    response_model=ContinuationCompressionResponse,
+)
+async def get_continuation_compression(id: str, user=Depends(get_verified_user)):
+    """Seed payload to carry this chat's context into a follow-up chat."""
+    chat = Chats.get_chat_by_id_and_user_id(id, user.id)
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=ERROR_MESSAGES.DEFAULT()
+        )
+
+    agent_model = Models.get_model_by_name_and_company(
+        os.getenv("DEFAULT_AGENT_MODEL"), user.company_id
+    )
+    if not agent_model:
+        # DEFAULT_AGENT_MODEL is infra config (not user input) → 500 + log.
+        log.error(
+            "continuation-compression: could not resolve DEFAULT_AGENT_MODEL (%s) for company %s",
+            os.getenv("DEFAULT_AGENT_MODEL"),
+            user.company_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DEFAULT("Summarization model is not configured"),
+        )
+
+    pii_active = is_pii_filter_enabled(user.company_id)
+
+    try:
+        compression = await build_continuation_compression(
+            chat=chat.chat,
+            agent_model=agent_model,
+            chat_id=id,
+            pii_active=pii_active,
+            user=user,
+        )
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DEFAULT(),
+        )
+
+    # [cont] debug instrumentation — remove after diagnosis
+    _cs = compression.get("summary") if isinstance(compression, dict) else None
+    log.info("[cont] endpoint id=%s returning summary=%r", id, _cs[:120] if _cs else None)
+
+    # Re-read to pick up the pii_session that build_continuation_compression saved.
+    latest_chat = Chats.get_chat_by_id_and_user_id(id, user.id) or chat
+
+    return ContinuationCompressionResponse(
+        compression=compression,
+        pii_session=latest_chat.chat.get("pii_session") if pii_active else None,
+    )
 
 
 ############################

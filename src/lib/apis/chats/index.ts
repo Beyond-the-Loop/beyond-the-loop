@@ -32,6 +32,36 @@ export const createNewChat = async (token: string, chat: object) => {
 	return res;
 };
 
+// Returns { compression, pii_session? } — a freshly generated summary of the
+// chat's current history, to seed a follow-up chat.
+export const getContinuationCompression = async (token: string, chatId: string) => {
+	let error = null;
+
+	const res = await fetch(`${WEBUI_API_BASE_URL}/chats/${chatId}/continuation-compression`, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			authorization: `Bearer ${token}`
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+};
+
 export const importChat = async (
 	token: string,
 	chat: object,
