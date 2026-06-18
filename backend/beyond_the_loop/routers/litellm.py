@@ -23,6 +23,7 @@ from beyond_the_loop.models.models import Models
 
 from beyond_the_loop.config import (
     CACHE_DIR,
+    LITELLM_MODEL_CONFIG,
     LITELLM_MODEL_MAP,
 )
 from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
@@ -112,14 +113,25 @@ async def cleanup_response(
         response.close()
 
 
-async def _upload_files_to_openai(files: list) -> list:
+def _resolve_azure_credentials(model_name: str) -> tuple[Optional[str], Optional[str]]:
+    """Resolve the Azure OpenAI endpoint/api-key for a specific model from litellm-config.yaml.
+
+    Different models live in different Azure regions (e.g. GPT-5.4 in Germany, GPT-5.4 Pro
+    in the default region). File upload/download for code-interpreter must hit the same
+    region as the model, otherwise the container_id won't be found.
+    """
+    cfg = LITELLM_MODEL_CONFIG.get(model_name) or {}
+    endpoint_env = cfg.get("api_base_env") or "AZURE_OPENAI_ENDPOINT"
+    api_key_env = cfg.get("api_key_env") or "AZURE_OPENAI_API_KEY"
+    return os.getenv(endpoint_env), os.getenv(api_key_env)
+
+
+async def _upload_files_to_openai(files: list, model_name: str) -> list:
     """Upload files to Azure OpenAI Files API for code_interpreter and return file IDs."""
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT_GERMANY")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY_GERMANY")
-
+    endpoint, api_key = _resolve_azure_credentials(model_name)
     if not endpoint or not api_key:
         return []
 
@@ -170,13 +182,13 @@ async def _download_and_store_container_file(
     openai_file_id: str,
     filename: str,
     user_id: str,
+    model_name: str,
 ) -> Optional[str]:
     """Download a container file from OpenAI and store it in our Files API. Returns internal file ID or None on failure."""
     from beyond_the_loop.models.files import FileForm, Files
     from beyond_the_loop.storage.provider import Storage
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT_GERMANY")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY_GERMANY")
+    endpoint, api_key = _resolve_azure_credentials(model_name)
     if not endpoint or not api_key:
         return None
 
@@ -381,7 +393,7 @@ async def generate_chat_completion(
 
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
-            file_ids = await _upload_files_to_openai(metadata.get("files", []))
+            file_ids = await _upload_files_to_openai(metadata.get("files", []), model_name)
             container = {"type": "auto"}
             if file_ids:
                 container["file_ids"] = file_ids
@@ -811,7 +823,7 @@ async def generate_chat_completion(
                                                 if not (a_filename and a_container_id and a_openai_file_id):
                                                     continue
                                                 internal_id = await _download_and_store_container_file(
-                                                    a_container_id, a_openai_file_id, a_filename, user.id
+                                                    a_container_id, a_openai_file_id, a_filename, user.id, model_name
                                                 )
                                                 if internal_id:
                                                     our_url = f"/api/v1/files/{internal_id}/content/{a_filename}"

@@ -83,9 +83,19 @@ def _build_litellm_model_config() -> dict:
         result = {}
         for entry in config.get("model_list", []):
             model_name = entry["model_name"]
-            litellm_model = entry["litellm_params"]["model"]
+            litellm_params = entry["litellm_params"]
+            litellm_model = litellm_params["model"]
             model_info = entry.get("model_info") or {}
-            result[model_name] = {"litellm_model": litellm_model, **model_info}
+            entry_data = {"litellm_model": litellm_model, **model_info}
+            # Capture per-model api_base/api_key references (e.g. "os.environ/AZURE_OPENAI_ENDPOINT_GERMANY")
+            # so we can resolve the right Azure region for file upload/download per model.
+            api_base = litellm_params.get("api_base")
+            api_key = litellm_params.get("api_key")
+            if isinstance(api_base, str) and api_base.startswith("os.environ/"):
+                entry_data["api_base_env"] = api_base.split("/", 1)[1]
+            if isinstance(api_key, str) and api_key.startswith("os.environ/"):
+                entry_data["api_key_env"] = api_key.split("/", 1)[1]
+            result[model_name] = entry_data
         return result
     except Exception as e:
         log.warning(f"Could not build LITELLM_MODEL_CONFIG from litellm-config.yaml: {e}")
