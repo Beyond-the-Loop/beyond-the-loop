@@ -32,8 +32,8 @@ export const createNewChat = async (token: string, chat: object) => {
 	return res;
 };
 
-// Returns { compression, pii_session? }. Reuses an existing summary if present,
-// otherwise summarises the chat once on demand.
+// Returns { compression, pii_session? } — a freshly generated summary of the
+// chat's current history, to seed a follow-up chat.
 export const getContinuationCompression = async (token: string, chatId: string) => {
 	let error = null;
 

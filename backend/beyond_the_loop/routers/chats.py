@@ -121,10 +121,12 @@ async def get_continuation_compression(id: str, user=Depends(get_verified_user))
             detail=ERROR_MESSAGES.DEFAULT(),
         )
 
+    # [cont] debug instrumentation — remove after diagnosis
+    _cs = compression.get("summary") if isinstance(compression, dict) else None
+    log.info("[cont] endpoint id=%s returning summary=%r", id, _cs[:120] if _cs else None)
+
+    # Re-read to pick up the pii_session that build_continuation_compression saved.
     latest_chat = Chats.get_chat_by_id_and_user_id(id, user.id) or chat
-    if compression and latest_chat.chat.get("compression") != compression:
-        updated_chat = {**latest_chat.chat, "compression": compression}
-        latest_chat = Chats.update_chat_by_id(id, updated_chat) or latest_chat
 
     return ContinuationCompressionResponse(
         compression=compression,

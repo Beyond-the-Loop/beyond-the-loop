@@ -158,8 +158,7 @@ async def _generate_summary(
 
 
 def _extract_history_messages(chat: dict) -> list[dict]:
-    """Linearise a stored chat into an ordered [{role, content}] list: prefer the
-    flat "messages" list, else walk the history tree from currentId via parentId."""
+    """Linearise a stored chat into an ordered [{role, content}] list for summarising."""
     flat = chat.get("messages")
     if isinstance(flat, list) and flat:
         return [
@@ -251,6 +250,9 @@ async def maybe_compress_chat(
         return form_data
 
     compression: dict | None = chat_data.chat.get("compression")
+    # [cont] debug instrumentation — remove after diagnosis
+    _ls = compression.get("summary") if isinstance(compression, dict) else None
+    log.info("[cont] maybe_compress chat_id=%s loaded_summary=%r", chat_id, _ls[:120] if _ls else None)
 
     if compression is not None:
         prev_msg = all_messages[-2] if len(all_messages) >= 2 else None
@@ -340,13 +342,18 @@ async def build_continuation_compression(
     pii_active: bool = False,
     user=None,
 ) -> dict | None:
-    """Seed payload for "Continue in new chat": reuse an existing summary, else
-    summarise the full history once on demand. None if there's nothing to carry."""
+    """Build the "Continue in new chat" seed: always summarise this chat's history
+    fresh (never reuse the stored summary — it may be stale/inherited)."""
     existing = chat.get("compression")
-    if isinstance(existing, dict) and existing.get("summary"):
-        return existing
-
     messages = _extract_history_messages(chat)
+    # [cont] debug instrumentation — remove after diagnosis
+    _first = next((m.get("content", "") for m in messages if m.get("role") == "user"), "")
+    _es = existing.get("summary") if isinstance(existing, dict) else None
+    log.info(
+        "[cont] build chat_id=%s n_msgs=%d first_user=%r existing_summary=%r (always regenerating)",
+        chat_id, len(messages), str(_first)[:80], _es[:120] if _es else None,
+    )
+
     if not messages:
         return None
 
@@ -357,8 +364,7 @@ async def build_continuation_compression(
         anonymize_messages(messages, pii_session)
         pii_session.save()
 
-    # Summarised with the agent model (possibly smaller window), so drop oldest
-    # messages until within ~60% of its context to avoid overflow.
+    # Drop oldest messages until within ~60% of the agent model's context (avoid overflow).
     budget = int(_get_context_window(agent_model.name) * 0.6)
     while len(messages) > 1 and _count_tokens(messages, agent_model.name) > budget:
         messages.pop(0)
@@ -374,4 +380,5 @@ async def build_continuation_compression(
     if not summary or not summary.strip():
         return None
 
+    log.info("[cont] -> GENERATED summary (chat_id=%s): %r", chat_id, summary[:120])
     return {"messages": [], "summary": summary}

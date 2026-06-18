@@ -736,11 +736,8 @@
 	// Web functions
 	//////////////////////////
 
-	const initNewChat = async ({ keepContinuationSeed = false } = {}) => {
-		if (!keepContinuationSeed) {
-			pendingContinuationSeed.set(null);
-		}
-
+	const initNewChat = async () => {
+		// Don't clear pendingContinuationSeed here — re-runs on remount would wipe a fresh seed.
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
 
 		await showControls.set(false);
@@ -817,6 +814,8 @@
 
 		try {
 			const res = await getContinuationCompression(localStorage.token, sourceChatId);
+			// [cont] debug — remove after diagnosis
+			console.log('[cont] FE received for', sourceChatId, '→ summary:', res?.compression?.summary?.slice?.(0, 120), '| pii_session?', !!res?.pii_session);
 			if ($chatId !== sourceChatId) {
 				return;
 			}
@@ -831,7 +830,7 @@
 				...(res.pii_session ? { pii_session: res.pii_session } : {})
 			});
 			toast.success($i18n.t('The context of this conversation will be carried into the new chat.'));
-			await initNewChat({ keepContinuationSeed: true });
+			await initNewChat();
 		} catch (e) {
 			toast.error(`${e}`);
 		} finally {
@@ -2003,6 +2002,8 @@
 		let _chatId = $chatId;
 
 		const continuationSeed = $pendingContinuationSeed;
+		// [cont] debug — remove after diagnosis
+		console.log('[cont] initChatHandler seeding compression?', !!continuationSeed?.compression, '→', continuationSeed?.compression?.summary?.slice?.(0, 120));
 
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(localStorage.token, {
@@ -2017,6 +2018,13 @@
 				timestamp: Date.now(),
 				...(continuationSeed?.compression ? { compression: continuationSeed.compression } : {}),
 				...(continuationSeed?.pii_session ? { pii_session: continuationSeed.pii_session } : {})
+			});
+			// [cont] debug — remove after diagnosis
+			console.log('[cont] createNewChat result', chat?.id, {
+				hasChatCompression: !!chat?.chat?.compression,
+				hasTopLevelCompression: !!chat?.compression,
+				summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
+				piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
 			});
 
 			if (continuationSeed) {
@@ -2043,6 +2051,13 @@
 	const saveChatHandler = async (_chatId, history) => {
 		if ($chatId == _chatId) {
 			if (!$temporaryChatEnabled) {
+				// [cont] debug — remove after diagnosis
+				console.log('[cont] saveChatHandler before update', _chatId, {
+					hasChatCompression: !!chat?.chat?.compression,
+					hasTopLevelCompression: !!chat?.compression,
+					summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
+					piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
+				});
 				chat = await updateChatById(localStorage.token, _chatId, {
 					models: selectedModels,
 					history: history,
@@ -2050,6 +2065,13 @@
 					params: params,
 					files: chatFiles,
 					pii_released_entities: piiReleasedEntities
+				});
+				// [cont] debug — remove after diagnosis
+				console.log('[cont] saveChatHandler after update', _chatId, {
+					hasChatCompression: !!chat?.chat?.compression,
+					hasTopLevelCompression: !!chat?.compression,
+					summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
+					piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
 				});
 				currentChatPage.set(1);
 				await chats.set(await getChatList(localStorage.token, $currentChatPage));
