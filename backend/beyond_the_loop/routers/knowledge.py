@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 import logging
@@ -11,7 +11,6 @@ from beyond_the_loop.models.knowledge import (
     KnowledgeUserResponse,
 )
 from beyond_the_loop.models.files import Files, FileModel
-from beyond_the_loop.services.file_service import delete_file_fully
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_verified_user
@@ -27,12 +26,6 @@ log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 router = APIRouter()
-
-
-def _has_google_rag_file(file: FileModel) -> bool:
-    return bool(
-        file.meta and (file.meta.get("rag_file_id") or file.meta.get("rag_file_name"))
-    )
 
 
 ############################
@@ -222,165 +215,8 @@ async def update_knowledge_by_id(
         )
 
 
-############################
-# AddFileToKnowledge
-############################
-
-
 class KnowledgeFileIdForm(BaseModel):
     file_id: str
-
-
-@router.post("/{id}/file/add", response_model=Optional[KnowledgeFilesResponse])
-def add_file_to_knowledge_by_id(
-    request: Request,
-    id: str,
-    form_data: KnowledgeFileIdForm,
-    user=Depends(get_verified_user),
-):
-    knowledge = Knowledges.get_knowledge_by_id(id=id)
-
-    user_groups = Groups.get_groups_by_member_id(user.id)
-    _validate_knowledge_write_access(knowledge, user, user_groups)
-
-    file = Files.get_file_by_id(form_data.file_id)
-
-    if not file:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
-
-    if not _has_google_rag_file(file):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File was not imported into Google RAG Engine",
-        )
-
-    data = knowledge.data or {}
-    file_ids = data.get("file_ids", [])
-
-    if form_data.file_id not in file_ids:
-        file_ids.append(form_data.file_id)
-        data["file_ids"] = file_ids
-
-        knowledge = Knowledges.update_knowledge_data_by_id(id=id, data=data)
-
-        if knowledge:
-            files = Files.get_files_by_ids(file_ids)
-
-            return KnowledgeFilesResponse(
-                **knowledge.model_dump(),
-                files=files,
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT,
-            )
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT,
-        )
-
-
-@router.post("/{id}/file/update", response_model=Optional[KnowledgeFilesResponse])
-def update_file_from_knowledge_by_id(
-    request: Request,
-    id: str,
-    form_data: KnowledgeFileIdForm,
-    user=Depends(get_verified_user),
-):
-    knowledge = Knowledges.get_knowledge_by_id(id=id)
-
-    user_groups = Groups.get_groups_by_member_id(user.id)
-    _validate_knowledge_write_access(knowledge, user, user_groups)
-
-    file = Files.get_file_by_id(form_data.file_id)
-
-    if not file:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
-
-    if not _has_google_rag_file(file):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File was not imported into Google RAG Engine",
-        )
-
-    data = knowledge.data or {}
-    file_ids = data.get("file_ids", [])
-
-    files = Files.get_files_by_ids(file_ids)
-
-    return KnowledgeFilesResponse(
-        **knowledge.model_dump(),
-        files=files,
-    )
-
-
-############################
-# RemoveFileFromKnowledge
-############################
-
-
-@router.post("/{id}/file/remove", response_model=Optional[KnowledgeFilesResponse])
-def remove_file_from_knowledge_by_id(
-    id: str,
-    form_data: KnowledgeFileIdForm,
-    user=Depends(get_verified_user),
-):
-    knowledge = Knowledges.get_knowledge_by_id(id=id)
-
-    user_groups = Groups.get_groups_by_member_id(user.id)
-    _validate_knowledge_write_access(knowledge, user, user_groups)
-
-    file = Files.get_file_by_id(form_data.file_id)
-
-    if not file:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.NOT_FOUND,
-        )
-
-    try:
-        delete_file_fully(file)
-    except Exception as e:
-        log.exception(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT("Error deleting file"),
-        )
-
-    data = knowledge.data or {}
-    file_ids = data.get("file_ids", [])
-
-    if form_data.file_id in file_ids:
-        file_ids.remove(form_data.file_id)
-        data["file_ids"] = file_ids
-
-        knowledge = Knowledges.update_knowledge_data_by_id(id=id, data=data)
-
-        if knowledge:
-            files = Files.get_files_by_ids(file_ids)
-
-            return KnowledgeFilesResponse(
-                **knowledge.model_dump(),
-                files=files,
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT("knowledge"),
-            )
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT("file_id"),
-        )
 
 
 ############################
@@ -396,14 +232,6 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     _validate_knowledge_write_access(knowledge, user, user_groups)
 
     log.info(f"Deleting knowledge base: {id} (name: {knowledge.name})")
-
-    data = knowledge.data or {}
-    files = Files.get_files_by_ids(data.get("file_ids", []))
-    for file in files:
-        try:
-            delete_file_fully(file)
-        except Exception as e:
-            log.warning(f"Could not fully delete file {file.id} during KB delete: {e}")
 
     # Get all models
     models = Models.get_all_models_by_company(user.company_id)
@@ -436,74 +264,4 @@ async def delete_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     return Knowledges.delete_knowledge_by_id(id=id)
 
 
-############################
-# ResetKnowledgeById
-############################
 
-
-@router.post("/{id}/reset", response_model=Optional[KnowledgeResponse])
-async def reset_knowledge_by_id(id: str, user=Depends(get_verified_user)):
-    knowledge = Knowledges.get_knowledge_by_id(id=id)
-
-    user_groups = Groups.get_groups_by_member_id(user.id)
-    _validate_knowledge_write_access(knowledge, user, user_groups)
-
-    knowledge = Knowledges.update_knowledge_data_by_id(id=id, data={"file_ids": []})
-
-    return knowledge
-
-
-############################
-# AddFilesToKnowledge
-############################
-
-
-@router.post("/{id}/files/batch/add", response_model=Optional[KnowledgeFilesResponse])
-def add_files_to_knowledge_batch(
-    request: Request,
-    id: str,
-    form_data: list[KnowledgeFileIdForm],
-    user=Depends(get_verified_user),
-):
-    """
-    Add multiple files to a knowledge base
-    """
-    knowledge = Knowledges.get_knowledge_by_id(id=id)
-
-    user_groups = Groups.get_groups_by_member_id(user.id)
-    _validate_knowledge_write_access(knowledge, user, user_groups)
-
-    # Get files content
-    log.debug(f"files/batch/add - {len(form_data)} files")
-    files: List[FileModel] = []
-    for form in form_data:
-        file = Files.get_file_by_id(form.file_id)
-        if not file:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File {form.file_id} not found",
-            )
-        files.append(file)
-
-    # Add successful files to knowledge base
-    data = knowledge.data or {}
-    existing_file_ids = data.get("file_ids", [])
-
-    missing_rag_files = [file.id for file in files if not _has_google_rag_file(file)]
-    if missing_rag_files:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Files were not imported into Google RAG Engine: {', '.join(missing_rag_files)}",
-        )
-
-    successful_file_ids = [file.id for file in files]
-    for file_id in successful_file_ids:
-        if file_id not in existing_file_ids:
-            existing_file_ids.append(file_id)
-
-    data["file_ids"] = existing_file_ids
-    knowledge = Knowledges.update_knowledge_data_by_id(id=id, data=data)
-
-    return KnowledgeFilesResponse(
-        **knowledge.model_dump(), files=Files.get_files_by_ids(existing_file_ids)
-    )

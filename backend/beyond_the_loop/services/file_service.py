@@ -22,26 +22,6 @@ from beyond_the_loop.retrieval.rag_engine import delete_google_rag_file_from_met
 log = logging.getLogger(__name__)
 
 
-def _delete_file_artifacts(file_id: str, file_path: Optional[str]) -> None:
-    """Remove a file's vector collection and storage blob.
-
-    DB row removal is the caller's responsibility (explicit delete or CASCADE).
-    Failures are logged so one bad file doesn't abort bulk cleanups.
-    """
-    collection_name = f"file-{file_id}"
-    try:
-        if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-            VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
-    except Exception as e:
-        log.warning(f"Failed to delete vector collection {collection_name}: {e}")
-
-    if file_path:
-        try:
-            Storage.delete_file(file_path)
-        except Exception as e:
-            log.warning(f"Failed to delete file {file_path} from storage: {e}")
-
-
 def _delete_vector_collection(collection_name: str) -> None:
     try:
         if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
@@ -51,21 +31,17 @@ def _delete_vector_collection(collection_name: str) -> None:
 
 
 def delete_user_external_artifacts(user_id: str) -> None:
-    """Remove all external (non-DB) artifacts owned by a user: storage blobs
-    and pgvector collections for files, knowledge bases, and the per-user
-    memory collection.
+    """Remove all external artifacts owned by a user: file rows + their Google
+    RAG entries + storage blobs, plus the per-user memory pgvector collection.
 
-    Must be called BEFORE the user DB row is deleted — the lookups walk
-    file.user_id / knowledge.user_id, which CASCADE removes with the user.
-    The DB rows themselves are handled by the user→X CASCADE chain.
+    Must be called BEFORE the user DB row is deleted — the file lookup walks
+    file.user_id, which CASCADE removes with the user.
     """
-    from beyond_the_loop.models.knowledge import Knowledges
-
-    for file in File.get_files_by_user_id(user_id):
-        _delete_file_artifacts(file.id, file.path)
-
-    for knowledge_id in Knowledges.get_knowledge_ids_by_user_id(user_id):
-        _delete_vector_collection(knowledge_id)
+    for file in Files.get_files_by_user_id(user_id):
+        try:
+            delete_file_fully(file)
+        except Exception as e:
+            log.warning(f"Failed to delete file {file.id} for user {user_id}: {e}")
 
     _delete_vector_collection(f"user-memory-{user_id}")
 
@@ -215,13 +191,6 @@ class FileService:
                 delete_file_fully(file)
                 deleted_count += 1
                 log.debug(f"Deleted file: {file.id} ({file.filename})")
-                _delete_file_artifacts(file.id, file.path)
-
-                if Files.delete_file_by_id(file.id):
-                    deleted_count += 1
-                else:
-                    log.warning(f"Failed to delete file record: {file.id}")
-
             except Exception as e:
                 log.error(f"Error deleting file {file.id}: {e}")
 

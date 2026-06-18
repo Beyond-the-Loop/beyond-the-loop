@@ -4,8 +4,6 @@ import random
 import uuid
 from typing import Optional
 
-from beyond_the_loop.models.files import Files
-from beyond_the_loop.services.file_service import delete_file_fully
 from beyond_the_loop.models.users import UserInviteForm, UserCreateForm
 from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.groups import Groups, GroupForm
@@ -25,8 +23,7 @@ from beyond_the_loop.models.users import (
 )
 
 
-from beyond_the_loop.socket.main import get_active_status_by_user_id, STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, \
-    STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, COMPANY_CONFIG_CACHE
+from beyond_the_loop.socket.main import get_active_status_by_user_id
 from beyond_the_loop.routers.companies import dissolve_company
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
@@ -658,42 +655,12 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
 
     company_id = target_user.company_id
 
-    # Always fetch files before deletion for storage cleanup
-    user_files = Files.get_files_by_user_id(user_id)
-
-    def _cleanup_files():
-        for file in user_files:
-            try:
-                delete_file_fully(file)
-            except Exception as e:
-                log.warning(f"Could not fully delete file {file.id} during user cleanup: {e}")
-
-    def _clear_company_caches():
-        for cache, name in (
-            (STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, "STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE"),
-            (STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE, "STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE"),
-            (COMPANY_CONFIG_CACHE, "COMPANY_CONFIG_CACHE"),
-        ):
-            try:
-                if company_id in cache:
-                    del cache[company_id]
-            except Exception as e:
-                log.warning(f"Failed to clear {name} for company {company_id}: {e}")
-    # ------------------------------------------------------------------
-    # Last-user check: if this is the only user left in the company,
-    # dissolve the whole company instead of leaving the user as an orphan.
-    # ------------------------------------------------------------------
-    total_users = Users.count_users_by_company_id(company_id)
-
-    if total_users == 1:
+    # Last-user: dissolve the company instead of leaving an orphan.
+    if Users.count_users_by_company_id(company_id) == 1:
         dissolve_company(company_id)
         return True
 
-    # ------------------------------------------------------------------
-    # Last-admin check: if this is the only admin left, promote a random
-    # non-pending user. If ALL remaining users are pending there is nobody
-    # to promote — treat it as "last active user" and dissolve the company.
-    # ------------------------------------------------------------------
+    # Last-admin: promote a non-pending user, or dissolve if none qualifies.
     if target_user.role == "admin":
         admin_users = Users.get_admin_users_by_company(company_id)
         if len(admin_users) == 1:
@@ -723,16 +690,9 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
             detail=ERROR_MESSAGES.DELETE_USER_ERROR,
         )
 
-    # Clean up files (DB row + RAG + GCS) BEFORE deleting the user, so that
-    # delete_file_fully can find DB rows. Otherwise CASCADE would remove them
-    # first and the helper would skip RAG/GCS cleanup for already-gone rows.
-    _cleanup_files()
+    payments_service.update_premium_seat_count(company_id)
 
-    success = Users.delete_user_by_id(user_id)
-
-    if success:
-        payments_service.update_premium_seat_count(company_id)
-        return True
+    return True
 
 
 ############################
