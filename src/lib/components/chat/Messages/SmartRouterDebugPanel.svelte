@@ -6,6 +6,7 @@
 	import Info from '$lib/components/icons/Info.svelte';
 	import { getModelIcon } from '$lib/utils';
 	import { fade } from 'svelte/transition';
+	import Cube from '$lib/components/icons/Cube.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -62,7 +63,9 @@
 	$: hasCode =
 		debug.required_tools.includes('code_execution') ||
 		debug.required_tools.includes('document_creation');
-	$: anyTool = hasWebSearch || hasImage || hasCode;
+	$: hasMcp = debug.required_tools.includes('mcp');
+
+	$: anyTool = hasWebSearch || hasImage || hasCode || hasMcp;
 
 	$: topCandidates = debug.candidates?.slice(0, 5) ?? [];
 	$: selectedModel = topCandidates[0];
@@ -115,6 +118,9 @@
 								{/if}
 								{#if hasCode}
 									<CodeInterpreterIcon className="size-3.5 text-blue-500" />
+								{/if}
+								{#if hasMcp}
+									<Cube className="size-3.5 text-blue-500" />
 								{/if}
 							</div>
 						{:else}

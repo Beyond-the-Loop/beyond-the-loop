@@ -163,6 +163,8 @@ async def select_model(
                 or "document_creation" in decision.required_tools
             ) and not cfg.get("supports_code_execution", False):
                 continue
+            if ("mcp" in decision.required_tools) and not cfg.get("supports_mcp", False):
+                continue
             if "image_generation" in decision.required_tools and not cfg.get("supports_image_generation", False):
                 continue
             if has_image_input and not cfg.get("supports_image_input", False):
