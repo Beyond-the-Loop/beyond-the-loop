@@ -31,6 +31,7 @@ SMART_ROUTER_MODEL = ModelModel(
 _ARENA_TO_LITELLM: dict[str, str] = {
     "claude-haiku-4-5-20251001": "Claude 4.5 Haiku",
     "claude-opus-4-6": "Claude Opus 4.6",
+    "claude-opus-4-8": "Claude Opus 4.8",
     "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5",
     "claude-sonnet-4-6": "Claude Sonnet 4.6",
     "deepseek-r1": "DeepSeek R1",
@@ -49,6 +50,7 @@ _ARENA_TO_LITELLM: dict[str, str] = {
     "gpt-5.5": "GPT-5.5",
     "o3-2025-04-16": "GPT o3",
     "o4-mini-2025-04-16": "GPT o4-mini",
+    "mistral-large-3": "Mistral Large 3"
 }
 
 # Inverted: litellm model name → arena rankings dict (or empty if not in rankings)

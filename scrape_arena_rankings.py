@@ -18,6 +18,7 @@ TARGET_MODELS = {
     "claude-haiku-4-5-20251001",
     "claude-sonnet-4-5-20250929",
     "claude-sonnet-4-6",
+    "claude-opus-4-8",
     "claude-opus-4-6",
     "gemini-2.5-flash",
     "gemini-3.5-flash",
@@ -29,6 +30,7 @@ TARGET_MODELS = {
     "o4-mini-2025-04-16",
     "gpt-5-high",
     "gpt-5-mini-high",
+    "mistral-large-3"
     "deepseek-v3.2",
     "deepseek-r1",
     "deepseek-r1-0528",
