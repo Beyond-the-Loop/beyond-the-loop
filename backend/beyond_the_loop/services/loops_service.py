@@ -14,6 +14,26 @@ class LoopsService:
         self.api_key = os.getenv("LOOPS_API_KEY")
         self.api_url = os.getenv("LOOPS_API_URL")
 
+    @staticmethod
+    def _resolve_language(user: UserModel) -> str:
+        """Normalize the user's UI locale to a Loops language code.
+
+        Falls back to "de" when nothing is stored — matches the one-shot
+        bulk-sync default for existing users.
+        """
+        locale = None
+        try:
+            settings = user.settings
+            if settings is not None:
+                ui = settings.ui if isinstance(settings.ui, dict) else {}
+                locale = ui.get("locale")
+        except Exception:
+            locale = None
+
+        if not locale:
+            return "de"
+        return locale.split("-")[0].lower()
+
     def create_or_update_loops_contact(
             self,
             user: UserModel
@@ -52,7 +72,8 @@ class LoopsService:
             "lastName": user.last_name,
             "userGroup": user.role.capitalize(),
             "userId": user.id,
-            "plan": plan
+            "plan": plan,
+            "language": self._resolve_language(user),
         }
 
         try:
