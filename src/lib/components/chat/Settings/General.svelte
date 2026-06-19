@@ -207,6 +207,7 @@
 											$i18n.changeLanguage(language['code']);
 											selectedLanguage = language;
 											showLanguageDropdown = false;
+											saveSettings({ locale: language['code'] });
 										}}
 									>
 										{$i18n.t(language['title_translation_key'])}

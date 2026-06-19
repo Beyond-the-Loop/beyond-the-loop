@@ -398,6 +398,10 @@ async def update_user_settings_by_session_user(
 ):
     user = Users.update_user_by_id(user.id, {"settings": form_data.model_dump()})
     if user:
+        try:
+            loops_service.create_or_update_loops_contact(user)
+        except Exception as e:
+            log.error(f"Failed to sync user settings to Loops: {e}")
         return user.settings
     else:
         raise HTTPException(
