@@ -144,7 +144,7 @@ from open_webui.utils.chat import (
 )
 from open_webui.utils.middleware import process_chat_payload, process_chat_response, ClientDisconnectedError, PIIRedactionError
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
-from open_webui.utils.middleware import SMART_ROUTER_MODEL
+from beyond_the_loop.utils.smart_router import SMART_ROUTER_MODEL
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
