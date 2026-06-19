@@ -106,11 +106,9 @@ def _arena_score(model_name: str, decision: SmartRouterDecision) -> int:
         score += rankings[decision.domain]
     if decision.task_type and decision.task_type in rankings:
         score += rankings[decision.task_type]
-    elif decision.domain is None:
-        score += rankings.get("overall", 500)
     # No arena data → use a neutral high value so ranked models win
     if score == 0:
-        return 9999
+        return rankings.get("overall", 9999)
     return score
 
 
@@ -151,6 +149,13 @@ async def select_model(
                and m.is_active
                and not getattr(m, "fair_usage_limit_reached", False)
         ]
+
+        ui_settings = getattr(getattr(user, "settings", None), "ui", None) or {}
+        if ui_settings.get("smartRouterEuOnly"):
+            routable_models = [
+                m for m in routable_models
+                if LITELLM_MODEL_CONFIG.get(m.name, {}).get("hosted_in") == "EU"
+            ]
 
         # --- Step 1: capability hard-filter ---
         candidates = []

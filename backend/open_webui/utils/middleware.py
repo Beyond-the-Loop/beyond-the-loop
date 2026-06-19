@@ -514,11 +514,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 model = model.model_copy(update={"base_model_id": target.id})
             metadata["selected_model_id"] = target.id
 
-            # The frontend picks the system prompt from the user-selected model.
-            # When Smart Router routes to an image-generation model, the frontend
-            # didn't know that at submit time, so it sent the generic assistant
-            # prompt — under which Nano Banana often replies in text instead of
-            # generating an image. Override with an image-gen directive that
+            # Override system prompt with an image-gen directive that
             # mirrors src/lib/utils/default_prompts/image_generation.ts.
             _target_cfg = LITELLM_MODEL_CONFIG.get(target.name, {})
             if _target_cfg.get("supports_image_generation"):

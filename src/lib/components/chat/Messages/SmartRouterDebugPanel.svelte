@@ -67,7 +67,7 @@
 
 	$: anyTool = hasWebSearch || hasImage || hasCode || hasMcp;
 
-	$: topCandidates = debug.candidates?.slice(0, 5) ?? [];
+	$: topCandidates = debug.candidates?.slice(0, 4) ?? [];
 	$: selectedModel = topCandidates[0];
 </script>
 

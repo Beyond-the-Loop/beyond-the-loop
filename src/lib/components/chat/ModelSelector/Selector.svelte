@@ -9,6 +9,9 @@
 	import { toast } from 'svelte-sonner';
 	import { splitStream } from '$lib/utils';
 	import { getModels } from '$lib/apis';
+	import { updateUserSettings } from '$lib/apis/users';
+	import { settings } from '$lib/stores';
+	import Switch from '$lib/components/common/Switch.svelte';
 
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import StarRating from './IntelligenceRating.svelte';
@@ -161,6 +164,20 @@
 	}
 
 	let baseModel = null;
+
+	$: smartRouterEuOnly = $settings?.smartRouterEuOnly ?? false;
+
+	const toggleSmartRouterEuOnly = async () => {
+		const next = !smartRouterEuOnly;
+		const prev = $settings ?? {};
+		await settings.set({ ...prev, smartRouterEuOnly: next });
+		try {
+			await updateUserSettings(localStorage.token, { ui: { ...prev, smartRouterEuOnly: next } });
+		} catch (err) {
+			await settings.set(prev);
+			toast.error($i18n.t(typeof err === 'string' ? err : 'Failed to update setting'));
+		}
+	};
 
 	$: {
 		if (selectedModel?.model?.base_model_id) {
@@ -433,7 +450,26 @@
 								{/if}
 							</p>
 						</div>
-					{#if hoveredItem.label != "Smart Router"}
+					{#if hoveredItem.label == "Smart Router"}
+						<div class="mt-auto text-xs">
+							<button
+								type="button"
+								class="flex items-center gap-3 border-t pt-5 border-gray-200 w-full p-3"
+								on:click={toggleSmartRouterEuOnly}
+							>
+								<EuIcon className="size-5 opacity-80" />
+								<div class="flex flex-col text-left">
+									<span class="text-xs font-semibold">{$i18n.t('EU-hosted models only')}</span>
+									<span class="text-2xs {smartRouterEuOnly ? 'text-blue-500 opacity-80 font-semibold' : 'text-gray-600'}">{smartRouterEuOnly ? $i18n.t('Enabled') : $i18n.t('Disabled')}</span>	
+								</div>
+								<span class="pointer-events-none ml-auto">
+									<Switch state={smartRouterEuOnly} />
+								</span>
+								
+								
+							</button>
+						</div>
+					{:else}
 						{@const m = $modelsInfo?.[hoveredItem?.label]}
 						<div class="grid grid-cols-2 mt-auto">
 							<div class="flex flex-col items-center mb-3">
