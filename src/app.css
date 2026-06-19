@@ -22,6 +22,132 @@
 	font-display: swap;
 }
 
+/* ============================================================================
+   Design Tokens — Semantic color layer
+   ----------------------------------------------------------------------------
+   These CSS custom properties are the single source of truth for color in the
+   app. Tailwind utility classes (bg-surface, text-fg-muted, border-border…)
+   read from them via rgb(var(--token) / <alpha-value>); see tailwind.config.js.
+
+   Primitive scales (lightGray-*, customGray-*, customBlue-*) remain available
+   during the migration but MUST NOT be referenced by new code. See
+   docs/design-tokens.md for the rationale, migration plan, and recipes.
+
+   Values use space-separated RGB so /alpha modifiers keep working
+   (e.g. bg-surface-overlay/50). Comments next to each token quote the legacy
+   primitive that value originated from so the migration is auditable.
+   ========================================================================== */
+
+:root {
+	/* Surfaces — backgrounds, lowest to highest elevation */
+	--surface-canvas: 241 241 241;        /* lightGray-300 */
+	--surface: 245 245 245;               /* lightGray-550 */
+	--surface-raised: 250 250 250;        /* lightGray-800 */
+	--surface-muted: 252 252 252;         /* lightGray-350 */
+	--surface-overlay: 225 225 225;       /* lightGray-250 — modal scrims */
+	--surface-code: 236 236 236;          /* gray-100 — code blocks only */
+	--surface-hover: 232 232 232;         /* lightGray-700 */
+	--surface-selected: 228 228 228;      /* lightGray-400 */
+	--surface-disabled: 228 228 228;      /* lightGray-400 */
+
+	/* Borders */
+	--border-subtle: 236 236 236;         /* gray-100 — barely-there dividers */
+	--border-default: 228 228 228;        /* lightGray-400 — inputs, cards */
+	--border-strong: 72 72 72;            /* lightGray-1100 — emphasis */
+	--border-focus: 48 91 228;            /* customBlue-600 — focus ring */
+
+	/* Foreground / text */
+	--text-primary: 35 37 41;             /* lightGray-100 */
+	--text-secondary: 72 72 72;           /* lightGray-1100 */
+	--text-muted: 106 106 106;            /* lightGray-1200 */
+	--text-placeholder: 205 205 205;      /* gray-300 */
+	--text-disabled: 179 179 179;         /* lightGray-900 */
+	--text-on-accent: 255 255 255;
+	--text-link: 48 91 228;               /* customBlue-600 */
+
+	/* Brand accent — kept identical light/dark for brand consistency */
+	--accent: 48 91 228;                  /* customBlue-600 */
+	--accent-hover: 0 127 255;            /* customBlue-500 */
+	--accent-subtle: 48 91 228;           /* combine with /10, /15 alpha */
+	--accent-foreground: 255 255 255;
+
+	/* Status — info / success / warning / danger */
+	--info-bg: 239 246 255;               /* blue-50 */
+	--info-border: 191 219 254;           /* blue-200 */
+	--info-fg: 30 64 175;                 /* blue-800 */
+
+	--success-bg: 240 253 244;            /* green-50 */
+	--success-border: 187 247 208;        /* green-200 */
+	--success-fg: 22 101 52;              /* green-800 */
+
+	--warning-bg: 255 247 237;            /* orange-50 */
+	--warning-border: 254 215 170;        /* orange-200 */
+	--warning-fg: 154 52 18;              /* orange-800 */
+
+	--danger-bg: 239 68 68;               /* red-500 — solid destructive */
+	--danger-bg-hover: 220 38 38;         /* red-600 */
+	--danger-border: 254 202 202;         /* red-200 */
+	--danger-fg: 153 27 27;               /* red-800 */
+	--danger-foreground: 255 255 255;
+
+	/* Chat surfaces — high-traffic, own knobs */
+	--chat-user: 250 250 250;             /* lightGray-800 */
+	--chat-assistant: 249 249 249;        /* gray-50 — used in edit mode only */
+	--chat-input: 250 250 250;            /* lightGray-800 */
+}
+
+.dark {
+	--surface-canvas: 30 30 30;           /* customGray-900 */
+	--surface: 39 37 37;                  /* customGray-800 */
+	--surface-raised: 39 37 37;           /* customGray-800 — equal today, will diverge */
+	--surface-muted: 24 24 24;            /* customGray-850 */
+	--surface-overlay: 24 24 24;          /* customGray-950 */
+	--surface-code: 51 51 51;             /* gray-800 */
+	--surface-hover: 24 24 24;            /* customGray-950 */
+	--surface-selected: 24 24 24;         /* customGray-850 */
+	--surface-disabled: 24 24 24;         /* customGray-850 */
+
+	--border-subtle: 23 23 23;            /* gray-900 */
+	--border-default: 49 51 55;           /* customGray-700 */
+	--border-strong: 208 206 206;         /* customGray-100 */
+	--border-focus: 48 91 228;            /* customBlue-600 — harmonised with light (was blue-500) */
+
+	--text-primary: 255 255 255;
+	--text-secondary: 208 206 206;        /* customGray-100 */
+	--text-muted: 180 180 180;            /* gray-400 */
+	--text-placeholder: 78 78 78;         /* gray-700 */
+	--text-disabled: 119 118 118;         /* customGray-590 */
+	--text-on-accent: 255 255 255;
+	--text-link: 48 91 228;               /* customBlue-600 — harmonised (was blue-400) */
+
+	--accent: 48 91 228;                  /* customBlue-600 — harmonised (was blue-600) */
+	--accent-hover: 0 127 255;            /* customBlue-500 — harmonised (was blue-500) */
+	--accent-subtle: 48 91 228;
+	--accent-foreground: 255 255 255;
+
+	--info-bg: 30 58 138;                 /* blue-900 */
+	--info-border: 30 64 175;             /* blue-800 */
+	--info-fg: 191 219 254;               /* blue-200 */
+
+	--success-bg: 20 83 45;               /* green-900 */
+	--success-border: 22 101 52;          /* green-800 */
+	--success-fg: 187 247 208;            /* green-200 */
+
+	--warning-bg: 124 45 18;              /* orange-900 */
+	--warning-border: 154 52 18;          /* orange-800 */
+	--warning-fg: 254 215 170;            /* orange-200 */
+
+	--danger-bg: 239 68 68;               /* red-500 */
+	--danger-bg-hover: 220 38 38;         /* red-600 */
+	--danger-border: 153 27 27;           /* red-800 */
+	--danger-fg: 254 202 202;             /* red-200 */
+	--danger-foreground: 255 255 255;
+
+	--chat-user: 39 37 37;                /* customGray-800 */
+	--chat-assistant: 51 51 51;           /* gray-800 */
+	--chat-input: 39 37 37;               /* customGray-800 */
+}
+
 html {
 	word-break: break-word;
 }
