@@ -668,21 +668,12 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
 
     company_id = target_user.company_id
 
-    # ------------------------------------------------------------------
-    # Last-user check: if this is the only user left in the company,
-    # dissolve the whole company instead of leaving the user as an orphan.
-    # ------------------------------------------------------------------
-    total_users = Users.count_users_by_company_id(company_id)
-
-    if total_users == 1:
+    # Last-user: dissolve the company instead of leaving an orphan.
+    if Users.count_users_by_company_id(company_id) == 1:
         dissolve_company(company_id)
         return True
 
-    # ------------------------------------------------------------------
-    # Last-admin check: if this is the only admin left, promote a random
-    # non-pending user. If ALL remaining users are pending there is nobody
-    # to promote — treat it as "last active user" and dissolve the company.
-    # ------------------------------------------------------------------
+    # Last-admin: promote a non-pending user, or dissolve if none qualifies.
     if target_user.role == "admin":
         admin_users = Users.get_admin_users_by_company(company_id)
         if len(admin_users) == 1:
@@ -713,6 +704,7 @@ async def delete_user_by_id(user_id: str, user=Depends(get_verified_user)):
         )
 
     payments_service.update_premium_seat_count(company_id)
+
     return True
 
 

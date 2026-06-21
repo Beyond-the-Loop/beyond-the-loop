@@ -10,34 +10,16 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Set
 
 from open_webui.internal.db import get_db
-from beyond_the_loop.models.files import File, Files
+from beyond_the_loop.models.files import File
+from beyond_the_loop.models.files import Files
 from beyond_the_loop.models.knowledge import Knowledge
 from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import User
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 from beyond_the_loop.storage.provider import Storage
+from beyond_the_loop.retrieval.rag_engine import delete_google_rag_file_from_meta
 
 log = logging.getLogger(__name__)
-
-
-def _delete_file_artifacts(file_id: str, file_path: Optional[str]) -> None:
-    """Remove a file's vector collection and storage blob.
-
-    DB row removal is the caller's responsibility (explicit delete or CASCADE).
-    Failures are logged so one bad file doesn't abort bulk cleanups.
-    """
-    collection_name = f"file-{file_id}"
-    try:
-        if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-            VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
-    except Exception as e:
-        log.warning(f"Failed to delete vector collection {collection_name}: {e}")
-
-    if file_path:
-        try:
-            Storage.delete_file(file_path)
-        except Exception as e:
-            log.warning(f"Failed to delete file {file_path} from storage: {e}")
 
 
 def _delete_vector_collection(collection_name: str) -> None:
@@ -49,21 +31,17 @@ def _delete_vector_collection(collection_name: str) -> None:
 
 
 def delete_user_external_artifacts(user_id: str) -> None:
-    """Remove all external (non-DB) artifacts owned by a user: storage blobs
-    and pgvector collections for files, knowledge bases, and the per-user
-    memory collection.
+    """Remove all external artifacts owned by a user: file rows + their Google
+    RAG entries + storage blobs, plus the per-user memory pgvector collection.
 
-    Must be called BEFORE the user DB row is deleted — the lookups walk
-    file.user_id / knowledge.user_id, which CASCADE removes with the user.
-    The DB rows themselves are handled by the user→X CASCADE chain.
+    Must be called BEFORE the user DB row is deleted — the file lookup walks
+    file.user_id, which CASCADE removes with the user.
     """
-    from beyond_the_loop.models.knowledge import Knowledges
-
     for file in Files.get_files_by_user_id(user_id):
-        _delete_file_artifacts(file.id, file.path)
-
-    for knowledge_id in Knowledges.get_knowledge_ids_by_user_id(user_id):
-        _delete_vector_collection(knowledge_id)
+        try:
+            delete_file_fully(file)
+        except Exception as e:
+            log.warning(f"Failed to delete file {file.id} for user {user_id}: {e}")
 
     _delete_vector_collection(f"user-memory-{user_id}")
 
@@ -72,34 +50,34 @@ class FileService:
     """Service for handling file deletion operations"""
 
     DELETION_THRESHOLD_DAYS = 90  # 3 months
-    
+
     def __init__(self):
         self.processed_companies = set()
         self.deleted_count = 0
         self.protected_files_count = 0
-    
+
     def run_daily_file_cleanup(self) -> dict:
         """
         Run the complete daily file cleanup process for all companies.
-        
+
         Returns:
             dict: Summary of the cleanup process results
         """
         log.info("Starting daily file cleanup process")
         start_time = datetime.now()
-        
+
         # Reset counters
         self.processed_companies.clear()
         self.deleted_count = 0
         self.protected_files_count = 0
-        
+
         try:
             # Delete old files (excluding those in knowledge bases)
             self._delete_old_files()
-            
+
             end_time = datetime.now()
             duration = end_time - start_time
-            
+
             summary = {
                 "success": True,
                 "start_time": start_time.isoformat(),
@@ -109,10 +87,10 @@ class FileService:
                 "files_deleted": self.deleted_count,
                 "files_protected": self.protected_files_count
             }
-            
+
             log.info(f"Daily file cleanup completed successfully: {summary}")
             return summary
-            
+
         except Exception as e:
             log.error(f"Error during daily file cleanup: {e}", exc_info=True)
             return {
@@ -122,7 +100,7 @@ class FileService:
                 "files_deleted": self.deleted_count,
                 "files_protected": self.protected_files_count
             }
-    
+
     def _get_protected_file_ids(self) -> Set[str]:
         """Get all file IDs that are referenced in knowledge bases or assistants and should not be deleted"""
         protected_ids = set()
@@ -156,39 +134,39 @@ class FileService:
             f"({knowledge_protected_count} from knowledge bases, {assistant_protected_count} from assistants)"
         )
         return protected_ids
-    
+
     def _delete_old_files(self) -> None:
         """Delete files that are older than 3 months and not protected by knowledge bases"""
         log.info("Starting deletion of old files")
-        
+
         # Calculate cutoff timestamp (90 days ago)
         cutoff_date = datetime.now() - timedelta(days=self.DELETION_THRESHOLD_DAYS)
         cutoff_timestamp = int(cutoff_date.timestamp())
-        
+
         # Get protected file IDs
         protected_file_ids = self._get_protected_file_ids()
-        
+
         with get_db() as db:
             # Find files older than 3 months
             old_files = db.query(File).filter(
                 File.created_at < cutoff_timestamp
             ).all()
-            
+
             if not old_files:
                 log.info("No old files found to process")
                 return
-            
+
             log.info(f"Found {len(old_files)} files older than {self.DELETION_THRESHOLD_DAYS} days")
-            
+
             # Group files by company for tracking
             company_files = {}
-            
+
             for file in old_files:
                 # Skip protected files
                 if file.id in protected_file_ids:
                     self.protected_files_count += 1
                     continue
-                
+
                 # Get user's company
                 user = db.query(User).filter(User.id == file.user_id).first()
                 if user and user.company_id:
@@ -197,11 +175,11 @@ class FileService:
                         company_files[company_id] = []
                     company_files[company_id].append(file)
                     self.processed_companies.add(company_id)
-            
+
             # Delete files for each company
             for company_id, files_to_delete in company_files.items():
                 self._delete_company_files(company_id, files_to_delete)
-    
+
     def _delete_company_files(self, company_id: str, files_to_delete: List[File]) -> None:
         """Delete files for a specific company"""
         log.info(f"Processing {len(files_to_delete)} files for company {company_id}")
@@ -210,38 +188,34 @@ class FileService:
 
         for file in files_to_delete:
             try:
-                _delete_file_artifacts(file.id, file.path)
-
-                if Files.delete_file_by_id(file.id):
-                    deleted_count += 1
-                else:
-                    log.warning(f"Failed to delete file record: {file.id}")
-
+                delete_file_fully(file)
+                deleted_count += 1
+                log.debug(f"Deleted file: {file.id} ({file.filename})")
             except Exception as e:
                 log.error(f"Error deleting file {file.id}: {e}")
 
         self.deleted_count += deleted_count
         log.info(f"Deleted {deleted_count} files for company {company_id}")
-    
+
     def get_cleanup_stats(self, company_id: Optional[str] = None) -> dict:
         """
         Get statistics about file cleanup for a company or globally.
-        
+
         Args:
             company_id: Optional company ID to filter stats
-            
+
         Returns:
             dict: Statistics about file cleanup
         """
         cutoff_date = datetime.now() - timedelta(days=self.DELETION_THRESHOLD_DAYS)
         cutoff_timestamp = int(cutoff_date.timestamp())
-        
+
         # Get protected file IDs
         protected_file_ids = self._get_protected_file_ids()
-        
+
         with get_db() as db:
             base_query = db.query(File)
-            
+
             if company_id:
                 # Get users for this company
                 users = db.query(User).filter(User.company_id == company_id).all()
@@ -254,15 +228,15 @@ class FileService:
                         "deletable_files": 0
                     }
                 base_query = base_query.filter(File.user_id.in_(user_ids))
-            
+
             total_files = base_query.count()
             old_files_query = base_query.filter(File.created_at < cutoff_timestamp)
             old_files = old_files_query.all()
-            
+
             old_files_count = len(old_files)
             protected_count = len([f for f in old_files if f.id in protected_file_ids])
             deletable_count = old_files_count - protected_count
-            
+
             return {
                 "total_files": total_files,
                 "old_files": old_files_count,
@@ -271,26 +245,26 @@ class FileService:
                 "cutoff_date": cutoff_date.isoformat(),
                 "threshold_days": self.DELETION_THRESHOLD_DAYS
             }
-    
+
     def preview_cleanup_candidates(self, company_id: Optional[str] = None) -> dict:
         """
         Preview which files would be deleted without actually deleting them.
-        
+
         Args:
             company_id: Optional company ID to preview
-            
+
         Returns:
             dict: Preview information about files that would be deleted
         """
         cutoff_date = datetime.now() - timedelta(days=self.DELETION_THRESHOLD_DAYS)
         cutoff_timestamp = int(cutoff_date.timestamp())
-        
+
         # Get protected file IDs
         protected_file_ids = self._get_protected_file_ids()
-        
+
         with get_db() as db:
             base_query = db.query(File).filter(File.created_at < cutoff_timestamp)
-            
+
             if company_id:
                 # Get users for this company
                 users = db.query(User).filter(User.company_id == company_id).all()
@@ -304,17 +278,17 @@ class FileService:
                         "candidates": []
                     }
                 base_query = base_query.filter(File.user_id.in_(user_ids))
-            
+
             # Get old files
             old_files = base_query.order_by(File.created_at.asc()).all()
-            
+
             candidate_info = []
             protected_count = 0
-            
+
             for file in old_files[:20]:  # Limit for preview
                 created_date = datetime.fromtimestamp(file.created_at)
                 is_protected = file.id in protected_file_ids
-                
+
                 if is_protected:
                     protected_count += 1
                 else:
@@ -326,9 +300,9 @@ class FileService:
                         "days_old": (datetime.now() - created_date).days,
                         "path": file.path
                     })
-            
+
             total_deletable = len([f for f in old_files if f.id not in protected_file_ids])
-            
+
             return {
                 "company_id": company_id,
                 "cutoff_date": cutoff_date.isoformat(),
@@ -339,6 +313,34 @@ class FileService:
                 "candidates": candidate_info
             }
 
+def delete_file_fully(file) -> None:
+    """
+    Delete a file from the database, Google RAG Engine, and cloud storage.
+
+    DB is deleted first because it is the source of truth — once the DB row
+    is gone, the user can no longer see or reference the file. Failures in
+    RAG or storage cleanup leave harmless orphans (no live references) that
+    can be reconciled by a background job later.
+
+    Raises if DB deletion fails so callers can surface the error.
+    Accepts FileModel (pydantic) or File (SQLAlchemy) — both expose .id, .meta, .path.
+    """
+    if file is None:
+        return
+
+    if not Files.delete_file_by_id(file.id):
+        raise RuntimeError(f"Failed to delete file {file.id} from database")
+
+    try:
+        delete_google_rag_file_from_meta(file.meta)
+    except Exception as e:
+        log.warning(f"Could not delete file {file.id} from Google RAG Engine: {e}")
+
+    if file.path:
+        try:
+            Storage.delete_file(file.path)
+        except Exception as e:
+            log.warning(f"Could not delete file {file.id} from storage: {e}")
 
 # Global instance
 file_service = FileService()
