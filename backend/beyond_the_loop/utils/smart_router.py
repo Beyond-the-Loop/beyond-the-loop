@@ -27,40 +27,6 @@ SMART_ROUTER_MODEL = ModelModel(
     access_control=None,
 )
 
-# Maps arena_rankings.json keys → litellm-config.yaml model names
-_ARENA_TO_LITELLM: dict[str, str] = {
-    "claude-haiku-4-5-20251001": "Claude 4.5 Haiku",
-    "claude-opus-4-6": "Claude Opus 4.6",
-    "claude-opus-4-8": "Claude Opus 4.8",
-    "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5",
-    "claude-sonnet-4-6": "Claude Sonnet 4.6",
-    "deepseek-r1": "DeepSeek R1",
-    "deepseek-r1-0528": "DeepSeek R1-0528",
-    "deepseek-v3.2": "DeepSeek-V3.2",
-    "gemini-2.5-flash": "Gemini 2.5 Flash",
-    "gemini-2.5-pro": "Gemini 2.5 Pro",
-    "gemini-3-flash": "Gemini 3 Flash",
-    "gemini-3-pro": "Gemini 3 Pro",
-    "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite",
-    "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
-    "gemini-3.5-flash": "Gemini 3.5 Flash",
-    "gpt-5-high": "GPT-5",
-    "gpt-5-mini-high": "GPT-5 mini",
-    "gpt-5.4": "GPT-5.4",
-    "gpt-5.5": "GPT-5.5",
-    "o3-2025-04-16": "GPT o3",
-    "o4-mini-2025-04-16": "GPT o4-mini",
-    "mistral-large-3": "Mistral Large 3"
-}
-
-# Inverted: litellm model name → arena rankings dict (or empty if not in rankings)
-_LITELLM_TO_ARENA: dict[str, dict] = {
-    litellm_name: ARENA_RANKINGS[arena_key]
-    for arena_key, litellm_name in _ARENA_TO_LITELLM.items()
-    if arena_key in ARENA_RANKINGS
-}
-
-
 def _build_context_section(messages: list[dict] | None) -> str:
     if not messages:
         return ""
@@ -100,7 +66,7 @@ async def _classify(user_message: str, user, messages, pii_active: bool) -> Smar
 
 
 def _arena_score(model_name: str, decision: SmartRouterDecision) -> int:
-    rankings = _LITELLM_TO_ARENA.get(model_name, {})
+    rankings = ARENA_RANKINGS.get(model_name, {})
     score = 0
     if decision.domain and decision.domain in rankings:
         score += rankings[decision.domain]

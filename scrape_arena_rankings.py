@@ -14,29 +14,30 @@ import sys
 from typing import Optional
 import requests
 
-TARGET_MODELS = {
-    "claude-haiku-4-5-20251001",
-    "claude-sonnet-4-5-20250929",
-    "claude-sonnet-4-6",
-    "claude-opus-4-8",
-    "claude-opus-4-6",
-    "gemini-2.5-flash",
-    "gemini-3.5-flash",
-    "gemini-3-flash",
-    "gemini-3-pro",
-    "gemini-3.1-flash-lite-preview",
-    "gemini-2.5-pro",
-    "o3-2025-04-16",
-    "o4-mini-2025-04-16",
-    "gpt-5-high",
-    "gpt-5-mini-high",
-    "mistral-large-3"
-    "deepseek-v3.2",
-    "deepseek-r1",
-    "deepseek-r1-0528",
-    "gpt-5.4",
-    "gpt-5.5",
-    "gemini-3.1-pro-preview",
+# Single source of truth: arena.ai rankings key → litellm-config.yaml model name.
+ARENA_TO_LITELLM: dict[str, str] = {
+    "claude-haiku-4-5-20251001": "Claude 4.5 Haiku",
+    "claude-opus-4-6": "Claude Opus 4.6",
+    "claude-opus-4-8": "Claude Opus 4.8",
+    "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "deepseek-r1": "DeepSeek R1",
+    "deepseek-r1-0528": "DeepSeek R1-0528",
+    "deepseek-v3.2": "DeepSeek-V3.2",
+    "gemini-2.5-flash": "Gemini 2.5 Flash",
+    "gemini-2.5-pro": "Gemini 2.5 Pro",
+    "gemini-3-flash": "Gemini 3 Flash",
+    "gemini-3-pro": "Gemini 3 Pro",
+    "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+    "gemini-3.5-flash": "Gemini 3.5 Flash",
+    "gpt-5-high": "GPT-5",
+    "gpt-5-mini-high": "GPT-5 mini",
+    "gpt-5.4": "GPT-5.4",
+    "gpt-5.5": "GPT-5.5",
+    "o3-2025-04-16": "GPT o3",
+    "o4-mini-2025-04-16": "GPT o4-mini",
+    "mistral-large-3": "Mistral Large 3",
 }
 
 # All categories available on arena.ai/leaderboard/text
@@ -56,21 +57,7 @@ CATEGORIES = [
     "instruction-following",
     "multi-turn",
     "creative-writing",
-    "coding",
-    "hard-prompts",
-    "hard-prompts-english",
-    "longer-query",
-    "english",
-    "non-english",
-    "chinese",
-    "french",
-    "german",
-    "spanish",
-    "russian",
-    "japanese",
-    "korean",
-    "polish",
-    "exclude-ties",
+    "coding"
 ]
 
 BASE_URL = "https://arena.ai/leaderboard/text"
@@ -126,9 +113,9 @@ def parse_rankings(html: str) -> dict[str, int]:
 def scrape_all_categories(delay: float = 0.5) -> dict[str, dict[str, int]]:
     """
     Scrape rankings for all categories.
-    Returns {model_name: {category: rank}}.
+    Returns {litellm_model_name: {category: rank}}.
     """
-    results: dict[str, dict[str, int]] = {model: {} for model in TARGET_MODELS}
+    results: dict[str, dict[str, int]] = {litellm: {} for litellm in ARENA_TO_LITELLM.values()}
 
     session = requests.Session()
     total = len(CATEGORIES)
@@ -146,12 +133,12 @@ def scrape_all_categories(delay: float = 0.5) -> dict[str, dict[str, int]]:
             continue
 
         found = 0
-        for model in TARGET_MODELS:
-            if model in rankings:
-                results[model][category] = rankings[model]
+        for arena_key, litellm_name in ARENA_TO_LITELLM.items():
+            if arena_key in rankings:
+                results[litellm_name][category] = rankings[arena_key]
                 found += 1
 
-        print(f"  Found {found}/{len(TARGET_MODELS)} target models (total models: {len(rankings)})")
+        print(f"  Found {found}/{len(ARENA_TO_LITELLM)} target models (total models: {len(rankings)})")
 
         if i < total:
             time.sleep(delay)
@@ -174,7 +161,7 @@ def main():
     )
     args = parser.parse_args()
 
-    print(f"Scraping {len(CATEGORIES)} categories for {len(TARGET_MODELS)} models...")
+    print(f"Scraping {len(CATEGORIES)} categories for {len(ARENA_TO_LITELLM)} models...")
     print()
 
     rankings = scrape_all_categories(delay=args.delay)
