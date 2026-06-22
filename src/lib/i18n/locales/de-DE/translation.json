@@ -360,6 +360,7 @@
 	"Continue with Google": "Mit Google fortfahren",
 	"Continue with LDAP": "Mit LDAP fortfahren",
 	"Continue with Microsoft": "Mit Microsoft fortfahren",
+	"Continue with summary": "Mit Zusammenfassung weiterarbeiten",
 	"Continue with {{provider}}": "Mit {{provider}} fortfahren",
 	"Control how message text is split for TTS requests. 'Punctuation' splits into sentences, 'paragraphs' splits into paragraphs, and 'none' keeps the message as a single string.": "Kontrollieren Sie, wie Nachrichtentext für TTS-Anfragen aufgeteilt wird. 'Punctuation' teilt in Sätze auf, 'paragraphs' teilt in Absätze auf und 'none' behält die Nachricht als einzelnen String.",
 	"Controls": "Steuerung",

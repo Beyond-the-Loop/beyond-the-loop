@@ -242,6 +242,7 @@
 									}}
 									{addMessages}
 									{readOnly}
+									on:continue-chat-context={() => dispatch('continue-chat-context')}
 								/>
 							{/if}
 						{/key}

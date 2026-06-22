@@ -250,9 +250,6 @@ async def maybe_compress_chat(
         return form_data
 
     compression: dict | None = chat_data.chat.get("compression")
-    # [cont] debug instrumentation — remove after diagnosis
-    _ls = compression.get("summary") if isinstance(compression, dict) else None
-    log.info("[cont] maybe_compress chat_id=%s loaded_summary=%r", chat_id, _ls[:120] if _ls else None)
 
     if compression is not None:
         prev_msg = all_messages[-2] if len(all_messages) >= 2 else None
@@ -271,8 +268,13 @@ async def maybe_compress_chat(
     threshold_pct = _get_compression_threshold(model.name)
     threshold_tokens = int(context_window * threshold_pct)
     current_tokens = _count_tokens(compression["messages"], model.name)
+    show_continue_chat_hint = False
+    did_compress = False
 
     if current_tokens > threshold_tokens:
+        show_continue_chat_hint = True
+        did_compress = True
+
         if event_emitter:
             await event_emitter(
                 {
@@ -303,30 +305,38 @@ async def maybe_compress_chat(
         )
         compression["summary"] = new_summary
 
-        if event_emitter:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "chat_compression",
-                        "description": "Compressing chat history",
-                        "done": True,
-                    },
-                }
-            )
+    if show_continue_chat_hint:
+        form_data["__continue_chat_action__"] = {
+            "action": "continue_chat_button",
+            "reason": "chat_too_long",
+        }
+
+    if did_compress and event_emitter:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "chat_compression",
+                    "description": "Compressing chat history",
+                    "done": True,
+                },
+            }
+        )
 
     # -----------------------------------------------------------------------
     # Rebuild the LiteLLM payload when there is something to inject into the
     # system prompt (a summary and/or a "chat is long" notice).
     # -----------------------------------------------------------------------
     summary = compression.get("summary")
-    if summary:
+    if summary or show_continue_chat_hint:
         system_msgs = [m for m in all_messages if m.get("role") == "system"]
         form_data["messages"] = _build_payload(
             system_msgs,
             summary,
             compression["messages"],
-            notice_text=CHAT_COMPRESSION_NOTICE,
+            # Only nudge "start a new chat" when THIS chat is actually long — not merely
+            # because a carried-over summary exists (continued chats begin with one).
+            notice_text=CHAT_COMPRESSION_NOTICE if show_continue_chat_hint else None,
         )
 
     # Persist the updated compression state
@@ -344,15 +354,7 @@ async def build_continuation_compression(
 ) -> dict | None:
     """Build the "Continue in new chat" seed: always summarise this chat's history
     fresh (never reuse the stored summary — it may be stale/inherited)."""
-    existing = chat.get("compression")
     messages = _extract_history_messages(chat)
-    # [cont] debug instrumentation — remove after diagnosis
-    _first = next((m.get("content", "") for m in messages if m.get("role") == "user"), "")
-    _es = existing.get("summary") if isinstance(existing, dict) else None
-    log.info(
-        "[cont] build chat_id=%s n_msgs=%d first_user=%r existing_summary=%r (always regenerating)",
-        chat_id, len(messages), str(_first)[:80], _es[:120] if _es else None,
-    )
 
     if not messages:
         return None
