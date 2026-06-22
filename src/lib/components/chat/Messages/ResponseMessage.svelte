@@ -104,7 +104,7 @@
 			usage?: unknown;
 		};
 		annotation?: { type: string; rating: number };
-		smartRouterDebug?: {
+		smartRouterMetadata?: {
 			required_tools: string[];
 			domain: string | null;
 			task_type: string | null;
@@ -547,29 +547,25 @@
 		<div class="flex-auto w-0 pl-1">
 			<div class="self-center font-semibold flex gap-1 items-center">
 				<Name>
-					<!-- <Tooltip content={model?.name ?? message.model} placement="top-start"> -->
 					<span class="line-clamp-1 text-base select-text">
 						{model?.name ?? message.model}
 						{#if selectedModelName}
 							<span class="font-normal text-gray-500 dark:text-gray-400">({selectedModelName})</span>
 						{/if}
 					</span>
-					<!-- </Tooltip> -->
 
 					{#if message.timestamp}
 						<div
 							class=" self-center text-2xs invisible group-hover:visible text-gray-400 font-medium first-letter:capitalize ml-0.5 translate-y-[1px]"
 						>
-							<!-- <Tooltip content={dayjs(message.timestamp * 1000).format('LLLL')}> -->
 								<span class="line-clamp-1">{formatDate(message.timestamp * 1000)}</span>
-							<!-- </Tooltip> -->
 						</div>
 					{/if}
 				</Name>
 
-				{#if message.smartRouterDebug}
+				{#if message.smartRouterMetadata}
 					<div class="relative self-center invisible group-hover:visible translate-y-[1px] z-50">
-						<SmartRouterDebugPanel debug={message.smartRouterDebug} />
+						<SmartRouterDebugPanel debug={message.smartRouterMetadata} />
 					</div>
 				{/if}
 			</div>

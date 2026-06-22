@@ -552,8 +552,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 "complexity": routing_decision.complexity,
                 "candidates": candidates_info,
             }
-            metadata["smart_router_debug"] = debug_info
-            await event_emitter({"type": "smart_router_debug", "data": debug_info})
+            metadata["smart_router_debug_data"] = debug_info
+            await event_emitter({"type": "smart_router_debug_data", "data": debug_info})
 
         await event_emitter(
             {
