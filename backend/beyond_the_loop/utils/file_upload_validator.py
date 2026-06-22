@@ -35,7 +35,7 @@ EXTENSION_MIME_MAP: dict[str, set[str]] = {
     "c":    {"text/plain", "text/x-c", "text/x-csrc"},
     "cpp":  {"text/plain", "text/x-c", "text/x-c++", "text/x-c++src"},
     "go":   {"text/plain", "text/x-go"},
-    "sql":  {"text/plain"},
+    "sql": {"text/plain"},
 
     # Images
     "jpg":  {"image/jpeg"},
