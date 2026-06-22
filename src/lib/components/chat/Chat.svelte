@@ -505,8 +505,8 @@
 						history.messages[userMessageId].pii_status = data.pii_status;
 						saveChatHandler($chatId, history);
 					}
-				} else if (type === 'smart_router_debug') {
-					message.smartRouterDebug = data;
+				} else if (type === 'smart_router_debug_data') {
+					message.smartRouterMetadata = data;
 				} else {
 					console.log('Unknown message type', data);
 				}

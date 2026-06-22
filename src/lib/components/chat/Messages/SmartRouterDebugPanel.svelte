@@ -19,10 +19,18 @@
 	};
 
 	let visible = false;
+	let openUp = false;
 	let hideTimer: ReturnType<typeof setTimeout>;
+	let triggerEl: HTMLDivElement;
 
 	function show() {
 		clearTimeout(hideTimer);
+		if (triggerEl) {
+			const rect = triggerEl.getBoundingClientRect();
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			openUp = spaceAbove > spaceBelow;
+		}
 		visible = true;
 	}
 
@@ -36,27 +44,6 @@
 		3: 'medium',
 		4: 'hard'
 	};
-
-	const domainKeys: Record<string, string> = {
-		'industry-software-and-it-services': 'Software & IT',
-		'industry-writing-and-literature-and-language': 'Language & Literature',
-		'industry-life-and-physical-and-social-science': 'Science',
-		'industry-entertainment-and-sports-and-media': 'Media & Sports',
-		'industry-business-and-management-and-financial-operations': 'Business',
-		'industry-mathematical': 'Mathematics',
-		'industry-legal-and-government': 'Law & Government',
-		'industry-medicine-and-healthcare': 'Medicine'
-	};
-
-	function formatDomain(domain: string | null): string {
-		if (!domain) return $i18n.t('N/A');
-		if (domainKeys[domain]) return $i18n.t(domainKeys[domain]);
-		return domain
-			.replace(/^industry-/, '')
-			.replace(/-and-/g, ' & ')
-			.replace(/-/g, ' ')
-			.replace(/\b\w/g, (c) => c.toUpperCase());
-	}
 
 	$: hasWebSearch = debug.required_tools.includes('web_search');
 	$: hasImage = debug.required_tools.includes('image_generation');
@@ -74,6 +61,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
 	class="relative inline-flex items-center"
+	bind:this={triggerEl}
 	on:mouseenter={show}
 	on:mouseleave={scheduleHide}
 >
@@ -88,7 +76,7 @@
 	{#if visible}
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
-			class="absolute top-full left-0 mt-2 z-50 w-72 rounded-2xl bg-white text-xs overflow-hidden"
+			class="absolute {openUp ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 z-50 w-72 rounded-2xl bg-white text-xs overflow-hidden"
 			on:mouseenter={show}
 			on:mouseleave={scheduleHide}
 			transition:fade={{ duration: 100 }}
@@ -135,7 +123,7 @@
 
 					<div>
 						<div class="text-2xs text-gray-500 dark:text-gray-500 mb-1">{$i18n.t('Topic')}</div>
-						<div class="text-xs text-gray-800 dark:text-gray-200 truncate">{formatDomain(debug.domain)}</div>
+						<div class="text-xs text-gray-800 dark:text-gray-200 truncate">{debug.domain ? $i18n.t(debug.domain) : $i18n.t('N/A')}</div>
 					</div>
 
 					<div>
