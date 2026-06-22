@@ -777,6 +777,20 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         # Handle non-RAG task: extract file content and append to user prompt.
         # Anonymize each file separately so its source is tracked per-file
         # (the sidebar groups variables by source = file name).
+        if pii_session is not None:
+            # The user-message anonymization status was already cleared above;
+            # re-emit here so the spinner covers the (often longer) file
+            # extraction + per-file anonymization phase instead of going dark.
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "anonymizing",
+                        "description": "Anonymizing personal data",
+                        "done": False,
+                    },
+                }
+            )
         try:
             file_contents = []
 
@@ -830,9 +844,35 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
         except Exception as e:
             log.exception(f"Error processing files for content extraction: {e}")
+        finally:
+            if pii_session is not None:
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "anonymizing",
+                            "description": "",
+                            "done": True,
+                        },
+                    }
+                )
 
     # If context is not empty, insert it into the messages (only for RAG tasks)
     if len(sources) > 0 and file_intent == "RAG":
+        if pii_session is not None:
+            # Re-emit the anonymization status: RAG search emitted its own
+            # "searching knowledge" status above, which overwrote ours; now
+            # the per-chunk anonymization runs and would otherwise be silent.
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "anonymizing",
+                        "description": "Anonymizing personal data",
+                        "done": False,
+                    },
+                }
+            )
         context_string = ""
         for source_idx, source in enumerate(sources):
             source_id = source.get("name", "")
@@ -874,6 +914,18 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     else:
                         # If there is no source_id, then do not include the source_id tag
                         context_string += f"<source><source_context>{doc_context}</source_context></source>\n"
+
+        if pii_session is not None:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "anonymizing",
+                        "description": "",
+                        "done": True,
+                    },
+                }
+            )
 
         context_string = context_string.strip()
         prompt = get_last_user_message(form_data["messages"])
