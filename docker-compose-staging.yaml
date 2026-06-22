@@ -54,6 +54,7 @@ services:
     volumes:
       - ./backend/data:/app/backend/data
       - ./litellm-config.yaml:/app/litellm-config.yaml:ro
+      - ./arena_rankings.json:/app/arena_rankings.json:ro
     depends_on:
       - litellm
     extra_hosts:

@@ -106,6 +106,19 @@ LITELLM_MODEL_CONFIG: dict = _build_litellm_model_config()
 LITELLM_MODEL_MAP: dict = {k: v["litellm_model"] for k, v in LITELLM_MODEL_CONFIG.items()}
 
 
+def _load_arena_rankings() -> dict:
+    rankings_path = Path(__file__).parent.parent.parent / "arena_rankings.json"
+    try:
+        with open(rankings_path) as f:
+            return json.load(f)
+    except Exception as e:
+        log.warning(f"Could not load arena_rankings.json: {e}")
+        return {}
+
+
+ARENA_RANKINGS: dict = _load_arena_rankings()
+
+
 class Config(Base):
     __tablename__ = "config"
 
