@@ -13,6 +13,27 @@ from beyond_the_loop.utils.structured_completion import (
 log = logging.getLogger(__name__)
 
 
+DOMAIN_LABELS: dict[str, str] = {
+    "industry-software-and-it-services": "Software & IT",
+    "industry-writing-and-literature-and-language": "Language & Literature",
+    "industry-life-and-physical-and-social-science": "Science",
+    "industry-entertainment-and-sports-and-media": "Media & Sports",
+    "industry-business-and-management-and-financial-operations": "Business",
+    "industry-mathematical": "Mathematics",
+    "industry-legal-and-government": "Law & Government",
+    "industry-medicine-and-healthcare": "Medicine",
+}
+
+
+def format_domain_label(domain: str | None) -> str | None:
+    if not domain:
+        return None
+    if domain in DOMAIN_LABELS:
+        return DOMAIN_LABELS[domain]
+    else: 
+        return None
+
+
 SMART_ROUTER_MODEL = ModelModel(
     id="Smart Router",
     name="Smart Router",

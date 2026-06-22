@@ -45,27 +45,6 @@
 		4: 'hard'
 	};
 
-	const domainKeys: Record<string, string> = {
-		'industry-software-and-it-services': 'Software & IT',
-		'industry-writing-and-literature-and-language': 'Language & Literature',
-		'industry-life-and-physical-and-social-science': 'Science',
-		'industry-entertainment-and-sports-and-media': 'Media & Sports',
-		'industry-business-and-management-and-financial-operations': 'Business',
-		'industry-mathematical': 'Mathematics',
-		'industry-legal-and-government': 'Law & Government',
-		'industry-medicine-and-healthcare': 'Medicine'
-	};
-
-	function formatDomain(domain: string | null): string {
-		if (!domain) return $i18n.t('N/A');
-		if (domainKeys[domain]) return $i18n.t(domainKeys[domain]);
-		return domain
-			.replace(/^industry-/, '')
-			.replace(/-and-/g, ' & ')
-			.replace(/-/g, ' ')
-			.replace(/\b\w/g, (c) => c.toUpperCase());
-	}
-
 	$: hasWebSearch = debug.required_tools.includes('web_search');
 	$: hasImage = debug.required_tools.includes('image_generation');
 	$: hasCode =
@@ -144,7 +123,7 @@
 
 					<div>
 						<div class="text-2xs text-gray-500 dark:text-gray-500 mb-1">{$i18n.t('Topic')}</div>
-						<div class="text-xs text-gray-800 dark:text-gray-200 truncate">{formatDomain(debug.domain)}</div>
+						<div class="text-xs text-gray-800 dark:text-gray-200 truncate">{debug.domain ? $i18n.t(debug.domain) : $i18n.t('N/A')}</div>
 					</div>
 
 					<div>

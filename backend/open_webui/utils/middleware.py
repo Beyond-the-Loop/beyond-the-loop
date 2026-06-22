@@ -28,6 +28,7 @@ from beyond_the_loop.utils.structured_completion import (
 )
 from beyond_the_loop.utils.smart_router import (
     SMART_ROUTER_MODEL,
+    format_domain_label,
     select_model as smart_router_select_model,
 )
 from beyond_the_loop.socket.main import (
@@ -547,7 +548,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
             debug_info = {
                 "required_tools": list(routing_decision.required_tools),
-                "domain": routing_decision.domain,
+                "domain": format_domain_label(routing_decision.domain),
                 "task_type": routing_decision.task_type,
                 "complexity": routing_decision.complexity,
                 "candidates": candidates_info,
