@@ -376,6 +376,29 @@ model_list:
       allowed_messages_per_three_hours_premium: 150
       supports_image_input: true
 
+  - model_name: "Mistral Small 4"
+    litellm_params:
+      model: mistral/mistral-small-2603
+      api_key: os.environ/MISTRAL_API_KEY
+      reasoning_effort: "none"
+    model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 0.5
+      description: "Mistral's compact open-source model with solid performance and lightning-fast latency."
+      hosted_in: 'EU'
+      intelligence_score: 1.5
+      knowledge_cutoff: '2025-06-01'
+      organization: 'Mistral'
+      tokens_per_second: 101
+      reasoning: true
+      speed: 3
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
+      supports_web_search: true
+      supports_image_input: true
+
+
   - model_name: "Perplexity Sonar Deep Research"
     litellm_params:
       model: 'perplexity/sonar-deep-research'
