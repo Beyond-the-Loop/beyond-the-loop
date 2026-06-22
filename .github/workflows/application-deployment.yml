@@ -116,7 +116,7 @@ jobs:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.PROD_EC2_USERNAME }}
           key: ${{ secrets.PROD_EC2_SSH_KEY }}
-          source: "area_rankings.json"
+          source: "arena_rankings.json"
           target: "~/beyond-the-loop"
           overwrite: true
 
@@ -314,7 +314,7 @@ jobs:
           host: ${{ secrets.STAGING_EC2_HOST }}
           username: ${{ secrets.STAGING_EC2_USERNAME }}
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
-          source: "area_rankings.json"
+          source: "arena_rankings.json"
           target: "~/beyond-the-loop"
           overwrite: true
 
