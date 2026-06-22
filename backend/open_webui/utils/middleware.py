@@ -648,6 +648,9 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
     }
 
     events = []
+    continue_chat_action = form_data.pop("__continue_chat_action__", None)
+    if continue_chat_action:
+        events.append({"type": "action", "data": continue_chat_action})
     sources = []
 
     features = form_data.pop("features", {}) or {}
@@ -2086,4 +2089,3 @@ async def process_chat_response(
             headers=dict(response.headers),
             background=response.background,
         )
-

@@ -20,6 +20,7 @@
 		chats,
 		chatTitle,
 		pendingContinuationSeed,
+		continuingInNewChatId,
 		companyConfig,
 		config,
 		currentChatPage,
@@ -70,7 +71,6 @@
 	import Spinner from '../common/Spinner.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
-	import ChatBubbleOvalEllipsis from '../icons/ChatBubbleOvalEllipsis.svelte';
 	import DOMPurify from 'dompurify';
 	import type { Alert } from '$lib/types';
 
@@ -398,6 +398,9 @@
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
+					// Backend title-gen rewrites the whole chat JSON from a DB snapshot, dropping
+					// frontend-only fields (e.g. message.actions). Re-save live history to restore them.
+					await saveChatHandler($chatId, history);
 					currentChatPage.set(1);
 					await chats.set(await getChatList(localStorage.token, $currentChatPage));
 				} else if (type === 'chat:tags') {
@@ -414,6 +417,11 @@
 						if (continueButton) {
 							continueButton.click();
 						}
+					} else if (data.action === 'continue_chat_button') {
+						const actions = message.actions ?? [];
+						message.actions = actions.some((action) => action.action === data.action)
+							? actions
+							: [...actions, data];
 					}
 				} else if (type === 'confirmation') {
 					eventCallback = cb;
@@ -814,8 +822,6 @@
 
 		try {
 			const res = await getContinuationCompression(localStorage.token, sourceChatId);
-			// [cont] debug — remove after diagnosis
-			console.log('[cont] FE received for', sourceChatId, '→ summary:', res?.compression?.summary?.slice?.(0, 120), '| pii_session?', !!res?.pii_session);
 			if ($chatId !== sourceChatId) {
 				return;
 			}
@@ -835,6 +841,7 @@
 			toast.error(`${e}`);
 		} finally {
 			continuingInNewChat = false;
+			continuingInNewChatId.set(null);
 		}
 	};
 
@@ -1135,6 +1142,7 @@
 			content,
 			added_content,
 			type,
+			data: eventData,
 			sources,
 			selected_model_id,
 			selectedModelId,
@@ -1146,6 +1154,13 @@
 
 		if (error) {
 			await handleOpenAIError(error, message);
+		}
+
+		if (type === 'action' && eventData?.action === 'continue_chat_button') {
+			const actions = message.actions ?? [];
+			message.actions = actions.some((action) => action.action === eventData.action)
+				? actions
+				: [...actions, eventData];
 		}
 
 		if (sources) {
@@ -2002,8 +2017,6 @@
 		let _chatId = $chatId;
 
 		const continuationSeed = $pendingContinuationSeed;
-		// [cont] debug — remove after diagnosis
-		console.log('[cont] initChatHandler seeding compression?', !!continuationSeed?.compression, '→', continuationSeed?.compression?.summary?.slice?.(0, 120));
 
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(localStorage.token, {
@@ -2018,13 +2031,6 @@
 				timestamp: Date.now(),
 				...(continuationSeed?.compression ? { compression: continuationSeed.compression } : {}),
 				...(continuationSeed?.pii_session ? { pii_session: continuationSeed.pii_session } : {})
-			});
-			// [cont] debug — remove after diagnosis
-			console.log('[cont] createNewChat result', chat?.id, {
-				hasChatCompression: !!chat?.chat?.compression,
-				hasTopLevelCompression: !!chat?.compression,
-				summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
-				piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
 			});
 
 			if (continuationSeed) {
@@ -2051,13 +2057,6 @@
 	const saveChatHandler = async (_chatId, history) => {
 		if ($chatId == _chatId) {
 			if (!$temporaryChatEnabled) {
-				// [cont] debug — remove after diagnosis
-				console.log('[cont] saveChatHandler before update', _chatId, {
-					hasChatCompression: !!chat?.chat?.compression,
-					hasTopLevelCompression: !!chat?.compression,
-					summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
-					piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
-				});
 				chat = await updateChatById(localStorage.token, _chatId, {
 					models: selectedModels,
 					history: history,
@@ -2065,13 +2064,6 @@
 					params: params,
 					files: chatFiles,
 					pii_released_entities: piiReleasedEntities
-				});
-				// [cont] debug — remove after diagnosis
-				console.log('[cont] saveChatHandler after update', _chatId, {
-					hasChatCompression: !!chat?.chat?.compression,
-					hasTopLevelCompression: !!chat?.compression,
-					summary: (chat?.chat?.compression?.summary ?? chat?.compression?.summary)?.slice?.(0, 120),
-					piiSession: !!(chat?.chat?.pii_session ?? chat?.pii_session)
 				});
 				currentChatPage.set(1);
 				await chats.set(await getChatList(localStorage.token, $currentChatPage));
@@ -2195,6 +2187,7 @@
 									{chatActionHandler}
 									{addMessages}
 									bottomPadding={files.length > 0}
+									on:continue-chat-context={continueInNewChat}
 								/>
 							</div>
 						</div>
@@ -2223,21 +2216,6 @@
 												<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
 											</svg>
 											<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
-										</button>
-									{/if}
-									{#if history?.currentId}
-										<button
-											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-											aria-label={$i18n.t('Continue in new chat')}
-											disabled={continuingInNewChat}
-											on:click={continueInNewChat}
-										>
-											{#if continuingInNewChat}
-												<Spinner className="size-3.5" />
-											{:else}
-												<ChatBubbleOvalEllipsis className="size-3.5" strokeWidth="1.5" />
-											{/if}
-											<span>{$i18n.t('Continue in new chat')}</span>
 										</button>
 									{/if}
 									<button
