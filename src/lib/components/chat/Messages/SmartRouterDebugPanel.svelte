@@ -19,10 +19,18 @@
 	};
 
 	let visible = false;
+	let openUp = false;
 	let hideTimer: ReturnType<typeof setTimeout>;
+	let triggerEl: HTMLDivElement;
 
 	function show() {
 		clearTimeout(hideTimer);
+		if (triggerEl) {
+			const rect = triggerEl.getBoundingClientRect();
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			openUp = spaceAbove > spaceBelow;
+		}
 		visible = true;
 	}
 
@@ -74,6 +82,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
 	class="relative inline-flex items-center"
+	bind:this={triggerEl}
 	on:mouseenter={show}
 	on:mouseleave={scheduleHide}
 >
@@ -88,7 +97,7 @@
 	{#if visible}
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
-			class="absolute top-full left-0 mt-2 z-50 w-72 rounded-2xl bg-white text-xs overflow-hidden"
+			class="absolute {openUp ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 z-50 w-72 rounded-2xl bg-white text-xs overflow-hidden"
 			on:mouseenter={show}
 			on:mouseleave={scheduleHide}
 			transition:fade={{ duration: 100 }}
