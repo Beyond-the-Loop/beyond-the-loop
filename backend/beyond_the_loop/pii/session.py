@@ -35,15 +35,13 @@ def pii_note_prefix(pii_active: bool) -> str:
 
 
 def is_pii_filter_enabled(company_id) -> bool:
-    """Feature-flag check. Default is OFF: unset → False, explicit True → True.
+    """Globally disabled as a temporary kill-switch.
 
-    Companies must opt in via privacy.pii_filter_enabled = True (set by
-    admins through the company settings UI).
+    Why: quick fix to turn the PII filter off for everyone without touching
+    per-company settings in the DB. The stored privacy.pii_filter_enabled
+    values are preserved — revert this function body to restore behavior.
     """
-    from beyond_the_loop.config import get_config_value
-
-    value = get_config_value("privacy.pii_filter_enabled", company_id)
-    return False if value is None else bool(value)
+    return False
 
 # Map Presidio entity type → short placeholder label. Shorter is friendlier
 # for the LLM to preserve verbatim.

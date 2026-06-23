@@ -76,7 +76,7 @@
 	{#if visible}
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
-			class="absolute {openUp ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 z-50 w-72 rounded-2xl bg-white text-xs overflow-hidden"
+			class="absolute {openUp ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 z-50 w-72 rounded-2xl bg-white dark:bg-customGray-800 text-xs overflow-hidden"
 			on:mouseenter={show}
 			on:mouseleave={scheduleHide}
 			transition:fade={{ duration: 100 }}
@@ -86,7 +86,7 @@
 				<div class="text-2xs font-medium tracking-wide text-gray-500 dark:text-gray-500">
 					Smart Router
 				</div>
-				<div class="ml-auto bg-lightGray-200 rounded-full px-2 text-2xs text-gray-500 dark:text-gray-500">
+				<div class="ml-auto bg-lightGray-200 dark:bg-customGray-700 rounded-full px-2 text-2xs text-gray-500 dark:text-gray-500">
 					v2.0
 				</div>
 			</div>
@@ -134,7 +134,7 @@
 
 				{#if selectedModel}
 					<div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
-					<div class="bg-blue-50 rounded-md px-3 py-2">
+					<div class="bg-blue-50 dark:bg-customGray-700 rounded-md px-3 py-2">
 						<div class="text-2xs text-gray-500 dark:text-gray-500 mb-1">
 							{$i18n.t('Optimized for your request')}
 						</div>

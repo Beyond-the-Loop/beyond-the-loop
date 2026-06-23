@@ -1005,6 +1005,7 @@
 	"Mirostat Eta": "Mirostat Eta",
 	"Mirostat Tau": "Mirostat Tau",
 	"Mistral Large 3, is a state-of-the-art, open-weight, general-purpose multimodal model with a granular Mixture-of-Experts architecture.": "Mistral Large 3 ist ein hochmodernes, frei skalierbares, universelles Multimodalmodell mit einer feingliedrigen Mixture-of-Experts-Architektur.",
+	"Mistral's compact open-source model with solid performance and lightning-fast latency.": "Mistrals kompaktes Open Source Modell mit solider Leistung bei blitzschneller Latenz.",
 	"MODALITIES": "MODALITÄTEN",
 	"Model": "Modell",
 	"Model '{{modelName}}' has been successfully downloaded.": "Modell '{{modelName}}' wurde erfolgreich heruntergeladen.",
