@@ -774,6 +774,7 @@ router_settings:
     # Global default backup: Gemini 2.5 Flash itself falls back to Claude 4.5 Haiku
     # (otherwise it has no fallback when it fails).
     - {"Gemini 2.5 Flash": ["Claude 4.5 Haiku"]}
+    - {"Mistral Small 4": ["Gemini 2.5 Flash"]}
 
 
 litellm_settings:
