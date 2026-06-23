@@ -110,6 +110,16 @@ jobs:
           target: "~/beyond-the-loop"
           overwrite: true
 
+      - name: Copy arena rankings file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USERNAME }}
+          key: ${{ secrets.PROD_EC2_SSH_KEY }}
+          source: "arena_rankings.json"
+          target: "~/beyond-the-loop"
+          overwrite: true
+
       - name: Ensure traefik folder exists on remote
         uses: appleboy/ssh-action@v1.2.5
         with:
@@ -295,6 +305,16 @@ jobs:
           username: ${{ secrets.STAGING_EC2_USERNAME }}
           key: ${{ secrets.STAGING_EC2_SSH_KEY }}
           source: "litellm-config.yaml"
+          target: "~/beyond-the-loop"
+          overwrite: true
+
+      - name: Copy arena rankings file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_EC2_HOST }}
+          username: ${{ secrets.STAGING_EC2_USERNAME }}
+          key: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          source: "arena_rankings.json"
           target: "~/beyond-the-loop"
           overwrite: true
 
