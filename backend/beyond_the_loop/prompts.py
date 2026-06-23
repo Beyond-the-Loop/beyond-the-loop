@@ -112,7 +112,13 @@ Only make this suggestion when the error clearly indicates that the current mode
 # ---------------------------------------------------------------------------
 
 DEFAULT_RAG_TEMPLATE = """### Task:
-Respond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.
+Respond to the user query using the provided context, incorporating inline citations **only when a source id is explicitly provided** in the context.
+
+### Citation Format (STRICT):
+- A citation is the raw source id value, wrapped in square brackets — and nothing else.
+- Correct: `[whitepaper.pdf]`, `[40d68978-6631-4266-b8bd-e5e8e513cf70]`
+- Never add a label, prefix, or key inside the brackets. Do NOT write `[cite: ...]`, `[citation: ...]`, `[source: ...]`, `[source_id: ...]`, `[ref: ...]` or any similar variant.
+- **Each citation must be in its own separate bracket. Never combine multiple source IDs in one bracket (e.g. use [source1] [source2], never [source1; source2]).**
 
 ### Guidelines:
 - If you don't know the answer, clearly state that.
@@ -120,11 +126,10 @@ Respond to the user query using the provided context, incorporating inline citat
 - Respond in the same language as the user's query.
 - If the context is unreadable or of poor quality, inform the user and provide the best possible answer.
 - If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.
-- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**
+- Only include inline citations when a source id is explicitly provided in the context.
 - Do not cite if the <source_id> tag is not provided in the context.
 - Do not use XML tags in your response.
 - Ensure citations are concise and directly related to the information provided.
-- **Each citation must be in its own separate bracket. Never combine multiple source IDs in one bracket (e.g. use [source1] [source2], never [source1; source2]).**
 
 ### Example of Citation:
 If the user asks about a specific topic and the information is found in "whitepaper.pdf" with a provided <source_id>, the response should include the citation like so:
