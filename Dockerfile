@@ -58,9 +58,7 @@ RUN chown -R $UID:$GID /app $HOME
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
-RUN pip3 install -r requirements.txt --no-cache-dir \
-    && python -m spacy download de_core_news_sm \
-    && python -c "from transformers import AutoTokenizer, AutoModelForTokenClassification; m='Davlan/xlm-roberta-base-ner-hrl'; AutoTokenizer.from_pretrained(m); AutoModelForTokenClassification.from_pretrained(m)"
+RUN pip3 install -r requirements.txt --no-cache-dir
 
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
