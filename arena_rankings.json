@@ -372,5 +372,22 @@
     "multi-turn": 90,
     "creative-writing": 109,
     "coding": 84
+  },
+  "Mistral Small 4": {
+    "overall": 164,
+    "expert": 182,
+    "industry-software-and-it-services": 158,
+    "industry-writing-and-literature-and-language": 174,
+    "industry-life-and-physical-and-social-science": 169,
+    "industry-entertainment-and-sports-and-media": 161,
+    "industry-business-and-management-and-financial-operations": 157,
+    "industry-mathematical": 168,
+    "industry-legal-and-government": 168,
+    "industry-medicine-and-healthcare": 153,
+    "math": 178,
+    "instruction-following": 173,
+    "multi-turn": 152,
+    "creative-writing": 165,
+    "coding": 155
   }
 }
