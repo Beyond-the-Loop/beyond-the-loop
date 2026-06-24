@@ -38,6 +38,7 @@ ARENA_TO_LITELLM: dict[str, str] = {
     "o3-2025-04-16": "GPT o3",
     "o4-mini-2025-04-16": "GPT o4-mini",
     "mistral-large-3": "Mistral Large 3",
+    "mistral-small-2506": "Mistral Small 4"
 }
 
 # All categories available on arena.ai/leaderboard/text

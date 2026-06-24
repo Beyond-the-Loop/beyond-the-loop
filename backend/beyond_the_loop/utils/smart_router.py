@@ -70,6 +70,9 @@ def _build_context_section(messages: list[dict] | None) -> str:
 async def _classify(user_message: str, user, messages, pii_active: bool) -> SmartRouterDecision:
     agent_model = Models.get_model_by_name_and_company(os.getenv("DEFAULT_AGENT_MODEL"), user.company_id)
 
+    if len(user_message) > 20000:
+        user_message = user_message[:10000] + '\n\n...\n\n' + user_message[-10000:]
+
     from beyond_the_loop.pii.session import pii_note_prefix
     prompt = (
         pii_note_prefix(pii_active)
