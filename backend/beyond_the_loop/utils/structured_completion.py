@@ -39,7 +39,8 @@ def _get_client() -> instructor.AsyncInstructor:
                 base_url=base_url,
                 api_key=api_key,
                 timeout=30.0,  # Fail fast — avoids silent hangs when LiteLLM proxy is slow
-            )
+            ),
+            mode=instructor.Mode.JSON,
         )
     return _client
 
