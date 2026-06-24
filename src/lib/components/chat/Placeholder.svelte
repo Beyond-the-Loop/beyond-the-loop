@@ -17,6 +17,7 @@
 	import MessageInput from './MessageInput.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import BookIcon from '../icons/BookIcon.svelte';
+	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { showChatInfoSidebar, chatInfoSidebarMode } from '$lib/stores';
 
 	const i18n = getContext('i18n');
@@ -56,8 +57,15 @@
 	export let showPiiPanel = false;
 	export let piiCount = 0;
 	export let piiAnonymizedCount = 0;
+	export let piiAnalyzing = false;
+	export let piiResultsStale = false;
+	export let piiNeverAnalyzed: boolean = true;
+	export let onRunPiiAnalyze: (text: string) => void = () => {};
+	export let manualPIIEntities: string[] = [];
+	export let onManualPIIAdd: (text: string) => void = () => {};
 
 	let models = [];
+	let _piiSelectedText = '';
 
 	const selectSuggestionPrompt = async (p) => {
 		let text = p;
@@ -233,24 +241,60 @@
 						bind:selectedModels
 					/>
 					<div class="flex items-center gap-2">
-						{#if showPiiPanel && piiCount > 0}
+						{#if showPiiPanel && _piiSelectedText}
 							<button
 								type="button"
-								class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
-								aria-label={$i18n.t('Privacy panel')}
+								class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 hover:opacity-80 min-w-fit text-xs text-customBlue-600 dark:text-customBlue-400 font-medium transition"
+								aria-label={$i18n.t('Anonymize selection')}
 								on:click={() => {
-								if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
-									showChatInfoSidebar.set(false);
-								} else {
-									chatInfoSidebarMode.set({ kind: 'composer' });
-									showChatInfoSidebar.set(true);
-								}
-							}}
+									onManualPIIAdd(_piiSelectedText);
+									_piiSelectedText = '';
+								}}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
+									<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
 								</svg>
-								<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: piiCount })}</span>
+								<span>{$i18n.t('Anonymize')}</span>
+							</button>
+						{/if}
+						{#if showPiiPanel && (piiAnalyzing || piiCount > 0 || prompt.trim().length > 0)}
+							<button
+								type="button"
+								class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium disabled:opacity-60"
+								aria-label={$i18n.t('Privacy panel')}
+								disabled={piiAnalyzing}
+								on:click={() => {
+									if ((piiResultsStale || piiNeverAnalyzed) && prompt.trim().length > 0) {
+										onRunPiiAnalyze(prompt);
+									} else {
+										if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+											showChatInfoSidebar.set(false);
+										} else {
+											chatInfoSidebarMode.set({ kind: 'composer' });
+											showChatInfoSidebar.set(true);
+										}
+									}
+								}}
+							>
+								{#if piiAnalyzing}
+									<Spinner className="size-3" />
+									<span>{$i18n.t('Analyzing...')}</span>
+								{:else if piiResultsStale}
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+									</svg>
+									<span>{$i18n.t('Re-analyze')}</span>
+								{:else if piiCount > 0 && !piiNeverAnalyzed}
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
+									</svg>
+									<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: piiCount })}</span>
+								{:else}
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+									</svg>
+									<span>{$i18n.t('Anonymization preview')}</span>
+								{/if}
 							</button>
 						{/if}
 						<button class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium" on:click={() => showLibrary.set(!$showLibrary)}>
@@ -272,6 +316,10 @@
 					{piiEnabled}
 					{showPiiToggle}
 					{onPiiToggle}
+					piiPanelVisible={showPiiPanel}
+					bind:piiSelectedText={_piiSelectedText}
+					{manualPIIEntities}
+					{onManualPIIAdd}
 					{transparentBackground}
 					{stopResponse}
 					{createMessagePair}

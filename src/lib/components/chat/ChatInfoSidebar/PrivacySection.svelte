@@ -16,6 +16,11 @@
 	// forces released[] back to empty anyway, so showing clickable chips would
 	// just mislead the user.
 	export let releasable: boolean = true;
+	// True when the prompt has changed since the last analysis run.
+	export let stale: boolean = false;
+	// Manually added entities — always anonymized, removable by the user.
+	export let manualPIIEntities: string[] = [];
+	export let onManualChange: (updated: string[]) => void = () => {};
 
 	// Distinct originals only — duplicates collapse into one row, since release
 	// applies to all occurrences of the same string in this chat.
@@ -51,19 +56,17 @@
 		onReleasedChange(next);
 	}
 
-	// Display labels for entity types — shorter than the raw enum values.
+	// Display labels for entity types. Keys match the raw types emitted by the
+	// openai/privacy-filter model (see backend SUPPORTED_ENTITIES).
 	const entityLabels: Record<string, string> = {
-		PERSON: 'Name',
-		LOCATION: 'Standort',
-		EMAIL_ADDRESS: 'E-Mail',
-		PHONE_NUMBER: 'Telefon',
-		CREDIT_CARD: 'Kreditkarte',
-		IBAN_CODE: 'IBAN',
-		IP_ADDRESS: 'IP',
-		URL: 'URL',
-		DE_STEUER_ID: 'Steuer-ID',
-		DE_SOZIALVERSICHERUNGSNUMMER: 'SV-Nummer',
-		DE_ADDRESS: 'Adresse'
+		private_person: 'Name',
+		private_address: 'Adresse',
+		private_email: 'E-Mail',
+		private_phone: 'Telefon',
+		private_url: 'URL',
+		private_date: 'Datum',
+		account_number: 'Kontonummer',
+		secret: 'Geheimnis'
 	};
 </script>
 
@@ -151,6 +154,29 @@
 		<p class="text-xs text-gray-500 dark:text-gray-400 italic px-1">
 			{$i18n.t('No personal data detected in your current input.')}
 		</p>
+	{/if}
+
+	{#if manualPIIEntities.length > 0}
+		<div class="space-y-1.5">
+			<div class="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 px-1">
+				{$i18n.t('Manual')}
+			</div>
+			{#each manualPIIEntities as entity (entity)}
+				<div class="flex w-full items-center justify-between gap-2 px-3 py-2 rounded-md border text-xs bg-customBlue-50 dark:bg-customBlue-900/20 border-customBlue-200 dark:border-customBlue-800/40 text-customBlue-900 dark:text-customBlue-100">
+					<span class="font-mono truncate text-left flex-1">{entity}</span>
+					<button
+						type="button"
+						class="text-[10px] flex-shrink-0 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+						aria-label={$i18n.t('Remove')}
+						on:click={() => onManualChange(manualPIIEntities.filter(e => e !== entity))}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
+							<path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+						</svg>
+					</button>
+				</div>
+			{/each}
+		</div>
 	{/if}
 
 	{#if uniqueDetected.length > 0}

@@ -1,1 +1,1 @@
-"""PII redaction layer — Presidio-based detection configured for German."""
+"""PII redaction layer — openai/privacy-filter based detection."""

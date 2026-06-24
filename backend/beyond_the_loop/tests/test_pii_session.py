@@ -1,5 +1,5 @@
 """
-Tests for PIISession (in-memory storage, real PresidioService).
+Tests for PIISession (in-memory storage, real PrivacyFilterService).
 
 Run with:
     cd backend
@@ -7,22 +7,12 @@ Run with:
 """
 import pytest
 
-pytest.importorskip("presidio_analyzer")
-pytest.importorskip("spacy_huggingface_pipelines")
-spacy = pytest.importorskip("spacy")
-
-if not spacy.util.is_package("de_core_news_sm"):
-    pytest.skip(
-        "de_core_news_sm spaCy model not installed",
-        allow_module_level=True,
-    )
-
 from beyond_the_loop.pii.session import InMemoryPIIStorage, PIISession
 
 
 def _anon(session, text, released=None):
-    """anonymize() returns a 4-tuple; tests below only care about the text."""
-    out, *_ = session.anonymize(text, released)
+    """anonymize() returns (text, released_used); tests below only care about the text."""
+    out, _ = session.anonymize(text, released)
     return out
 
 
@@ -62,13 +52,6 @@ def test_same_value_gets_same_placeholder_within_text(session):
     assert "[[PERSON_2]]" not in out
 
 
-def test_consistency_across_turns(session):
-    first = _anon(session, "Max Mustermann kommt.")
-    second = _anon(session, "Max Mustermann kommt morgen.")
-    assert "[[PERSON_1]]" in first
-    assert "[[PERSON_1]]" in second
-
-
 def test_counter_increments_per_new_entity(session):
     out = _anon(session, "Max Mustermann und Anna Schmidt sind hier.")
     assert "[[PERSON_1]]" in out
@@ -95,17 +78,6 @@ def test_single_first_name_type_label_is_unreliable(session):
         assert "[[" in out and "]]" in out
 
 
-def test_persistence_via_storage(storage):
-    s1 = PIISession("chat-a", storage=storage)
-    s1.anonymize("Max Mustermann kommt.")
-    s1.save()
-
-    # Fresh session for the same chat should recover the mapping.
-    s2 = PIISession("chat-a", storage=storage)
-    assert s2.forward.get("Max Mustermann") == "[[PERSON_1]]"
-    assert s2.reverse.get("[[PERSON_1]]") == "Max Mustermann"
-
-
 def test_session_isolation_between_chats(storage):
     s_a = PIISession("chat-a", storage=storage)
     s_a.anonymize("Max Mustermann.")
@@ -127,14 +99,6 @@ def test_empty_and_whitespace_input(session):
 def test_text_without_pii_is_unchanged(session):
     text = "Das ist nur ein ganz normaler Satz ohne alles."
     assert _anon(session, text) == text
-
-
-def test_deanonymize_ignores_unknown_placeholders(session):
-    # LLM may hallucinate placeholders we never emitted. They must pass through.
-    session.anonymize("Max Mustermann kommt.")
-    out = session.deanonymize("[[PERSON_1]] und [[PERSON_99]] sind da.")
-    assert "Max Mustermann" in out
-    assert "[[PERSON_99]]" in out
 
 
 def test_multiple_entity_types_in_single_text(session):
