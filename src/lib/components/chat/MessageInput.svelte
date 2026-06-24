@@ -84,6 +84,35 @@
 	export let showPiiToggle = false;
 	export let onPiiToggle: () => void = () => {};
 
+	// Manual PII selection — show a floating "Anonymize" chip when the user
+	// selects text while the PII panel is active.
+	export let piiPanelVisible = false;
+	export let manualPIIEntities: string[] = [];
+	export let onManualPIIAdd: (text: string) => void = () => {};
+
+	export let piiSelectedText: string = '';
+
+	function handlePIITextareaSelect(ta: HTMLTextAreaElement) {
+		if (!piiPanelVisible) return;
+		const start = ta.selectionStart ?? 0;
+		const end = ta.selectionEnd ?? 0;
+		if (start === end) { piiSelectedText = ''; return; }
+		const sel = ta.value.substring(start, end).trim();
+		piiSelectedText = (sel && !manualPIIEntities.includes(sel)) ? sel : '';
+	}
+
+	function handlePIIMouseup(e: MouseEvent) {
+		const ta = e.currentTarget as HTMLTextAreaElement;
+		// Defer one tick: mouseup fires before the browser collapses the selection
+		// on a plain click-to-deselect, so reading selectionStart immediately gives
+		// stale range data. setTimeout(0) runs after the browser finalizes it.
+		setTimeout(() => handlePIITextareaSelect(ta), 0);
+	}
+
+	function handlePIIKeyup(e: KeyboardEvent) {
+		handlePIITextareaSelect(e.currentTarget as HTMLTextAreaElement);
+	}
+
 	$: onChange({
 		prompt,
 		files,
@@ -368,7 +397,6 @@
 		}, 0);
 
 		window.addEventListener('keydown', handleKeyDown);
-
 		await tick();
 
 		const dropzoneElement = document.getElementById('chat-container');
@@ -927,7 +955,10 @@
 													e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 												}
 											}}
-											on:paste={async (e) => {
+											on:mouseup={handlePIIMouseup}
+										on:keyup={handlePIIKeyup}
+										on:input={() => { piiSelectedText = ''; }}
+								on:paste={async (e) => {
 												const clipboardData = e.clipboardData || window.clipboardData;
 
 												if (clipboardData && clipboardData.items) {

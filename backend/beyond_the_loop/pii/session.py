@@ -18,15 +18,10 @@ import logging
 import re
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple
 
-from presidio_analyzer import RecognizerResult
-from sqlalchemy.orm.attributes import flag_modified
-
-from beyond_the_loop.pii.service import PresidioService
+from beyond_the_loop.pii.service import PiiSpan, PrivacyFilterService
 from beyond_the_loop.prompts import PII_PLACEHOLDER_NOTE
 
 log = logging.getLogger(__name__)
-
-PII_SESSION_KEY = "pii_session"
 
 
 def pii_note_prefix(pii_active: bool) -> str:
@@ -35,33 +30,28 @@ def pii_note_prefix(pii_active: bool) -> str:
 
 
 def is_pii_filter_enabled(company_id) -> bool:
-    """Globally disabled as a temporary kill-switch.
+    """Feature-flag check. Default is OFF: unset → False, explicit True → True.
 
-    Why: quick fix to turn the PII filter off for everyone without touching
-    per-company settings in the DB. The stored privacy.pii_filter_enabled
-    values are preserved — revert this function body to restore behavior.
+    Companies must opt in via privacy.pii_filter_enabled = True (set by
+    admins through the company settings UI).
     """
-    return False
+    from beyond_the_loop.config import get_config_value
 
-# Map Presidio entity type → short placeholder label. Shorter is friendlier
-# for the LLM to preserve verbatim.
+    value = get_config_value("privacy.pii_filter_enabled", company_id)
+    return False if value is None else bool(value)
+
+
 _PLACEHOLDER_LABEL: Dict[str, str] = {
-    "PERSON": "PERSON",
-    "LOCATION": "LOCATION",
-    "ORGANIZATION": "ORG",
-    "EMAIL_ADDRESS": "EMAIL",
-    "PHONE_NUMBER": "PHONE",
-    "DATE_TIME": "DATUM",
-    "CREDIT_CARD": "CARD",
-    "IBAN_CODE": "IBAN",
-    "BIC_CODE": "BIC",
-    "IP_ADDRESS": "IP",
-    "URL": "URL",
-    "DE_STEUER_ID": "STEUERID",
-    "DE_SOZIALVERSICHERUNGSNUMMER": "SVNR",
-    "DE_ADDRESS": "ADDRESS",
+    "private_person": "PERSON",
+    "private_address": "ADDRESS",
+    "private_email": "EMAIL",
+    "private_phone": "PHONE",
+    "private_url": "URL",
+    "private_date": "DATE",
+    "account_number": "ACCOUNT",
+    "secret": "SECRET",
+    "manual": "MANUAL",
 }
-
 
 class PIIStorage(Protocol):
     def load(self, chat_id: str) -> Optional[dict]: ...
@@ -69,42 +59,13 @@ class PIIStorage(Protocol):
 
 
 class DBPIIStorage:
-    """Persists session state in the chat row's `chat` JSON under `pii_session`.
-
-    Lives for the lifetime of the chat — no TTL. If the chat row does not
-    yet exist (first message before /chats/new), save is a no-op and the
-    next request reloads an empty mapping; the deanonymizer would then leave
-    placeholders in the response. In practice the frontend creates the chat
-    row before calling the chat completion endpoint, so this is a guard,
-    not a hot path.
-    """
-
     def load(self, chat_id: str) -> Optional[dict]:
-        from open_webui.internal.db import get_db
-        from beyond_the_loop.models.chats import Chat
-
-        with get_db() as db:
-            chat_item = db.get(Chat, chat_id)
-            if chat_item is None or not isinstance(chat_item.chat, dict):
-                return None
-            return chat_item.chat.get(PII_SESSION_KEY)
+        from beyond_the_loop.models.chats import Chats
+        return Chats.get_pii_session(chat_id)
 
     def save(self, chat_id: str, data: dict) -> None:
-        from open_webui.internal.db import get_db
-        from beyond_the_loop.models.chats import Chat
-
-        with get_db() as db:
-            chat_item = db.get(Chat, chat_id)
-            if chat_item is None:
-                log.warning(
-                    "[pii] cannot persist session: chat row %s not found", chat_id
-                )
-                return
-            if not isinstance(chat_item.chat, dict):
-                chat_item.chat = {}
-            chat_item.chat[PII_SESSION_KEY] = data
-            flag_modified(chat_item, "chat")
-            db.commit()
+        from beyond_the_loop.models.chats import Chats
+        Chats.save_pii_session(chat_id, data)
 
 
 class InMemoryPIIStorage:
@@ -135,11 +96,11 @@ class PIISession:
         self,
         chat_id: str,
         storage: Optional[PIIStorage] = None,
-        presidio: Optional[PresidioService] = None,
+        service: Optional[PrivacyFilterService] = None,
     ) -> None:
         self.chat_id = chat_id
         self.storage = storage if storage is not None else get_default_storage()
-        self.presidio = presidio if presidio is not None else PresidioService.instance()
+        self.service = service if service is not None else PrivacyFilterService.instance()
 
         data = self.storage.load(chat_id) or {}
         self.forward: Dict[str, str] = data.get("forward", {})
@@ -150,12 +111,12 @@ class PIISession:
         self.sources: Dict[str, Set[str]] = {
             k: set(v) for k, v in data.get("sources", {}).items()
         }
-        # Cache of `presidio.analyze` results keyed by raw text. Re-anonymizing
-        # the same prior-turn message on every send (anonymize_messages iterates
-        # the whole history) would otherwise rerun the transformer NER on text
-        # we've already analyzed — the dominant cost. Cache values are plain
-        # dicts so they round-trip through JSON storage; spans are rebuilt as
-        # RecognizerResult on read.
+        # Cache of analyze results keyed by raw text. Re-anonymizing the same
+        # prior-turn message on every send (anonymize_messages iterates the
+        # whole history) would otherwise rerun the transformer on text we've
+        # already analyzed — the dominant cost. Cache values are plain dicts
+        # so they round-trip through JSON storage; spans are rebuilt as
+        # PiiSpan on read.
         self.analyze_cache: Dict[str, List[Dict[str, Any]]] = data.get(
             "analyze_cache", {}
         )
@@ -181,31 +142,29 @@ class PIISession:
         text: str,
         released: Optional[Iterable[str]] = None,
         source: str = "prompt",
-    ) -> Tuple[str, int, int, List[str]]:
+    ) -> Tuple[str, List[str]]:
         """Anonymize PII in `text` and tag every detected entity with `source`.
 
-        Returns (output, total_detected, anonymized, released_used).
+        Returns (output, released_used). `released_used` is the subset of
+        `released` that actually appeared in `text` as a detected entity —
+        the frontend uses it to surface the "released" badge / list.
 
         `source` flows into self.sources so the frontend can later show which
         text region (typed prompt vs file vs RAG chunk) contributed each
         entity. Defaults to "prompt" for backwards-compat with callers that
         haven't been updated.
-
-        - total_detected: spans Presidio kept after overlap resolution
-        - anonymized: spans actually replaced (i.e. not in `released`)
-        - released_used: original strings that WERE skipped (subset of
-          `released` that actually appeared in `text` as a detected entity).
         """
         if not text or not text.strip():
-            return text, 0, 0, []
+            return text, []
 
         released_set: Set[str] = set(released) if released else set()
 
-        spans = self._analyze_cached(text)
+        ner_spans = self._analyze_cached(text)
+        manual_spans = self._find_manual_entity_spans(text)
+        spans = self._merge_spans(ner_spans, manual_spans)
 
         # Replace right-to-left so earlier offsets stay valid.
         out = text
-        anonymized_count = 0
         released_used: List[str] = []
         for r in reversed(spans):
             original = text[r.start : r.end]
@@ -218,21 +177,31 @@ class PIISession:
                 continue
             placeholder = self._get_or_create_placeholder(r.entity_type, original)
             out = out[: r.start] + placeholder + out[r.end :]
-            anonymized_count += 1
 
         # Second pass: NER on long documents drops repeats due to chunked
         # transformer inference, so a name caught once can leak elsewhere.
         # Substitute every remaining verbatim occurrence of an already-known
         # original.
-        out, sweep_count = self._sweep_known(out, source, released_set)
-        return out, len(spans) + sweep_count, anonymized_count + sweep_count, released_used
+        out, _ = self._sweep_known(out, source, released_set)
+        return out, released_used
+
+    def register_manual(self, text: str) -> str:
+        """Register a manually selected entity and return its placeholder.
+
+        Unlike anonymize(), this does NOT run NER — the user explicitly chose
+        this text. The placeholder is created immediately and _sweep_known()
+        will replace every occurrence when anonymize_messages() runs after.
+        """
+        if not text or not text.strip():
+            return text
+        return self._get_or_create_placeholder("manual", text)
 
     def replace_known(
         self,
         text: str,
         released: Optional[Iterable[str]] = None,
         source: str = "prompt",
-    ) -> Tuple[str, int, int, List[str]]:
+    ) -> Tuple[str, List[str]]:
         """Sweep-only: replace already-known entities, do NOT detect new ones.
 
         Used for past assistant messages in the chat history — model-generated
@@ -242,13 +211,15 @@ class PIISession:
         see the same placeholder the user-side anonymization established.
 
         Return shape matches `anonymize` so callers can dispatch by role
-        without branching on tuple arity.
+        without branching on tuple arity. `released_used` is always [] here
+        because this path does not look at released entities — it just
+        rewrites known originals.
         """
         if not text:
-            return text, 0, 0, []
+            return text, []
         released_set: Set[str] = set(released) if released else set()
-        out, count = self._sweep_known(text, source, released_set)
-        return out, count, count, []
+        out, _ = self._sweep_known(text, source, released_set)
+        return out, []
 
     def deanonymize(self, text: str) -> str:
         if not text or not self.reverse:
@@ -265,11 +236,35 @@ class PIISession:
 
         return StreamingDeanonymizer(self.reverse)
 
-    def _analyze_cached(self, text: str) -> List[RecognizerResult]:
+    def _find_manual_entity_spans(self, text: str) -> List[PiiSpan]:
+        """Find all positions of registered manual entities in text."""
+        spans = []
+        for original, placeholder in self.forward.items():
+            if not placeholder.startswith("[[MANUAL_"):
+                continue
+            idx = 0
+            while True:
+                pos = text.find(original, idx)
+                if pos == -1:
+                    break
+                spans.append(PiiSpan("manual", pos, pos + len(original), 1.0))
+                idx = pos + 1
+        return spans
+
+    @staticmethod
+    def _merge_spans(ner_spans: List[PiiSpan], manual_spans: List[PiiSpan]) -> List[PiiSpan]:
+        """Merge NER and manual spans; manual takes priority on overlap."""
+        result: List[PiiSpan] = list(manual_spans)
+        for span in ner_spans:
+            if not any(s.start < span.end and span.start < s.end for s in result):
+                result.append(span)
+        return sorted(result, key=lambda s: s.start)
+
+    def _analyze_cached(self, text: str) -> List[PiiSpan]:
         cached = self.analyze_cache.get(text)
         if cached is not None:
             return [
-                RecognizerResult(
+                PiiSpan(
                     entity_type=s["entity_type"],
                     start=s["start"],
                     end=s["end"],
@@ -277,11 +272,7 @@ class PIISession:
                 )
                 for s in cached
             ]
-        spans = self.presidio.analyze(text)
-        # Coerce to plain Python types — RecognizerResult.score is numpy.float32
-        # under the transformer backend, which json.dumps refuses. A failed save
-        # here silently aborts the whole transaction, including the forward map,
-        # leaving placeholders un-deanonymized in the streamed response.
+        spans = self.service.analyze(text)
         self.analyze_cache[text] = [
             {
                 "entity_type": s.entity_type,
@@ -371,26 +362,22 @@ def anonymize_messages(
     session: PIISession,
     released: Optional[Iterable[str]] = None,
     source: str = "prompt",
-) -> Tuple[int, int, List[str]]:
+) -> List[str]:
     """In-place anonymize the 'content' of every user/assistant chat message.
 
-    Returns (total_detected, anonymized, released_used) summed across all
-    touched messages so the caller can derive a per-request status (full /
-    partial / none) and report which user-released entities actually appeared.
+    Returns `released_used` — the subset of `released` originals that actually
+    appeared in at least one message. The caller surfaces this to the
+    frontend as the per-message released list.
 
     System messages are skipped: they're platform-controlled (default prompts,
-    assistant configs) and contain no user PII, but their formatting/capability
-    descriptions cause heavy false positives in the German spaCy NER (e.g.
-    "Blockquotes", "Bolding", "slides"). RAG and extracted document content
-    are anonymized via the dedicated hooks before they're ever merged into a
-    system message, so skipping system role here is safe.
+    assistant configs) and contain no user PII. RAG and extracted document
+    content are anonymized via the dedicated hooks before they're ever merged
+    into a system message, so skipping system role here is safe.
 
     Handles both string content and OpenAI-style multimodal content
     (list of parts); only text parts are touched, image parts pass through.
     """
     released_list = list(released) if released else []
-    total = 0
-    anonymized = 0
     released_used: List[str] = []
     for msg in messages:
         role = msg.get("role")
@@ -403,20 +390,16 @@ def anonymize_messages(
         anonymize_fn = session.anonymize if role == "user" else session.replace_known
         content = msg.get("content")
         if isinstance(content, str):
-            new_content, t, a, ru = anonymize_fn(content, released_list, source=source)
+            new_content, ru = anonymize_fn(content, released_list, source=source)
             msg["content"] = new_content
-            total += t
-            anonymized += a
             released_used.extend(ru)
         elif isinstance(content, list):
             for part in content:
                 if isinstance(part, dict) and part.get("type") == "text":
-                    new_text, t, a, ru = anonymize_fn(part.get("text", ""), released_list, source=source)
+                    new_text, ru = anonymize_fn(part.get("text", ""), released_list, source=source)
                     part["text"] = new_text
-                    total += t
-                    anonymized += a
                     released_used.extend(ru)
-    return total, anonymized, released_used
+    return released_used
 
 
 def anonymize_filename(name: str, session: Optional[PIISession]) -> str:
@@ -428,5 +411,5 @@ def anonymize_filename(name: str, session: Optional[PIISession]) -> str:
     """
     if session is None or not name:
         return name
-    out, _, _, _ = session.anonymize(name)
+    out, _ = session.anonymize(name)
     return out

@@ -52,13 +52,14 @@
 	}
 
 	// Badge: drives the per-message PII state pill.
-	// "full"    — filter active, all detected entities anonymized
-	// "partial" — filter active, but at least one entity was released
-	// anything else (filter was off this turn) → no badge
-	$: piiBadgeKind =
-		message?.pii_status === 'full' || message?.pii_status === 'partial'
-			? message.pii_status
-			: null;
+	// "full"    — filter ran, all detected entities anonymized
+	// "partial" — filter ran, but at least one entity was released
+	// null      — filter was off this turn (no PII fields on the message)
+	$: piiBadgeKind = (() => {
+		if (message?.pii_variables === undefined) return null;
+		const released = message.pii_released_entities_actual ?? [];
+		return released.length > 0 ? 'partial' : 'full';
+	})();
 
 	const copyToClipboard = async (text) => {
 		const res = await _copyToClipboard(text);
