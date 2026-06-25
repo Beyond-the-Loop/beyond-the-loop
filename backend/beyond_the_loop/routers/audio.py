@@ -36,7 +36,7 @@ from open_webui.env import (
     DEVICE_TYPE,
 )
 from beyond_the_loop.services.credit_service import credit_service
-from beyond_the_loop.services.payments_service import payments_service, is_flat_rate_plan
+from beyond_the_loop.services.payments_service import payments_service
 
 router = APIRouter()
 
@@ -191,8 +191,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
             ) as r:
                 r.raise_for_status()
 
-                if not is_flat_rate_plan(subscription.get("plan")):
-                    await credit_service.subtract_credits_by_user_for_tts(user, payload["input"])
+                await credit_service.record_tts_usage(user, payload["input"], subscription)
 
                 async with aiofiles.open(file_path, "wb") as f:
                     await f.write(await r.read())
@@ -335,8 +334,7 @@ async def transcription(
 
             response = transcribe(request, file_path)
 
-            if not is_flat_rate_plan(subscription.get("plan")):
-                await credit_service.subtract_credits_by_user_for_stt(user, response)
+            await credit_service.record_stt_usage(user, response, subscription)
 
             file_path = file_path.split("/")[-1]
 
