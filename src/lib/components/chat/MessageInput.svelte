@@ -950,6 +950,7 @@
 												e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 											}}
 											on:focus={async (e) => {
+												await tick();
 												if (e.target.value) {
 													e.target.style.height = '';
 													e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';

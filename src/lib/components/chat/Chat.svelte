@@ -2338,6 +2338,10 @@
 								{piiNeverAnalyzed}
 								onRunPiiAnalyze={runPIIAnalyze}
 								hideSuggestions={$pendingContinuationSeed !== null}
+								{piiAnalyzing}
+								{piiResultsStale}
+								{piiNeverAnalyzed}
+								onRunPiiAnalyze={runPIIAnalyze}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}
