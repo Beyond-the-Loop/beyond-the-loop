@@ -54,6 +54,24 @@ class AnalyticsService:
         return EngagementScoreResponse(engagement_score=round(engagement_score, 2))
 
     @staticmethod
+    def _append_zero_message_models(db, company_id, top_rows, assistants: bool):
+        """Append company models (or assistants) with 0 messages so all of them show up.
+
+        Rows match the (name, credits_used, message_count, meta) query shape.
+        assistants=False -> base models, assistants=True -> assistants.
+        """
+        used = {row[0] for row in top_rows}
+        condition = (
+            Model.base_model_id.isnot(None) if assistants else Model.base_model_id.is_(None)
+        )
+        extras = db.query(Model.name, Model.meta).filter(
+            Model.company_id == company_id, condition
+        ).all()
+        return list(top_rows) + [
+            (name, 0.0, 0, meta) for name, meta in extras if name not in used
+        ]
+
+    @staticmethod
     def get_top_models_by_company(company_id: str, start_date: str, end_date: str):
         start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
@@ -99,6 +117,10 @@ class AnalyticsService:
                     Completion.from_agent.isnot(True),
                 )
                 .scalar()
+            )
+
+            top_models = AnalyticsService._append_zero_message_models(
+                db, company_id, top_models, assistants=False
             )
 
         return TopModelsResponse.from_query_result(top_models)
@@ -218,6 +240,14 @@ class AnalyticsService:
             top_user_ids = [row.user_id for row in top_users]
             engagement_scores = AnalyticsService._calculate_user_engagement_scores(top_user_ids, db)
 
+            # Add company users with 0 messages so all users show up.
+            present = set(top_user_ids)
+            all_users = db.query(User).filter(User.company_id == company_id).all()
+            top_users = list(top_users) + [
+                (u.id, 0.0, 0, 0.0, u.first_name, u.last_name, u.email, u.profile_image_url, None, None)
+                for u in all_users if u.id not in present
+            ]
+
             return TopUsersResponse.from_query_result(top_users, engagement_scores=engagement_scores)
 
     @staticmethod
@@ -253,6 +283,11 @@ class AnalyticsService:
                 .order_by(func.sum(Completion.credits_used).desc())
                 .all()
             )
+
+            top_assistants = AnalyticsService._append_zero_message_models(
+                db, company_id, top_assistants, assistants=True
+            )
+
             return TopAssistantsResponse.from_query_result(top_assistants)
 
     @staticmethod
