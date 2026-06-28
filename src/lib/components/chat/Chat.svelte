@@ -1134,6 +1134,9 @@
 	};
 
 	let bufferedResponse: BufferedResponse | null = null;
+	// Sentences already sent to the call TTS, per message id. In a Map (not on the
+	// message) because BufferedResponse keeps replacing history.messages[id] with copies.
+	const ttsDispatchedCount: Record<string, number> = {};
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const {
@@ -1194,20 +1197,17 @@
 					);
 					messageContentParts.pop();
 
-					// dispatch only last sentence and make sure it hasn't been dispatched before
-					if (
-						messageContentParts.length > 0 &&
-						messageContentParts[messageContentParts.length - 1] !== message.lastSentence
-					) {
-						message.lastSentence = messageContentParts[messageContentParts.length - 1];
+					// Send newly-finished sentences in order (none repeated, none skipped).
+					const already = ttsDispatchedCount[message.id] ?? 0;
+					for (let i = already; i < messageContentParts.length; i++) {
 						eventTarget.dispatchEvent(
 							new CustomEvent('chat', {
-								detail: {
-									id: message.id,
-									content: messageContentParts[messageContentParts.length - 1]
-								}
+								detail: { id: message.id, content: messageContentParts[i] }
 							})
 						);
+					}
+					if (messageContentParts.length > already) {
+						ttsDispatchedCount[message.id] = messageContentParts.length;
 					}
 				}
 			}
@@ -1249,20 +1249,17 @@
 			);
 			messageContentParts.pop();
 
-			// dispatch only last sentence and make sure it hasn't been dispatched before
-			if (
-				messageContentParts.length > 0 &&
-				messageContentParts[messageContentParts.length - 1] !== message.lastSentence
-			) {
-				message.lastSentence = messageContentParts[messageContentParts.length - 1];
+			// Send newly-finished sentences in order (none repeated, none skipped).
+			const already = ttsDispatchedCount[message.id] ?? 0;
+			for (let i = already; i < messageContentParts.length; i++) {
 				eventTarget.dispatchEvent(
 					new CustomEvent('chat', {
-						detail: {
-							id: message.id,
-							content: messageContentParts[messageContentParts.length - 1]
-						}
+						detail: { id: message.id, content: messageContentParts[i] }
 					})
 				);
+			}
+			if (messageContentParts.length > already) {
+				ttsDispatchedCount[message.id] = messageContentParts.length;
 			}
 		}
 
@@ -1305,18 +1302,19 @@
 				document.getElementById(`speak-button-${message.id}`)?.click();
 			}
 
-			// Emit chat event for TTS
-			let lastMessageContentPart =
-				getMessageContentParts(message.content, $config?.audio?.tts?.split_on ?? 'punctuation')?.at(
-					-1
-				) ?? '';
-			if (lastMessageContentPart) {
+			// Final flush: send any remaining sentences (incl. the last), then reset.
+			const finalParts = getMessageContentParts(
+				message.content,
+				$config?.audio?.tts?.split_on ?? 'punctuation'
+			);
+			for (let i = ttsDispatchedCount[message.id] ?? 0; i < finalParts.length; i++) {
 				eventTarget.dispatchEvent(
 					new CustomEvent('chat', {
-						detail: { id: message.id, content: lastMessageContentPart }
+						detail: { id: message.id, content: finalParts[i] }
 					})
 				);
 			}
+			delete ttsDispatchedCount[message.id];
 			eventTarget.dispatchEvent(
 				new CustomEvent('chat:finish', {
 					detail: {
