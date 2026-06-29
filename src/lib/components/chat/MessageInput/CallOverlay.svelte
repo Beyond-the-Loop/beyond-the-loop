@@ -300,14 +300,9 @@
 					return;
 				}
 
-				if (assistantSpeaking && !($settings?.voiceInterruption ?? false)) {
-					// Mute the audio if the assistant is speaking
-					analyser.maxDecibels = 0;
-					analyser.minDecibels = -1;
-				} else {
-					analyser.minDecibels = MIN_DECIBELS;
-					analyser.maxDecibels = -30;
-				}
+				// Mic stays active while assistant speaks → user can interrupt
+				analyser.minDecibels = MIN_DECIBELS;
+				analyser.maxDecibels = -30;
 
 				analyser.getByteTimeDomainData(timeDomainData);
 				analyser.getByteFrequencyData(domainData);
@@ -408,8 +403,10 @@
 						})
 						.catch((error) => {
 							console.error(error);
+							resolve(error); // play() failed → advance so the queue can drain
 						});
 
+					audioElement.onerror = () => resolve(undefined); // media error → advance
 					audioElement.onended = async (e) => {
 						await new Promise((r) => setTimeout(r, 100));
 						resolve(e);
