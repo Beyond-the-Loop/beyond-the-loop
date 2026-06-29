@@ -570,6 +570,17 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     form_data["messages"].insert(
                         0, {"role": "system", "content": image_gen_system_prompt}
                     )
+            else:
+                no_image_gen_guard = (
+                    "You do not have access to any image generation tool. "
+                    "Never emit tool calls, function calls, or raw JSON action "
+                    "blocks (e.g. `dalle.text2im`, `image_generation`). If the "
+                    "user requests an image, tell them you cannot create images "
+                    "and offer to help in another way."
+                )
+                form_data["messages"].insert(
+                    0, {"role": "system", "content": no_image_gen_guard}
+                )
 
         # Propagate tool needs from routing decision into features so the
         # web_search / code_interpreter tools are actually passed to the model.
@@ -997,7 +1008,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 "is in the file?'). Do NOT reply with 'I don't see any file' — the "
                 "file is there. Instead, ask the user to be more specific or to "
                 "mention a keyword / section, or proactively suggest concrete "
-                "questions they could ask. Reply in the user's language."
+                "questions they could ask. Reply in the same language as the "
+                "user's most recent message."
             ),
             form_data["messages"],
         )

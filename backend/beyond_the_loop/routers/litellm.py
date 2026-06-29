@@ -385,7 +385,7 @@ async def generate_chat_completion(
         if use_responses_api:
             tools.append({"type": "web_search_preview"})
         else:
-            payload["web_search_options"] = {}
+            payload["web_search_options"] = {"search_context_size": "high"}
 
     if metadata.get("image_generation_enabled", False):
         if use_responses_api:
