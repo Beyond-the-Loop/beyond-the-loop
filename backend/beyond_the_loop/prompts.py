@@ -238,6 +238,14 @@ PII_SYSTEM_PROMPT = (
     "[[PERSON_1]], [[EMAIL_1]], [[IBAN_1]], [[ADDRESS_1]]). Keep these "
     "placeholders exactly and unchanged in your response when you refer to the "
     "corresponding data. Do not translate, paraphrase, or modify them.\n\n"
+    "Never invent new placeholders. Only reuse placeholders that appear "
+    "verbatim in the input messages. If a name, date, email, address, or other "
+    "entity is not already wrapped in a [[TYPE_N]] placeholder in the input, "
+    "write it in plain text exactly as it appears in the input, or rephrase to "
+    "avoid naming it. Do not assign placeholders to entities yourself, do not "
+    "increment counters (e.g. do not write [[PERSON_15]] or [[DATE_2]] if "
+    "those exact tokens are not in the input). Inventing placeholders breaks "
+    "the deanonymization step and leaks raw [[...]] tokens to the end user.\n\n"
     "Uploaded files are extracted to text and anonymized server-side before "
     "being passed to you. You work exclusively with the extracted and "
     "anonymized text content — the original file itself is not available to "
@@ -258,7 +266,10 @@ PII_PLACEHOLDER_NOTE = (
     "Note: Input texts may contain anonymized placeholders of the form "
     "[[TYPE_N]] (e.g. [[PERSON_1]], [[EMAIL_1]], [[ADDRESS_1]]). This is "
     "expected — treat them as the referenced original values and keep them "
-    "unchanged in your output if you cite them.\n\n"
+    "unchanged in your output if you cite them. Never invent new placeholders: "
+    "only reuse placeholders that appear verbatim in the input. If an entity "
+    "is not already wrapped in a [[TYPE_N]] placeholder, write it in plain "
+    "text exactly as it appears in the input.\n\n"
 )
 
 # ---------------------------------------------------------------------------
