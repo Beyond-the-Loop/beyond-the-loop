@@ -25,6 +25,9 @@ class Completion(Base):
     created_at = Column(BigInteger, nullable=False)
     assistant = Column(Text)
     from_agent = Column(Boolean, nullable=False, default=False)
+    # Discriminator across credit-burning call paths. 'chat' is the historical
+    # default and the value backfilled into existing rows by migration 047.
+    kind = Column(Text, nullable=False, default='chat', server_default='chat')
 
 class CompletionModel(BaseModel):
     id: str
@@ -34,12 +37,13 @@ class CompletionModel(BaseModel):
     created_at: int  # timestamp in epoch
     assistant: Optional[str]
     from_agent: Optional[bool]
+    kind: str = 'chat'
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompletionTable:
-    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: str, from_agent) -> Optional[CompletionModel]:
+    def insert_new_completion(self, user_id: str, model: str, credits_used: float, assistant: Optional[str], from_agent: bool, kind: str = 'chat') -> Optional[CompletionModel]:
         completion = CompletionModel(
             **{
                 "id": str(uuid.uuid4()),
@@ -49,6 +53,7 @@ class CompletionTable:
                 "credits_used": credits_used,
                 "assistant": assistant,
                 "from_agent": from_agent,
+                "kind": kind,
             }
         )
 
@@ -83,6 +88,9 @@ class CompletionTable:
                         Completion.user_id == user_id,
                         Completion.model == model_name,
                         Completion.created_at >= three_hours_ago,
+                        # Rate limits cap chat-message throughput; voice rows
+                        # would burst the count and falsely lock users out.
+                        Completion.kind == 'chat',
                     )
                     .count()
                 )
@@ -109,6 +117,9 @@ class CompletionTable:
                         Completion.user_id == user_id,
                         Completion.model.in_(model_names),
                         Completion.created_at >= three_hours_ago,
+                        # See get_completions_last_three_hours_by_user_and_model
+                        # for the rationale.
+                        Completion.kind == 'chat',
                     )
                     .group_by(Completion.model)
                     .all()

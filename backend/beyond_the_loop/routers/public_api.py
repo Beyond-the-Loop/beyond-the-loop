@@ -15,7 +15,7 @@ from beyond_the_loop.models.models import Models, filter_base_models_by_plan
 from beyond_the_loop.routers.audio import compress_audio
 from beyond_the_loop.routers.files import upload_file
 from beyond_the_loop.services.credit_service import credit_service
-from beyond_the_loop.services.payments_service import payments_service, is_flat_rate_plan
+from beyond_the_loop.services.payments_service import payments_service
 
 from open_webui.env import AIOHTTP_CLIENT_TIMEOUT
 from open_webui.utils.auth import get_current_api_key_user
@@ -295,13 +295,12 @@ async def audio_transcriptions(
                 transcribed_text = await upstream.text()
                 result = transcribed_text
 
-    if not is_flat_rate_plan(subscription.get("plan")):
-        try:
-            await credit_service.subtract_credits_by_user_for_stt(
-                user, {"text": transcribed_text, "duration": duration_seconds}
-            )
-        except Exception as err:
-            log.error("Credit accounting failed for /audio/transcriptions: %s", err)
+    try:
+        await credit_service.record_stt_usage(
+            user, {"text": transcribed_text, "duration": duration_seconds}, subscription
+        )
+    except Exception as err:
+        log.error("Credit accounting failed for /audio/transcriptions: %s", err)
 
     if isinstance(result, dict):
         return result

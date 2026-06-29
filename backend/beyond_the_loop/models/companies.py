@@ -289,18 +289,40 @@ class CompanyTable:
             # Handle exceptions if any
             return False
 
-    def add_flex_credit_balance(self, company_id: str, credits_to_add: int) -> bool:
-        """Add credits to company's balance"""
+    def add_flex_credit_balance(self, company_id: str, credits_to_add: float) -> bool:
+        """Add credits to company's flex balance and re-arm budget-mail flags
+        when the new total crosses back above the warning thresholds.
+
+        Why the flag reset lives here: the 80%/100% mail flags are otherwise
+        only reset on the monthly billing-period roll-over
+        (`run_credit_recharge_checks`) or on a subscription reset
+        (`handle_company_subscription_update`). Without this hook, a company
+        that drops to 0, gets auto-recharged, and burns through the recharge
+        again would never receive a second warning in the same period.
+        """
+        # Computed outside the write session because it opens its own session
+        # and may hit the Stripe API.
+        threshold = self.get_eighty_percent_credit_limit(company_id)
+
         with get_db() as db:
             company = db.query(Company).filter(Company.id == company_id).first()
-            if company:
-                if company.flex_credit_balance is None:
-                    company.flex_credit_balance = credits_to_add
-                else:
-                    company.flex_credit_balance += credits_to_add
-                db.commit()
-                return True
-            return False
+            if not company:
+                return False
+
+            if company.flex_credit_balance is None:
+                company.flex_credit_balance = credits_to_add
+            else:
+                company.flex_credit_balance += credits_to_add
+
+            total = (company.credit_balance or 0) + (company.flex_credit_balance or 0)
+
+            if total > 0 and company.budget_mail_100_sent:
+                company.budget_mail_100_sent = False
+            if total > threshold and company.budget_mail_80_sent:
+                company.budget_mail_80_sent = False
+
+            db.commit()
+            return True
 
     def subtract_credit_balance(self, company_id: str, credits_to_subtract: int):
         """Subtract credits from company's balance"""

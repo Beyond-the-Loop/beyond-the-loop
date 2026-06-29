@@ -48,6 +48,19 @@ _litellm = _stub_module(
     model_cost={},
 )
 
+
+# litellm.types.utils stub — STT path does `from litellm.types.utils import
+# TranscriptionResponse` at call time. The real class is a Pydantic model with
+# a strict schema; a plain object that accepts attribute writes is enough for
+# us since completion_cost is mocked.
+class _StubTranscriptionResponse:
+    def __init__(self, text=""):
+        self.text = text
+        self.duration = 0
+
+_stub_module("litellm.types", utils=MagicMock(TranscriptionResponse=_StubTranscriptionResponse))
+_stub_module("litellm.types.utils", TranscriptionResponse=_StubTranscriptionResponse)
+
 # stripe stub
 _stub_module("stripe", PaymentMethod=MagicMock())
 
@@ -84,7 +97,12 @@ _stub_module("beyond_the_loop.services.email_service", EmailService=MagicMock)
 _stub_module(
     "beyond_the_loop.config",
     LITELLM_MODEL_CONFIG={},
-    LITELLM_MODEL_MAP={"GPT-4o": "azure/gpt-4o"},
+    LITELLM_MODEL_MAP={
+        "GPT-4o": "azure/gpt-4o",
+        # Aliases used by the STT/TTS subtract paths
+        "STT": "azure/whisper",
+        "TTS": "azure/tts-1",
+    },
 )
 
 # beyond_the_loop.routers.payments stub (get_subscription is imported at top level)
@@ -327,3 +345,120 @@ class TestPublicApiAccessGate:
         cs.get_subscription.return_value = subscription
         result = await cs.CreditService.check_public_api_access(user)
         assert result == subscription
+
+
+# ---------------------------------------------------------------------------
+# subtract_credits_by_user_for_stt / _for_tts
+#
+# Voice paths were the missing piece in the Rudel recharge-loop investigation:
+# they deducted credits but left no row in `completion`, so debugging the
+# spend pattern required math-back from balance totals. These tests pin the
+# new behavior — every successful subtract must insert a row, kinded so
+# analytics queries can opt in or out.
+# ---------------------------------------------------------------------------
+
+
+class TestSubtractForSTT:
+    @pytest.mark.anyio
+    async def test_paid_plan_subtracts_and_inserts(self, user):
+        _litellm.completion_cost.return_value = 0.10  # USD
+        response = {"text": "hallo welt", "duration": 3.2}
+
+        await cs.credit_service.record_stt_usage(user, response, {"plan": "team_monthly"})
+
+        _Companies.subtract_credit_balance.assert_called_once()
+        _Completions.insert_new_completion.assert_called_once()
+        args, kwargs = _Completions.insert_new_completion.call_args
+        # Positional: user_id, model, credits_used, assistant, from_agent
+        assert args[0] == user.id
+        assert args[1] == "azure/whisper"  # LITELLM_MODEL_MAP["STT"]
+        # 0.10 USD * 1.25 margin * 0.9 EUR/USD = 0.1125
+        assert args[2] == pytest.approx(0.1125)
+        assert args[3] is None       # assistant
+        assert args[4] is False      # from_agent
+        assert kwargs.get("kind") == "stt"
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("plan", ["free", "premium", "unlimited"])
+    async def test_flat_rate_inserts_row_but_does_not_subtract(self, user, plan):
+        _litellm.completion_cost.return_value = 0.10
+        response = {"text": "hallo welt", "duration": 3.2}
+
+        await cs.credit_service.record_stt_usage(user, response, {"plan": plan})
+
+        _Companies.subtract_credit_balance.assert_not_called()
+        # Row still written so analytics can see voice activity
+        _Completions.insert_new_completion.assert_called_once()
+        args, kwargs = _Completions.insert_new_completion.call_args
+        assert kwargs.get("kind") == "stt"
+        assert args[2] == pytest.approx(0.1125)
+
+    @pytest.mark.anyio
+    async def test_missing_subscription_falls_back_to_subtracting(self, user):
+        # `subscription=None` (callers that haven't been migrated yet) should
+        # treat it as a non-flat-rate plan to avoid silently giving away credits.
+        _litellm.completion_cost.return_value = 0.10
+        response = {"text": "x", "duration": 1.0}
+
+        await cs.credit_service.record_stt_usage(user, response, None)
+
+        _Companies.subtract_credit_balance.assert_called_once()
+        _Completions.insert_new_completion.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_still_inserts_when_pricing_lookup_fails(self, user):
+        # If litellm can't price the model we still want a paper trail.
+        # The subtract path swallows the exception and uses 0; the row should
+        # still be written for audit purposes.
+        _litellm.completion_cost.side_effect = Exception("unknown model")
+        response = {"text": "x", "duration": 1.0}
+
+        await cs.credit_service.record_stt_usage(user, response, {"plan": "team_monthly"})
+
+        _Completions.insert_new_completion.assert_called_once()
+        args, kwargs = _Completions.insert_new_completion.call_args
+        assert args[2] == 0.0
+        assert kwargs.get("kind") == "stt"
+
+
+class TestSubtractForTTS:
+    @pytest.mark.anyio
+    async def test_paid_plan_subtracts_and_inserts(self, user):
+        _litellm.completion_cost.return_value = 0.02  # USD
+
+        await cs.credit_service.record_tts_usage(user, "Sag hallo.", {"plan": "team_monthly"})
+
+        _Companies.subtract_credit_balance.assert_called_once()
+        _Completions.insert_new_completion.assert_called_once()
+        args, kwargs = _Completions.insert_new_completion.call_args
+        assert args[0] == user.id
+        assert args[1] == "azure/tts-1"  # LITELLM_MODEL_MAP["TTS"]
+        # 0.02 USD * 1.25 * 0.9 = 0.0225
+        assert args[2] == pytest.approx(0.0225)
+        assert args[3] is None
+        assert args[4] is False
+        assert kwargs.get("kind") == "tts"
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("plan", ["free", "premium", "unlimited"])
+    async def test_flat_rate_inserts_row_but_does_not_subtract(self, user, plan):
+        _litellm.completion_cost.return_value = 0.02
+
+        await cs.credit_service.record_tts_usage(user, "x", {"plan": plan})
+
+        _Companies.subtract_credit_balance.assert_not_called()
+        _Completions.insert_new_completion.assert_called_once()
+        args, kwargs = _Completions.insert_new_completion.call_args
+        assert kwargs.get("kind") == "tts"
+        assert args[2] == pytest.approx(0.0225)
+
+    @pytest.mark.anyio
+    async def test_still_inserts_when_pricing_lookup_fails(self, user):
+        _litellm.completion_cost.side_effect = Exception("unknown model")
+
+        await cs.credit_service.record_tts_usage(user, "x", {"plan": "team_monthly"})
+
+        _Completions.insert_new_completion.assert_called_once()
+        args, kwargs = _Completions.insert_new_completion.call_args
+        assert args[2] == 0.0
+        assert kwargs.get("kind") == "tts"
