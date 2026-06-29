@@ -12,7 +12,6 @@ from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import (
     User,
     get_users_by_company,
-    get_active_users_by_company,
 )
 from beyond_the_loop.models.companies import Companies, Company
 from sqlalchemy import and_, func, case
@@ -24,6 +23,11 @@ stripe.api_key = os.environ.get('STRIPE_API_KEY')
 
 # Minimum Unix timestamp — no analytics data before this point is returned to the frontend
 MIN_ANALYTICS_TIMESTAMP = 1772150428
+
+# LiteLLM-internal upstream names for TTS/STT (see litellm-config.yaml aliases "TTS"/"STT").
+# Excluded from all analytics queries so audio usage doesn't pollute message counts,
+# top-model rankings, engagement scores, or credit-consumption charts.
+_AUDIO_MODEL_NAMES = ("azure/tts-1", "azure/whisper", "azure/whisper-1")
 
 
 class AnalyticsService:
@@ -99,6 +103,7 @@ class AnalyticsService:
                 .join(User, User.id == Completion.user_id)
                 .filter(
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     User.company_id == company_id,
@@ -192,6 +197,7 @@ class AnalyticsService:
                     and_(
                         Completion.user_id == User.id,
                         Completion.from_agent.isnot(True),
+                        Completion.model.notin_(_AUDIO_MODEL_NAMES),
                         Completion.created_at >= int(start_date_dt.timestamp()),
                         Completion.created_at <= int(end_date_dt.timestamp()),
                     ),
@@ -268,6 +274,7 @@ class AnalyticsService:
                 db.query(func.min(Completion.created_at))
                 .filter(
                     Completion.user_id.in_(company_user_ids),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.created_at >= MIN_ANALYTICS_TIMESTAMP,
                 )
                 .scalar()
@@ -280,6 +287,7 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.user_id.in_(company_user_ids),
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt
@@ -298,6 +306,7 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.user_id.in_(company_user_ids),
                     Completion.created_at >= MIN_ANALYTICS_TIMESTAMP,
                 )
@@ -357,6 +366,7 @@ class AnalyticsService:
                 User.company_id == company_id,
                 Completion.created_at >= max(thirty_days_ago, MIN_ANALYTICS_TIMESTAMP),
                 Completion.from_agent.isnot(True),
+                Completion.model.notin_(_AUDIO_MODEL_NAMES),
             ).group_by(
                 User.id, User.first_name, User.last_name, User.email, User.profile_image_url
             ).having(
@@ -411,7 +421,8 @@ class AnalyticsService:
                     # Filter using actual timestamps
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt,
-                    Completion.user_id.in_(company_user_ids)
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                 )
 
                 # Execute the query and fetch results
@@ -452,6 +463,7 @@ class AnalyticsService:
                     func.to_timestamp(Completion.created_at) <= end_date_dt,
                     Completion.user_id == user_id,
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                 )
 
                 # Execute the query and fetch results
@@ -583,6 +595,7 @@ class AnalyticsService:
                 Completion.user_id.in_(user_ids),
                 Completion.created_at >= effective_start_ts,
                 Completion.from_agent.isnot(True),
+                Completion.model.notin_(_AUDIO_MODEL_NAMES),
             )
             .group_by(Completion.user_id, 'day')
             .all()
