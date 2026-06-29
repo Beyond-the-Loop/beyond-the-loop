@@ -54,24 +54,6 @@ class AnalyticsService:
         return EngagementScoreResponse(engagement_score=round(engagement_score, 2))
 
     @staticmethod
-    def _append_zero_message_models(db, company_id, top_rows, assistants: bool):
-        """Append company models (or assistants) with 0 messages so all of them show up.
-
-        Rows match the (name, credits_used, message_count, meta) query shape.
-        assistants=False -> base models, assistants=True -> assistants.
-        """
-        used = {row[0] for row in top_rows}
-        condition = (
-            Model.base_model_id.isnot(None) if assistants else Model.base_model_id.is_(None)
-        )
-        extras = db.query(Model.name, Model.meta).filter(
-            Model.company_id == company_id, condition
-        ).all()
-        return list(top_rows) + [
-            (name, 0.0, 0, meta) for name, meta in extras if name not in used
-        ]
-
-    @staticmethod
     def get_top_models_by_company(company_id: str, start_date: str, end_date: str):
         start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
@@ -81,46 +63,28 @@ class AnalyticsService:
 
             top_models = (
                 db.query(
-                    Completion.model,
-                    func.sum(Completion.credits_used).label("credits_used"),
+                    Model.name,
+                    func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
-                .outerjoin(        
-                    Model,        
-                    and_(            
-                        Completion.model == Model.name,            
-                        Model.company_id == company_id,   
-                    ),    
+                .outerjoin(
+                    Completion,
+                    and_(
+                        Completion.model == Model.name,
+                        Completion.created_at >= int(start_date_dt.timestamp()),
+                        Completion.created_at <= int(end_date_dt.timestamp()),
+                        Completion.user_id.in_(company_user_ids),
+                        Completion.from_agent.isnot(True),
+                    ),
                 )
                 .filter(
-                    Completion.created_at >= int(start_date_dt.timestamp()),
-                    Completion.created_at <= int(end_date_dt.timestamp()),
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent.isnot(True),
+                    Model.company_id == company_id,
+                    Model.base_model_id.is_(None),
                 )
-                .group_by(
-                    Completion.model,
-                    Model.meta
-                )
-                .order_by(
-                    func.sum(Completion.credits_used).desc()
-                )
+                .group_by(Model.name, Model.meta)
+                .order_by(func.coalesce(func.sum(Completion.credits_used), 0).desc())
                 .all()
-            )
-            real_count = (
-                db.query(func.count(Completion.id))
-                .filter(
-                    Completion.created_at >= int(start_date_dt.timestamp()),
-                    Completion.created_at <= int(end_date_dt.timestamp()),
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent.isnot(True),
-                )
-                .scalar()
-            )
-
-            top_models = AnalyticsService._append_zero_message_models(
-                db, company_id, top_models, assistants=False
             )
 
         return TopModelsResponse.from_query_result(top_models)
@@ -206,14 +170,15 @@ class AnalyticsService:
             )
 
             top_users = (
-                base_query.with_entities(
-                    Completion.user_id,
-                    func.sum(Completion.credits_used).label("credits_used"),
+                db.query(
+                    User.id.label("user_id"),
+                    func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
-                    (
-                            func.sum(case((Completion.assistant.isnot(None), 1), else_=0))
-                            * 100.0
-                            / func.count(Completion.id)
+                    func.coalesce(
+                        func.sum(case((Completion.assistant.isnot(None), 1), else_=0))
+                        * 100.0
+                        / func.nullif(func.count(Completion.id), 0),
+                        0.0,
                     ).label("assistant_message_percentage"),
                     User.first_name,
                     User.last_name,
@@ -222,10 +187,20 @@ class AnalyticsService:
                     top_model_subq.c.model.label("top_model"),
                     top_assistant_subq.c.assistant.label("top_assistant"),
                 )
-                .outerjoin(top_model_subq, top_model_subq.c.user_id == Completion.user_id)
-                .outerjoin(top_assistant_subq, top_assistant_subq.c.user_id == Completion.user_id)
+                .outerjoin(
+                    Completion,
+                    and_(
+                        Completion.user_id == User.id,
+                        Completion.from_agent.isnot(True),
+                        Completion.created_at >= int(start_date_dt.timestamp()),
+                        Completion.created_at <= int(end_date_dt.timestamp()),
+                    ),
+                )
+                .outerjoin(top_model_subq, top_model_subq.c.user_id == User.id)
+                .outerjoin(top_assistant_subq, top_assistant_subq.c.user_id == User.id)
+                .filter(User.company_id == company_id)
                 .group_by(
-                    Completion.user_id,
+                    User.id,
                     User.first_name,
                     User.last_name,
                     User.email,
@@ -233,20 +208,12 @@ class AnalyticsService:
                     top_model_subq.c.model,
                     top_assistant_subq.c.assistant,
                 )
-                .order_by(func.sum(Completion.credits_used).desc())
+                .order_by(func.coalesce(func.sum(Completion.credits_used), 0).desc())
                 .all()
             )
 
-            top_user_ids = [row.user_id for row in top_users]
-            engagement_scores = AnalyticsService._calculate_user_engagement_scores(top_user_ids, db)
-
-            # Add company users with 0 messages so all users show up.
-            present = set(top_user_ids)
-            all_users = db.query(User).filter(User.company_id == company_id).all()
-            top_users = list(top_users) + [
-                (u.id, 0.0, 0, 0.0, u.first_name, u.last_name, u.email, u.profile_image_url, None, None)
-                for u in all_users if u.id not in present
-            ]
+            active_user_ids = [row.user_id for row in top_users if row.message_count > 0]
+            engagement_scores = AnalyticsService._calculate_user_engagement_scores(active_user_ids, db)
 
             return TopUsersResponse.from_query_result(top_users, engagement_scores=engagement_scores)
 
@@ -260,32 +227,28 @@ class AnalyticsService:
 
             top_assistants = (
                 db.query(
-                    Completion.assistant,
-                    func.sum(Completion.credits_used).label("credits_used"),
+                    Model.name,
+                    func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
                 .outerjoin(
-                    Model,
-                    and_(Completion.assistant == Model.name, Model.company_id == company_id),
+                    Completion,
+                    and_(
+                        Completion.assistant == Model.name,
+                        Completion.created_at >= int(start_date_dt.timestamp()),
+                        Completion.created_at <= int(end_date_dt.timestamp()),
+                        Completion.user_id.in_(company_user_ids),
+                        Completion.from_agent.isnot(True),
+                    ),
                 )
                 .filter(
-                    Completion.assistant != None,
-                    Completion.created_at >= int(start_date_dt.timestamp()),
-                    Completion.created_at <= int(end_date_dt.timestamp()),
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent.isnot(True),
+                    Model.company_id == company_id,
+                    Model.base_model_id.isnot(None),
                 )
-                .group_by(
-                    Completion.assistant,
-                    Model.meta,
-                )
-                .order_by(func.sum(Completion.credits_used).desc())
+                .group_by(Model.name, Model.meta)
+                .order_by(func.coalesce(func.sum(Completion.credits_used), 0).desc())
                 .all()
-            )
-
-            top_assistants = AnalyticsService._append_zero_message_models(
-                db, company_id, top_assistants, assistants=True
             )
 
             return TopAssistantsResponse.from_query_result(top_assistants)
