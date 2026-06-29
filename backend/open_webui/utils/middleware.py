@@ -974,7 +974,8 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 "is in the file?'). Do NOT reply with 'I don't see any file' — the "
                 "file is there. Instead, ask the user to be more specific or to "
                 "mention a keyword / section, or proactively suggest concrete "
-                "questions they could ask. Reply in the user's language."
+                "questions they could ask. Reply in the same language as the "
+                "user's most recent message."
             ),
             form_data["messages"],
         )
