@@ -144,8 +144,6 @@
 	};
 
 	const MIN_DECIBELS = -55;
-	// Mic loudness (RMS) needed to interrupt the assistant while it's speaking.
-	const VOICE_RMS_THRESHOLD = 0.1;
 	const VISUALIZER_BUFFER_LENGTH = 300;
 
 	const transcribeHandler = async (audioBlob) => {
@@ -159,8 +157,13 @@
 			return null;
 		});
 
-		if (res && res.text !== '') {
-			await submitPrompt(res.text, { _raw: true });
+		if (res) {
+			console.log(res.text);
+
+			if (res.text !== '') {
+				const _responses = await submitPrompt(res.text, { _raw: true });
+				console.log(_responses);
+			}
 		}
 	};
 
@@ -297,14 +300,9 @@
 					return;
 				}
 
-				if (assistantSpeaking && !($settings?.voiceInterruption ?? true)) {
-					// Mute the audio if the assistant is speaking
-					analyser.maxDecibels = 0;
-					analyser.minDecibels = -1;
-				} else {
-					analyser.minDecibels = MIN_DECIBELS;
-					analyser.maxDecibels = -30;
-				}
+				// Mic stays active while assistant speaks → user can interrupt
+				analyser.minDecibels = MIN_DECIBELS;
+				analyser.maxDecibels = -30;
 
 				analyser.getByteTimeDomainData(timeDomainData);
 				analyser.getByteFrequencyData(domainData);
@@ -312,20 +310,17 @@
 				// Calculate RMS level from time domain data
 				rmsLevel = calculateRMS(timeDomainData);
 
-				// Any sound — keeps an active recording alive (no mid-sentence cut-off).
-				const anySound = domainData.some((value) => value > 0);
+				// Check if initial speech/noise has started
+				const hasSound = domainData.some((value) => value > 0);
+				if (hasSound) {
+					// BIG RED TEXT
+					console.log('%c%s', 'color: red; font-size: 20px;', '🔊 Sound detected');
 
-				if (!hasStartedSpeaking) {
-					// Start: loud voice while the AI talks (ignore its echo), any sound otherwise.
-					const startTrigger = assistantSpeaking
-						? rmsLevel > VOICE_RMS_THRESHOLD
-						: anySound;
-					if (startTrigger) {
+					if (!hasStartedSpeaking) {
 						hasStartedSpeaking = true;
 						stopAllAudio();
-						lastSoundTime = Date.now();
 					}
-				} else if (anySound) {
+
 					lastSoundTime = Date.now();
 				}
 
@@ -351,8 +346,8 @@
 		detectSound();
 	};
 
-	let finishedMessages: Record<string, boolean> = {};
-	let currentMessageId: string | null = null;
+	let finishedMessages = {};
+	let currentMessageId = null;
 	let currentUtterance = null;
 
 	const speakSpeechSynthesisHandler = (content) => {
@@ -408,8 +403,10 @@
 						})
 						.catch((error) => {
 							console.error(error);
+							resolve(error); // play() failed → advance so the queue can drain
 						});
 
+					audioElement.onerror = () => resolve(undefined); // media error → advance
 					audioElement.onended = async (e) => {
 						await new Promise((r) => setTimeout(r, 100));
 						resolve(e);
@@ -424,16 +421,6 @@
 	const stopAllAudio = async () => {
 		assistantSpeaking = false;
 		interrupted = true;
-
-		// Stop playback and reset per-turn state so the next answer starts clean.
-		audioAbortController.abort();
-		audioAbortController = new AbortController();
-		messages = {};
-		finishedMessages = {};
-		currentMessageId = null;
-		audioCache.clear();
-		emojiCache.clear();
-		emoji = null;
 
 		if (chatStreaming) {
 			stopResponse();
