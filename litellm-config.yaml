@@ -736,6 +736,34 @@ model_list:
       supports_image_generation: true
       supports_image_input: true
 
+
+  - model_name: "GPT Image 2"
+    litellm_params:
+      model: 'vertex_ai/gemini-3-flash-preview'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      reasoning_effort: medium
+    model_info:
+      context_window: '1M'
+      category: 4
+      costFactor: 5
+      description: "OpenAI’s highly advanced image generation model, excelling in photorealistic image quality and unprecedented text rendering. Supports Resolutions up to 4K with flawless typography on labels and packaging."
+      hosted_in: 'Global'
+      intelligence_score: 5
+      knowledge_cutoff: '2025-08-01'
+      organization: 'OpenAI'
+      reasoning: true
+      tokens_per_second: 85
+      supports_image_generation: true
+      supports_image_input: true
+
+  - model_name: gpt-image-2
+    litellm_params:
+      model: azure/gpt-image-2
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_version: "2025-04-01-preview"
+
   - model_name: "TTS"
     litellm_params:
       model: "azure/tts-1"
@@ -775,6 +803,8 @@ router_settings:
     # (otherwise it has no fallback when it fails).
     - {"Gemini 2.5 Flash": ["Claude 4.5 Haiku"]}
     - {"Mistral Small 4": ["Gemini 2.5 Flash"]}
+
+    - {"gpt-image-2": []}
 
 
 litellm_settings:
