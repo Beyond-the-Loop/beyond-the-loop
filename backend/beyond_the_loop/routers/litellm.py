@@ -48,6 +48,10 @@ from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.socket.main import get_event_emitter
+from beyond_the_loop.utils.image_generation import (
+    build_image_tool,
+    label_images_for_model,
+)
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -388,8 +392,8 @@ async def generate_chat_completion(
             payload["web_search_options"] = {"search_context_size": "high"}
 
     if metadata.get("image_generation_enabled", False):
-        if use_responses_api:
-            tools.append({"type": "image_generation"})
+        if model_name == 'GPT Image 2':
+            tools.append(build_image_tool())
 
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
@@ -462,6 +466,10 @@ async def generate_chat_completion(
     params = model.params.model_dump()
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
+
+    # Tag each image with a [Image N] marker
+    if model_name == 'GPT Image 2' and metadata.get("image_generation_enabled", False):
+        payload["messages"] = label_images_for_model(payload["messages"])
 
     # Check model access
     if not agent_or_task_prompt and not(
