@@ -1605,6 +1605,19 @@ async def process_chat_response(
                                 delta_images = delta.get("images", None)
 
                                 if delta_images:
+                                    if (
+                                        content_blocks
+                                        and content_blocks[-1]["type"] == "reasoning"
+                                        and content_blocks[-1].get("attributes", {}).get("type") == "reasoning_content"
+                                        and "duration" not in content_blocks[-1]
+                                    ):
+                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block["ended_at"] = time.time()
+                                        reasoning_block["duration"] = int(
+                                            reasoning_block["ended_at"]
+                                            - reasoning_block["started_at"]
+                                        )
+
                                     for delta_image in delta_images:
                                         image_base64 = delta_image['image_url']["url"]
 
