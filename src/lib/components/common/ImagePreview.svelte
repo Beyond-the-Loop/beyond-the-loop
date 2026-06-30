@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { v4 as uuidv4 } from 'uuid';
+	import { downloadImage } from '$lib/utils';
 
 	export let show = false;
 	export let src = '';
@@ -9,30 +9,6 @@
 	let mounted = false;
 
 	let previewElement = null;
-
-	const extensionFromBlob = (blob: Blob) => {
-		const subtype = (blob.type || '').split('/')[1]?.split(';')[0];
-		if (!subtype) return 'png';
-		if (subtype === 'jpeg') return 'jpg';
-		if (subtype === 'svg+xml') return 'svg';
-		return subtype;
-	};
-
-	const downloadImage = (url: string) => {
-		fetch(url)
-			.then((response) => response.blob())
-			.then((blob) => {
-				const objectUrl = window.URL.createObjectURL(blob);
-				const link = document.createElement('a');
-				link.href = objectUrl;
-				link.download = `${uuidv4()}.${extensionFromBlob(blob)}`;
-				document.body.appendChild(link);
-				link.click();
-				document.body.removeChild(link);
-				window.URL.revokeObjectURL(objectUrl);
-			})
-			.catch((error) => console.error('Error downloading image:', error));
-	};
 
 	const handleKeyDown = (event: KeyboardEvent) => {
 		if (event.key === 'Escape') {
