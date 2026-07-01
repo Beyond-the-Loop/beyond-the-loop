@@ -29,7 +29,7 @@
 		}}
 		type="button"
 	>
-		<img src={_src} {alt} class="w-full {imageClassName}" draggable="false" data-cy="image" />
+		<img src={_src} {alt} class="w-full not-prose {imageClassName}" draggable="false" data-cy="image" />
 	</button>
 
 	{#if showDownload}
@@ -40,7 +40,7 @@
 				<button
 					type="button"
 					aria-label={$i18n?.t('Download')}
-					class="p-1.5 rounded-xl bg-white/70 hover:bg-white text-black dark:bg-black/50 dark:hover:bg-black/70 dark:text-white backdrop-blur-sm shadow-sm transition-colors outline-none focus:outline-none"
+					class="p-1.5 rounded-lg bg-white/70 hover:bg-white text-black dark:bg-black/50 dark:hover:bg-black/70 dark:text-white backdrop-blur-sm shadow-sm transition-colors outline-none focus:outline-none"
 					on:click|stopPropagation={() => downloadImage(_src)}
 				>
 					<Download className="size-4" strokeWidth = "2" />
