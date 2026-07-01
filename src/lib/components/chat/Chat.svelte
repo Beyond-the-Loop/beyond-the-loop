@@ -1643,7 +1643,7 @@
 			},
 			...historyMessages
 		]
-			.filter((message) => message?.content?.trim())
+			.filter((message) => message?.content?.trim() || message.files?.some((f) => f.type === 'image'))
 			.map((message, idx, arr) => {
 				const ownImages =
 					(message.role === 'user' || message === lastAssistantWithImages)
