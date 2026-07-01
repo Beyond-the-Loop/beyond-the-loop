@@ -99,6 +99,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
 
+      - name: Activate gcloud CLI with WIF credentials
+        run: gcloud auth login --brief --cred-file="$GOOGLE_APPLICATION_CREDENTIALS"
+
       - name: Get cluster credentials
         env:
           ENV: ${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}
