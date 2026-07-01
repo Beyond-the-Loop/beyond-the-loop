@@ -169,10 +169,10 @@ SMART_ROUTER_PROMPT = ("""You are a classifier.
     1. "required_tools" (list): Subset of "web_search", "document_creation", "code_execution", "image_generation".
       - web_search: current/external information is needed. Also apply this if the user reacts positively to a previous suggestion by the assistant to perform a web search (e.g., "yes please", "go ahead", "sure").
       - document_creation: a document/file needs to be created. Especially PDF, Excel, CSV, Word document, PPTX.
-      - code_execution: for highly complex mathematical calculations like Fourier transforms, as well as processing / visualizing data from CSV files. DO NOT choose code_execution for coding AUFGABEN. 
-      - image_generation: an image/illustration needs to be created.
+      - code_execution: ONLY for extremely complex mathematical calculations like Fourier transforms, or for processing / visualizing data from CSV files. DO NOT CHOOSE code_execution FOR CODING. 
+      - image_generation: the user asks to generate/create an image
       - mcp: true if the request requires reading or acting on data from one of the user's available connectors listed below (e.g. searching Notion pages, reading Confluence/Jira tickets, looking up files in SharePoint/OneDrive). false if no connectors are listed, or if the request is unrelated to any of them.
-    {{AVAILABLE_CONNECTORS}}
+      {{AVAILABLE_CONNECTORS}}
       Empty list [] if none apply.
 
     2. "domain" (exactly one of these values or null):
