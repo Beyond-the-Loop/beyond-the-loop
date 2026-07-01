@@ -50,7 +50,9 @@ def build_image_tool() -> dict:
                 "is tagged with a `[Image N]` marker (N is a 0-based index) in the text "
                 "immediately before it. To edit one or more of those images, pass their "
                 "N values in `input_image_indices` (e.g. [2] to edit the image tagged "
-                "[Image 2]). Leave the list empty to generate a brand-new image."
+                "[Image 2]). Leave the list empty to generate a brand-new image. "
+                "The `[Image N]` markers are internal references only — never repeat "
+                "them in your visible replies to the user."
             ),
             "parameters": {
                 "type": "object",

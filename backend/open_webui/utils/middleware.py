@@ -1983,6 +1983,11 @@ async def process_chat_response(
                             r'(unavailable://\1)',
                             block["content"]
                         )
+                    # Strip internal [Image N] reference markers for image gen models
+                    if block.get("type") == "text" and "content" in block:
+                        block["content"] = re.sub(
+                            r'\s*\[Image \d+\]', '', block["content"]
+                        )
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])
 
