@@ -630,7 +630,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     if features.get("web_search") and _model_cfg.get("supports_web_search"):
         metadata["web_search_enabled"] = True
-    if features.get("image_generation") and _model_cfg.get("supports_image_generation"):
+    if _model_cfg.get("supports_image_generation"):
         metadata["image_generation_enabled"] = True
     if features.get("code_interpreter") and _model_cfg.get("supports_code_execution"):
         metadata["code_interpreter_enabled"] = True
@@ -2007,6 +2007,11 @@ async def process_chat_response(
                             r'\(sandbox:/mnt/data/([^)]+)\)',
                             r'(unavailable://\1)',
                             block["content"]
+                        )
+                    # Strip internal [Image N] reference markers for image gen models
+                    if block.get("type") == "text" and "content" in block:
+                        block["content"] = re.sub(
+                            r'\s*\[Image \d+\]', '', block["content"]
                         )
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])

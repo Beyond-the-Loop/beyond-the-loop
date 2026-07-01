@@ -851,13 +851,16 @@
 					{#if message?.files}
 						{@const images = message.files.filter((f) => f.type === 'image')}
 						{#if images.length > 0}
-							<div class="my-2.5 w-full flex items-start gap-2 flex-wrap">
+							<div 
+								class="my-2.5 w-full gap-2"
+								style="display: grid; grid-template-columns: {images.length === 1 ? '60%' : `repeat(${images.length}, 1fr)`};"
+							>
 								{#each images as file}
 									<Image
 										src={file.url}
 										alt={message.content}
 										showDownload={true}
-										className="{images.length === 1 ? 'md:w-[60%]' : 'md:w-[46%]'} w-full min-w-[200px] outline-none focus:outline-none"
+										className="w-full outline-none focus:outline-none"
 									/>
 								{/each}
 							</div>
