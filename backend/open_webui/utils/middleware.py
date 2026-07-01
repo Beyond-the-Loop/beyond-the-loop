@@ -47,6 +47,8 @@ from beyond_the_loop.retrieval.rag_engine import get_sources_from_google_rag
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.retrieval.loaders.main import Loader
+from beyond_the_loop.routers.litellm import generate_chat_completion
+from beyond_the_loop.utils.image_generation import generate_image, resolve_image_urls
 from open_webui.utils.task import (
     rag_template,
 )
@@ -1457,6 +1459,9 @@ async def process_chat_response(
             response_images = []
             used_search_queries = []
 
+            pending_image_call = None
+            pending_image_index = None
+
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
             # We might want to disable this by default
@@ -1502,6 +1507,11 @@ async def process_chat_response(
                     nonlocal response_images
                     nonlocal anonymized_content_snapshot
                     nonlocal used_search_queries
+                    nonlocal pending_image_call
+                    nonlocal pending_image_index
+
+                    pending_image_call = None
+                    pending_image_index = None
 
                     generating_response = True
 
@@ -1620,6 +1630,19 @@ async def process_chat_response(
                                 delta_images = delta.get("images", None)
 
                                 if delta_images:
+                                    if (
+                                        content_blocks
+                                        and content_blocks[-1]["type"] == "reasoning"
+                                        and content_blocks[-1].get("attributes", {}).get("type") == "reasoning_content"
+                                        and "duration" not in content_blocks[-1]
+                                    ):
+                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block["ended_at"] = time.time()
+                                        reasoning_block["duration"] = int(
+                                            reasoning_block["ended_at"]
+                                            - reasoning_block["started_at"]
+                                        )
+
                                     for delta_image in delta_images:
                                         image_base64 = delta_image['image_url']["url"]
 
@@ -1627,6 +1650,20 @@ async def process_chat_response(
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
+
+                                    if func.get("name") == "generate_image":
+                                        pending_image_index = idx
+                                        pending_image_call = {
+                                            "id": dtc.get("id"),
+                                            "args": "",
+                                        }
+
+                                    if (
+                                        pending_image_call is not None
+                                        and idx == pending_image_index
+                                        and func.get("arguments")
+                                    ):
+                                        pending_image_call["args"] += func["arguments"]
 
                                     if func.get("name") == "web_search":
                                         pending_search_index = idx
@@ -1898,6 +1935,71 @@ async def process_chat_response(
                         await response.background()
 
                 await stream_body_handler(response)
+
+                MAX_IMAGE_ROUNDS = 10
+                image_rounds = 0
+
+                while pending_image_call is not None and image_rounds < MAX_IMAGE_ROUNDS:
+                    image_rounds += 1
+                    call = pending_image_call
+                    pending_image_call = None  # consumed; reset before reinvoke
+
+                    try:
+                        image_args = json.loads(call["args"] or "{}")
+                    except json.JSONDecodeError:
+                        image_args = {}
+
+                    input_urls = resolve_image_urls(
+                        image_args.get("input_image_indices", []),
+                        form_data["messages"],
+                    )
+
+                    await event_emitter({
+                        "type": "status",
+                        "data": {
+                            "action": "generating_image",
+                            "done": False,
+                            "description": "Generating image…",
+                        },
+                    })
+
+                    data_uri, image_error = await generate_image(
+                        image_args.get("prompt", ""),
+                        image_args.get("size", "1024x1024"),
+                        input_urls,
+                    )
+
+                    await event_emitter({
+                        "type": "status",
+                        "data": {"action": "generating_image", "done": True},
+                    })
+
+                    if data_uri:
+                        response_images.append({"type": "image", "url": data_uri})
+
+                    form_data["messages"].append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [{
+                            "id": call["id"],
+                            "type": "function",
+                            "function": {
+                                "name": "generate_image",
+                                "arguments": call["args"] or "{}",
+                            },
+                        }],
+                    })
+                    form_data["messages"].append({
+                        "role": "tool",
+                        "tool_call_id": call["id"],
+                        "content": image_error
+                        or "Image generated successfully and shown to the user.",
+                    })
+
+                    response, _ = await generate_chat_completion(
+                        form_data, user, model
+                    )
+                    await stream_body_handler(response)
 
                 for block in content_blocks:
                     if block.get("type") == "text" and "sandbox:/mnt/data/" in block.get("content", ""):

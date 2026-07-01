@@ -716,7 +716,7 @@ model_list:
       supports_web_search: true
       supports_image_input: true
 
-  - model_name: "Nano Banana 2"
+  - model_name: "Nano Banana"
     litellm_params:
       model: "vertex_ai/gemini-2.5-flash-image"
       vertex_project: 'beyond-chat-1111'
@@ -728,13 +728,85 @@ model_list:
       allowed_messages_per_three_hours_premium: 50
       organization: 'Google'
       hosted_in: 'EU'
-      speed: 3
+      description: "Nano Banana offers a reliable balance of rapid rendering, crisp visual output, and multi turn image editing capabilities. The perfect starting point for quick concepts and everyday creative tasks."
       category: 4
       context_window: '1M'
       knowledge_cutoff: '2025-01-01'
       tokens_per_second: 197
       supports_image_generation: true
       supports_image_input: true
+  
+  - model_name: "Nano Banana 2"
+    litellm_params:
+      model: "vertex_ai/gemini-3.1-flash-image"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      modalities: ["image", "text"]
+    model_info:
+      intelligence_score: 3
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 50
+      organization: 'Google'
+      hosted_in: 'Global'
+      category: 4
+      costFactor: 4
+      description: "Gemini's lightweight and efficient image generation model, optimized for rapid rendering and everyday creativity. Delivers vibrant, high-quality visuals with a minimal computational footprint."
+      context_window: '1M'
+      knowledge_cutoff: '2025-01-01'
+      tokens_per_second: 197
+      supports_image_generation: true
+      supports_image_input: true
+  
+  - model_name: "Nano Banana Pro"
+    litellm_params:
+      model: "vertex_ai/gemini-3-pro-image"
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'global'
+      modalities: ["image", "text"]
+    model_info:
+      intelligence_score: 4
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 50
+      organization: 'Google'
+      hosted_in: 'Global'
+      category: 4
+      costFactor: 4.5
+      description: "Gemini's premium, high-performance image model, based on Gemini 3 Pro. Features enhanced detail fidelity, superior texture rendering, and advanced control."
+      context_window: '1M'
+      knowledge_cutoff: '2025-01-01'
+      tokens_per_second: 197
+      supports_image_generation: true
+      supports_image_input: true
+
+
+  - model_name: "GPT Image 2"
+    litellm_params:
+      model: "azure/gpt-5.4"
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT_GERMANY
+      api_key: os.environ/AZURE_OPENAI_API_KEY_GERMANY
+      reasoning_effort: medium
+    model_info:
+      context_window: '1M'
+      category: 4
+      costFactor: 5
+      description: "OpenAI’s highly advanced image generation model, excelling in photorealistic image quality and unprecedented text rendering."
+      hosted_in: 'Global'
+      intelligence_score: 5
+      allowed_messages_per_three_hours_free: 50
+      allowed_messages_per_three_hours_premium: 50
+      knowledge_cutoff: '2025-08-31'
+      organization: 'OpenAI'
+      reasoning: true
+      tokens_per_second: 85
+      supports_image_generation: true
+      supports_image_input: true
+
+  - model_name: gpt-image-2
+    litellm_params:
+      model: azure/gpt-image-2
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT
+      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_version: "2025-04-01-preview"
 
   - model_name: "TTS"
     litellm_params:
@@ -775,6 +847,8 @@ router_settings:
     # (otherwise it has no fallback when it fails).
     - {"Gemini 2.5 Flash": ["Claude 4.5 Haiku"]}
     - {"Mistral Small 4": ["Gemini 2.5 Flash"]}
+
+    - {"gpt-image-2": []}
 
 
 litellm_settings:
