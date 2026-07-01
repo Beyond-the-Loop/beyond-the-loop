@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms365-mcp
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp
+spec:
+  replicas: {{ .Values.mcp.replicas }}
+  selector:
+    matchLabels:
+      {{- include "bchat.mcpSelector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "bchat.mcpSelector" . | nindent 8 }}
+    spec:
+      containers:
+        - name: ms365-mcp
+          image: "{{ .Values.mcpImage.repository }}:{{ .Values.mcpImage.tag }}"
+          imagePullPolicy: {{ .Values.mcpImage.pullPolicy }}
+          args:
+            - "--http"
+            - "3000"
+            - "--org-mode"
+            - "--public-url"
+            - {{ .Values.mcp.publicUrl | quote }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.mcp.resources | nindent 12 }}

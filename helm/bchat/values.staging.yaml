@@ -1,0 +1,41 @@
+environment: staging
+
+gcp:
+  projectId: beyond-chat-1111
+  region: europe-west3
+
+domains:
+  app: staging.chat.beyondtheloop.ai
+  mcp: mcp-m365-staging.beyondtheloop.ai
+  redirectFrom: staging.v2.beyondtheloop.ai
+
+serviceAccount:
+  gcpServiceAccount: bchat-app-staging@beyond-chat-1111.iam.gserviceaccount.com
+
+app:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  hpa:
+    minReplicas: 1
+    maxReplicas: 2
+  pdb:
+    minAvailable: 0
+
+litellm:
+  replicas: 1
+
+mcp:
+  replicas: 1
+  publicUrl: https://mcp-m365-staging.beyondtheloop.ai
+
+gateway:
+  staticIpName: bchat-staging-ingress-ip
+
+cloudArmor:
+  policyName: ""  # disabled in staging

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+    app.kubernetes.io/component: litellm
+spec:
+  replicas: {{ .Values.litellm.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "bchat.litellmSelector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "bchat.litellmSelector" . | nindent 8 }}
+      annotations:
+        checksum/litellm-config: {{ .Values.litellmConfig | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "bchat.serviceAccountName" . }}
+      containers:
+        - name: litellm
+          image: "{{ .Values.litellmImage.repository }}:{{ .Values.litellmImage.tag }}"
+          imagePullPolicy: {{ .Values.litellmImage.pullPolicy }}
+          args: ["--config", "/app/config.yaml", "--port", "4000"]
+          ports:
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "bchat.appConfigName" . }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.litellm.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
