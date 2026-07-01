@@ -727,7 +727,7 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       organization: 'Google'
-      hosted_in: 'Global'
+      hosted_in: 'EU'
       description: "Nano Banana offers a reliable balance of rapid rendering, crisp visual output, and multi turn image editing capabilities. The perfect starting point for quick concepts and everyday creative tasks."
       category: 4
       context_window: '1M'
