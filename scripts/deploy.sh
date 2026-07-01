@@ -4,12 +4,18 @@
 # Usage:
 #   ENV=staging IMAGE_TAG=<sha> scripts/deploy.sh
 #   ENV=prod    IMAGE_TAG=<sha> scripts/deploy.sh
+#
+# The MCP image is tag-decoupled from the app image because MCP is stateless
+# (only bakes @softeria/ms-365-mcp-server) and rarely changes. To override,
+# set MCP_IMAGE_TAG explicitly; otherwise MCP_IMAGE_TAG falls back to IMAGE_TAG.
+#   MCP_IMAGE_TAG=staging-latest ENV=prod IMAGE_TAG=<app-sha> scripts/deploy.sh
 set -euo pipefail
 
 PROJECT_ID="${PROJECT_ID:-beyond-chat-1111}"
 REGION="${REGION:-europe-west3}"
 ENV="${ENV:?ENV is required}"
 IMAGE_TAG="${IMAGE_TAG:?IMAGE_TAG is required (git short sha)}"
+MCP_IMAGE_TAG="${MCP_IMAGE_TAG:-$IMAGE_TAG}"
 CLUSTER_NAME="gke-${ENV}"
 
 # Ensure kubectl context
@@ -31,7 +37,7 @@ helm upgrade --install bchat "$CHART_PATH" \
   --values "$VALUES_BASE" \
   --values "$VALUES_ENV" \
   --set image.tag="$IMAGE_TAG" \
-  --set mcpImage.tag="$IMAGE_TAG" \
+  --set mcpImage.tag="$MCP_IMAGE_TAG" \
   --set gcp.projectNumber="$PROJECT_NUMBER" \
   --set-file litellmConfig="$LITELLM_CONFIG_PATH" \
   --set-file arenaRankings="$ARENA_RANKINGS_PATH" \

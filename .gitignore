@@ -302,3 +302,6 @@ dist
 .claude/
 
 docs/
+
+tests/load/env.*.sh
+!tests/load/env.example.sh
