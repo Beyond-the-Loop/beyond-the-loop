@@ -1,0 +1,14 @@
+{{ .Chart.Name }} {{ .Chart.AppVersion }} deployed to namespace {{ .Release.Namespace }} (env: {{ .Values.environment }}).
+
+App hostname:  https://{{ .Values.domains.app }}
+MCP hostname:  https://{{ .Values.domains.mcp }}
+
+Status:
+  kubectl get pods,gateway,httproute -n {{ .Release.Namespace }}
+  kubectl describe gateway bchat -n {{ .Release.Namespace }}
+
+Logs:
+  kubectl logs -n {{ .Release.Namespace }} deployment/app --tail=100 -f
+
+Rollback:
+  helm rollback {{ .Release.Name }} -n {{ .Release.Namespace }}

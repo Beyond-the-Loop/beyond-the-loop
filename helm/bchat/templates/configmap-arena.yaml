@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: arena-rankings
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+data:
+  arena_rankings.json: |-
+{{ .Values.arenaRankings | indent 4 }}

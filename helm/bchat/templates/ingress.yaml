@@ -1,0 +1,57 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: bchat-cert
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+spec:
+  domains:
+    - {{ .Values.domains.app }}
+    - {{ .Values.domains.mcp }}
+---
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: bchat-fc
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bchat
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    {{- if .Values.gateway.staticIpName }}
+    kubernetes.io/ingress.global-static-ip-name: {{ .Values.gateway.staticIpName }}
+    {{- end }}
+    networking.gke.io/managed-certificates: bchat-cert
+    networking.gke.io/v1beta1.FrontendConfig: bchat-fc
+spec:
+  rules:
+    - host: {{ .Values.domains.app }}
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: app
+                port:
+                  number: 8080
+    - host: {{ .Values.domains.mcp }}
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ms365-mcp
+                port:
+                  number: 3000
