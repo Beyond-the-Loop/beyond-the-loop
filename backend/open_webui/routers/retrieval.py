@@ -25,8 +25,10 @@ from beyond_the_loop.storage.provider import Storage
 
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
-# Document loaders
-from beyond_the_loop.retrieval.loaders.main import Loader
+# NOTE: `Loader` deliberately NOT imported at module top — it drags in
+# langchain_text_splitters → sentence_transformers → transformers → torch
+# and cost ~29s per pod cold-start (measured with `python -X importtime`).
+# Imported lazily below inside the endpoint that actually uses it.
 
 from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
@@ -493,6 +495,7 @@ def process_file(
             if file_path:
                 file_path = Storage.get_file(file_path)
 
+                from beyond_the_loop.retrieval.loaders.main import Loader
                 loader = Loader(
                     engine=request.app.state.config.CONTENT_EXTRACTION_ENGINE,
                 )

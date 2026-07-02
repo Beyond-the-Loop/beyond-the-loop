@@ -45,7 +45,11 @@ from beyond_the_loop.models.models import Models
 from beyond_the_loop.retrieval.utils import get_sources_from_files
 from beyond_the_loop.models.files import Files
 from beyond_the_loop.storage.provider import Storage
-from beyond_the_loop.retrieval.loaders.main import Loader
+# NOTE: `Loader` is deliberately NOT imported at module top. It pulls in
+# langchain_text_splitters → sentence_transformers → transformers → torch,
+# which added ~29s to every pod cold-start (measured with `python -X importtime`).
+# It is imported lazily inside the file-loading function below, since it is
+# only used on the RAG file upload path — regular chat completions never need it.
 from open_webui.utils.task import (
     rag_template,
 )
@@ -169,6 +173,7 @@ def extract_file_content_with_loader(file_id: str) -> str:
                 file_path = storage.get_file(file_record.path)
 
                 # Use the existing Loader system to extract content
+                from beyond_the_loop.retrieval.loaders.main import Loader
                 loader = Loader()
                 content_type = file_record.meta.get("content_type", "") if file_record.meta else ""
 
