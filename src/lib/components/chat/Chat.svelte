@@ -2350,7 +2350,6 @@
 								{piiResultsStale}
 								{piiNeverAnalyzed}
 								onRunPiiAnalyze={runPIIAnalyze}
-								hideSuggestions={continuationSeeded}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}
