@@ -63,8 +63,8 @@ def build_image_tool() -> dict:
                     },
                     "size": {
                         "type": "string",
-                        "enum": ["1024x1024", "1024x1536", "1536x1024"],
-                        "default": "1024x1024",
+                        "enum": ["auto", "1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "3840x2160", "2160x3840"],
+                        "default": "auto",
                     },
                     "input_image_indices": {
                         "type": "array",

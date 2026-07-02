@@ -1940,7 +1940,7 @@ async def process_chat_response(
 
                     data_uri, image_error = await generate_image(
                         image_args.get("prompt", ""),
-                        image_args.get("size", "1024x1024"),
+                        image_args.get("size", "auto"),
                         input_urls,
                     )
 
