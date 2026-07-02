@@ -346,10 +346,41 @@ async def commit_session_after_request(request: Request, call_next):
 
 access_log = logging.getLogger("access")
 
-# Endpoints that get hit on a fixed schedule by k8s/gcp probes — logging every
-# one would drown out the interesting requests. Add here only if the endpoint
-# is truly unactionable noise (probes, static asset ranges, etc).
+# Silence Uvicorn's default text access log — this middleware emits the same
+# information in structured JSON and Uvicorn's line-per-request output would
+# otherwise double our Cloud Logging volume and stay unqueryable.
+logging.getLogger("uvicorn.access").disabled = True
+
+# python-engineio prints an INFO line per WebSocket connect/disconnect
+# ("connection open" / "connection closed"), which fires many times per user
+# session as the browser reconnects. Nothing actionable — errors still surface
+# at WARNING+ via `socketio.server`.
+logging.getLogger("engineio.server").setLevel(logging.WARNING)
+
+# Health probes hit on a fixed schedule and are pure noise.
 _ACCESS_LOG_SKIP_PATHS = {"/health", "/health/liveliness", "/api/health"}
+
+# Static assets: SvelteKit fingerprints these under /_app/immutable/ (cached
+# forever by CDN), plus root-level icons/manifests. All unactionable.
+_ACCESS_LOG_SKIP_PREFIXES = ("/_app/", "/static/", "/assets/")
+_ACCESS_LOG_SKIP_SUFFIXES = (
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+    ".css", ".js", ".mjs", ".map",
+    ".woff", ".woff2", ".ttf",
+)
+
+
+def _should_skip_access_log(path: str, status_code: int) -> bool:
+    if path in _ACCESS_LOG_SKIP_PATHS:
+        return True
+    if path.startswith(_ACCESS_LOG_SKIP_PREFIXES):
+        return True
+    if path.endswith(_ACCESS_LOG_SKIP_SUFFIXES):
+        return True
+    # 304 Not Modified = client cache hit, no server work happened.
+    if status_code == 304:
+        return True
+    return False
 
 
 @app.middleware("http")
@@ -378,7 +409,7 @@ async def access_log_middleware(request: Request, call_next):
     duration_ms = round((time.perf_counter() - start) * 1000, 2)
     response.headers["X-Process-Time"] = str(duration_ms)
 
-    if request.url.path not in _ACCESS_LOG_SKIP_PATHS:
+    if not _should_skip_access_log(request.url.path, status_code):
         access_log.info(
             "request",
             extra={
