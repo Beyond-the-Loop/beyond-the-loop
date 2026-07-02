@@ -36,7 +36,6 @@ model_list:
       tokens_per_second: 48
       supports_web_search: true
       supports_image_input: true
-      
 
   - model_name: "Claude Sonnet 4.6"
     litellm_params:
@@ -121,8 +120,8 @@ model_list:
       vertex_location: 'global'
     model_info:
       context_window: '1M'
-      category: 3
-      costFactor: 3.5
+      category: 2
+      costFactor: 2
       description: "Latest Gemini Flash with high throughput and 1M context for everyday multimodal tasks."
       hosted_in: 'EU'
       intelligence_score: 5
@@ -222,7 +221,7 @@ model_list:
       allowed_messages_per_three_hours_premium: 150
       supports_web_search: true
       supports_image_input: true
-      
+
   - model_name: "GPT o3"
     litellm_params:
       model: "azure/responses/o3"
@@ -270,8 +269,8 @@ model_list:
   - model_name: "GPT-5"
     litellm_params:
       model: "azure/responses/gpt-5"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT_GERMANY
+      api_key: os.environ/AZURE_OPENAI_API_KEY_GERMANY
       reasoning_effort: medium
     model_info:
       context_window: '400K'
@@ -376,6 +375,29 @@ model_list:
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 150
       supports_image_input: true
+
+  - model_name: "Mistral Small 4"
+    litellm_params:
+      model: mistral/mistral-small-2603
+      api_key: os.environ/MISTRAL_API_KEY
+      reasoning_effort: "none"
+    model_info:
+      context_window: '256K'
+      category: 1
+      costFactor: 0.5
+      description: "Mistral's compact open-source model with solid performance and lightning-fast latency."
+      hosted_in: 'EU'
+      intelligence_score: 1.5
+      knowledge_cutoff: '2025-06-01'
+      organization: 'Mistral'
+      tokens_per_second: 101
+      reasoning: true
+      speed: 3
+      allowed_messages_per_three_hours_free: 300
+      allowed_messages_per_three_hours_premium: 300
+      supports_web_search: true
+      supports_image_input: true
+
 
   - model_name: "Perplexity Sonar Deep Research"
     litellm_params:
@@ -582,12 +604,13 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.4"
     litellm_params:
       model: "azure/responses/gpt-5.4"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT_GERMANY
+      api_key: os.environ/AZURE_OPENAI_API_KEY_GERMANY
       reasoning_effort: medium
     model_info:
       context_window: '1M'
@@ -604,12 +627,13 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.5"
     litellm_params:
       model: "azure/responses/gpt-5.5"
-      api_base: os.environ/AZURE_OPENAI_ENDPOINT
-      api_key: os.environ/AZURE_OPENAI_API_KEY
+      api_base: os.environ/AZURE_OPENAI_ENDPOINT_GERMANY
+      api_key: os.environ/AZURE_OPENAI_API_KEY_GERMANY
       reasoning_effort: medium
     model_info:
       context_window: '1M'
@@ -626,6 +650,7 @@ model_list:
       supports_web_search: true
       supports_code_execution: true
       supports_image_input: true
+      supports_mcp: true
 
   - model_name: "GPT-5.3 Codex"
     litellm_params:
@@ -695,14 +720,14 @@ model_list:
     litellm_params:
       model: "vertex_ai/gemini-2.5-flash-image"
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'global'
+      vertex_location: 'europe-west1'
       modalities: ["image", "text"]
     model_info:
       intelligence_score: 1
       allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       organization: 'Google'
-      hosted_in: 'Global'
+      hosted_in: 'EU'
       speed: 3
       category: 4
       context_window: '1M'
@@ -727,8 +752,8 @@ router_settings:
     # Code-interpreter models fall back to other code-interpreter models first
     # to preserve the capability before degrading to a non-code-interpreter model.
     - {"GPT-5": ["GPT-5.4", "GPT-5.5"]}
-    - {"GPT-5.4": ["GPT-5.5", "GPT-5"]}
-    - {"GPT-5.5": ["GPT-5.4", "GPT-5"]}
+    - {"GPT-5.4": ["GPT-5.5"]}
+    - {"GPT-5.5": ["GPT-5.4"]}
     - {"GPT-5.4 Pro": ["GPT-5.5", "GPT-5.4"]}
 
     # Non-code-interpreter GPT models fall back to GPT-5 mini.
@@ -749,6 +774,7 @@ router_settings:
     # Global default backup: Gemini 2.5 Flash itself falls back to Claude 4.5 Haiku
     # (otherwise it has no fallback when it fails).
     - {"Gemini 2.5 Flash": ["Claude 4.5 Haiku"]}
+    - {"Mistral Small 4": ["Gemini 2.5 Flash"]}
 
 
 litellm_settings:

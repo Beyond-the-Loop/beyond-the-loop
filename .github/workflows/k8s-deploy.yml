@@ -1,0 +1,192 @@
+name: K8s Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: 'staging'
+
+env:
+  PROJECT_ID: beyond-chat-1111
+  REGION: europe-west3
+  AR_HOST: europe-west3-docker.pkg.dev
+  AR_REPO: bchat
+  HELM_VERSION: v3.16.2
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.sha_short }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Compute short SHA
+        id: meta
+        run: echo "sha_short=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Auth to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Configure docker for Artifact Registry
+        run: gcloud --quiet auth configure-docker ${{ env.AR_HOST }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build & push app image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            BUILD_HASH=${{ steps.meta.outputs.sha_short }}
+            LITELLM_BASE_URL=/litellm
+          tags: |
+            ${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/app:${{ steps.meta.outputs.sha_short }}
+            ${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/app:${{ github.event.inputs.environment }}-latest
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+      - name: Build & push ms365-mcp image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ms365-mcp.Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/ms365-mcp:${{ steps.meta.outputs.sha_short }}
+            ${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/ms365-mcp:${{ github.event.inputs.environment }}-latest
+          cache-from: type=gha,scope=mcp
+          cache-to: type=gha,mode=max,scope=mcp
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Auth to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+          sudo apt-get update
+          sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
+
+      - name: Activate gcloud CLI with WIF credentials
+        run: gcloud auth login --brief --cred-file="$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Get cluster credentials
+        env:
+          ENV: ${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}
+        run: |
+          gcloud --project ${{ env.PROJECT_ID }} container clusters get-credentials \
+            gke-${ENV} --region ${{ env.REGION }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Deploy with Helm
+        env:
+          ENV: ${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          ./scripts/deploy.sh
+
+      - name: Show resources
+        env:
+          ENV: ${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}
+        run: |
+          kubectl -n "$ENV" get pods,svc,gateway,httproute -o wide
+
+  notify-google-chat:
+    needs: deploy
+    if: github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes and post to Google Chat
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_DEPLOYMENT_WEBHOOK_URL }}
+        run: |
+          LAST_TAG=$(git tag --sort=-version:refname --list "prod/*" | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --oneline -20 --pretty=format:"%s (%h)")
+          else
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s (%h)")
+          fi
+          [ -z "$COMMITS" ] && COMMITS="Keine neuen Commits seit letztem Deployment"
+
+          PROMPT="Du bist ein technischer Redakteur. Erstelle eine kurze, klare Zusammenfassung der folgenden Git-Commits für ein Production-Deployment. Schreibe auf Deutsch. Gruppiere ähnliche Änderungen wenn sinnvoll. Maximal 5-7 Punkte. Nutze Bullet-Punkte mit •. Verwende KEIN Markdown. Nur Plain Text. Gib NUR die Zusammenfassung zurück.\n\nCommits:\n$COMMITS"
+
+          API_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 512,
+            messages: [{role: "user", content: $prompt}]
+          }')
+
+          RESPONSE=$(curl -s -X POST https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$API_PAYLOAD")
+          SUMMARY=$(echo "$RESPONSE" | jq -r '.content[0].text // "Zusammenfassung konnte nicht erstellt werden."')
+
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          DEPLOY_TIME=$(TZ='Europe/Berlin' date '+%d.%m.%Y %H:%M %Z')
+
+          GOOGLE_CHAT_PAYLOAD=$(jq -n \
+            --arg summary "$SUMMARY" \
+            --arg actor "${{ github.actor }}" \
+            --arg sha "$SHORT_SHA" \
+            --arg run_url "$RUN_URL" \
+            --arg deploy_time "$DEPLOY_TIME" \
+            '{"text": ("🚀 *Production Deployment (K8s)* — " + $deploy_time + "\n\n" + $summary + "\n\nDeployed von *" + $actor + "* • SHA `" + $sha + "` • <" + $run_url + "|Details>")}')
+
+          curl -s -X POST "$GOOGLE_CHAT_WEBHOOK_URL" \
+            -H "content-type: application/json" \
+            -d "$GOOGLE_CHAT_PAYLOAD"
+
+      - name: Create prod tag
+        run: |
+          TAG="prod/$(date +%Y-%m-%d)-$(git rev-parse --short HEAD)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"

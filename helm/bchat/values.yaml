@@ -1,0 +1,119 @@
+# Default values for bchat. Overridden by values.<env>.yaml.
+
+# Environment name — drives secret prefix in GCP Secret Manager and resource naming.
+environment: staging
+
+# GCP project
+gcp:
+  projectId: beyond-chat-1111
+  projectNumber: ""  # filled in via --set during deploy
+  region: europe-west3
+
+# Domain configuration
+domains:
+  app: ""           # e.g. chat.beyondtheloop.ai
+  mcp: ""           # e.g. mcp-m365.beyondtheloop.ai
+  redirectFrom: ""  # e.g. v2.beyondtheloop.ai
+  # When provisioning Gateway/Cert from scratch, a temporary subdomain can be used for cert validation
+  # before flipping the production DNS. Set to non-empty to use it as the cert SAN instead of `app`.
+  certHostnameOverride: ""
+
+# Image
+image:
+  repository: europe-west3-docker.pkg.dev/beyond-chat-1111/bchat/app
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+litellmImage:
+  repository: ghcr.io/berriai/litellm
+  tag: "v1.81.14-stable.gpt-5.4-patch7"
+  pullPolicy: IfNotPresent
+
+mcpImage:
+  repository: europe-west3-docker.pkg.dev/beyond-chat-1111/bchat/ms365-mcp
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Workload Identity — GCP service account that pods impersonate.
+# Created in the bootstrap script.
+serviceAccount:
+  gcpServiceAccount: ""  # e.g. bchat-app-staging@beyond-chat-1111.iam.gserviceaccount.com
+
+# App deployment
+app:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+  terminationGracePeriodSeconds: 60
+  hpa:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPU: 70
+  pdb:
+    enabled: true
+    minAvailable: 0  # 0 in single-replica staging; bumped to 1 in prod values
+
+# LiteLLM deployment
+litellm:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPU: 70
+
+# Microsoft 365 MCP server
+mcp:
+  replicas: 1
+  publicUrl: ""  # e.g. https://mcp-m365-staging.beyondtheloop.ai
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# External Secrets Operator — pulls all secrets matching this regex from GCP Secret Manager
+# and rewrites the names by stripping the prefix.
+externalSecrets:
+  # Secrets in GCP follow the naming: bchat-<environment>-<KEY>
+  # ESO reads them and exposes them as env vars without the prefix.
+  refreshInterval: 10m
+
+# Gateway / TLS
+gateway:
+  enabled: true
+  # When false, only HTTPRoutes are created (useful if Gateway is managed separately).
+  # Static IP must be reserved beforehand and its name supplied here.
+  staticIpName: ""  # e.g. bchat-staging-ingress-ip
+  managedCertSecondaryNames: []  # extra SANs for the managed cert
+
+# CronJob for monthly credit recharge / daily checks
+cronjobs:
+  creditRechargeCheck:
+    enabled: true
+    schedule: "0 2 * * *"  # 02:00 UTC daily
+
+# Litellm config — full YAML inlined. Override via --set-file in CI.
+litellmConfig: ""
+
+# Arena rankings — inlined. Override via --set-file in CI.
+arenaRankings: ""
+
+# Cloud Armor security policy attached to backend service (optional).
+cloudArmor:
+  policyName: ""  # e.g. bchat-prod-armor

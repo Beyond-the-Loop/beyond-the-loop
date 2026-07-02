@@ -25,12 +25,10 @@ from beyond_the_loop.storage.provider import Storage
 
 from beyond_the_loop.retrieval.vector.connector import VECTOR_DB_CLIENT
 
-# Document loaders
-from beyond_the_loop.retrieval.loaders.main import Loader
-
-from firecrawl import Firecrawl
-from firecrawl.v2.types import SearchResultWeb
-from firecrawl.v2.types import Document as Firecrawl_Document
+# NOTE: `Loader` deliberately NOT imported at module top — it drags in
+# langchain_text_splitters → sentence_transformers → transformers → torch
+# and cost ~29s per pod cold-start (measured with `python -X importtime`).
+# Imported lazily below inside the endpoint that actually uses it.
 
 from beyond_the_loop.retrieval.utils import (
     get_embedding_function,
@@ -63,8 +61,6 @@ log.setLevel(SRC_LOG_LEVELS["RAG"])
 # Utility functions
 #
 ##########################################
-
-firecrawl = Firecrawl(api_key=os.getenv("FIRECRAWL_API_KEY"))
 
 def get_ef(
     engine: str,
@@ -499,6 +495,7 @@ def process_file(
             if file_path:
                 file_path = Storage.get_file(file_path)
 
+                from beyond_the_loop.retrieval.loaders.main import Loader
                 loader = Loader(
                     engine=request.app.state.config.CONTENT_EXTRACTION_ENGINE,
                 )
@@ -591,118 +588,6 @@ class ProcessTextForm(BaseModel):
     name: str
     content: str
     collection_name: Optional[str] = None
-
-
-def process_web_search(request: Request, query: str, limit: int, user, collection_name: str = None):
-    try:
-        logging.info(
-            f"trying to web search with {query}"
-        )
-
-        web_results = firecrawl.search(
-            query,
-            limit = limit,
-            scrape_options = {
-                "formats": ["markdown"],
-                "onlyMainContent": True,
-            }
-        )
-
-        docs = []
-
-        for result in web_results.web:
-            if isinstance(result, Firecrawl_Document):
-                docs.append(
-                    Document(
-                        page_content=result.markdown or "",
-                        metadata={
-                            "source": result.metadata.url or "",
-                            "title": result.metadata.title or "",
-                            "description": result.metadata.description or "",
-                            "language": result.metadata.language or "",
-                        }
-                    )
-                )
-            elif isinstance(result, SearchResultWeb):
-                # Fallback: use description or title as content
-                docs.append(
-                    Document(
-                        page_content=result.description or "",
-                        metadata={
-                            "source": result.url or "",
-                            "title": result.title or "",
-                            "description": result.description or "",
-                            "language": "",
-                        }
-                    )
-                )
-
-        log.debug(f"web_results: {web_results}")
-
-        collection_name = collection_name
-
-        if collection_name == "" or collection_name is None:
-            collection_name = f"web-search-{calculate_sha256_string(query)}"[:63]
-
-        save_docs_to_vector_db(
-            request, docs, collection_name, overwrite=True, user=user
-        )
-
-        urls = [docs.metadata["source"] for docs in docs]
-
-        return {
-            "status": True,
-            "collection_name": collection_name,
-            "filenames": urls,
-        }
-    except Exception as e:
-        log.exception(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT,
-        )
-
-
-def process_web_url_scrape(request: Request, url: str, user, collection_name: str = None):
-    try:
-        logging.info(f"Scraping URL directly with firecrawl: {url}")
-
-        result = firecrawl.scrape(
-            url,
-            formats=["markdown"],
-            only_main_content=True,
-        )
-
-        if not result or not result.markdown:
-            return None
-
-        metadata = result.metadata
-        doc = Document(
-            page_content=result.markdown,
-            metadata={
-                "source": (metadata.url if metadata and metadata.url else url),
-                "title": (metadata.title or "") if metadata else "",
-                "description": (metadata.description or "") if metadata else "",
-                "language": (metadata.language or "") if metadata else "",
-            },
-        )
-
-        if collection_name == "" or collection_name is None:
-            collection_name = f"web-search-{calculate_sha256_string(url)}"[:63]
-
-        save_docs_to_vector_db(request, [doc], collection_name, overwrite=True, user=user)
-
-        return {
-            "status": True,
-            "collection_name": collection_name,
-            "filenames": [doc.metadata["source"]],
-        }
-    except Exception as e:
-        log.exception(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ERROR_MESSAGES.DEFAULT,
-        )
 
 
 class QueryDocForm(BaseModel):

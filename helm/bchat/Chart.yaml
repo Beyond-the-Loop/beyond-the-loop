@@ -1,0 +1,6 @@
+apiVersion: v2
+name: bchat
+description: Beyond the Loop chat platform on GKE
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

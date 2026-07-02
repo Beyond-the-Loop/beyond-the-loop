@@ -214,6 +214,8 @@
 
 	let page = 1;
 	let rowsPerPage = 5;
+	let modelRowsPerPage = 5;
+	let assistantRowsPerPage = 5;
 	let rows: TopUserItem[] = analytics.topModels.top_models;
 	let assistantRows: TopAssistantItem[] = analytics.topAssistants.top_assistants;
 	let modelRows: TopModelItem[] = analytics.topModels.top_models;
@@ -223,10 +225,14 @@
 	$: endRow = startRow + rowsPerPage;
 	$: pagedRows = rows?.slice(startRow, endRow);
 	$: totalCountModels = modelRows?.length;
-	$: pagedModelRows = modelRows?.slice(startRow, endRow);
+	$: modelStartRow = (page - 1) * modelRowsPerPage;
+	$: modelEndRow = modelStartRow + modelRowsPerPage;
+	$: pagedModelRows = modelRows?.slice(modelStartRow, modelEndRow);
 
 	$: totalCountAssistants = assistantRows?.length;
-	$: pagedAssistantRows = assistantRows?.slice(startRow, endRow);
+	$: assistantStartRow = (page - 1) * assistantRowsPerPage;
+	$: assistantEndRow = assistantStartRow + assistantRowsPerPage;
+	$: pagedAssistantRows = assistantRows?.slice(assistantStartRow, assistantEndRow);
 
 	const assistantKey = (r) => r.assistant;
 	$: assistantRankByKey = new Map(
@@ -1033,7 +1039,8 @@
 											{$i18n.t('Rows per page')}
 										</div>
 										<select
-											bind:value={rowsPerPage}
+											bind:value={modelRowsPerPage}
+											on:change={() => (page = 1)}
 											class="w-12 bg-white dark:bg-gray-900 ring-1 rounded-md ring-lightGray-400 dark:ring-transparent py-1 px-2"
 										>
 											<option value={5}>5</option> <option value={10}>10</option>
@@ -1042,7 +1049,7 @@
 									</div>
 									<Pagination.Root
 										count={totalCountModels}
-										perPage={rowsPerPage}
+										perPage={modelRowsPerPage}
 										bind:page
 										siblingCount={1}
 										let:pages
@@ -1189,15 +1196,17 @@
 											{$i18n.t('Rows per page')}
 										</div>
 										<select
+											bind:value={assistantRowsPerPage}
+											on:change={() => (page = 1)}
 											class="w-12 bg-white dark:bg-gray-900 ring-1 rounded-md ring-lightGray-400 dark:ring-transparent py-1 px-2"
 										>
-											<option selected>5</option> <option value="10">10</option>
-											<option value="15">15</option> <option value="20">20</option>
+											<option value={5}>5</option> <option value={10}>10</option>
+											<option value={15}>15</option> <option value={20}>20</option>
 										</select>
 									</div>
 									<Pagination.Root
 										count={totalCountAssistants}
-										perPage={rowsPerPage}
+										perPage={assistantRowsPerPage}
 										bind:page
 										siblingCount={1}
 										let:pages

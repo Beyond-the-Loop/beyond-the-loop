@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "bchat.litellmSelector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+      protocol: TCP

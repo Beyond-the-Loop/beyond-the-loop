@@ -16,6 +16,9 @@
 	export let releasedEntities: string[] = [];
 	export let onReleasedChange: (released: string[]) => void = () => {};
 	export let privacyReleasable: boolean = true;
+	export let piiResultsStale: boolean = false;
+	export let manualPIIEntities: string[] = [];
+	export let onManualChange: (updated: string[]) => void = () => {};
 
 	// Message-mode data — sliced from one user message's `pii_variables`,
 	// `pii_variable_sources` and `pii_released_entities_actual` by the parent.
@@ -65,6 +68,9 @@
 				{releasedEntities}
 				{onReleasedChange}
 				releasable={privacyReleasable}
+				stale={piiResultsStale}
+				{manualPIIEntities}
+				{onManualChange}
 			/>
 		{:else if messageVariables !== null}
 			<ChatHistoryVariables

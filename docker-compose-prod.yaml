@@ -54,11 +54,36 @@ services:
     volumes:
       - ./backend/data:/app/backend/data
       - ./litellm-config.yaml:/app/litellm-config.yaml:ro
+      - ./arena_rankings.json:/app/arena_rankings.json:ro
     depends_on:
       - litellm
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
+    logging:
+      driver: gcplogs
+      options:
+        gcp-log-cmd: "true"
+
+  ms365-mcp:
+    # Self-hosted Microsoft 365 MCP server (Softeria/ms-365-mcp-server).
+    # Single shared instance for the whole SaaS — tenant-agnostic: each
+    # request carries its own Bearer token (issued by Beyond the Loop's OAuth
+    # flow against the customer's Entra tenant) and the server uses that
+    # token to call Microsoft Graph on the user's behalf.
+    container_name: ms365-mcp
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npx -y @softeria/ms-365-mcp-server@latest --http 3000 --org-mode --public-url=https://mcp-m365.beyondtheloop.ai"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mcp-m365.rule=Host(`mcp-m365.beyondtheloop.ai`)"
+      - "traefik.http.routers.mcp-m365.entrypoints=websecure"
+      - "traefik.http.routers.mcp-m365.tls.certresolver=myresolver"
+      - "traefik.http.services.mcp-m365.loadbalancer.server.port=3000"
+    restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway
     logging:
       driver: gcplogs
       options:

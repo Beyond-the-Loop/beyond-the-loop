@@ -268,6 +268,21 @@ ENABLE_REALTIME_CHAT_SAVE = (
 REDIS_URL = os.environ.get("REDIS_URL")
 
 ####################################
+# MCP OAuth
+####################################
+
+# Redirect URI registered with MCP-provider OAuth servers. Must be a fixed
+# value (per RFC 6749 §3.1.2.3) and is sent both to the authorization endpoint
+# and during Dynamic Client Registration. Default is the production URL;
+# staging and local dev override via env var. All values must be registered
+# in each provider's OAuth client config (Entra app, etc.) — Microsoft/Notion
+# will reject mismatched values.
+MCP_OAUTH_REDIRECT_URI = os.environ.get(
+    "MCP_OAUTH_REDIRECT_URI",
+    "https://chat.beyondtheloop.ai/api/v1/mcp-servers/oauth/callback",
+)
+
+####################################
 # WEBUI_AUTH (Required for security)
 ####################################
 
@@ -308,6 +323,31 @@ WEBUI_AUTH_COOKIE_SECURE = (
 
 if WEBUI_AUTH and WEBUI_SECRET_KEY == "":
     raise ValueError(ERROR_MESSAGES.ENV_VAR_NOT_FOUND)
+
+####################################
+# DB_FIELD_ENCRYPTION_KEY
+# Fernet key for at-rest encryption of sensitive DB fields (MCP bearer
+# tokens, OAuth access/refresh tokens, client secrets). One app-wide key so
+# rotation, KMS-integration, and backup all live in a single place.
+####################################
+
+DB_FIELD_ENCRYPTION_KEY = os.environ.get("DB_FIELD_ENCRYPTION_KEY", "")
+
+if not DB_FIELD_ENCRYPTION_KEY:
+    raise ValueError(
+        "DB_FIELD_ENCRYPTION_KEY is required. Generate one with: "
+        "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+    )
+
+try:
+    from cryptography.fernet import Fernet as _Fernet
+
+    _Fernet(DB_FIELD_ENCRYPTION_KEY.encode())
+except Exception as _e:
+    raise ValueError(
+        f"DB_FIELD_ENCRYPTION_KEY is not a valid Fernet key: {_e}. "
+        "Expected a 32-byte urlsafe-base64 string (output of Fernet.generate_key())."
+    )
 
 ENABLE_WEBSOCKET_SUPPORT = (
     os.environ.get("ENABLE_WEBSOCKET_SUPPORT", "True").lower() == "true"

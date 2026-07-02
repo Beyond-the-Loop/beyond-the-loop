@@ -216,12 +216,12 @@ class PromptsTable:
                 or prompt.prebuilt
                 or (prompt.company_id == company_id and has_access(user_id, user_groups, permission, prompt.access_control))
             ):
-                    prompt_model = PromptModel.model_validate(prompt)
-                    prompt_dict = prompt_model.model_dump()
-                    prompt_dict["bookmarked_by_user"] = prompt.command in bookmarked_commands
-                    filtered_prompts.append(PromptUserResponse(**prompt_dict))
+                prompt_model = PromptModel.model_validate(prompt)
+                prompt_dict = prompt_model.model_dump()
+                prompt_dict["bookmarked_by_user"] = prompt.command in bookmarked_commands
+                filtered_prompts.append(PromptUserResponse(**prompt_dict))
 
-            return filtered_prompts
+        return filtered_prompts
 
 
     def update_prompt_by_command_and_company(

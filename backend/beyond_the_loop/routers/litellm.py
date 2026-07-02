@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import mimetypes
+import re
 import time
 import uuid
 from pathlib import Path
@@ -22,6 +23,7 @@ from beyond_the_loop.models.models import Models
 
 from beyond_the_loop.config import (
     CACHE_DIR,
+    LITELLM_MODEL_CONFIG,
     LITELLM_MODEL_MAP,
 )
 from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
@@ -57,6 +59,23 @@ log.setLevel(SRC_LOG_LEVELS["OPENAI"])
 ##########################################
 
 session: aiohttp.ClientSession | None = None
+
+
+# Azure OpenAI Responses API constrains `tools[*].server_label` to match
+# `^[A-Za-z][A-Za-z0-9_-]*$`. Connector names like "Microsoft 365" contain
+# a space and get rejected with `invalid_request_error`. This sanitises the
+# display name into a valid label without leaking server IDs to the provider.
+_MCP_LABEL_PATTERN = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _sanitize_mcp_server_label(name: str) -> str:
+    cleaned = _MCP_LABEL_PATTERN.sub("-", name or "").strip("-")
+    if not cleaned:
+        return "mcp"
+    if not cleaned[0].isalpha():
+        cleaned = f"mcp-{cleaned}"
+    return cleaned
+
 
 async def _get_session() -> aiohttp.ClientSession:
     global session
@@ -94,13 +113,25 @@ async def cleanup_response(
         response.close()
 
 
-async def _upload_files_to_openai(files: list) -> list:
+def _resolve_azure_credentials(model_name: str) -> tuple[Optional[str], Optional[str]]:
+    """Resolve the Azure OpenAI endpoint/api-key for a specific model from litellm-config.yaml.
+
+    Different models live in different Azure regions (e.g. GPT-5.4 in Germany, GPT-5.4 Pro
+    in the default region). File upload/download for code-interpreter must hit the same
+    region as the model, otherwise the container_id won't be found.
+    """
+    cfg = LITELLM_MODEL_CONFIG.get(model_name) or {}
+    endpoint_env = cfg.get("api_base_env") or "AZURE_OPENAI_ENDPOINT"
+    api_key_env = cfg.get("api_key_env") or "AZURE_OPENAI_API_KEY"
+    return os.getenv(endpoint_env), os.getenv(api_key_env)
+
+
+async def _upload_files_to_openai(files: list, model_name: str) -> list:
     """Upload files to Azure OpenAI Files API for code_interpreter and return file IDs."""
     from beyond_the_loop.models.files import Files
     from beyond_the_loop.storage.provider import Storage
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint, api_key = _resolve_azure_credentials(model_name)
     if not endpoint or not api_key:
         return []
 
@@ -151,13 +182,13 @@ async def _download_and_store_container_file(
     openai_file_id: str,
     filename: str,
     user_id: str,
+    model_name: str,
 ) -> Optional[str]:
     """Download a container file from OpenAI and store it in our Files API. Returns internal file ID or None on failure."""
     from beyond_the_loop.models.files import FileForm, Files
     from beyond_the_loop.storage.provider import Storage
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint, api_key = _resolve_azure_credentials(model_name)
     if not endpoint or not api_key:
         return None
 
@@ -354,7 +385,7 @@ async def generate_chat_completion(
         if use_responses_api:
             tools.append({"type": "web_search_preview"})
         else:
-            payload["web_search_options"] = {}
+            payload["web_search_options"] = {"search_context_size": "high"}
 
     if metadata.get("image_generation_enabled", False):
         if use_responses_api:
@@ -362,13 +393,63 @@ async def generate_chat_completion(
 
     if metadata.get("code_interpreter_enabled", False):
         if use_responses_api:
-            file_ids = await _upload_files_to_openai(metadata.get("files", []))
+            file_ids = await _upload_files_to_openai(metadata.get("files", []), model_name)
             container = {"type": "auto"}
             if file_ids:
                 container["file_ids"] = file_ids
             tools.append({"type": "code_interpreter", "container": container})
         else:
             tools.append({"codeExecution": {}})
+
+    # MCP server injection. Only the Azure OpenAI Responses API supports
+    # server-side MCP natively (the provider acts as MCP client). For every
+    # other route — Vertex Claude, Vertex/Direct Gemini, Azure Foundry models,
+    # Perplexity — there is no equivalent feature, so the block is silently
+    # dropped here rather than sent and rejected (or worse, ignored).
+    #
+    # The `supports_mcp` flag in `litellm-config.yaml` should already gate
+    # metadata population, but this is the defensive backstop.
+    #
+    # Encrypted tokens travel through metadata and are decrypted just-in-time
+    # so plaintext tokens never sit in metadata or chat state.
+    mcp_servers_resolved = metadata.get("mcp_servers_resolved", [])
+    # Sanitized server label → server id. The SSE handler uses this to map
+    # back the `mcp_list_tools` items OpenAI emits — kept so the SSE handler
+    # can still resolve server_label → server_id when surfacing status events
+    # to the frontend.
+    mcp_label_to_server_id: dict[str, str] = {}
+    if mcp_servers_resolved and use_responses_api:
+        # Tool Search defers the per-tool parameter schemas of every MCP server
+        # marked with `defer_loading: true` — the model sees only the server's
+        # name+description until it decides it needs a tool, then loads the
+        # schemas on demand. Cuts upfront tokens/latency on chats with many
+        # MCP servers (Notion/Attio/Gmail/etc. each ship 20-40 tools).
+        tools.append({"type": "tool_search"})
+        for s in mcp_servers_resolved:
+            label = _sanitize_mcp_server_label(s["name"])
+            mcp_label_to_server_id[label] = s["id"]
+            entry = {
+                "type": "mcp",
+                "server_label": label,
+                "server_url": s["url"],
+                "require_approval": "never",
+                "defer_loading": True,
+            }
+            # `access_token_plain` is already decrypted (and refreshed if it was
+            # an OAuth token nearing expiry) by middleware.process_chat_payload.
+            if s.get("access_token_plain"):
+                entry["headers"] = {
+                    "Authorization": f"Bearer {s['access_token_plain']}"
+                }
+            if s.get("tool_filter"):
+                entry["allowed_tools"] = s["tool_filter"]
+            tools.append(entry)
+    elif mcp_servers_resolved:
+        log.info(
+            "[mcp] dropping %d server(s) for model %r — non-Responses-API route has no native MCP support",
+            len(mcp_servers_resolved),
+            model_name,
+        )
 
     if tools:
         payload["tools"] = tools
@@ -540,6 +621,7 @@ async def generate_chat_completion(
                     log_all_until_completed = False
                     web_search_active = False
                     last_web_search_status = None
+                    mcp_server_labels: dict[str, str] = {}
 
                     async for chunk in r.content:
                         chunk_str = chunk.decode("utf-8", errors="replace")
@@ -582,7 +664,8 @@ async def generate_chat_completion(
 
                                     elif event == "response.output_item.added":
                                         item = data.get("item", {})
-                                        if item.get("type") == "web_search_call":
+                                        item_type = item.get("type")
+                                        if item_type == "web_search_call":
                                             web_search_active = True
                                             last_web_search_status = {
                                                 "action": "web_search",
@@ -590,6 +673,22 @@ async def generate_chat_completion(
                                                 "description": "Searching the web",
                                             }
                                             yield f"data: {json.dumps({'status_event': last_web_search_status})}\n\n".encode()
+                                        elif item_type == "mcp_list_tools":
+                                            mcp_item_id = item.get("id", "")
+                                            mcp_label = item.get("server_label") or "MCP server"
+                                            if mcp_item_id:
+                                                mcp_server_labels[mcp_item_id] = mcp_label
+                                            yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': False, 'description': f'Connecting to {mcp_label}'}})}\n\n".encode()
+
+                                    elif event == "response.mcp_list_tools.completed":
+                                        mcp_item_id = data.get("item_id", "")
+                                        mcp_label = mcp_server_labels.get(mcp_item_id, "MCP server")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': True, 'description': f'Connected to {mcp_label}'}})}\n\n".encode()
+
+                                    elif event == "response.mcp_list_tools.failed":
+                                        mcp_item_id = data.get("item_id", "")
+                                        mcp_label = mcp_server_labels.get(mcp_item_id, "MCP server")
+                                        yield f"data: {json.dumps({'status_event': {'action': 'mcp_list_tools', 'done': True, 'description': f'Failed to connect to {mcp_label}'}})}\n\n".encode()
 
                                     elif event == "response.code_interpreter_call.in_progress":
                                         yield f"data: {json.dumps({'status_event': {'action': 'analyzing_results', 'done': False, 'description': 'Writing code'}})}\n\n".encode()
@@ -724,7 +823,7 @@ async def generate_chat_completion(
                                                 if not (a_filename and a_container_id and a_openai_file_id):
                                                     continue
                                                 internal_id = await _download_and_store_container_file(
-                                                    a_container_id, a_openai_file_id, a_filename, user.id
+                                                    a_container_id, a_openai_file_id, a_filename, user.id, model_name
                                                 )
                                                 if internal_id:
                                                     our_url = f"/api/v1/files/{internal_id}/content/{a_filename}"

@@ -23,6 +23,7 @@
 		companyConfig,
 		config,
 		currentChatPage,
+		mcpServers,
 		mobile,
 		type Model,
 		models,
@@ -110,16 +111,34 @@
 	let imageGenerationEnabled = true;
 	let webSearchEnabled = true;
 	let codeInterpreterEnabled = true;
-	let autoToolsEnabled = true;
+	// Per-server MCP opt-outs for this chat (not persisted server-side).
+	// Default: every enabled MCP server starts opted-out — users opt individual
+	// servers in via the tools menu. Keeps prompts lean and avoids paying the
+	// Azure tools/list discovery cost on chats that don't need connectors.
+	let mcpDisabledServerIds: string[] = [];
+	let mcpDefaultsApplied = false;
+
+	$: if (!mcpDefaultsApplied && Array.isArray($mcpServers)) {
+		mcpDisabledServerIds = ($mcpServers as any[])
+			.filter((s) => s?.enabled)
+			.map((s) => s.id);
+		mcpDefaultsApplied = true;
+	}
 	// Per-chat PII filter toggle. Lives here (not in MessageInput) so it
 	// survives the composer's mount/unmount during send. Sent with every
 	// chat-completion request as `pii_enabled`. Backend forces it back to
 	// true if the user lacks `pii.allow_disable_in_chat`.
 	let piiEnabled = true;
 	let piiReleasedEntities: string[] = [];
+	let manualPIIEntities: string[] = [];
+	let piiSelectedText = '';
 	let showPiiDisableConfirm = false;
+	// A message carries PII fields iff the filter ran for that turn. Presence
+	// of `pii_variables` (even as `{}`) is the canonical "filter was active"
+	// signal — when the filter is off, the backend doesn't emit the event at
+	// all, so the field stays undefined.
 	$: hasAnonymizedMessages = Object.values(history?.messages ?? {}).some(
-		(m: any) => m?.pii_status === 'full' || m?.pii_status === 'partial'
+		(m: any) => m?.pii_variables !== undefined
 	);
 
 	const handlePiiToggleClick = () => {
@@ -135,10 +154,14 @@
 	// level so detection state stays consistent across landing-page and
 	// active-chat composer.
 	let detectedPIIEntities: PIISpan[] = [];
-	let piiAbortController: AbortController | null = null;
-	let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	const PII_DEBOUNCE_MS = 800;
-	const PII_MIN_CHARS = 3;
+	// Wrapped in an object so assigning .current inside runPIIAnalyze does NOT
+	// trigger the reactive clear-block below (Svelte only invalidates on direct
+	// variable assignment, not property mutation of a stable object reference).
+	const _piiAbort = { current: null as AbortController | null };
+	let piiAnalyzing = false;
+	// The prompt text at the time of the last successful analysis. Empty string
+	// means no analysis has been run yet (or results were cleared).
+	let _piiAnalyzedPrompt = '';
 
 	// Drives sidebar + privacy button visibility. The disable-toggle UI in
 	// MessageInput is gated separately via `canRelaxPii`, so users without
@@ -154,47 +177,58 @@
 		($companyConfig?.config?.privacy?.pii_filter_enabled ?? false) &&
 		($user?.role === 'admin' || $user?.permissions?.pii?.allow_disable_in_chat);
 
-	$: schedulePIIAnalyze(prompt, piiPanelVisible);
+	// Results are stale when the prompt has changed since the last analysis.
+	$: piiResultsStale = _piiAnalyzedPrompt.length > 0 && _piiAnalyzedPrompt !== prompt;
+	// True until the first successful ML analysis run for the current chat.
+	$: piiNeverAnalyzed = _piiAnalyzedPrompt.length === 0;
 
-	function schedulePIIAnalyze(text: string, active: boolean) {
-		if (piiDebounceTimer) clearTimeout(piiDebounceTimer);
-		if (!active || !text || text.trim().length < PII_MIN_CHARS) {
-			// Abort any in-flight analyze — otherwise its result lands AFTER the
-			// reset and re-fills the sidebar with stale spans (e.g. right after
-			// the user sends and prompt becomes empty).
-			if (piiAbortController) piiAbortController.abort();
+	// Only wipe results when the panel goes inactive or the prompt is cleared
+	// (e.g. after sending). Prompt edits after an analysis merely mark results
+	// stale via piiResultsStale — the old entities stay visible.
+	// Does NOT read detectedPIIEntities or _piiAbort to avoid circular triggers.
+	$: {
+		prompt;
+		piiPanelVisible;
+		piiAnalyzing = false;
+		if (!piiPanelVisible || prompt.trim().length === 0) {
 			detectedPIIEntities = [];
-			return;
+			_piiAnalyzedPrompt = '';
 		}
-		piiDebounceTimer = setTimeout(() => runPIIAnalyze(text), PII_DEBOUNCE_MS);
 	}
 
 	async function runPIIAnalyze(text: string) {
-		if (piiAbortController) piiAbortController.abort();
-		piiAbortController = new AbortController();
+		_piiAbort.current?.abort();
+		_piiAbort.current = new AbortController();
+		piiAnalyzing = true;
 		try {
-			const res = await analyzePII(localStorage.token, text, piiAbortController.signal);
+			const res = await analyzePII(localStorage.token, text, _piiAbort.current.signal);
 			detectedPIIEntities = res.spans ?? [];
+			_piiAnalyzedPrompt = text;
+			chatInfoSidebarMode.set({ kind: 'composer' });
+			showChatInfoSidebar.set(true);
 		} catch (err) {
 			if ((err as any)?.name === 'AbortError') return;
 			console.warn('[pii] analyze failed', err);
 			detectedPIIEntities = [];
+		} finally {
+			piiAnalyzing = false;
 		}
 	}
 
 	$: uniquePIICount = (() => {
 		const seen = new Set<string>();
 		for (const span of detectedPIIEntities) seen.add(span.original);
+		for (const m of manualPIIEntities) seen.add(m);
 		return seen.size;
 	})();
 
 	$: piiAnonymizedCount = (() => {
-		if (detectedPIIEntities.length === 0) return 0;
 		const released = new Set(piiReleasedEntities);
 		const anonymized = new Set<string>();
 		for (const span of detectedPIIEntities) {
 			if (!released.has(span.original)) anonymized.add(span.original);
 		}
+		for (const m of manualPIIEntities) anonymized.add(m);
 		return anonymized.size;
 	})();
 
@@ -215,8 +249,7 @@
 	})();
 
 	onDestroy(() => {
-		if (piiDebounceTimer) clearTimeout(piiDebounceTimer);
-		if (piiAbortController) piiAbortController.abort();
+		_piiAbort.current?.abort();
 	});
 	let chat = null;
 	let continuationSeeded = false;
@@ -311,7 +344,6 @@
 						files = input.files;
 						webSearchEnabled = input.webSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
-						autoToolsEnabled = input.autoToolsEnabled ?? true;
 					} catch (e) {
 					}
 				}
@@ -476,9 +508,10 @@
 				} else if (type === 'pii:user_message') {
 					// Backend echo after all PII passes (user message, files, RAG).
 					// `filtered_content` drives the inline diff in the modal;
-					// `variables` lists every original/placeholder pair the LLM saw;
-					// `pii_status` is "full" | "partial" | "none" — drives the badge
-					// on the user message in the chat history.
+					// `variables` lists every original/placeholder pair the LLM saw.
+					// The badge state is derived in UserMessage.svelte from these
+					// fields' presence and `released_entities` length — no separate
+					// status flag is persisted.
 					//
 					// This event arrives over Socket.IO while the response itself
 					// streams via SSE — the two transports race. The streaming-done
@@ -491,9 +524,10 @@
 						history.messages[userMessageId].pii_variables = data.variables;
 						history.messages[userMessageId].pii_variable_sources = data.variable_sources;
 						history.messages[userMessageId].pii_released_entities_actual = data.released_entities;
-						history.messages[userMessageId].pii_status = data.pii_status;
 						saveChatHandler($chatId, history);
 					}
+				} else if (type === 'smart_router_debug_data') {
+					message.smartRouterMetadata = data;
 				} else {
 					console.log('Unknown message type', data);
 				}
@@ -570,13 +604,11 @@
 				files = input.files;
 				webSearchEnabled = input.webSearchEnabled;
 				imageGenerationEnabled = input.imageGenerationEnabled;
-				autoToolsEnabled = input.autoToolsEnabled ?? true;
 			} catch (e) {
 				prompt = '';
 				files = [];
 				webSearchEnabled = true;
 				imageGenerationEnabled = true;
-				autoToolsEnabled = true;
 			}
 		}
 
@@ -770,11 +802,11 @@
 		chatFiles = [];
 		params = {};
 		piiReleasedEntities = [];
+		manualPIIEntities = [];
 
 		webSearchEnabled = true;
 		imageGenerationEnabled = true;
 		codeInterpreterEnabled = true;
-		autoToolsEnabled = true;
 
 		if ($page.url.searchParams.get('web-search') === 'true') {
 			webSearchEnabled = true;
@@ -1150,6 +1182,9 @@
 	};
 
 	let bufferedResponse: BufferedResponse | null = null;
+	// Sentences already sent to the call TTS, per message id. In a Map (not on the
+	// message) because BufferedResponse keeps replacing history.messages[id] with copies.
+	const ttsDispatchedCount: Record<string, number> = {};
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
 		const {
@@ -1210,20 +1245,17 @@
 					);
 					messageContentParts.pop();
 
-					// dispatch only last sentence and make sure it hasn't been dispatched before
-					if (
-						messageContentParts.length > 0 &&
-						messageContentParts[messageContentParts.length - 1] !== message.lastSentence
-					) {
-						message.lastSentence = messageContentParts[messageContentParts.length - 1];
+					// Send newly-finished sentences in order (none repeated, none skipped).
+					const already = ttsDispatchedCount[message.id] ?? 0;
+					for (let i = already; i < messageContentParts.length; i++) {
 						eventTarget.dispatchEvent(
 							new CustomEvent('chat', {
-								detail: {
-									id: message.id,
-									content: messageContentParts[messageContentParts.length - 1]
-								}
+								detail: { id: message.id, content: messageContentParts[i] }
 							})
 						);
+					}
+					if (messageContentParts.length > already) {
+						ttsDispatchedCount[message.id] = messageContentParts.length;
 					}
 				}
 			}
@@ -1265,20 +1297,17 @@
 			);
 			messageContentParts.pop();
 
-			// dispatch only last sentence and make sure it hasn't been dispatched before
-			if (
-				messageContentParts.length > 0 &&
-				messageContentParts[messageContentParts.length - 1] !== message.lastSentence
-			) {
-				message.lastSentence = messageContentParts[messageContentParts.length - 1];
+			// Send newly-finished sentences in order (none repeated, none skipped).
+			const already = ttsDispatchedCount[message.id] ?? 0;
+			for (let i = already; i < messageContentParts.length; i++) {
 				eventTarget.dispatchEvent(
 					new CustomEvent('chat', {
-						detail: {
-							id: message.id,
-							content: messageContentParts[messageContentParts.length - 1]
-						}
+						detail: { id: message.id, content: messageContentParts[i] }
 					})
 				);
+			}
+			if (messageContentParts.length > already) {
+				ttsDispatchedCount[message.id] = messageContentParts.length;
 			}
 		}
 
@@ -1321,18 +1350,19 @@
 				document.getElementById(`speak-button-${message.id}`)?.click();
 			}
 
-			// Emit chat event for TTS
-			let lastMessageContentPart =
-				getMessageContentParts(message.content, $config?.audio?.tts?.split_on ?? 'punctuation')?.at(
-					-1
-				) ?? '';
-			if (lastMessageContentPart) {
+			// Final flush: send any remaining sentences (incl. the last), then reset.
+			const finalParts = getMessageContentParts(
+				message.content,
+				$config?.audio?.tts?.split_on ?? 'punctuation'
+			);
+			for (let i = ttsDispatchedCount[message.id] ?? 0; i < finalParts.length; i++) {
 				eventTarget.dispatchEvent(
 					new CustomEvent('chat', {
-						detail: { id: message.id, content: lastMessageContentPart }
+						detail: { id: message.id, content: finalParts[i] }
 					})
 				);
 			}
+			delete ttsDispatchedCount[message.id];
 			eventTarget.dispatchEvent(
 				new CustomEvent('chat:finish', {
 					detail: {
@@ -1744,45 +1774,20 @@
 
 				files: (files?.length ?? 0) > 0 ? files : undefined,
 
-				features: autoToolsEnabled
-					? {}
-					: {
-						image_generation: imageGenerationEnabled,
-						code_interpreter:
-							$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
-								? codeInterpreterEnabled
-								: false,
-						web_search:
-							$config?.features?.enable_web_search &&
-							($user.role === 'admin' || $user?.permissions?.features?.web_search)
-								? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
-								: false
-					},
+				features: {
+					image_generation: imageGenerationEnabled,
+					code_interpreter:
+						$user.role === 'admin' || $user?.permissions?.features?.code_interpreter
+							? codeInterpreterEnabled
+							: false,
+					web_search:
+						$config?.features?.enable_web_search &&
+						($user.role === 'admin' || $user?.permissions?.features?.web_search)
+							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
+							: false
+				},
 
-				auto_tools: autoToolsEnabled
-					? (() => {
-							const _baseModel = model.base_model_id
-								? $models.find((m) => m.id === model.base_model_id)
-								: undefined;
-							const _meta = _baseModel
-								? $modelsInfo[_baseModel?.name]
-								: $modelsInfo[model?.name];
-							return [
-								...($companyConfig?.config?.rag?.web?.search?.enable &&
-								($user.role === 'admin' || $user?.permissions?.features?.web_search) &&
-								(_meta?.supports_web_search ?? false)
-									? ['web_search']
-									: []),
-								...((_meta?.supports_image_generation ?? false)
-									? ['image_generation']
-									: []),
-								...(($user.role === 'admin' || $user?.permissions?.features?.code_interpreter) &&
-								(_meta?.supports_code_execution ?? false)
-									? ['code_interpreter']
-									: [])
-							];
-						})()
-					: undefined,
+				mcp_disabled_server_ids: mcpDisabledServerIds,
 
 				session_id: $socket?.id,
 				chat_id: _chatId,
@@ -1790,6 +1795,7 @@
 
 				pii_enabled: piiEnabled,
 				pii_released_entities: piiReleasedEntities,
+				pii_manual_entities: manualPIIEntities,
 
 				...(!$temporaryChatEnabled &&
 				(messages.length == 1 ||
@@ -2073,7 +2079,8 @@
 					messages: createMessagesList(history, history.currentId),
 					params: params,
 					files: chatFiles,
-					pii_released_entities: piiReleasedEntities
+					pii_released_entities: piiReleasedEntities,
+					pii_manual_entities: manualPIIEntities
 				});
 				currentChatPage.set(1);
 				await chats.set(await getChatList(localStorage.token, $currentChatPage));
@@ -2208,24 +2215,62 @@
 									bind:selectedModels
 								/>
 								<div class="flex items-center gap-2">
-									{#if piiPanelVisible && uniquePIICount > 0}
+									{#if piiPanelVisible && piiSelectedText}
 										<button
 											type="button"
-											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium"
-											aria-label={$i18n.t('Privacy panel')}
+											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 hover:opacity-80 min-w-fit text-xs text-customBlue-600 dark:text-customBlue-400 font-medium transition"
+											aria-label={$i18n.t('Anonymize selection')}
 											on:click={() => {
-												if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
-													showChatInfoSidebar.set(false);
-												} else {
-													chatInfoSidebarMode.set({ kind: 'composer' });
-													showChatInfoSidebar.set(true);
-												}
+												if (!manualPIIEntities.includes(piiSelectedText)) manualPIIEntities = [...manualPIIEntities, piiSelectedText];
+												chatInfoSidebarMode.set({ kind: 'composer' });
+												showChatInfoSidebar.set(true);
+												piiSelectedText = '';
 											}}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
+												<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
 											</svg>
-											<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
+											<span>{$i18n.t('Anonymize')}</span>
+										</button>
+									{/if}
+									{#if piiPanelVisible && (piiAnalyzing || uniquePIICount > 0 || prompt.trim().length > 0)}
+										<button
+											type="button"
+											class="flex space-x-[5px] items-center py-[3px] px-[6px] rounded-md bg-lightGray-800 dark:bg-customGray-800 min-w-fit text-xs text-lightGray-100 dark:text-customGray-100 font-medium disabled:opacity-60"
+											aria-label={$i18n.t('Privacy panel')}
+											disabled={piiAnalyzing}
+											on:click={() => {
+												if ((piiResultsStale || piiNeverAnalyzed) && prompt.trim().length > 0) {
+													runPIIAnalyze(prompt);
+												} else {
+													if ($showChatInfoSidebar && $chatInfoSidebarMode.kind === 'composer') {
+														showChatInfoSidebar.set(false);
+													} else {
+														chatInfoSidebarMode.set({ kind: 'composer' });
+														showChatInfoSidebar.set(true);
+													}
+												}
+											}}
+										>
+											{#if piiAnalyzing}
+												<Spinner className="size-3" />
+												<span>{$i18n.t('Analyzing...')}</span>
+											{:else if piiResultsStale}
+												<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+												</svg>
+												<span>{$i18n.t('Re-analyze')}</span>
+											{:else if uniquePIICount > 0 && !piiNeverAnalyzed}
+												<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z" />
+												</svg>
+												<span>{$i18n.t('{{anonymized}} of {{total}} entities will be anonymized', { anonymized: piiAnonymizedCount, total: uniquePIICount })}</span>
+											{:else}
+												<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+												</svg>
+												<span>{$i18n.t('Anonymization preview')}</span>
+											{/if}
 										</button>
 									{/if}
 									<button
@@ -2248,11 +2293,19 @@
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
-									bind:autoToolsEnabled
 									bind:atSelectedModel
+									bind:mcpDisabledServerIds
 									{piiEnabled}
 									showPiiToggle={canRelaxPii}
 									onPiiToggle={handlePiiToggleClick}
+									piiPanelVisible={piiPanelVisible}
+									bind:piiSelectedText
+									{manualPIIEntities}
+									onManualPIIAdd={(text) => {
+										if (!manualPIIEntities.includes(text)) manualPIIEntities = [...manualPIIEntities, text];
+										chatInfoSidebarMode.set({ kind: 'composer' });
+										showChatInfoSidebar.set(true);
+									}}
 									{isMagicLoading}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}
 									{stopResponse}
@@ -2281,21 +2334,13 @@
 									on:submit={async (e) => {
 										if (e.detail) {
 											await tick();
-											submitPrompt(
-												($settings?.richTextInput ?? true)
-													? e.detail.replaceAll('\n\n', '\n')
-													: e.detail
-											);
+											submitPrompt(e.detail);
 										}
 									}}
 									on:magicPrompt={async (e) => {
 										if (e.detail) {
 											await tick();
-											submitMagicPrompt(
-												($settings?.richTextInput ?? true)
-													? e.detail.replaceAll('\n\n', '\n')
-													: e.detail
-											);
+											submitMagicPrompt(e.detail);
 										}
 									}}
 								/>
@@ -2326,15 +2371,26 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
-								bind:autoToolsEnabled
 								bind:atSelectedModel
+								bind:mcpDisabledServerIds
 								{piiEnabled}
 								showPiiToggle={canRelaxPii}
 								onPiiToggle={handlePiiToggleClick}
+								piiPanelVisible={piiPanelVisible}
+								{manualPIIEntities}
+								onManualPIIAdd={(text) => {
+									if (!manualPIIEntities.includes(text)) manualPIIEntities = [...manualPIIEntities, text];
+									chatInfoSidebarMode.set({ kind: 'composer' });
+									showChatInfoSidebar.set(true);
+								}}
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
 								piiAnonymizedCount={piiAnonymizedCount}
 								hideSuggestions={continuationSeeded}
+								{piiAnalyzing}
+								{piiResultsStale}
+								{piiNeverAnalyzed}
+								onRunPiiAnalyze={runPIIAnalyze}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}
@@ -2349,21 +2405,13 @@
 								on:submit={async (e) => {
 									if (e.detail) {
 										await tick();
-										submitPrompt(
-											($settings?.richTextInput ?? true)
-												? e.detail.replaceAll('\n\n', '\n')
-												: e.detail
-										);
+										submitPrompt(e.detail);
 									}
 								}}
 								on:magicPrompt={async (e) => {
 									if (e.detail) {
 										await tick();
-										submitMagicPrompt(
-											($settings?.richTextInput ?? true)
-												? e.detail.replaceAll('\n\n', '\n')
-												: e.detail
-										);
+										submitMagicPrompt(e.detail);
 									}
 								}}
 							/>
@@ -2420,6 +2468,9 @@
 	releasedEntities={piiReleasedEntities}
 	onReleasedChange={(released) => (piiReleasedEntities = released)}
 	privacyReleasable={canRelaxPii}
+	{piiResultsStale}
+	{manualPIIEntities}
+	onManualChange={(updated) => (manualPIIEntities = updated)}
 	messageVariables={sidebarMessageData?.variables ?? null}
 	messageVariableSources={sidebarMessageData?.variableSources ?? {}}
 	messageReleased={sidebarMessageData?.released ?? []}

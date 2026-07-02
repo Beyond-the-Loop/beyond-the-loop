@@ -55,6 +55,7 @@
 		edit_prompts: true,
 		view_knowledge: true,
 		edit_knowledge: true,
+		mcp_connections: true,
 		assistants_only: false,
 		pii_allow_disable_in_chat: false
 	}
@@ -66,6 +67,7 @@
 		edit_prompts: 'Edit Prompts',
 		view_knowledge: 'View Knowledge',
 		edit_knowledge: 'Edit Knowledge',
+		mcp_connections: 'Connectors',
 		assistants_only: 'Assistants Only',
 		pii_allow_disable_in_chat: 'Allow disabling anonymization in chat'
 	};
@@ -121,6 +123,7 @@
 						edit_prompts: group.permissions.workspace.edit_prompts,
 						view_knowledge: group.permissions.workspace.view_knowledge,
 						edit_knowledge: group.permissions.workspace.edit_knowledge,
+						mcp_connections: group.permissions.workspace.mcp_connections ?? true,
 						assistants_only: group.permissions.chat?.assistants_only ?? false,
 						pii_allow_disable_in_chat:
 							group.permissions.pii?.allow_disable_in_chat ?? false

@@ -9,6 +9,9 @@
 	import { toast } from 'svelte-sonner';
 	import { splitStream } from '$lib/utils';
 	import { getModels } from '$lib/apis';
+	import { updateUserSettings } from '$lib/apis/users';
+	import { settings } from '$lib/stores';
+	import Switch from '$lib/components/common/Switch.svelte';
 
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import StarRating from './IntelligenceRating.svelte';
@@ -23,6 +26,7 @@
 	import LightBlub from '$lib/components/icons/LightBlub.svelte';
 	import Document from '$lib/components/icons/Document.svelte';
 	import CodeInterpreterIcon from '$lib/components/icons/CodeInterpreterIcon.svelte';
+	import Cube from '$lib/components/icons/Cube.svelte';
 	import EuIcon from '$lib/components/icons/EuIcon.svelte';
 	import AdjustmentsHorizontal from '$lib/components/icons/AdjustmentsHorizontal.svelte';
 
@@ -112,6 +116,11 @@
 				$modelsInfo?.[item.label]?.supports_image_generation
 			);
 		}
+		if (mcpFilter) {
+			items = items.filter(item =>
+				$modelsInfo?.[item.label]?.supports_mcp
+			);
+		}
 
 		return items;
 	})();
@@ -120,6 +129,7 @@
 	let webSearchFilter = false;
 	let codeExecutionFilter = false;
 	let imageGenFilter = false;
+	let mcpFilter = false;
 
 	// In assistants-only mode: auto-select the first assistant if current value is missing/invalid
 	$: if ($user?.permissions?.chat?.assistants_only && filteredSourceItems.length > 0) {
@@ -154,6 +164,20 @@
 	}
 
 	let baseModel = null;
+
+	$: smartRouterEuOnly = $settings?.smartRouterEuOnly ?? false;
+
+	const toggleSmartRouterEuOnly = async () => {
+		const next = !smartRouterEuOnly;
+		const prev = $settings ?? {};
+		await settings.set({ ...prev, smartRouterEuOnly: next });
+		try {
+			await updateUserSettings(localStorage.token, { ui: { ...prev, smartRouterEuOnly: next } });
+		} catch (err) {
+			await settings.set(prev);
+			toast.error($i18n.t(typeof err === 'string' ? err : 'Failed to update setting'));
+		}
+	};
 
 	$: {
 		if (selectedModel?.model?.base_model_id) {
@@ -260,7 +284,7 @@
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger class="flex items-center cursor-pointer p-[2px] hover:bg-gray-100 dark:hover:bg-customGray-950 rounded-md">
 							<Tooltip content={$i18n.t('Filter')} placement="top">
-								<AdjustmentsHorizontal className="size-5 {webSearchFilter || codeExecutionFilter || imageGenFilter ? 'text-blue-500': 'text-gray-500'}" />
+								<AdjustmentsHorizontal className="size-5 {webSearchFilter || codeExecutionFilter || imageGenFilter || mcpFilter ? 'text-blue-500': 'text-gray-500'}" />
 							</Tooltip>
 						</DropdownMenu.Trigger>
 
@@ -296,6 +320,15 @@
                                     }}
                                 >
                                     <ImageGenerateIcon className="size-4" />
+                                </button>
+                            </Tooltip>
+                            <Tooltip content={$i18n.t('Connectors')} placement="top">
+                                <button class="{mcpFilter ? 'text-blue-500' : 'text-gray-500'}"
+                                    on:click={() => {
+                                        mcpFilter = !mcpFilter;
+                                    }}
+                                >
+                                    <Cube className="size-4" />
                                 </button>
                             </Tooltip>
 						</DropdownMenu.Content>
@@ -417,7 +450,26 @@
 								{/if}
 							</p>
 						</div>
-					{#if hoveredItem.label != "Smart Router"}
+					{#if hoveredItem.label == "Smart Router"}
+						<div class="mt-auto text-xs">
+							<button
+								type="button"
+								class="flex items-center gap-3 border-t pt-5 border-gray-200 w-full p-3"
+								on:click={toggleSmartRouterEuOnly}
+							>
+								<EuIcon className="size-5 opacity-80" />
+								<div class="flex flex-col text-left">
+									<span class="text-xs font-semibold">{$i18n.t('EU-hosted models only')}</span>
+									<span class="text-2xs {smartRouterEuOnly ? 'text-blue-500 opacity-80 font-semibold' : 'text-gray-600'}">{smartRouterEuOnly ? $i18n.t('Enabled') : $i18n.t('Disabled')}</span>	
+								</div>
+								<span class="pointer-events-none ml-auto">
+									<Switch state={smartRouterEuOnly} />
+								</span>
+								
+								
+							</button>
+						</div>
+					{:else}
 						{@const m = $modelsInfo?.[hoveredItem?.label]}
 						<div class="grid grid-cols-2 mt-auto">
 							<div class="flex flex-col items-center mb-3">
@@ -460,7 +512,12 @@
 												<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <LightBlub className="size-4"/></div>
 											</Tooltip>
 										{/if}
-										{#if !(m?.supports_web_search  | m?.supports_image_generation | m?.supports_code_execution | m?.reasoning)}
+										{#if m?.supports_mcp}
+											<Tooltip content={$i18n.t('Connectors')} placement="bottom">
+												<div class="size-7 border border-blue-200 dark:border-customGray-700 rounded-lg bg-blue-50 dark:bg-customGray-800 text-blue-500 dark:text-blue-400 text-xs flex items-center justify-center"> <Cube className="size-4"/></div>
+											</Tooltip>
+										{/if}
+										{#if !(m?.supports_web_search  | m?.supports_image_generation | m?.supports_code_execution | m?.reasoning | m?.supports_mcp)}
 											<div class="size-7 text-xs flex items-center justify-center text-lightGray-100/80 dark:text-lightGray-200">N/A</div>
 										{/if}
 									</div>

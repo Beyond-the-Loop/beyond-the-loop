@@ -12,7 +12,6 @@ from beyond_the_loop.models.models import Model
 from beyond_the_loop.models.users import (
     User,
     get_users_by_company,
-    get_active_users_by_company,
 )
 from beyond_the_loop.models.companies import Companies, Company
 from sqlalchemy import and_, func, case
@@ -24,6 +23,11 @@ stripe.api_key = os.environ.get('STRIPE_API_KEY')
 
 # Minimum Unix timestamp — no analytics data before this point is returned to the frontend
 MIN_ANALYTICS_TIMESTAMP = 1772150428
+
+# LiteLLM-internal upstream names for TTS/STT (see litellm-config.yaml aliases "TTS"/"STT").
+# Excluded from all analytics queries so audio usage doesn't pollute message counts,
+# top-model rankings, engagement scores, or credit-consumption charts.
+_AUDIO_MODEL_NAMES = ("azure/tts-1", "azure/whisper", "azure/whisper-1")
 
 
 class AnalyticsService:
@@ -61,44 +65,33 @@ class AnalyticsService:
             company_users = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_users]
 
+            # Chat models only — STT/TTS rows would muddy the "top chat models"
+            # leaderboard. Spend dashboards use a separate path.
             top_models = (
                 db.query(
-                    Completion.model,
-                    func.sum(Completion.credits_used).label("credits_used"),
+                    Model.name,
+                    func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
-                .outerjoin(        
-                    Model,        
-                    and_(            
-                        Completion.model == Model.name,            
-                        Model.company_id == company_id,   
-                    ),    
+                .outerjoin(
+                    Completion,
+                    and_(
+                        Completion.model == Model.name,
+                        Completion.created_at >= int(start_date_dt.timestamp()),
+                        Completion.created_at <= int(end_date_dt.timestamp()),
+                        Completion.user_id.in_(company_user_ids),
+                        Completion.from_agent.isnot(True),
+                        Completion.kind == 'chat'
+                    ),
                 )
                 .filter(
-                    Completion.created_at >= int(start_date_dt.timestamp()),
-                    Completion.created_at <= int(end_date_dt.timestamp()),
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent.isnot(True),
+                    Model.company_id == company_id,
+                    Model.base_model_id.is_(None),
                 )
-                .group_by(
-                    Completion.model,
-                    Model.meta
-                )
-                .order_by(
-                    func.sum(Completion.credits_used).desc()
-                )
+                .group_by(Model.name, Model.meta)
+                .order_by(func.coalesce(func.sum(Completion.credits_used), 0).desc())
                 .all()
-            )
-            real_count = (
-                db.query(func.count(Completion.id))
-                .filter(
-                    Completion.created_at >= int(start_date_dt.timestamp()),
-                    Completion.created_at <= int(end_date_dt.timestamp()),
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent.isnot(True),
-                )
-                .scalar()
             )
 
         return TopModelsResponse.from_query_result(top_models)
@@ -108,14 +101,18 @@ class AnalyticsService:
         start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
         with get_db() as db:
+            # "Top users by messages" means chat messages — voice snippets would
+            # inflate counts and falsely rank voice-heavy users higher.
             base_query = (
                 db.query(Completion)
                 .join(User, User.id == Completion.user_id)
                 .filter(
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.created_at >= int(start_date_dt.timestamp()),
                     Completion.created_at <= int(end_date_dt.timestamp()),
                     User.company_id == company_id,
+                    Completion.kind == 'chat',
                 )
             )
 
@@ -184,14 +181,15 @@ class AnalyticsService:
             )
 
             top_users = (
-                base_query.with_entities(
-                    Completion.user_id,
-                    func.sum(Completion.credits_used).label("credits_used"),
+                db.query(
+                    User.id.label("user_id"),
+                    func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
-                    (
-                            func.sum(case((Completion.assistant.isnot(None), 1), else_=0))
-                            * 100.0
-                            / func.count(Completion.id)
+                    func.coalesce(
+                        func.sum(case((Completion.assistant.isnot(None), 1), else_=0))
+                        * 100.0
+                        / func.nullif(func.count(Completion.id), 0),
+                        0.0,
                     ).label("assistant_message_percentage"),
                     User.first_name,
                     User.last_name,
@@ -200,10 +198,21 @@ class AnalyticsService:
                     top_model_subq.c.model.label("top_model"),
                     top_assistant_subq.c.assistant.label("top_assistant"),
                 )
-                .outerjoin(top_model_subq, top_model_subq.c.user_id == Completion.user_id)
-                .outerjoin(top_assistant_subq, top_assistant_subq.c.user_id == Completion.user_id)
+                .outerjoin(
+                    Completion,
+                    and_(
+                        Completion.user_id == User.id,
+                        Completion.from_agent.isnot(True),
+                        Completion.model.notin_(_AUDIO_MODEL_NAMES),
+                        Completion.created_at >= int(start_date_dt.timestamp()),
+                        Completion.created_at <= int(end_date_dt.timestamp()),
+                    ),
+                )
+                .outerjoin(top_model_subq, top_model_subq.c.user_id == User.id)
+                .outerjoin(top_assistant_subq, top_assistant_subq.c.user_id == User.id)
+                .filter(User.company_id == company_id)
                 .group_by(
-                    Completion.user_id,
+                    User.id,
                     User.first_name,
                     User.last_name,
                     User.email,
@@ -211,12 +220,12 @@ class AnalyticsService:
                     top_model_subq.c.model,
                     top_assistant_subq.c.assistant,
                 )
-                .order_by(func.sum(Completion.credits_used).desc())
+                .order_by(func.coalesce(func.sum(Completion.credits_used), 0).desc())
                 .all()
             )
 
-            top_user_ids = [row.user_id for row in top_users]
-            engagement_scores = AnalyticsService._calculate_user_engagement_scores(top_user_ids, db)
+            active_user_ids = [row.user_id for row in top_users if row.message_count > 0]
+            engagement_scores = AnalyticsService._calculate_user_engagement_scores(active_user_ids, db)
 
             return TopUsersResponse.from_query_result(top_users, engagement_scores=engagement_scores)
 
@@ -228,31 +237,35 @@ class AnalyticsService:
             company_users = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_users]
 
+            # Assistants are a chat-only concept; the kind filter is defensive
+            # in case STT/TTS rows ever carry a non-null assistant in the future.
             top_assistants = (
                 db.query(
-                    Completion.assistant,
-                    func.sum(Completion.credits_used).label("credits_used"),
+                    Model.name,
+                    func.coalesce(func.sum(Completion.credits_used), 0).label("credits_used"),
                     func.count(Completion.id).label("message_count"),
                     Model.meta,
                 )
                 .outerjoin(
-                    Model,
-                    and_(Completion.assistant == Model.name, Model.company_id == company_id),
+                    Completion,
+                    and_(
+                        Completion.assistant == Model.name,
+                        Completion.created_at >= int(start_date_dt.timestamp()),
+                        Completion.created_at <= int(end_date_dt.timestamp()),
+                        Completion.user_id.in_(company_user_ids),
+                        Completion.from_agent.isnot(True),
+                        Completion.kind == 'chat'
+                    ),
                 )
                 .filter(
-                    Completion.assistant != None,
-                    Completion.created_at >= int(start_date_dt.timestamp()),
-                    Completion.created_at <= int(end_date_dt.timestamp()),
-                    Completion.user_id.in_(company_user_ids),
-                    Completion.from_agent.isnot(True),
+                    Model.company_id == company_id,
+                    Model.base_model_id.isnot(None),
                 )
-                .group_by(
-                    Completion.assistant,
-                    Model.meta,
-                )
-                .order_by(func.sum(Completion.credits_used).desc())
+                .group_by(Model.name, Model.meta)
+                .order_by(func.coalesce(func.sum(Completion.credits_used), 0).desc())
                 .all()
             )
+
             return TopAssistantsResponse.from_query_result(top_assistants)
 
     @staticmethod
@@ -265,12 +278,16 @@ class AnalyticsService:
             company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
             company_user_ids = [u.id for u in company_user_ids]
 
-            # Find the first usage timestamp for this company (respects global minimum)
+            # "Total messages" reports chat-message counts; voice rows would
+            # multiply the apparent volume. first_usage_ts is the chat-onboarding
+            # marker — voice debut shouldn't be the anchor either.
             first_usage_ts = (
                 db.query(func.min(Completion.created_at))
                 .filter(
                     Completion.user_id.in_(company_user_ids),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.created_at >= MIN_ANALYTICS_TIMESTAMP,
+                    Completion.kind == 'chat',
                 )
                 .scalar()
             )
@@ -282,9 +299,11 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.user_id.in_(company_user_ids),
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
-                    func.to_timestamp(Completion.created_at) <= end_date_dt
+                    func.to_timestamp(Completion.created_at) <= end_date_dt,
+                    Completion.kind == 'chat',
                 )
                 .group_by("month")
                 .order_by("month")
@@ -300,8 +319,10 @@ class AnalyticsService:
                 )
                 .filter(
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                     Completion.user_id.in_(company_user_ids),
                     Completion.created_at >= MIN_ANALYTICS_TIMESTAMP,
+                    Completion.kind == 'chat',
                 )
                 .group_by("year")
                 .order_by("year")
@@ -344,7 +365,9 @@ class AnalyticsService:
         thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
 
         with get_db() as db:
-            # Find users with more than 400 messages in the last 30 days
+            # The 400-message power-user threshold is a chat threshold;
+            # including voice rows would lower the bar dramatically for any
+            # voice-mode user.
             power_users_query = db.query(
                 User.id,
                 User.first_name,
@@ -359,6 +382,8 @@ class AnalyticsService:
                 User.company_id == company_id,
                 Completion.created_at >= max(thirty_days_ago, MIN_ANALYTICS_TIMESTAMP),
                 Completion.from_agent.isnot(True),
+                Completion.model.notin_(_AUDIO_MODEL_NAMES),
+                Completion.kind == 'chat'
             ).group_by(
                 User.id, User.first_name, User.last_name, User.email, User.profile_image_url
             ).having(
@@ -405,6 +430,9 @@ class AnalyticsService:
                 company_user_ids = db.query(User.id).filter_by(company_id=company_id).all()
                 company_user_ids = [u.id for u in company_user_ids]
 
+                # Intentionally no kind filter — this is the company's total
+                # spend view, which should include chat + stt + tts. (Also
+                # preserves the existing behavior of including agent rows.)
                 query = db.query(
                     # Format the Unix timestamp as "YYYY-MM"
                     func.to_char(func.to_timestamp(Completion.created_at), 'YYYY-MM').label("month"),
@@ -413,7 +441,8 @@ class AnalyticsService:
                     # Filter using actual timestamps
                     func.to_timestamp(Completion.created_at) >= start_date_dt,
                     func.to_timestamp(Completion.created_at) <= end_date_dt,
-                    Completion.user_id.in_(company_user_ids)
+                    Completion.user_id.in_(company_user_ids),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                 )
 
                 # Execute the query and fetch results
@@ -441,6 +470,9 @@ class AnalyticsService:
             start_date_dt, end_date_dt = AnalyticsService._parse_date_range(start_date, end_date)
 
             with get_db() as db:
+                # Intentionally no kind filter — user spend includes both chat
+                # and voice. The from_agent filter already excludes agent rows
+                # whose cost was computed but never deducted.
                 query = db.query(
                     # Format the Unix timestamp as "YYYY-MM"
                     func.to_char(
@@ -454,6 +486,7 @@ class AnalyticsService:
                     func.to_timestamp(Completion.created_at) <= end_date_dt,
                     Completion.user_id == user_id,
                     Completion.from_agent.isnot(True),
+                    Completion.model.notin_(_AUDIO_MODEL_NAMES),
                 )
 
                 # Execute the query and fetch results
@@ -575,6 +608,8 @@ class AnalyticsService:
         window_days = max(1, (now - datetime.fromtimestamp(effective_start_ts)).days)
         score_divisor = min(30, window_days)
 
+        # Engagement = active chat usage. Counting voice would inflate scores
+        # for users who happen to use voice mode heavily on a few days.
         daily_counts = (
             db.query(
                 Completion.user_id,
@@ -585,6 +620,8 @@ class AnalyticsService:
                 Completion.user_id.in_(user_ids),
                 Completion.created_at >= effective_start_ts,
                 Completion.from_agent.isnot(True),
+                Completion.model.notin_(_AUDIO_MODEL_NAMES),
+                Completion.kind == 'chat'
             )
             .group_by(Completion.user_id, 'day')
             .all()

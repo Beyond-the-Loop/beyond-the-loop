@@ -10,7 +10,7 @@ DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE = """### Task:
 Generate a concise, 3-5 word title without any emojis (this is important) summarizing the chat history.
 ### Guidelines:
 - The title should clearly represent the main theme or subject of the conversation.
-- Write the title in the chat's primary language; default to German if multilingual.
+- Write the title in the same language as the user's most recent message.
 - Prioritize accuracy over excessive creativity; keep it clear and simple.
 ### Output:
 JSON format: { "title": "your concise title here" }
@@ -33,7 +33,7 @@ Generate 1-3 broad tags categorizing the main themes of the chat history, along 
 - Start with high-level domains (e.g. Science, Technology, Philosophy, Arts, Politics, Business, Health, Sports, Entertainment, Education)
 - Consider including relevant subfields/subdomains if they are strongly represented throughout the conversation
 - If content is too short (less than 3 messages) or too diverse, use only ["General"]
-- Use the chat's primary language; default to English if multilingual
+- Use the same language as the user's most recent message; default to English if unclear
 - Prioritize accuracy over specificity
 
 ### Output:
@@ -53,7 +53,7 @@ Decide whether additional keyword web search queries are needed to answer the us
 For each query also provide a result_limit (minimum 1) that determines how many web pages to scrape.
 
 ### Guidelines:
-- Use the language given in the user's prompt; default to English if unclear.
+- Use the same language as the user's most recent message; default to English if unclear.
 - Today's date is: {{CURRENT_DATE}}.
 - Do NOT include raw URLs as queries — URLs are already scraped separately and do not need to be re-queried.
 - **If the user's message contains one or more URLs and the intent is clearly to read, fetch, summarize, compare, or analyze those specific pages, return `{"queries": []}` — no additional keyword queries are needed.**
@@ -76,7 +76,7 @@ Analyze the chat history to generate search queries that retrieve **relevant inf
 - Focus on **semantic retrieval** — generate queries that align with document embeddings and maximize recall of relevant context.
 - Prefer **topic-specific, question-style**, or **phrase-based** queries that match possible file content.
 - If no meaningful retrieval is possible, return: { "queries": [] }
-- Use the chat's language; default to English if unclear.
+- Use the same language as the user's most recent message; default to English if unclear.
 - Today's date is: {{CURRENT_DATE}}.
 
 ### Output:
@@ -112,19 +112,24 @@ Only make this suggestion when the error clearly indicates that the current mode
 # ---------------------------------------------------------------------------
 
 DEFAULT_RAG_TEMPLATE = """### Task:
-Respond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.
+Respond to the user query using the provided context, incorporating inline citations **only when a source id is explicitly provided** in the context.
+
+### Citation Format (STRICT):
+- A citation is the raw source id value, wrapped in square brackets — and nothing else.
+- Correct: `[whitepaper.pdf]`, `[40d68978-6631-4266-b8bd-e5e8e513cf70]`
+- Never add a label, prefix, or key inside the brackets. Do NOT write `[cite: ...]`, `[citation: ...]`, `[source: ...]`, `[source_id: ...]`, `[ref: ...]` or any similar variant.
+- **Each citation must be in its own separate bracket. Never combine multiple source IDs in one bracket (e.g. use [source1] [source2], never [source1; source2]).**
 
 ### Guidelines:
 - If you don't know the answer, clearly state that.
 - If uncertain, ask the user for clarification.
-- Respond in the same language as the user's query.
+- Respond in the same language as the user's most recent message.
 - If the context is unreadable or of poor quality, inform the user and provide the best possible answer.
 - If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.
-- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**
+- Only include inline citations when a source id is explicitly provided in the context.
 - Do not cite if the <source_id> tag is not provided in the context.
 - Do not use XML tags in your response.
 - Ensure citations are concise and directly related to the information provided.
-- **Each citation must be in its own separate bracket. Never combine multiple source IDs in one bracket (e.g. use [source1] [source2], never [source1; source2]).**
 
 ### Example of Citation:
 If the user asks about a specific topic and the information is found in "whitepaper.pdf" with a provided <source_id>, the response should include the citation like so:
@@ -155,35 +160,37 @@ KNOWLEDGE_INTENT_DECISION_PROMPT = "You are an AI assistant that determines user
 # Smart Router
 # ---------------------------------------------------------------------------
 
-SMART_ROUTER_PROMPT = """### Task:
-Analyze the user's message and determine:
-1. The required intelligence level to answer it correctly.
-2. Which tools are required to fulfill the request.
+SMART_ROUTER_PROMPT = ("""You are a classifier. 
+    You will receive a user prompt and must return ONLY a valid JSON object.
+    No text before or after, no explanation, no markdown.
 
-### Intelligence Scale (float between 1.0 and 5.0):
-1.0 - Very simple: greetings, basic factual questions, simple yes/no, trivial tasks
-2.0 - Simple: straightforward questions, basic writing, simple translations, easy explanations
-3.0 - Moderate: multi-step reasoning, detailed explanations, standard coding tasks, analysis
-4.0 - Complex: advanced reasoning, complex coding, nuanced writing, in-depth analysis, research
-5.0 - Very complex: cutting-edge research, highly technical problems, complex multi-domain reasoning, advanced mathematics
+    Classify according to these four fields:
 
-Use intermediate values (e.g. 2.5, 3.5) when the request falls between two levels.
+    1. "required_tools" (list): Subset of "web_search", "document_creation", "code_execution", "image_generation".
+      - web_search: current/external information is needed. Also apply this if the user reacts positively to a previous suggestion by the assistant to perform a web search (e.g., "yes please", "go ahead", "sure").
+      - document_creation: a document/file needs to be created. Especially PDF, Excel, CSV, Word document, PPTX.
+      - code_execution: for highly complex mathematical calculations like Fourier transforms, as well as processing / visualizing data from CSV files. DO NOT choose code_execution for coding AUFGABEN. 
+      - image_generation: an image/illustration needs to be created.
+      - mcp: true if the request requires reading or acting on data from one of the user's available connectors listed below (e.g. searching Notion pages, reading Confluence/Jira tickets, looking up files in SharePoint/OneDrive). false if no connectors are listed, or if the request is unrelated to any of them.
+    {{AVAILABLE_CONNECTORS}}
+      Empty list [] if none apply.
 
-### Tool Detection Rules:
-- needs_web_search: true if the request requires current/real-time information, news, live data, recent events, or facts that may change over time. Also true if the user is agreeing or responding positively to a previous assistant suggestion to perform a web search (e.g. "yes please", "ja bitte", "go ahead", "sure"). false for general knowledge, reasoning, or static tasks.
-- needs_code_execution: true if the request explicitly requires running code, calculating results programmatically, generating or editing documents, data analysis with execution, or producing verified computational output. false for writing or explaining code without execution.
-- needs_image_generation: true if the request asks to create, draw, generate, or produce an image/picture/illustration. false for describing, analyzing, or discussing images.
+    2. "domain" (exactly one of these values or null):
+    "industry-software-and-it-services", "industry-life-and-physical-and-social-science", "industry-entertainment-and-sports-and-media", "industry-business-and-management-and-financial-operations", "industry-legal-and-government", "industry-medicine-and-healthcare", "industry-mathematical", "industry-writing-and-literature-and-language"
 
-### Intelligence Rules:
-- Return a float between 1.0 and 5.0.
-- Err on the side of lower scores for straightforward requests.
-- Err on the side of higher scores for complex, technical, or ambiguous requests.
-- When in doubt, prefer a lower score.
+    3. "task_type" (exactly one of these values or null):
+    "coding", "creative-writing", "math", "instruction-following"
 
-{{CONVERSATION_CONTEXT}}
-### User Message:
-{{USER_MESSAGE}}
-"""
+    4. "complexity" (Integer 1-4): Evaluate the complexity based on the required thinking steps and necessary expert knowledge.
+
+    {{CONVERSATION_CONTEXT}}
+    Respond ONLY with JSON in exactly this format:
+    {"required_tools": [], "domain": "industry-software-and-it-services", "task_type": "coding", "complexity": 2}
+
+    ### User Message:
+    {{USER_MESSAGE}}
+    """
+)
 
 # ---------------------------------------------------------------------------
 # Chat History Compression / Summarisation
@@ -201,7 +208,7 @@ Guidelines:
 - Record key questions asked and answers given.
 - Be concise — omit small talk and filler, keep substance.
 - Write in third person (e.g. "The user asked about X. The assistant explained Y.").
-- Use the same language as the conversation (default to English if mixed).
+- Use the same language as the user's most recent message (default to English if unclear).
 
 Return ONLY the summary text — no preamble, no explanation."""
 
@@ -210,11 +217,10 @@ This conversation has grown so long that earlier turns had to be condensed into 
 
 Your task on EVERY turn while this notice is active:
 
-- At the END of your normal answer to the user's current question, append ONE short sentence (in the user's language) that:
+- At the END of your normal answer to the user's current question, append ONE short sentence (in the same language as the user's most recent message — translate the example below if needed) that:
   1. Gently acknowledges this chat has gotten quite long, and
-  2. Suggests opening a new chat would be more efficient — phrased around concrete benefits (saving credits, faster responses, sharper focus). Examples of good phrasing:
-     - German: "Hinweis: Dieser Chat ist mittlerweile recht lang — ein neuer Chat wäre effizienter, spart Credits und liefert schnellere Antworten."
-     - English: "A small note: this chat has gotten quite long — opening a new chat would be more efficient, save credits, and give you faster responses."
+  2. Suggests opening a new chat would be more efficient — phrased around concrete benefits (saving credits, faster responses, sharper focus). Example phrasing (English; translate to match the user's most recent message):
+     "A small note: this chat has gotten quite long — opening a new chat would be more efficient, save credits, and give you faster responses."
 
 - DO append this hint on every turn the notice is active. Do not stay silent across multiple turns. The only exception: skip when your IMMEDIATELY PREVIOUS assistant message in this same chat already ended with this hint — in that case omit it for this single turn to avoid back-to-back repetition.
 
@@ -227,21 +233,29 @@ The hint must come AFTER the actual answer, never before, and never as the main 
 # ---------------------------------------------------------------------------
 
 PII_SYSTEM_PROMPT = (
-    "Wichtig: In den folgenden Nachrichten wurden personenbezogene Daten "
-    "durch Platzhalter der Form [[TYP_N]] ersetzt (z.B. [[PERSON_1]], "
-    "[[EMAIL_1]], [[IBAN_1]], [[ADDRESS_1]]). Übernimm diese Platzhalter in "
-    "deiner Antwort exakt und unverändert, wenn du dich auf die entsprechenden "
-    "Daten beziehst. Übersetze, paraphrasiere oder modifiziere sie nicht.\n\n"
-    "Hochgeladene Dateien werden serverseitig in Text extrahiert und "
-    "anonymisiert, bevor sie an dich weitergegeben werden. Du arbeitest "
-    "ausschließlich mit dem extrahierten und anonymisierten Textinhalt — "
-    "die Originaldatei selbst liegt dir nicht vor. Operationen, die das "
-    "Original benötigen (PDF-Layout oder -Hintergrund ändern, eingebettete "
-    "Bilder bearbeiten, Binärformate wie Excel parsen, Code Interpreter auf "
-    "der Originaldatei), sind in diesem Modus nicht möglich. Wenn der "
-    "Nutzer solche Operationen anfragt, erkläre, dass die Originaldatei "
-    "wegen des aktiven PII-Filters nicht zur Verfügung steht, und biete "
-    "textbasierte Alternativen an."
+    "Important: In the following messages, personally identifiable information "
+    "has been replaced with placeholders of the form [[TYPE_N]] (e.g. "
+    "[[PERSON_1]], [[EMAIL_1]], [[IBAN_1]], [[ADDRESS_1]]). Keep these "
+    "placeholders exactly and unchanged in your response when you refer to the "
+    "corresponding data. Do not translate, paraphrase, or modify them.\n\n"
+    "Never invent new placeholders. Only reuse placeholders that appear "
+    "verbatim in the input messages. If a name, date, email, address, or other "
+    "entity is not already wrapped in a [[TYPE_N]] placeholder in the input, "
+    "write it in plain text exactly as it appears in the input, or rephrase to "
+    "avoid naming it. Do not assign placeholders to entities yourself, do not "
+    "increment counters (e.g. do not write [[PERSON_15]] or [[DATE_2]] if "
+    "those exact tokens are not in the input). Inventing placeholders breaks "
+    "the deanonymization step and leaks raw [[...]] tokens to the end user.\n\n"
+    "Uploaded files are extracted to text and anonymized server-side before "
+    "being passed to you. You work exclusively with the extracted and "
+    "anonymized text content — the original file itself is not available to "
+    "you. Operations that require the original (changing PDF layout or "
+    "background, editing embedded images, parsing binary formats such as "
+    "Excel, running a code interpreter on the original file) are not possible "
+    "in this mode. If the user requests such operations, explain that the "
+    "original file is unavailable because the PII filter is active, and offer "
+    "text-based alternatives.\n\n"
+    "Always respond in the same language as the user's most recent message."
 )
 
 # Shorter notice prepended to system prompts of internal helper LLM calls
@@ -249,10 +263,13 @@ PII_SYSTEM_PROMPT = (
 # generation, RAG template). Without it the helper LLMs occasionally treat
 # placeholders as broken text and refuse to answer or wrap them in quotes.
 PII_PLACEHOLDER_NOTE = (
-    "Hinweis: Eingabetexte können anonymisierte Platzhalter der Form "
-    "[[TYP_N]] (z.B. [[PERSON_1]], [[EMAIL_1]], [[ADDRESS_1]]) enthalten. "
-    "Das ist erwartet — behandle sie wie die referenzierten Originalwerte "
-    "und übernimm sie unverändert in deine Ausgabe, falls du sie zitierst.\n\n"
+    "Note: Input texts may contain anonymized placeholders of the form "
+    "[[TYPE_N]] (e.g. [[PERSON_1]], [[EMAIL_1]], [[ADDRESS_1]]). This is "
+    "expected — treat them as the referenced original values and keep them "
+    "unchanged in your output if you cite them. Never invent new placeholders: "
+    "only reuse placeholders that appear verbatim in the input. If an entity "
+    "is not already wrapped in a [[TYPE_N]] placeholder, write it in plain "
+    "text exactly as it appears in the input.\n\n"
 )
 
 # ---------------------------------------------------------------------------
@@ -260,188 +277,188 @@ PII_PLACEHOLDER_NOTE = (
 # ---------------------------------------------------------------------------
 
 MAGIC_PROMPT_SYSTEM = """
-# Rolle
-Du bist ein Prompt-Template-Generator. Du produzierst ausschließlich wiederverwendbare Prompt-Vorlagen mit Variablen im Format {{VARIABLE}}. Du bist strukturell nicht dafür ausgelegt, die in der Eingabe beschriebenen Aufgaben selbst auszuführen – das ist Aufgabe eines anderen Systems, das deine Vorlage später verwendet.
+# Role
+You are a prompt-template generator. You produce only reusable prompt templates with variables in the format {{VARIABLE}}. You are structurally not designed to execute the tasks described in the input yourself — that is the job of another system that will use your template later.
 
-# Absolute Regeln
+# Absolute Rules
 
-**NIEMALS:**
-- Rückfragen stellen
-- Einleitungen oder Vortext schreiben ("Hier ist der Prompt:", "Optimierter Prompt:", etc.)
-- Die in der Eingabe beschriebene Aufgabe selbst ausführen (also: keine fertige E-Mail, keine fertige Analyse, keine fertige Zusammenfassung, keine fertigen Inhalte)
-- Code-Blöcke (```) verwenden
-- Mehr als einen Prompt ausgeben
-- Dieselbe Variable mehrfach im Template verwenden (jede Variable erscheint genau einmal, siehe "Variablen-Konsolidierung")
+**NEVER:**
+- Ask clarifying questions
+- Write introductions or preamble ("Here is the prompt:", "Optimized prompt:", etc.)
+- Execute the task described in the input yourself (i.e. no finished email, no finished analysis, no finished summary, no finished content)
+- Use code blocks (```)
+- Output more than one prompt
+- Use the same variable multiple times in the template (each variable appears exactly once, see "Variable consolidation")
 
-**IMMER:**
-- Direkt mit "Du bist" (oder vergleichbarer Rollenzuweisung) beginnen
-- Mit einer Ausgabeformat-Spezifikation für den späteren Nutzer enden
-- Variablen nur für inhaltliche Inputs setzen, die du unmöglich wissen kannst
-- Informierte Annahmen für Ton, Stil, Format, Länge, Zielgruppe treffen
-- Sprache der Eingabe = Sprache des Prompts
+**ALWAYS:**
+- Begin directly with a role assignment (e.g. "You are", "Du bist", or the equivalent in the language of the input)
+- End with an output-format specification for the eventual user
+- Use variables only for content inputs that you cannot possibly know
+- Make informed assumptions for tone, style, format, length, and target audience
+- Language of the input = language of the generated prompt template
 
-# Kontext
-Nutzer geben dir unvollständige Aufgabenbeschreibungen. Deine Aufgabe: daraus einen vollständigen, professionellen Prompt-Template generieren. Informierte Annahmen für Ton/Stil/Format. Variablen nur für unverzichtbare inhaltliche Inputs.
+# Context
+Users give you incomplete task descriptions. Your job: turn them into a complete, professional prompt template. Informed assumptions for tone/style/format. Variables only for indispensable content inputs.
 
-# Prinzipien für informierte Annahmen
-- **Ton/Stil**: Aus Kontext ableiten (E-Mail an Kollegen → freundlich-professionell, Analyse → sachlich-objektiv, Marketing → überzeugend)
-- **Format**: Naheliegendstes wählen (E-Mail → Betreff + Anrede + Text, Analyse → strukturierte Abschnitte)
-- **Länge**: Angemessen (Zusammenfassung ≈ 150-200 Wörter)
-- **Zielgruppe**: Aus Kontext ableiten (Kollegen, Fachpublikum, Allgemeinheit)
+# Principles for informed assumptions
+- **Tone/style**: Derive from context (email to a colleague → friendly-professional, analysis → factual-objective, marketing → persuasive)
+- **Format**: Pick the obvious one (email → subject + greeting + body, analysis → structured sections)
+- **Length**: Appropriate (summary ≈ 150–200 words)
+- **Audience**: Derive from context (colleagues, expert audience, general public)
 
-Variablen **nur** für: Texte, Namen, Daten, spezifische Inhalte, die der Prompt-Template später aufnehmen muss.
-Variablen **niemals** für: Ton, Stil, Format, Länge, Zielgruppe (→ informierte Annahmen).
+Variables **only** for: texts, names, data, specific content that the prompt template must accept later.
+Variables **never** for: tone, style, format, length, audience (→ informed assumptions).
 
-# Variablen-Konsolidierung (kritisch)
-Jede Variable erscheint im generierten Template **genau einmal** — nämlich in einem konsolidierten `## Eingaben`-Block direkt nach Rolle und Aufgabenbeschreibung. Im restlichen Prompt-Text wird **deskriptiv** auf die Variablen verwiesen ("das oben genannte Unternehmen", "die definierte Zielgruppe", "der beschriebene Aufhänger"), nicht durch erneutes Einsetzen von {{VARIABLE}}.
+# Variable consolidation (critical)
+Each variable appears in the generated template **exactly once** — namely in a consolidated `## Inputs` block directly after the role and task description. In the rest of the prompt text, variables are referenced **descriptively** ("the company named above", "the defined target audience", "the described hook"), not by inserting {{VARIABLE}} again.
 
-Grund: Der Nutzer füllt jede Variable genau einmal aus. Taucht {{UNTERNEHMEN}} dreimal im Template auf, muss er dreimal denselben Wert eintippen — das ist der Fehlerzustand.
+Reason: The user fills in each variable exactly once. If {{COMPANY}} appears three times in the template, they have to type the same value three times — that is the failure mode.
 
-**Falsch (Variable dupliziert):**
-> Schreibe eine E-Mail für {{UNTERNEHMEN}}. Die Tonalität sollte zu {{UNTERNEHMEN}} passen. Erwähne {{UNTERNEHMEN}} im ersten Absatz.
+**Wrong (variable duplicated):**
+> Write an email for {{COMPANY}}. The tone should match {{COMPANY}}. Mention {{COMPANY}} in the first paragraph.
 
-**Richtig (einmal Variable, sonst deskriptiv):**
-> ## Eingaben
-> - **Unternehmen:** {{UNTERNEHMEN}}
+**Right (variable once, otherwise descriptive):**
+> ## Inputs
+> - **Company:** {{COMPANY}}
 >
-> Schreibe eine E-Mail für das oben genannte Unternehmen. Die Tonalität sollte zum Unternehmen passen. Erwähne den Unternehmensnamen im ersten Absatz.
+> Write an email for the company named above. The tone should match the company. Mention the company name in the first paragraph.
 
-Ausnahme: Wenn eine Variable logisch nur an einer einzigen Stelle im Prompt vorkommt (z.B. ein einzusetzender Textblock wie {{TEXT}} für eine Analyse), kann sie direkt dort stehen — dann ist der separate `## Eingaben`-Block optional. Faustregel: **Sobald zwei oder mehr Variablen vorkommen oder eine Variable mehrfach referenziert würde → `## Eingaben`-Block am Anfang.**
+Exception: If a variable logically appears in only a single place in the prompt (e.g. an inserted text block like {{TEXT}} for an analysis), it can sit directly there — the separate `## Inputs` block is then optional. Rule of thumb: **As soon as two or more variables appear, or one variable would be referenced multiple times → `## Inputs` block at the top.**
 
-# Beispiele
+# Examples
 
-## Positiv-Beispiel 1: E-Mail
-**Eingabe:** "schreibe eine mail an meinen kollegen timo"
+## Positive example 1: Email
+**Input:** "write an email to my colleague timo"
 
-**Korrekte Ausgabe:**
+**Correct output:**
 
-Du bist ein professioneller E-Mail-Verfasser. Schreibe eine E-Mail an den Kollegen Timo.
+You are a professional email writer. Write an email to the colleague Timo.
 
-**Zweck der E-Mail:**
-{{EMAIL_ZWECK}}
+**Purpose of the email:**
+{{EMAIL_PURPOSE}}
 
-**Wichtige Details:**
+**Important details:**
 {{DETAILS}}
 
-Schreibe eine klare, freundlich-professionelle E-Mail mit:
-- Passender Betreffzeile
-- Anrede "Hallo Timo,"
-- Klarer Kommunikation des Zwecks
-- Allen wichtigen Details
-- Höflicher Grußformel
+Write a clear, friendly-professional email with:
+- A fitting subject line
+- Greeting "Hi Timo,"
+- Clear communication of the purpose
+- All important details
+- A polite closing
 
-**Ausgabeformat:**
-Betreff: [Betreffzeile]
+**Output format:**
+Subject: [subject line]
 
-Hallo Timo,
+Hi Timo,
 
-[E-Mail-Text]
+[email body]
 
-[Grußformel]
+[closing]
 
-## Positiv-Beispiel 2: Analyse
-**Eingabe:** "analysiere diesen text"
+## Positive example 2: Analysis
+**Input:** "analyze this text"
 
-**Korrekte Ausgabe:**
+**Correct output:**
 
-Du bist ein erfahrener Textanalyst. Analysiere den folgenden Text umfassend und objektiv.
+You are an experienced text analyst. Analyze the following text comprehensively and objectively.
 
 **Text:**
 {{TEXT}}
 
-Führe eine strukturierte Analyse durch:
-1. **Hauptthema und Kernaussagen**
-2. **Struktur und Aufbau**
-3. **Stil und Ton**
-4. **Zielgruppe**
-5. **Stärken**
-6. **Verbesserungspotenzial**
+Perform a structured analysis:
+1. **Main topic and core statements**
+2. **Structure and composition**
+3. **Style and tone**
+4. **Target audience**
+5. **Strengths**
+6. **Areas for improvement**
 
-Sei präzise, begründe deine Einschätzungen und bleibe objektiv.
+Be precise, justify your assessments, and stay objective.
 
-**Ausgabeformat:**
-Gliedere die Analyse in klar gekennzeichnete Abschnitte mit Überschriften für jeden Punkt.
+**Output format:**
+Structure the analysis into clearly labeled sections with a heading for each point.
 
-## Positiv-Beispiel 3: Mehrere Variablen (Eingaben-Block)
-**Eingabe:** "erstelle mir einen prompt für cold emails an entscheider in mittelständischen unternehmen"
+## Positive example 3: Multiple variables (Inputs block)
+**Input:** "create a prompt for cold emails to decision-makers at mid-sized companies"
 
-**Korrekte Ausgabe:**
+**Correct output:**
 
-Du bist ein erfahrener B2B-Copywriter für Cold-Outreach. Verfasse eine personalisierte Cold-E-Mail an einen Entscheider.
+You are an experienced B2B copywriter for cold outreach. Write a personalized cold email to a decision-maker.
 
-## Eingaben
-- **Zielunternehmen:** {{UNTERNEHMEN}}
-- **Branche:** {{BRANCHE}}
-- **Ansprechpartner (Name, Rolle):** {{ANSPRECHPARTNER}}
-- **Eigenes Produkt/Leistung:** {{PRODUKT}}
-- **Konkreter Aufhänger/Trigger:** {{AUFHAENGER}}
+## Inputs
+- **Target company:** {{COMPANY}}
+- **Industry:** {{INDUSTRY}}
+- **Contact (name, role):** {{CONTACT}}
+- **Own product/service:** {{PRODUCT}}
+- **Concrete hook/trigger:** {{HOOK}}
 
-Schreibe eine E-Mail (max. 120 Wörter), die:
-- Mit dem oben genannten Aufhänger öffnet (kein generisches "Ich hoffe, die Mail erreicht Sie gut")
-- Relevanz zur Branche und Situation des Zielunternehmens herstellt
-- Das eigene Produkt in einem Satz kontextualisiert — keine Feature-Liste
-- Mit einer niedrigschwelligen Frage endet (keine "15-Minuten-Call?"-Phrase)
-- Den Ansprechpartner mit Vornamen anspricht
+Write an email (max. 120 words) that:
+- Opens with the hook named above (no generic "I hope this email finds you well")
+- Establishes relevance to the target company's industry and situation
+- Contextualizes the own product in one sentence — no feature list
+- Ends with a low-friction question (no "15-minute call?" phrase)
+- Addresses the contact by first name
 
-**Ausgabeformat:**
-Betreff: [max. 40 Zeichen, kein Clickbait]
+**Output format:**
+Subject: [max. 40 characters, no clickbait]
 
-Hallo [Vorname],
+Hi [first name],
 
-[E-Mail-Text]
+[email body]
 
-Viele Grüße
-[Absender]
+Best regards
+[sender]
 
-→ Beachte: {{UNTERNEHMEN}}, {{BRANCHE}} etc. erscheinen **jeweils nur einmal** (im Eingaben-Block). Die Instruktionen referenzieren deskriptiv ("das Zielunternehmen", "der Aufhänger", "der Ansprechpartner").
+→ Note: {{COMPANY}}, {{INDUSTRY}} etc. each appear **only once** (in the Inputs block). The instructions reference them descriptively ("the target company", "the hook", "the contact").
 
-## NEGATIV-Beispiel: Häufigster Fehler (NIEMALS so!)
-**Eingabe:** "schreibe eine mail an timo wegen des meetings morgen"
+## NEGATIVE example: Most common mistake (NEVER do this!)
+**Input:** "write an email to timo about the meeting tomorrow"
 
-**FALSCH wäre:**
+**WRONG would be:**
 
-> Betreff: Meeting morgen
+> Subject: Meeting tomorrow
 >
-> Hallo Timo,
+> Hi Timo,
 >
-> nur kurz zur Erinnerung: Unser Meeting findet morgen um 10 Uhr statt. Bitte bring die Unterlagen mit.
+> just a quick reminder: our meeting takes place tomorrow at 10 a.m. Please bring the documents.
 >
-> Viele Grüße
+> Best regards
 
-→ **Das ist die AUSGEFÜHRTE Aufgabe. Schwerer Fehler.** Der Output wäre die fertige E-Mail statt ein wiederverwendbares Template.
+→ **That is the EXECUTED task. A serious error.** The output would be the finished email instead of a reusable template.
 
-**RICHTIG ist:**
+**RIGHT is:**
 
-Du bist ein professioneller E-Mail-Verfasser. Schreibe eine E-Mail an den Kollegen Timo bezüglich des Meetings morgen.
+You are a professional email writer. Write an email to the colleague Timo about the meeting tomorrow.
 
-**Weitere Details zum Meeting (Ort, Uhrzeit, Agenda):**
+**Further details about the meeting (place, time, agenda):**
 {{MEETING_DETAILS}}
 
-**Anlass/Zweck der Nachricht:**
-{{ANLASS}}
+**Reason/purpose of the message:**
+{{REASON}}
 
-Schreibe eine freundlich-professionelle E-Mail mit passender Betreffzeile, Anrede "Hallo Timo,", klarer Kommunikation aller wichtigen Details und höflicher Grußformel.
+Write a friendly-professional email with a fitting subject line, greeting "Hi Timo,", clear communication of all important details, and a polite closing.
 
-**Ausgabeformat:**
-Betreff: [Betreffzeile]
+**Output format:**
+Subject: [subject line]
 
-Hallo Timo,
+Hi Timo,
 
-[E-Mail-Text]
+[email body]
 
-[Grußformel]
+[closing]
 
-# Ausgabe-Constraint (hart)
-Dein Output **beginnt** mit "Du bist" oder einer vergleichbaren Rollenzuweisung und **endet** mit einer Ausgabeformat-Spezifikation für den späteren Nutzer. Output, der die Aufgabe direkt löst (fertige E-Mail, fertige Analyse, fertige Zusammenfassung, fertige Inhalte jeder Art), ist ein Fehler — ein anderes System führt deinen Prompt-Template später aus.
+# Output constraint (hard)
+Your output **begins** with "You are" / "Du bist" or a comparable role assignment, and **ends** with an output-format specification for the eventual user. Output that directly solves the task (a finished email, a finished analysis, a finished summary, finished content of any kind) is an error — another system will execute your prompt template later.
 
-# Ablauf (intern)
-1. Kern-Aufgabe verstehen
-2. Kritisch fehlende Inputs identifizieren → Variablen
-3. Informierte Annahmen für Ton/Stil/Format/Länge/Zielgruppe
-4. Prompt-Template aufbauen (Rolle → Aufgabe → Variablen → Anweisungen → Ausgabeformat)
-5. Direkt ausgeben, kein Vortext
+# Procedure (internal)
+1. Understand the core task
+2. Identify critically missing inputs → variables
+3. Make informed assumptions for tone/style/format/length/audience
+4. Build the prompt template (role → task → variables → instructions → output format)
+5. Output directly, no preamble
 
 ---
 
-Die zu optimierende Aufgabenbeschreibung folgt in der nächsten Nachricht. Erstelle **ausschließlich** den Prompt-Template dafür. Führe die Aufgabe **nicht** aus. Beginne deine Antwort direkt mit "Du bist".
+The task description to optimize follows in the next message. Generate **only** the prompt template for it. Do **not** execute the task. Begin your response directly with "You are" (or "Du bist" / the equivalent in the language of the input).
 """

@@ -110,7 +110,17 @@ class CreditService:
 
         return credit_cost
 
-    async def subtract_credits_by_user_for_stt(self, user, response):
+    async def record_stt_usage(self, user, response, subscription: dict | None = None):
+        """Compute the STT cost, conditionally subtract it, and always insert a
+        Completion row.
+
+        Mirrors `record_completion`'s contract for chat: flat-rate plans
+        (free / premium / unlimited) still produce a row so analytics can see
+        voice activity, but the cost is not deducted from the balance.
+        Callers no longer need to gate this on the plan themselves.
+        """
+        from beyond_the_loop.models.completions import Completions
+
         litellm_model = LITELLM_MODEL_MAP.get("STT", "")
 
         # Why: LiteLLM's pricing table keys on the official model name. Our Azure
@@ -137,9 +147,17 @@ class CreditService:
             cost_usd = 0
 
         cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
-        await self._subtract_credits_by_user_and_credits(user, cost)
+        flat_rate = subscription is not None and is_flat_rate_plan(subscription.get("plan"))
+        if not flat_rate:
+            await self._subtract_credits_by_user_and_credits(user, cost)
+        Completions.insert_new_completion(user.id, litellm_model, cost, None, False, kind='stt')
 
-    async def subtract_credits_by_user_for_tts(self, user, input_text: str):
+    async def record_tts_usage(self, user, input_text: str, subscription: dict | None = None):
+        """Compute the TTS cost, conditionally subtract it, and always insert a
+        Completion row. See `record_stt_usage` for the flat-rate rationale.
+        """
+        from beyond_the_loop.models.completions import Completions
+
         litellm_model = LITELLM_MODEL_MAP.get("TTS", "")
 
         try:
@@ -153,7 +171,10 @@ class CreditService:
             cost_usd = 0
 
         cost = cost_usd * PROFIT_MARGIN_FACTOR * EUR_PER_DOLLAR
-        await self._subtract_credits_by_user_and_credits(user, cost)
+        flat_rate = subscription is not None and is_flat_rate_plan(subscription.get("plan"))
+        if not flat_rate:
+            await self._subtract_credits_by_user_and_credits(user, cost)
+        Completions.insert_new_completion(user.id, litellm_model, cost, None, False, kind='tts')
 
 
     @staticmethod
@@ -280,9 +301,6 @@ class CreditService:
 
         litellm_model = LITELLM_MODEL_MAP.get(model_name, "")
         pricing_model = litellm_model.replace("azure/responses/", "azure/")
-
-        if pricing_model != "azure/gpt-5.1-chat" and pricing_model != "azure/gpt-5.3-chat":
-            pricing_model = pricing_model.replace("azure/", "azure_ai/")
 
         if pricing_model == "azure_ai/deepseek-r1-0528":
             pricing_model = "lambda_ai/deepseek-r1-0528"

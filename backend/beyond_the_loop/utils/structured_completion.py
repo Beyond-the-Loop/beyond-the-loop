@@ -39,7 +39,8 @@ def _get_client() -> instructor.AsyncInstructor:
                 base_url=base_url,
                 api_key=api_key,
                 timeout=30.0,  # Fail fast — avoids silent hangs when LiteLLM proxy is slow
-            )
+            ),
+            mode=instructor.Mode.JSON,
         )
     return _client
 
@@ -79,10 +80,10 @@ class KnowledgeUseDecision(BaseModel):
 
 
 class SmartRouterDecision(BaseModel):
-    intelligence_score: float  # 1.0–5.0
-    needs_web_search: bool
-    needs_code_execution: bool
-    needs_image_generation: bool
+    required_tools: list[Literal["web_search", "document_creation", "code_execution", "image_generation", "mcp"]]
+    domain: str | None
+    task_type: str | None
+    complexity: Literal[1, 2, 3, 4]
 
 
 class ChatSummaryResponse(BaseModel):

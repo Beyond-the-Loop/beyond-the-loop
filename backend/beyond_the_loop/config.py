@@ -83,9 +83,19 @@ def _build_litellm_model_config() -> dict:
         result = {}
         for entry in config.get("model_list", []):
             model_name = entry["model_name"]
-            litellm_model = entry["litellm_params"]["model"]
+            litellm_params = entry["litellm_params"]
+            litellm_model = litellm_params["model"]
             model_info = entry.get("model_info") or {}
-            result[model_name] = {"litellm_model": litellm_model, **model_info}
+            entry_data = {"litellm_model": litellm_model, **model_info}
+            # Capture per-model api_base/api_key references (e.g. "os.environ/AZURE_OPENAI_ENDPOINT_GERMANY")
+            # so we can resolve the right Azure region for file upload/download per model.
+            api_base = litellm_params.get("api_base")
+            api_key = litellm_params.get("api_key")
+            if isinstance(api_base, str) and api_base.startswith("os.environ/"):
+                entry_data["api_base_env"] = api_base.split("/", 1)[1]
+            if isinstance(api_key, str) and api_key.startswith("os.environ/"):
+                entry_data["api_key_env"] = api_key.split("/", 1)[1]
+            result[model_name] = entry_data
         return result
     except Exception as e:
         log.warning(f"Could not build LITELLM_MODEL_CONFIG from litellm-config.yaml: {e}")
@@ -94,6 +104,19 @@ def _build_litellm_model_config() -> dict:
 
 LITELLM_MODEL_CONFIG: dict = _build_litellm_model_config()
 LITELLM_MODEL_MAP: dict = {k: v["litellm_model"] for k, v in LITELLM_MODEL_CONFIG.items()}
+
+
+def _load_arena_rankings() -> dict:
+    rankings_path = Path(__file__).parent.parent.parent / "arena_rankings.json"
+    try:
+        with open(rankings_path) as f:
+            return json.load(f)
+    except Exception as e:
+        log.warning(f"Could not load arena_rankings.json: {e}")
+        return {}
+
+
+ARENA_RANKINGS: dict = _load_arena_rankings()
 
 
 class Config(Base):
@@ -141,7 +164,7 @@ DEFAULT_CONFIG = {
                 "concurrent_requests": 10,
             }
         },
-        "template": "### Task:\nRespond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.\n\n### Guidelines:\n- If you don't know the answer, clearly state that.\n- If uncertain, ask the user for clarification.\n- Respond in the same language as the user's query.\n- If the context is unreadable or of poor quality, inform the user and provide the best possible answer.\n- If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.\n- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**  \n- Do not cite if the <source_id> tag is not provided in the context.  \n- Do not use XML tags in your response.\n- Ensure citations are concise and directly related to the information provided.\n\n### Example of Citation:\nIf the user asks about a specific topic and the information is found in \"whitepaper.pdf\" with a provided <source_id>, the response should include the citation like so:  \n* \"According to the study, the proposed method increases efficiency by 20% [whitepaper.pdf].\"\nIf no <source_id> is present, the response should omit the citation.\n\n### Output:\nProvide a clear and direct response to the user's query, including inline citations in the format [source_id] only when the <source_id> tag is present in the context.\n\n<context>\n{{CONTEXT}}\n</context>\n\n<user_query>\n{{QUERY}}\n</user_query>\n",
+        "template": "### Task:\nRespond to the user query using the provided context, incorporating inline citations in the format [source_id] **only when the <source_id> tag is explicitly provided** in the context.\n\n### Guidelines:\n- If you don't know the answer, clearly state that.\n- If uncertain, ask the user for clarification.\n- Respond in the same language as the user's most recent message.\n- If the context is unreadable or of poor quality, inform the user and provide the best possible answer.\n- If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.\n- **Only include inline citations using [source_id] when a <source_id> tag is explicitly provided in the context.**  \n- Do not cite if the <source_id> tag is not provided in the context.  \n- Do not use XML tags in your response.\n- Ensure citations are concise and directly related to the information provided.\n\n### Example of Citation:\nIf the user asks about a specific topic and the information is found in \"whitepaper.pdf\" with a provided <source_id>, the response should include the citation like so:  \n* \"According to the study, the proposed method increases efficiency by 20% [whitepaper.pdf].\"\nIf no <source_id> is present, the response should omit the citation.\n\n### Output:\nProvide a clear and direct response to the user's query, including inline citations in the format [source_id] only when the <source_id> tag is present in the context.\n\n<context>\n{{CONTEXT}}\n</context>\n\n<user_query>\n{{QUERY}}\n</user_query>\n",
         "top_k": 10,
         "relevance_threshold": 0.0,
         "embedding_engine": "openai",
@@ -655,10 +678,6 @@ OPENAI_API_CONFIGS = PersistentConfig(
 # WEBUI
 ####################################
 
-
-WEBUI_URL = PersistentConfig(
-    "WEBUI_URL", "webui.url", os.environ.get("WEBUI_URL", "http://localhost:3000")
-)
 
 DEFAULT_LOCALE = PersistentConfig(
     "DEFAULT_LOCALE",
