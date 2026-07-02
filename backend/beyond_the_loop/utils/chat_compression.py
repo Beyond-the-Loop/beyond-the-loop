@@ -79,6 +79,21 @@ def _count_tokens(messages: list[dict], model_display_name: str) -> int:
         return total
 
 
+def _drop_to_budget(
+    messages: list[dict],
+    model_display_name: str,
+    budget_tokens: int,
+    min_keep: int = 0,
+) -> list[dict]:
+    """Pop oldest messages until the remainder fits `budget_tokens` (keeping at least
+    `min_keep`). Mutates `messages` in place and returns the dropped messages (oldest
+    first)."""
+    dropped: list[dict] = []
+    while len(messages) > min_keep and _count_tokens(messages, model_display_name) > budget_tokens:
+        dropped.append(messages.pop(0))
+    return dropped
+
+
 # ---------------------------------------------------------------------------
 # Content helpers
 # ---------------------------------------------------------------------------
@@ -268,7 +283,7 @@ async def maybe_compress_chat(
     threshold_pct = _get_compression_threshold(model.name)
     threshold_tokens = int(context_window * threshold_pct)
     current_tokens = _count_tokens(compression["messages"], model.name)
-    show_continue_chat_hint = False
+    show_continue_chat_hint = True  # TEST: erzwingt Button bei jeder Antwort — VOR LIVE auf False!
     did_compress = False
 
     if current_tokens > threshold_tokens:
@@ -287,23 +302,13 @@ async def maybe_compress_chat(
                 }
             )
 
-        messages_to_compress: list[dict] = []
-
-        while compression["messages"] and current_tokens > threshold_tokens:
-            removed = compression["messages"].pop(0)
-            messages_to_compress.append(removed)
-            current_tokens = _count_tokens(compression["messages"], model.name)
-
-        existing_summary = compression.get("summary")
-
-        new_summary = await _generate_summary(
-            existing_summary=existing_summary,
-            messages_to_summarize=messages_to_compress,
+        await compress_chat(
+            compression,
             agent_model=model,
+            keep_budget=threshold_tokens,
             pii_active=pii_active,
             user=user,
         )
-        compression["summary"] = new_summary
 
     if show_continue_chat_hint:
         form_data["__continue_chat_action__"] = {
@@ -345,15 +350,45 @@ async def maybe_compress_chat(
     return form_data
 
 
-async def build_continuation_compression(
+async def compress_chat(
+    compression: dict,
+    agent_model: ModelModel,
+    keep_budget: int,
+    pii_active: bool = False,
+    user=None,
+) -> dict:
+    """Recursive compression shared by maybe_compress_chat and build_continuation_seed:
+    drop the oldest messages beyond `keep_budget` tokens and fold them into
+    compression["summary"] (keep_budget=0 folds the whole history). Mutates and returns
+    compression."""
+    dropped = _drop_to_budget(
+        compression["messages"], agent_model.name, keep_budget, min_keep=0
+    )
+
+    if not dropped:
+        return compression
+
+    compression["summary"] = await _generate_summary(
+        existing_summary=compression.get("summary"),
+        messages_to_summarize=dropped,
+        agent_model=agent_model,
+        pii_active=pii_active,
+        user=user,
+    )
+
+    return compression
+
+
+async def build_continuation_seed(
     chat: dict,
     agent_model: ModelModel,
     chat_id: str | None = None,
     pii_active: bool = False,
     user=None,
 ) -> dict | None:
-    """Build the "Continue in new chat" seed: always summarise this chat's history
-    fresh (never reuse the stored summary — it may be stale/inherited)."""
+    """Build the "Continue in new chat" seed: summarise the whole history fresh (never
+    reuse the stored summary — it may be stale/inherited) via the shared compress_chat
+    with keep_budget=0, so nothing is dropped."""
     messages = _extract_history_messages(chat)
 
     if not messages:
@@ -366,21 +401,13 @@ async def build_continuation_compression(
         anonymize_messages(messages, pii_session)
         pii_session.save()
 
-    # Drop oldest messages until within ~60% of the agent model's context (avoid overflow).
-    budget = int(_get_context_window(agent_model.name) * 0.6)
-    while len(messages) > 1 and _count_tokens(messages, agent_model.name) > budget:
-        messages.pop(0)
-
-    summary = await _generate_summary(
-        existing_summary=None,
-        messages_to_summarize=messages,
-        agent_model=agent_model,
-        pii_active=pii_active,
-        user=user,
+    compression = {"messages": messages, "summary": None}
+    await compress_chat(
+        compression, agent_model=agent_model, keep_budget=0, pii_active=pii_active, user=user
     )
 
+    summary = compression.get("summary")
     if not summary or not summary.strip():
         return None
 
-    log.info("[cont] -> GENERATED summary (chat_id=%s): %r", chat_id, summary[:120])
     return {"messages": [], "summary": summary}

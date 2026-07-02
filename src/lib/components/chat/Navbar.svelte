@@ -6,7 +6,6 @@
 		WEBUI_NAME,
 		chatId,
 		mobile,
-		pendingContinuationSeed,
 		settings,
 		showArchivedChats,
 		showControls,
@@ -207,8 +206,6 @@
 					id="new-chat-button"
 					class="md:hidden cursor-pointer font-medium flex justify-center items-center flex-1 rounded-lg text-xs px-3 py-1 border border-lightGray-400 dark:border-customGray-700 h-[35px] text-right text-lightGray-100 dark:text-customGray-200 dark:hover:text-white bg-lightGray-300 dark:bg-customGray-900 hover:bg-gray-100 dark:hover:bg-customGray-950 transition"
 					on:click={() => {
-						// Explicit "New Chat" → discard any carry-over context from "Continue in new chat".
-						pendingContinuationSeed.set(null);
 						initNewChat();
 					}}
 					aria-label="New chat"

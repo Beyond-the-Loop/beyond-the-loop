@@ -48,8 +48,6 @@ export const shortCodesToEmojis = writable(
 export const chatId = writable('');
 export const chatTitle = writable('');
 
-export const pendingContinuationSeed = writable<Record<string, any> | null>(null);
-
 // id of the message whose "continue in new chat" button is currently working (shows a spinner)
 export const continuingInNewChatId = writable<string | null>(null);
 

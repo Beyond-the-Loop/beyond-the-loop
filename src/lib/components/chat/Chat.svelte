@@ -19,7 +19,6 @@
 		chatId,
 		chats,
 		chatTitle,
-		pendingContinuationSeed,
 		continuingInNewChatId,
 		companyConfig,
 		config,
@@ -52,7 +51,7 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import { createNewChat, getAllTags, getChatById, getChatList, getContinuationCompression, getTagsById, updateChatById } from '$lib/apis/chats';
+	import { createNewChat, getAllTags, getChatById, getChatList, compressChat, getTagsById, updateChatById } from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
@@ -220,6 +219,7 @@
 		if (piiAbortController) piiAbortController.abort();
 	});
 	let chat = null;
+	let continuationSeeded = false;
 	let tags = [];
 	let alert: Alert;
 
@@ -745,7 +745,7 @@
 	//////////////////////////
 
 	const initNewChat = async () => {
-		// Don't clear pendingContinuationSeed here — re-runs on remount would wipe a fresh seed.
+		continuationSeeded = false;
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
 
 		await showControls.set(false);
@@ -821,22 +821,39 @@
 		continuingInNewChat = true;
 
 		try {
-			const res = await getContinuationCompression(localStorage.token, sourceChatId);
+			const res = await compressChat(localStorage.token, sourceChatId);
 			if ($chatId !== sourceChatId) {
 				return;
 			}
 
-			if (typeof res?.compression?.summary !== 'string' || !res.compression.summary.trim()) {
+			if (!res?.success) {
 				toast.error($i18n.t('Could not carry over this chat context.'));
 				return;
 			}
 
-			pendingContinuationSeed.set({
-				compression: res.compression,
-				...(res.pii_session ? { pii_session: res.pii_session } : {})
+			// Create the new chat eagerly; the backend copies the source chat's
+			// summary + pii_session via source_chat_id.
+			const newChat = await createNewChat(localStorage.token, {
+				title: $i18n.t('New chat'),
+				models: selectedModels,
+				system: $settings.system ?? undefined,
+				params: params,
+				history: { messages: {}, currentId: null },
+				messages: [],
+				tags: [],
+				timestamp: Date.now(),
+				source_chat_id: sourceChatId
 			});
+
+			if (!newChat?.id) {
+				toast.error($i18n.t('Could not carry over this chat context.'));
+				return;
+			}
+
+			currentChatPage.set(1);
+			await chats.set(await getChatList(localStorage.token, $currentChatPage));
 			toast.success($i18n.t('The context of this conversation will be carried into the new chat.'));
-			await initNewChat();
+			await goto(`/c/${newChat.id}`);
 		} catch (e) {
 			toast.error(`${e}`);
 		} finally {
@@ -847,7 +864,6 @@
 
 	const loadChat = async () => {
 		chatId.set(chatIdProp);
-		pendingContinuationSeed.set(null);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
 			return;
@@ -861,6 +877,7 @@
 			const chatContent = chat.chat;
 
 			if (chatContent) {
+				continuationSeeded = !!chatContent?.compression?.summary;
 				selectedModels =
 					(chatContent?.models ?? undefined) !== undefined
 						? chatContent.models
@@ -1524,8 +1541,10 @@
 		}
 		history = history;
 
-		// Create new chat if newChat is true and first user message
-		if (newChat && _history.messages[_history.currentId].parentId === null) {
+		// Create a new chat only on a fresh page (_chatId empty). An already-loaded
+		// chat (e.g. an eager-created "continue in new chat") keeps its id so the
+		// first message doesn't spawn a duplicate.
+		if (newChat && _history.messages[_history.currentId].parentId === null && !_chatId) {
 			_chatId = await initChatHandler(_history);
 		}
 
@@ -2016,8 +2035,6 @@
 	const initChatHandler = async (history) => {
 		let _chatId = $chatId;
 
-		const continuationSeed = $pendingContinuationSeed;
-
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(localStorage.token, {
 				id: _chatId,
@@ -2028,14 +2045,8 @@
 				history: history,
 				messages: createMessagesList(history, history.currentId),
 				tags: [],
-				timestamp: Date.now(),
-				...(continuationSeed?.compression ? { compression: continuationSeed.compression } : {}),
-				...(continuationSeed?.pii_session ? { pii_session: continuationSeed.pii_session } : {})
+				timestamp: Date.now()
 			});
-
-			if (continuationSeed) {
-				pendingContinuationSeed.set(null);
-			}
 
 			_chatId = chat.id;
 			await chatId.set(_chatId);
@@ -2045,7 +2056,6 @@
 
 			window.history.replaceState(history.state, '', `/c/${_chatId}`);
 		} else {
-			pendingContinuationSeed.set(null);
 			_chatId = 'local';
 			await chatId.set('local');
 		}
@@ -2324,7 +2334,7 @@
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
 								piiAnonymizedCount={piiAnonymizedCount}
-								hideSuggestions={$pendingContinuationSeed !== null}
+								hideSuggestions={continuationSeeded}
 								{isMagicLoading}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								{stopResponse}

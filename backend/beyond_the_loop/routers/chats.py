@@ -13,7 +13,7 @@ from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.models import Models
 from open_webui.models.tags import TagModel, Tags
 from beyond_the_loop.models.folders import Folders
-from beyond_the_loop.utils.chat_compression import build_continuation_compression
+from beyond_the_loop.utils.chat_compression import build_continuation_seed
 from beyond_the_loop.pii.session import is_pii_filter_enabled
 
 from open_webui.constants import ERROR_MESSAGES
@@ -58,6 +58,16 @@ async def get_session_user_chat_list(
 @router.post("/new", response_model=Optional[ChatResponse])
 async def create_new_chat(form_data: ChatForm, user=Depends(get_verified_user)):
     try:
+        # "Continue in new chat": carry the linked chat's summary + PII session over.
+        source_chat_id = form_data.chat.pop("source_chat_id", None)
+        if source_chat_id:
+            source = Chats.get_chat_by_id_and_user_id(source_chat_id, user.id)
+            summary = (source.chat.get("compression") or {}).get("summary") if source else None
+            if summary:
+                form_data.chat["compression"] = {"messages": [], "summary": summary}
+                if source.chat.get("pii_session"):
+                    form_data.chat["pii_session"] = source.chat["pii_session"]
+
         chat = Chats.insert_new_chat(user.id, form_data)
         return ChatResponse(**chat.model_dump())
     except Exception as e:
@@ -68,21 +78,18 @@ async def create_new_chat(form_data: ChatForm, user=Depends(get_verified_user)):
 
 
 ############################
-# ContinuationCompression
+# CompressChat
 ############################
 
 
-class ContinuationCompressionResponse(BaseModel):
-    compression: Optional[dict] = None
-    pii_session: Optional[dict] = None
+class CompressChatResponse(BaseModel):
+    success: bool
 
 
-@router.post(
-    "/{id}/continuation-compression",
-    response_model=ContinuationCompressionResponse,
-)
-async def get_continuation_compression(id: str, user=Depends(get_verified_user)):
-    """Seed payload to carry this chat's context into a follow-up chat."""
+@router.post("/{id}/compress", response_model=CompressChatResponse)
+async def compress_chat_endpoint(id: str, user=Depends(get_verified_user)):
+    """Summarise this chat's history and store the seed on it, so a follow-up chat
+    can carry the context via createNewChat({ source_chat_id })."""
     chat = Chats.get_chat_by_id_and_user_id(id, user.id)
     if not chat:
         raise HTTPException(
@@ -95,7 +102,7 @@ async def get_continuation_compression(id: str, user=Depends(get_verified_user))
     if not agent_model:
         # DEFAULT_AGENT_MODEL is infra config (not user input) → 500 + log.
         log.error(
-            "continuation-compression: could not resolve DEFAULT_AGENT_MODEL (%s) for company %s",
+            "compress: could not resolve DEFAULT_AGENT_MODEL (%s) for company %s",
             os.getenv("DEFAULT_AGENT_MODEL"),
             user.company_id,
         )
@@ -107,7 +114,7 @@ async def get_continuation_compression(id: str, user=Depends(get_verified_user))
     pii_active = is_pii_filter_enabled(user.company_id)
 
     try:
-        compression = await build_continuation_compression(
+        compression = await build_continuation_seed(
             chat=chat.chat,
             agent_model=agent_model,
             chat_id=id,
@@ -121,13 +128,19 @@ async def get_continuation_compression(id: str, user=Depends(get_verified_user))
             detail=ERROR_MESSAGES.DEFAULT(),
         )
 
-    # Re-read to pick up the pii_session that build_continuation_compression saved.
-    latest_chat = Chats.get_chat_by_id_and_user_id(id, user.id) or chat
+    if not compression or not compression.get("summary"):
+        return CompressChatResponse(success=False)
 
-    return ContinuationCompressionResponse(
-        compression=compression,
-        pii_session=latest_chat.chat.get("pii_session") if pii_active else None,
-    )
+    # Store the fresh summary on the chat so /chat/new can read compression.summary.
+    # Re-read first to keep the pii_session build_continuation_seed just saved.
+    latest_chat = Chats.get_chat_by_id_and_user_id(id, user.id)
+    if not latest_chat:
+        return CompressChatResponse(success=False)
+    chat_dict = latest_chat.chat
+    chat_dict["compression"] = compression
+    Chats.update_chat_by_id(id, chat_dict)
+
+    return CompressChatResponse(success=True)
 
 
 ############################
