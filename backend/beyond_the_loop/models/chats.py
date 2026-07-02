@@ -524,6 +524,8 @@ class ChatTable:
         try:
             with get_db() as db:
                 chat = db.query(Chat).filter_by(id=id, user_id=user_id).first()
+                if chat is None:
+                    return None
                 return ChatModel.model_validate(chat)
         except Exception as e:
             log.error(f"Error getting chat by id and user_id: {e}")
