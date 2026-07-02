@@ -1982,7 +1982,33 @@ async def process_chat_response(
                 await response.background()
 
         # background_tasks.add_task(post_response_handler, response, events)
-        task_id, _ = create_task(post_response_handler(response, events))
+        # Wrap so we can log the actual streaming duration end-to-end.
+        # `post_response_handler` runs in a background task, so this fires
+        # long after the HTTP request has already returned.
+        stream_started = time.perf_counter()
+
+        async def _timed_post_response_handler():
+            outcome = "ok"
+            try:
+                await post_response_handler(response, events)
+            except Exception:
+                outcome = "error"
+                raise
+            finally:
+                log.info(
+                    "chat stream ended",
+                    extra={
+                        "event": "chat_stream_end",
+                        "model": getattr(model, "name", None),
+                        "model_id": getattr(model, "id", None),
+                        "chat_id": metadata.get("chat_id"),
+                        "user_id": metadata.get("user_id"),
+                        "duration_ms": round((time.perf_counter() - stream_started) * 1000, 2),
+                        "outcome": outcome,
+                    },
+                )
+
+        task_id, _ = create_task(_timed_post_response_handler())
         return {"status": True, "task_id": task_id}
 
     else:
