@@ -852,8 +852,8 @@
 						{@const images = message.files.filter((f) => f.type === 'image')}
 						{#if images.length > 0}
 							<div 
-								class="my-2.5 w-full gap-2"
-								style="display: grid; grid-template-columns: {images.length === 1 ? '60%' : `repeat(${images.length}, 1fr)`};"
+								class="my-2.5 w-full gap-2 flex flex-wrap sm:grid"
+								style="grid-template-columns: {images.length === 1 ? '60%' : `repeat(${Math.min(images.length, 5)}, 1fr)`};"
 							>
 								{#each images as file}
 									<Image

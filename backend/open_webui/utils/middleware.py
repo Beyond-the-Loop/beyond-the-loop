@@ -51,6 +51,7 @@ from beyond_the_loop.storage.provider import Storage
 # which added ~29s to every pod cold-start (measured with `python -X importtime`).
 # It is imported lazily inside the file-loading function below, since it is
 # only used on the RAG file upload path — regular chat completions never need it.
+from beyond_the_loop.retrieval.loaders.main import Loader
 from beyond_the_loop.routers.litellm import generate_chat_completion
 from beyond_the_loop.utils.image_generation import generate_image, resolve_image_urls
 from open_webui.utils.task import (
@@ -1970,7 +1971,7 @@ async def process_chat_response(
 
                     data_uri, image_error = await generate_image(
                         image_args.get("prompt", ""),
-                        image_args.get("size", "1024x1024"),
+                        image_args.get("size", "auto"),
                         input_urls,
                     )
 
