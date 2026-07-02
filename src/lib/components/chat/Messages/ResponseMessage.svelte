@@ -9,7 +9,7 @@
 
 	const dispatch = createEventDispatcher();
 
-	import { config, models, settings, user, company, companyConfig, isBlocked, blockedMessage } from '$lib/stores';
+	import { config, models, settings, user, company, companyConfig, isBlocked, blockedMessage, continuingInNewChatId } from '$lib/stores';
 	import { synthesizeOpenAISpeech } from '$lib/apis/audio';
 	import { imageGenerations } from '$lib/apis/images';
 	import {
@@ -79,6 +79,12 @@
 		done: boolean;
 		error?: boolean | { content: string };
 		sources?: string[];
+		actions?: {
+			action: string;
+			reason?: string;
+			description?: string;
+			label?: string;
+		}[];
 		code_executions?: {
 			uuid: string;
 			name: string;
@@ -176,6 +182,8 @@
 
 	$: statusList = message?.statusHistory ?? [...(message?.status ? [message?.status] : [])];
 	$: status = statusList.length > 0 ? statusList.at(-1) : null
+	$: continueChatAction = message?.actions?.find((action) => action.action === 'continue_chat_button');
+	$: continueChatLabel = $i18n.t('Continue with summary');
 
 	const copyToClipboard = async (text, sources) => {
 		const res = await copyToClipboardResponse(text, sources);
@@ -816,6 +824,26 @@
 								{#if message.code_executions}
 									<CodeExecutions codeExecutions={message.code_executions} />
 								{/if}
+
+								{#if continueChatAction && message?.done}
+									<div class="mt-3">
+										<button
+											type="button"
+											disabled={$continuingInNewChatId === message.id}
+											class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-lightGray-400 bg-lightGray-300 px-4 py-2 text-xs font-medium text-lightGray-100 transition hover:bg-lightGray-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-customGray-700 dark:bg-customGray-900 dark:text-customGray-200 dark:hover:bg-customGray-950"
+											on:click={() => {
+												continuingInNewChatId.set(message.id);
+												dispatch('continue-chat-context');
+											}}
+										>
+											{#if $continuingInNewChatId === message.id}
+												<Spinner className="size-4" />
+											{/if}
+											{continueChatLabel}
+										</button>
+									</div>
+								{/if}
+
 							</div>
 						{/if}
 					</div>

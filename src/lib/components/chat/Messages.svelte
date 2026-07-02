@@ -410,6 +410,7 @@
 							{addMessages}
 							{triggerScroll}
 							{readOnly}
+							on:continue-chat-context={() => dispatch('continue-chat-context')}
 						/>
 					{/each}
 				</div>

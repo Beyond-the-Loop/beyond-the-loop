@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import litellm
 
@@ -77,6 +79,21 @@ def _count_tokens(messages: list[dict], model_display_name: str) -> int:
         return total
 
 
+def _drop_to_budget(
+    messages: list[dict],
+    model_display_name: str,
+    budget_tokens: int,
+    min_keep: int = 0,
+) -> list[dict]:
+    """Pop oldest messages until the remainder fits `budget_tokens` (keeping at least
+    `min_keep`). Mutates `messages` in place and returns the dropped messages (oldest
+    first)."""
+    dropped: list[dict] = []
+    while len(messages) > min_keep and _count_tokens(messages, model_display_name) > budget_tokens:
+        dropped.append(messages.pop(0))
+    return dropped
+
+
 # ---------------------------------------------------------------------------
 # Content helpers
 # ---------------------------------------------------------------------------
@@ -148,6 +165,37 @@ async def _generate_summary(
     )
 
     return result.summary
+
+
+# ---------------------------------------------------------------------------
+# History extraction
+# ---------------------------------------------------------------------------
+
+
+def _extract_history_messages(chat: dict) -> list[dict]:
+    """Linearise a stored chat into an ordered [{role, content}] list for summarising."""
+    flat = chat.get("messages")
+    if isinstance(flat, list) and flat:
+        return [
+            {"role": m.get("role"), "content": m.get("content", "")}
+            for m in flat
+            if isinstance(m, dict) and m.get("role")
+        ]
+
+    history = chat.get("history") or {}
+    messages = history.get("messages") or {}
+    node_id = history.get("currentId")
+
+    ordered: list[dict] = []
+    seen: set = set()
+    while node_id and node_id in messages and node_id not in seen:
+        seen.add(node_id)
+        msg = messages[node_id]
+        ordered.append({"role": msg.get("role"), "content": msg.get("content", "")})
+        node_id = msg.get("parentId")
+
+    ordered.reverse()
+    return [m for m in ordered if m.get("role")]
 
 
 # ---------------------------------------------------------------------------
@@ -235,8 +283,13 @@ async def maybe_compress_chat(
     threshold_pct = _get_compression_threshold(model.name)
     threshold_tokens = int(context_window * threshold_pct)
     current_tokens = _count_tokens(compression["messages"], model.name)
+    show_continue_chat_hint = True  # TEST: erzwingt Button bei jeder Antwort — VOR LIVE auf False!
+    did_compress = False
 
     if current_tokens > threshold_tokens:
+        show_continue_chat_hint = True
+        did_compress = True
+
         if event_emitter:
             await event_emitter(
                 {
@@ -249,51 +302,112 @@ async def maybe_compress_chat(
                 }
             )
 
-        messages_to_compress: list[dict] = []
-
-        while compression["messages"] and current_tokens > threshold_tokens:
-            removed = compression["messages"].pop(0)
-            messages_to_compress.append(removed)
-            current_tokens = _count_tokens(compression["messages"], model.name)
-
-        existing_summary = compression.get("summary")
-
-        new_summary = await _generate_summary(
-            existing_summary=existing_summary,
-            messages_to_summarize=messages_to_compress,
+        await compress_chat(
+            compression,
             agent_model=model,
+            keep_budget=threshold_tokens,
             pii_active=pii_active,
             user=user,
         )
-        compression["summary"] = new_summary
 
-        if event_emitter:
-            await event_emitter(
-                {
-                    "type": "status",
-                    "data": {
-                        "action": "chat_compression",
-                        "description": "Compressing chat history",
-                        "done": True,
-                    },
-                }
-            )
+    if show_continue_chat_hint:
+        form_data["__continue_chat_action__"] = {
+            "action": "continue_chat_button",
+            "reason": "chat_too_long",
+        }
+
+    if did_compress and event_emitter:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "chat_compression",
+                    "description": "Compressing chat history",
+                    "done": True,
+                },
+            }
+        )
 
     # -----------------------------------------------------------------------
     # Rebuild the LiteLLM payload when there is something to inject into the
     # system prompt (a summary and/or a "chat is long" notice).
     # -----------------------------------------------------------------------
     summary = compression.get("summary")
-    if summary:
+    if summary or show_continue_chat_hint:
         system_msgs = [m for m in all_messages if m.get("role") == "system"]
         form_data["messages"] = _build_payload(
             system_msgs,
             summary,
             compression["messages"],
-            notice_text=CHAT_COMPRESSION_NOTICE,
+            # Only nudge "start a new chat" when THIS chat is actually long — not merely
+            # because a carried-over summary exists (continued chats begin with one).
+            notice_text=CHAT_COMPRESSION_NOTICE if show_continue_chat_hint else None,
         )
 
     # Persist the updated compression state
     _save_compression_state(chat_id, compression)
 
     return form_data
+
+
+async def compress_chat(
+    compression: dict,
+    agent_model: ModelModel,
+    keep_budget: int,
+    pii_active: bool = False,
+    user=None,
+) -> dict:
+    """Recursive compression shared by maybe_compress_chat and build_continuation_seed:
+    drop the oldest messages beyond `keep_budget` tokens and fold them into
+    compression["summary"] (keep_budget=0 folds the whole history). Mutates and returns
+    compression."""
+    dropped = _drop_to_budget(
+        compression["messages"], agent_model.name, keep_budget, min_keep=0
+    )
+
+    if not dropped:
+        return compression
+
+    compression["summary"] = await _generate_summary(
+        existing_summary=compression.get("summary"),
+        messages_to_summarize=dropped,
+        agent_model=agent_model,
+        pii_active=pii_active,
+        user=user,
+    )
+
+    return compression
+
+
+async def build_continuation_seed(
+    chat: dict,
+    agent_model: ModelModel,
+    chat_id: str | None = None,
+    pii_active: bool = False,
+    user=None,
+) -> dict | None:
+    """Build the "Continue in new chat" seed: summarise the whole history fresh (never
+    reuse the stored summary — it may be stale/inherited) via the shared compress_chat
+    with keep_budget=0, so nothing is dropped."""
+    messages = _extract_history_messages(chat)
+
+    if not messages:
+        return None
+
+    if pii_active and chat_id:
+        from beyond_the_loop.pii.session import PIISession, anonymize_messages
+
+        pii_session = PIISession(chat_id)
+        anonymize_messages(messages, pii_session)
+        pii_session.save()
+
+    compression = {"messages": messages, "summary": None}
+    await compress_chat(
+        compression, agent_model=agent_model, keep_budget=0, pii_active=pii_active, user=user
+    )
+
+    summary = compression.get("summary")
+    if not summary or not summary.strip():
+        return None
+
+    return {"messages": [], "summary": summary}

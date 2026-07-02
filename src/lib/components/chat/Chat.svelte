@@ -19,6 +19,7 @@
 		chatId,
 		chats,
 		chatTitle,
+		continuingInNewChatId,
 		companyConfig,
 		config,
 		currentChatPage,
@@ -51,7 +52,7 @@
 		removeDetails
 	} from '$lib/utils';
 
-	import { createNewChat, getAllTags, getChatById, getChatList, getTagsById, updateChatById } from '$lib/apis/chats';
+	import { createNewChat, getAllTags, getChatById, getChatList, compressChat, getTagsById, updateChatById } from '$lib/apis/chats';
 	import { generateMagicPrompt, generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { processWeb } from '$lib/apis/retrieval';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
@@ -251,6 +252,7 @@
 		_piiAbort.current?.abort();
 	});
 	let chat = null;
+	let continuationSeeded = false;
 	let tags = [];
 	let alert: Alert;
 
@@ -428,6 +430,9 @@
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
+					// Backend title-gen rewrites the whole chat JSON from a DB snapshot, dropping
+					// frontend-only fields (e.g. message.actions). Re-save live history to restore them.
+					await saveChatHandler($chatId, history);
 					currentChatPage.set(1);
 					await chats.set(await getChatList(localStorage.token, $currentChatPage));
 				} else if (type === 'chat:tags') {
@@ -444,6 +449,11 @@
 						if (continueButton) {
 							continueButton.click();
 						}
+					} else if (data.action === 'continue_chat_button') {
+						const actions = message.actions ?? [];
+						message.actions = actions.some((action) => action.action === data.action)
+							? actions
+							: [...actions, data];
 					}
 				} else if (type === 'confirmation') {
 					eventCallback = cb;
@@ -767,6 +777,7 @@
 	//////////////////////////
 
 	const initNewChat = async () => {
+		continuationSeeded = false;
 		selectedModels = $page.url.searchParams.get('models') ? $page.url.searchParams.get('models').split(',') : getDefaultModels();
 
 		await showControls.set(false);
@@ -831,6 +842,58 @@
 		setTimeout(() => chatInput?.focus(), 0);
 	};
 
+	let continuingInNewChat = false;
+
+	const continueInNewChat = async () => {
+		const sourceChatId = $chatId;
+		if (continuingInNewChat || !sourceChatId) {
+			return;
+		}
+
+		continuingInNewChat = true;
+
+		try {
+			const res = await compressChat(localStorage.token, sourceChatId);
+			if ($chatId !== sourceChatId) {
+				return;
+			}
+
+			if (!res?.success) {
+				toast.error($i18n.t('Could not carry over this chat context.'));
+				return;
+			}
+
+			// Create the new chat eagerly; the backend copies the source chat's
+			// summary + pii_session via source_chat_id.
+			const newChat = await createNewChat(localStorage.token, {
+				title: $i18n.t('New chat'),
+				models: selectedModels,
+				system: $settings.system ?? undefined,
+				params: params,
+				history: { messages: {}, currentId: null },
+				messages: [],
+				tags: [],
+				timestamp: Date.now(),
+				source_chat_id: sourceChatId
+			});
+
+			if (!newChat?.id) {
+				toast.error($i18n.t('Could not carry over this chat context.'));
+				return;
+			}
+
+			currentChatPage.set(1);
+			await chats.set(await getChatList(localStorage.token, $currentChatPage));
+			toast.success($i18n.t('The context of this conversation will be carried into the new chat.'));
+			await goto(`/c/${newChat.id}`);
+		} catch (e) {
+			toast.error(`${e}`);
+		} finally {
+			continuingInNewChat = false;
+			continuingInNewChatId.set(null);
+		}
+	};
+
 	const loadChat = async () => {
 		chatId.set(chatIdProp);
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
@@ -846,6 +909,7 @@
 			const chatContent = chat.chat;
 
 			if (chatContent) {
+				continuationSeeded = !!chatContent?.compression?.summary;
 				selectedModels =
 					(chatContent?.models ?? undefined) !== undefined
 						? chatContent.models
@@ -1130,6 +1194,7 @@
 			content,
 			added_content,
 			type,
+			data: eventData,
 			sources,
 			selected_model_id,
 			selectedModelId,
@@ -1141,6 +1206,13 @@
 
 		if (error) {
 			await handleOpenAIError(error, message);
+		}
+
+		if (type === 'action' && eventData?.action === 'continue_chat_button') {
+			const actions = message.actions ?? [];
+			message.actions = actions.some((action) => action.action === eventData.action)
+				? actions
+				: [...actions, eventData];
 		}
 
 		if (sources) {
@@ -1499,8 +1571,10 @@
 		}
 		history = history;
 
-		// Create new chat if newChat is true and first user message
-		if (newChat && _history.messages[_history.currentId].parentId === null) {
+		// Create a new chat only on a fresh page (_chatId empty). An already-loaded
+		// chat (e.g. an eager-created "continue in new chat") keeps its id so the
+		// first message doesn't spawn a duplicate.
+		if (newChat && _history.messages[_history.currentId].parentId === null && !_chatId) {
 			_chatId = await initChatHandler(_history);
 		}
 
@@ -2130,6 +2204,7 @@
 									{chatActionHandler}
 									{addMessages}
 									bottomPadding={files.length > 0}
+									on:continue-chat-context={continueInNewChat}
 								/>
 							</div>
 						</div>
@@ -2311,6 +2386,7 @@
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
 								piiAnonymizedCount={piiAnonymizedCount}
+								hideSuggestions={continuationSeeded}
 								{piiAnalyzing}
 								{piiResultsStale}
 								{piiNeverAnalyzed}
