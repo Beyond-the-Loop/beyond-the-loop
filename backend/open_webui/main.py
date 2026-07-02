@@ -344,12 +344,51 @@ async def commit_session_after_request(request: Request, call_next):
     return response
 
 
+access_log = logging.getLogger("access")
+
+# Endpoints that get hit on a fixed schedule by k8s/gcp probes — logging every
+# one would drown out the interesting requests. Add here only if the endpoint
+# is truly unactionable noise (probes, static asset ranges, etc).
+_ACCESS_LOG_SKIP_PATHS = {"/health", "/health/liveliness", "/api/health"}
+
+
 @app.middleware("http")
-async def check_url(request: Request, call_next):
-    start_time = int(time.time())
-    response = await call_next(request)
-    process_time = int(time.time()) - start_time
-    response.headers["X-Process-Time"] = str(process_time)
+async def access_log_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+    except Exception:
+        # Compute latency even on unhandled exceptions so we can spot broken
+        # routes in the metric; re-raise so the framework's own error handling
+        # still runs.
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        access_log.exception(
+            "request failed",
+            extra={
+                "event": "http_request",
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 500,
+                "duration_ms": duration_ms,
+            },
+        )
+        raise
+
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    response.headers["X-Process-Time"] = str(duration_ms)
+
+    if request.url.path not in _ACCESS_LOG_SKIP_PATHS:
+        access_log.info(
+            "request",
+            extra={
+                "event": "http_request",
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+            },
+        )
     return response
 
 
@@ -539,6 +578,14 @@ async def chat_completion(
         user=Depends(get_verified_user),
 ):
     tasks = form_data.pop("background_tasks", None)
+    is_streaming = bool(form_data.get("stream", False))
+    # Per-phase timing so we can tell in the logs whether latency comes from
+    # our own middleware (RAG/PII/prompt build) or from the provider's initial
+    # response. See `event=chat_enqueue` log below for the aggregated shape.
+    t_start = time.perf_counter()
+    t_payload_done = None
+    t_litellm_done = None
+    model_name_for_log = None
 
     try:
         model_id = form_data.get("model", None)
@@ -547,6 +594,8 @@ async def chat_completion(
             model = SMART_ROUTER_MODEL
         else:
             model = Models.get_model_by_id(model_id)
+
+        model_name_for_log = getattr(model, "name", None) if model else None
 
         metadata = {
             "user_id": user.id,
@@ -562,6 +611,7 @@ async def chat_completion(
         form_data, metadata, events, model = await process_chat_payload(
             request, form_data, metadata, user, model
         )
+        t_payload_done = time.perf_counter()
 
     except ClientDisconnectedError:
         log.info("Client disconnected during chat payload processing")
@@ -585,10 +635,31 @@ async def chat_completion(
 
     try:
         response, model = await chat_completion_handler(form_data, user, model)
+        t_litellm_done = time.perf_counter()
 
-        return await process_chat_response(
+        result = await process_chat_response(
             request, response, form_data, user, events, metadata, tasks, model
         )
+        t_response_done = time.perf_counter()
+
+        # For stream=true this is enqueue time (task_id returned, actual tokens
+        # arrive later via Socket.IO — see `event=chat_stream_end` for that).
+        # For stream=false this is the full request/response time end-to-end.
+        log.info(
+            "chat completion done",
+            extra={
+                "event": "chat_enqueue",
+                "stream": is_streaming,
+                "model": getattr(model, "name", model_name_for_log),
+                "model_id": form_data.get("model"),
+                "payload_ms": round((t_payload_done - t_start) * 1000, 2),
+                "litellm_ms": round((t_litellm_done - t_payload_done) * 1000, 2),
+                "response_ms": round((t_response_done - t_litellm_done) * 1000, 2),
+                "total_ms": round((t_response_done - t_start) * 1000, 2),
+                "task_id": result.get("task_id") if isinstance(result, dict) else None,
+            },
+        )
+        return result
     except Exception as e:
         log.error(f"Error processing chat response: {e}")
         raise HTTPException(
