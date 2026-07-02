@@ -141,11 +141,22 @@ async def select_model(
         ]
 
         ui_settings = getattr(getattr(user, "settings", None), "ui", None) or {}
-        if ui_settings.get("smartRouterEuOnly"):
+        eu_only = bool(ui_settings.get("smartRouterEuOnly"))
+        if eu_only:
             routable_models = [
                 m for m in routable_models
                 if LITELLM_MODEL_CONFIG.get(m.name, {}).get("hosted_in") == "EU"
             ]
+
+        # Image generation always routes to a fixed model instead of arena
+        # ranking: GPT Image 2 by default, or Nano Banana (EU-hosted) when the
+        # user has the EU-only smart-router filter enabled.
+        if "image_generation" in decision.required_tools:
+            target_name = "Nano Banana" if eu_only else "GPT Image 2"
+            forced = next((m for m in routable_models if m.name == target_name), None)
+            if forced is None:
+                return None, decision, []
+            return forced, decision, [{"name": forced.name, "score": 0}]
 
         # --- Step 1: capability hard-filter ---
         candidates = []
