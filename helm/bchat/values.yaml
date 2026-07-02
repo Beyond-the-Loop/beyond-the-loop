@@ -58,6 +58,14 @@ app:
   pdb:
     enabled: true
     minAvailable: 0  # 0 in single-replica staging; bumped to 1 in prod values
+  backendConfig:
+    # Raises the GCE load balancer -> backend response timeout from the
+    # 30s default. Chat streams routinely exceed 30s; the old value caused
+    # 502s on legitimate long completions.
+    timeoutSec: 300
+    # During rolling updates, let the LB keep sending traffic to a
+    # terminating pod for this long so in-flight streams can finish.
+    drainingTimeoutSec: 60
 
 # LiteLLM deployment
 litellm:
