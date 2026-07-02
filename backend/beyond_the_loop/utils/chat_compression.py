@@ -283,6 +283,7 @@ async def maybe_compress_chat(
     threshold_pct = _get_compression_threshold(model.name)
     threshold_tokens = int(context_window * threshold_pct)
     current_tokens = _count_tokens(compression["messages"], model.name)
+    show_continue_chat_hint = False
     did_compress = False
 
     if current_tokens > threshold_tokens:
