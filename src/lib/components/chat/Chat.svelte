@@ -2345,6 +2345,7 @@
 								showPiiPanel={piiPanelVisible}
 								piiCount={uniquePIICount}
 								piiAnonymizedCount={piiAnonymizedCount}
+								hideSuggestions={continuationSeeded}
 								{piiAnalyzing}
 								{piiResultsStale}
 								{piiNeverAnalyzed}
