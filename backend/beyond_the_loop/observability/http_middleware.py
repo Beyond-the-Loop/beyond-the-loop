@@ -15,7 +15,7 @@ import time
 
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import Route
+from starlette.routing import Mount, Route
 
 from beyond_the_loop.observability.metrics import (
     http_request_duration_seconds,
@@ -26,12 +26,17 @@ from beyond_the_loop.observability.metrics import (
 def _route_template(request: Request) -> str:
     """Return the matched route template, or 'unmatched'.
 
-    Starlette sets scope["route"] to the matched Route object during
-    routing. Route.path holds the template (with `{param}` placeholders).
+    Starlette sets scope["route"] to the matched routing entry. For a
+    Route this is `/items/{item_id}`; for a Mount (e.g. `/metrics`,
+    `/ws`) the sub-app owns any deeper routing and we can only see the
+    mount prefix. Mount paths are literals declared in main.py — bounded
+    — so exposing them as labels is cardinality-safe.
     """
     route = request.scope.get("route")
     if isinstance(route, Route):
         return route.path
+    if isinstance(route, Mount):
+        return route.path or "unmatched"
     return "unmatched"
 
 

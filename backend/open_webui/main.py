@@ -699,7 +699,7 @@ async def chat_completion(
         log.info("Client disconnected during chat payload processing")
         record_chat_completion(
             model=model_name_for_log,
-            payload_seconds=(time.perf_counter() - t_start) if t_payload_done is None else (t_payload_done - t_start),
+            payload_seconds=None,
             litellm_seconds=None,
             total_seconds=time.perf_counter() - t_start,
             status="error",
@@ -713,7 +713,7 @@ async def chat_completion(
         # 400 because the failure is server-side, not a malformed client request.
         record_chat_completion(
             model=model_name_for_log,
-            payload_seconds=(time.perf_counter() - t_start) if t_payload_done is None else (t_payload_done - t_start),
+            payload_seconds=None,
             litellm_seconds=None,
             total_seconds=time.perf_counter() - t_start,
             status="error",
@@ -726,7 +726,7 @@ async def chat_completion(
         log.error(f"Error processing chat payload: {e}")
         record_chat_completion(
             model=model_name_for_log,
-            payload_seconds=(time.perf_counter() - t_start) if t_payload_done is None else (t_payload_done - t_start),
+            payload_seconds=None,
             litellm_seconds=None,
             total_seconds=time.perf_counter() - t_start,
             status="error",
