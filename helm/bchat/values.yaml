@@ -121,11 +121,59 @@ gateway:
   staticIpName: ""  # e.g. bchat-staging-ingress-ip
   managedCertSecondaryNames: []  # extra SANs for the managed cert
 
-# CronJob for monthly credit recharge / daily checks
+# Scheduled jobs. Each entry becomes a K8s CronJob that POSTs to an internal
+# endpoint on the app pod. Schedules are interpreted in the timezone below
+# (matches the times the old in-process APScheduler used before we moved cron
+# out of the request-serving pod).
 cronjobs:
+  chatArchival:
+    enabled: true
+    name: chat-archival
+    schedule: "0 23 * * *"  # 23:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/chat-archival"
+    activeDeadlineSeconds: 3600
+    curlMaxTime: 3600
+  fileCleanup:
+    enabled: true
+    name: file-cleanup
+    schedule: "30 23 * * *"  # 23:30 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/file-cleanup"
+    activeDeadlineSeconds: 3600
+    curlMaxTime: 3600
+  companiesAdoptionRate:
+    enabled: true
+    name: companies-adoption-rate
+    schedule: "0 1 * * *"  # 01:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/companies-adoption-rate"
+    activeDeadlineSeconds: 1800
+    curlMaxTime: 1800
   creditRechargeCheck:
     enabled: true
-    schedule: "0 2 * * *"  # 02:00 UTC daily
+    name: credit-recharge-check
+    schedule: "0 1 * * *"  # 01:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/credit-recharge-check"
+    activeDeadlineSeconds: 1800
+    curlMaxTime: 1800
+  companyCreditConsumption:
+    enabled: true
+    name: company-credit-consumption
+    schedule: "30 1 * * *"  # 01:30 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/company-credit-consumption"
+    activeDeadlineSeconds: 1800
+    curlMaxTime: 1800
+  userCreditConsumption:
+    enabled: true
+    name: user-credit-consumption
+    schedule: "0 2 * * *"  # 02:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/user-credit-consumption"
+    activeDeadlineSeconds: 3600
+    curlMaxTime: 3600
 
 # Litellm config — full YAML inlined. Override via --set-file in CI.
 litellmConfig: ""

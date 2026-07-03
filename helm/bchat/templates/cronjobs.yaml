@@ -1,0 +1,48 @@
+{{- $ns := .Release.Namespace -}}
+{{- $labels := include "bchat.labels" . -}}
+{{- $secretName := include "bchat.appConfigName" . -}}
+{{- range $key, $job := .Values.cronjobs }}
+{{- if $job.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-{{ $job.name }}
+  labels:
+    {{- $labels | nindent 4 }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  {{- with $job.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: {{ $job.activeDeadlineSeconds | default 3600 }}
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: trigger
+              image: curlimages/curl:8.10.1
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  curl -fsS --max-time {{ $job.curlMaxTime | default 3600 }} \
+                    -X POST \
+                    -H "X-Internal-Trigger: ${INTERNAL_TRIGGER_SECRET}" \
+                    "http://app.{{ $ns }}.svc.cluster.local:8080{{ $job.path }}"
+              env:
+                - name: INTERNAL_TRIGGER_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $secretName }}
+                      key: INTERNAL_TRIGGER_SECRET
+{{- end }}
+{{- end }}

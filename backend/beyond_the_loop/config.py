@@ -609,7 +609,7 @@ load_oauth_providers()
 
 STATIC_DIR = Path(os.getenv("STATIC_DIR", OPEN_WEBUI_DIR / "static")).resolve()
 
-frontend_favicon = FRONTEND_BUILD_DIR / "static" / "favicon.png"
+frontend_favicon = FRONTEND_BUILD_DIR / "favicon.png"
 
 if frontend_favicon.exists():
     try:
@@ -617,17 +617,7 @@ if frontend_favicon.exists():
     except Exception as e:
         logging.error(f"An error occurred: {e}")
 else:
-    logging.warning(f"Frontend favicon not found at {frontend_favicon}")
-
-frontend_splash = FRONTEND_BUILD_DIR / "static" / "splash.png"
-
-if frontend_splash.exists():
-    try:
-        shutil.copyfile(frontend_splash, STATIC_DIR / "splash.png")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-else:
-    logging.warning(f"Frontend splash not found at {frontend_splash}")
+    logging.warning(f"Frontend favicon not found at {frontend_favicon}, using default")
 
 ####################################
 # STORAGE PROVIDER

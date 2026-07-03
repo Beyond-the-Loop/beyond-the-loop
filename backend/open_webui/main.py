@@ -105,6 +105,7 @@ from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import file_archival
+from beyond_the_loop.routers import internal_cron
 from beyond_the_loop.routers import intercom
 from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
 from beyond_the_loop.routers import mcp_servers
@@ -116,7 +117,6 @@ from beyond_the_loop.routers import prompts
 from beyond_the_loop.routers import public_api
 from beyond_the_loop.routers import users
 from beyond_the_loop.routers.litellm import generate_chat_completion as chat_completion_handler
-from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
@@ -195,18 +195,6 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
-log.info(rf"""
-
-
-▀█████████▄     ▄████████ ▄██   ▄    ▄██████▄  ███▄▄▄▄   ████████▄           ███        ▄█    █▄       ▄████████       ▄█        ▄██████▄   ▄██████▄     ▄███████▄ 
-  ███    ███   ███    ███ ███   ██▄ ███    ███ ███▀▀▀██▄ ███   ▀███      ▀█████████▄   ███    ███     ███    ███      ███       ███    ███ ███    ███   ███    ███ 
-  ███    ███   ███    █▀  ███▄▄▄███ ███    ███ ███   ███ ███    ███         ▀███▀▀██   ███    ███     ███    █▀       ███       ███    ███ ███    ███   ███    ███ 
- ▄███▄▄▄██▀   ▄███▄▄▄     ▀▀▀▀▀▀███ ███    ███ ███   ███ ███    ███          ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄          ███       ███    ███ ███    ███   ███    ███ 
-▀▀███▀▀▀██▄  ▀▀███▀▀▀     ▄██   ███ ███    ███ ███   ███ ███    ███          ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀          ███       ███    ███ ███    ███ ▀█████████▀  
-  ███    ██▄   ███    █▄  ███   ███ ███    ███ ███   ███ ███    ███          ███       ███    ███     ███    █▄       ███       ███    ███ ███    ███   ███        
-  ███    ███   ███    ███ ███   ███ ███    ███ ███   ███ ███   ▄███          ███       ███    ███     ███    ███      ███▌    ▄ ███    ███ ███    ███   ███        
-▄█████████▀    ██████████  ▀█████▀   ▀██████▀   ▀█   █▀  ████████▀          ▄████▀     ███    █▀      ██████████      █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀                                                                                                                    ▀                                             
-""")
 
 
 @asynccontextmanager
@@ -218,13 +206,7 @@ async def lifespan(app: FastAPI):
         # It will just reset the in-memory config to the default values
         reset_config(None)
 
-    # Start the task scheduler for automated processes
-    start_scheduler()
-
     yield
-
-    # Shutdown the scheduler gracefully
-    shutdown_scheduler()
 
 
 app = FastAPI(
@@ -546,6 +528,7 @@ app.include_router(companies.router, prefix="/api/v1/companies", tags=["companie
 app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
 app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["chat-archival"])
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
+app.include_router(internal_cron.router, prefix="/internal/cron", tags=["internal-cron"], include_in_schema=False)
 app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
 app.include_router(pii_router.router, prefix="/api/v1/pii", tags=["pii"])
 app.include_router(public_api.router, prefix="/api/openai", tags=["public-api"])
