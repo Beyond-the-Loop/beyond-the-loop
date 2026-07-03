@@ -122,6 +122,7 @@ from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_s
 from beyond_the_loop.services.payments_service import payments_service
 from beyond_the_loop.observability.metrics import metrics_app as _metrics_app
 from beyond_the_loop.observability.http_middleware import prometheus_http_middleware
+from beyond_the_loop.observability.chat_metrics import record_chat_completion
 from beyond_the_loop.socket.main import (
     app as socket_app,
 )
@@ -696,6 +697,13 @@ async def chat_completion(
 
     except ClientDisconnectedError:
         log.info("Client disconnected during chat payload processing")
+        record_chat_completion(
+            model=model_name_for_log,
+            payload_seconds=(time.perf_counter() - t_start) if t_payload_done is None else (t_payload_done - t_start),
+            litellm_seconds=None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         return JSONResponse(
             status_code=499,
             content={"detail": "Client disconnected"},
@@ -703,12 +711,26 @@ async def chat_completion(
     except PIIRedactionError as e:
         # Fail-closed: anonymization broke mid-flight. Returning 503 instead of
         # 400 because the failure is server-side, not a malformed client request.
+        record_chat_completion(
+            model=model_name_for_log,
+            payload_seconds=(time.perf_counter() - t_start) if t_payload_done is None else (t_payload_done - t_start),
+            litellm_seconds=None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e),
         )
     except Exception as e:
         log.error(f"Error processing chat payload: {e}")
+        record_chat_completion(
+            model=model_name_for_log,
+            payload_seconds=(time.perf_counter() - t_start) if t_payload_done is None else (t_payload_done - t_start),
+            litellm_seconds=None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -726,6 +748,9 @@ async def chat_completion(
         # For stream=true this is enqueue time (task_id returned, actual tokens
         # arrive later via Socket.IO — see `event=chat_stream_end` for that).
         # For stream=false this is the full request/response time end-to-end.
+        payload_seconds = t_payload_done - t_start
+        litellm_seconds = t_litellm_done - t_payload_done
+        total_seconds = t_response_done - t_start
         log.info(
             "chat completion done",
             extra={
@@ -733,16 +758,30 @@ async def chat_completion(
                 "stream": is_streaming,
                 "model": getattr(model, "name", model_name_for_log),
                 "model_id": form_data.get("model"),
-                "payload_ms": round((t_payload_done - t_start) * 1000, 2),
-                "litellm_ms": round((t_litellm_done - t_payload_done) * 1000, 2),
+                "payload_ms": round(payload_seconds * 1000, 2),
+                "litellm_ms": round(litellm_seconds * 1000, 2),
                 "response_ms": round((t_response_done - t_litellm_done) * 1000, 2),
-                "total_ms": round((t_response_done - t_start) * 1000, 2),
+                "total_ms": round(total_seconds * 1000, 2),
                 "task_id": result.get("task_id") if isinstance(result, dict) else None,
             },
+        )
+        record_chat_completion(
+            model=getattr(model, "name", model_name_for_log),
+            payload_seconds=payload_seconds,
+            litellm_seconds=litellm_seconds,
+            total_seconds=total_seconds,
+            status="success",
         )
         return result
     except Exception as e:
         log.error(f"Error processing chat response: {e}")
+        record_chat_completion(
+            model=getattr(model, "name", model_name_for_log),
+            payload_seconds=(t_payload_done - t_start) if t_payload_done else None,
+            litellm_seconds=(t_litellm_done - t_payload_done) if t_litellm_done else None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
