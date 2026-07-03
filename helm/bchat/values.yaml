@@ -194,3 +194,9 @@ arenaRankings: ""
 # Cloud Armor security policy attached to backend service (optional).
 cloudArmor:
   policyName: ""  # e.g. bchat-prod-armor
+
+# Observability configuration (GKE Managed Prometheus, etc.)
+observability:
+  podMonitoring:
+    enabled: false
+    interval: 30s

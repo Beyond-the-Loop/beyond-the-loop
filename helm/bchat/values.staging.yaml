@@ -17,3 +17,7 @@ gateway:
 
 cloudArmor:
   policyName: ""  # disabled in staging
+
+observability:
+  podMonitoring:
+    enabled: true

@@ -1,0 +1,17 @@
+{{- if .Values.observability.podMonitoring.enabled }}
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: bchat-app
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  selector:
+    matchLabels:
+      {{- include "bchat.appSelector" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.observability.podMonitoring.interval | default "30s" }}
+{{- end }}

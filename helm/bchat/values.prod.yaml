@@ -17,3 +17,7 @@ gateway:
 
 cloudArmor:
   policyName: bchat-prod-armor
+
+observability:
+  podMonitoring:
+    enabled: true
