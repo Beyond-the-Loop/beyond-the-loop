@@ -161,6 +161,7 @@ platformdirs==4.3.8
 portalocker==2.10.1
 posthog==6.3.3
 primp==0.15.0
+prometheus-client==0.21.1
 propcache==0.3.2
 proto-plus==1.26.1
 protobuf==4.25.8
@@ -190,7 +191,6 @@ python-engineio==4.12.2
 python-iso639==2025.2.18
 python-jose==3.5.0
 python-json-logger==2.0.7
-prometheus-client==0.21.1
 python-magic==0.4.27
 python-multipart==0.0.18
 python-oxmsg==0.0.2

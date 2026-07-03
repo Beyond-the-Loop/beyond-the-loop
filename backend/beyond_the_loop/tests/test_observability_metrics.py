@@ -5,7 +5,6 @@ We check three things:
 2. Label sets match the design (cardinality safety).
 3. The ASGI /metrics app exposes them in Prometheus text format.
 """
-import pytest
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from starlette.testclient import TestClient
