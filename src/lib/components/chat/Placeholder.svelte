@@ -45,6 +45,7 @@
 	export let mcpDisabledServerIds: string[] = [];
 	export let isMagicLoading;
 	export let initNewChatCompleted;
+	export let hideSuggestions = false;
 
 	// PII toggle: state + show flag + click callback are owned by the parent
 	// (Chat.svelte). We just render the button and call the callback. No bind:.
@@ -338,17 +339,19 @@
 			</div>
 		</div>
 	</div>
-	<div class="font-primary" in:fade={{ duration: 200, delay: 200 }}>
-		<div class="mx-auto max-w-3xl min-h-[55px]">
-			<Suggestions
-				suggestionPrompts={models[selectedModelIdx]?.meta?.suggestion_prompts ??
-					$config?.default_prompt_suggestions ??
-					[]}
-				inputValue={prompt}
-				on:select={(e) => {
-					selectSuggestionPrompt(e.detail);
-				}}
-			/>
+	{#if !hideSuggestions}
+		<div class="font-primary" in:fade={{ duration: 200, delay: 200 }}>
+			<div class="mx-auto max-w-3xl min-h-[55px]">
+				<Suggestions
+					suggestionPrompts={models[selectedModelIdx]?.meta?.suggestion_prompts ??
+						$config?.default_prompt_suggestions ??
+						[]}
+					inputValue={prompt}
+					on:select={(e) => {
+						selectSuggestionPrompt(e.detail);
+					}}
+				/>
+			</div>
 		</div>
-	</div>
+	{/if}
 </div>

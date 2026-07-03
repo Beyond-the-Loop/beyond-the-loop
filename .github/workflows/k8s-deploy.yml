@@ -102,7 +102,13 @@ jobs:
 
       - name: Install gke-gcloud-auth-plugin
         run: |
-          gcloud --quiet components install gke-gcloud-auth-plugin
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+          sudo apt-get update
+          sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
+
+      - name: Activate gcloud CLI with WIF credentials
+        run: gcloud auth login --brief --cred-file="$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Get cluster credentials
         env:

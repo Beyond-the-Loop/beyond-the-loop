@@ -83,6 +83,7 @@
 				{regenerateResponse}
 				{addMessages}
 				{readOnly}
+				on:continue-chat-context={() => dispatch('continue-chat-context')}
 			/>
 		{:else}
 			<MultiResponseMessages
@@ -103,6 +104,7 @@
 				{triggerScroll}
 				{addMessages}
 				{readOnly}
+				on:continue-chat-context={() => dispatch('continue-chat-context')}
 			/>
 		{/if}
 	{/if}
