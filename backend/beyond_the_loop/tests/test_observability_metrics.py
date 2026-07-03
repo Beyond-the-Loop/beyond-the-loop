@@ -35,14 +35,14 @@ def test_websocket_gauge_has_no_labels():
 
 
 def test_http_histogram_buckets_are_tuned_for_sub_second_traffic():
-    # +Inf is appended automatically; verify our custom edges.
-    upper_bounds = http_request_duration_seconds._upper_bounds
-    assert upper_bounds[:10] == (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
+    # prometheus_client stores buckets as a list of floats with +Inf appended.
+    upper_bounds = list(http_request_duration_seconds._upper_bounds)
+    assert upper_bounds[:10] == [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
 
 
 def test_completion_histogram_buckets_are_tuned_for_multi_second_llm_calls():
-    upper_bounds = chat_completion_duration_seconds._upper_bounds
-    assert upper_bounds[:10] == (0.1, 0.5, 1, 2, 5, 10, 20, 30, 60, 120)
+    upper_bounds = list(chat_completion_duration_seconds._upper_bounds)
+    assert upper_bounds[:10] == [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0]
 
 
 def test_metrics_endpoint_serves_prometheus_text():
