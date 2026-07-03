@@ -7,7 +7,7 @@ import { scenario, vu } from 'k6/execution';
 const BASE_URL = __ENV.BASE_URL || 'https://staging.chat.beyondtheloop.ai';
 const MODEL_ID = __ENV.MODEL_ID || fail('MODEL_ID env var required (DB id of a Model row, not the friendly name)');
 const THINK_TIME = Number(__ENV.THINK_TIME || 2);
-const STREAM = (__ENV.STREAM || 'true') === 'true';
+const STREAM = (__ENV.STREAM || 'true') === 'false';
 // How many small-body samples to log per VU. Keeps output readable while
 // still surfacing whether "successful" responses are real content or the
 // server's short SSE error frame.
