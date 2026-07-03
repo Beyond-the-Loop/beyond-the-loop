@@ -777,8 +777,8 @@ async def chat_completion(
         log.error(f"Error processing chat response: {e}")
         record_chat_completion(
             model=getattr(model, "name", model_name_for_log),
-            payload_seconds=(t_payload_done - t_start) if t_payload_done else None,
-            litellm_seconds=(t_litellm_done - t_payload_done) if t_litellm_done else None,
+            payload_seconds=(t_payload_done - t_start) if t_payload_done is not None else None,
+            litellm_seconds=(t_litellm_done - t_payload_done) if t_litellm_done is not None else None,
             total_seconds=time.perf_counter() - t_start,
             status="error",
         )

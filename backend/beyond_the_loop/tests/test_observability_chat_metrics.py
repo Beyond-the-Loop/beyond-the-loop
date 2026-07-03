@@ -62,6 +62,13 @@ def test_error_status_records_counter_but_still_observes_total():
     )
     assert after == baseline + 1.0
 
+    # The "still observes total" half of the test name: the total-phase
+    # histogram should have grown by at least the observed value.
+    total = chat_completion_duration_seconds.labels(
+        model="Claude Sonnet 4.6", phase="total"
+    )
+    assert total._sum.get() >= 0.4
+
 
 def test_none_model_falls_back_to_unknown_label():
     # If model resolution failed upstream, we still want a metric, just
