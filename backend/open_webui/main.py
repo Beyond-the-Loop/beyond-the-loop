@@ -400,7 +400,7 @@ logging.getLogger("uvicorn.access").disabled = True
 logging.getLogger("engineio.server").setLevel(logging.WARNING)
 
 # Health probes hit on a fixed schedule and are pure noise.
-_ACCESS_LOG_SKIP_PATHS = {"/health", "/health/liveliness", "/api/health"}
+_ACCESS_LOG_SKIP_PATHS = {"/health", "/health/liveliness", "/api/health", "/metrics"}
 
 # Static assets: SvelteKit fingerprints these under /_app/immutable/ (cached
 # forever by CDN), plus root-level icons/manifests. All unactionable.
@@ -492,6 +492,9 @@ app.add_middleware(
 )
 
 app.mount("/ws", socket_app)
+
+from beyond_the_loop.observability.metrics import metrics_app as _metrics_app
+app.mount("/metrics", _metrics_app)
 
 app.include_router(litellm.router, prefix="/openai", tags=["openai"])
 
