@@ -11,6 +11,14 @@ on:
           - staging
           - production
         default: 'staging'
+      strategy:
+        description: 'App deployment strategy. Pick "Recreate" only when this release contains a destructive DB migration (drop/rename/type-change) — expect ~45s downtime. Default RollingUpdate = zero downtime.'
+        required: true
+        type: choice
+        options:
+          - RollingUpdate
+          - Recreate
+        default: 'RollingUpdate'
 
 env:
   PROJECT_ID: beyond-chat-1111
@@ -112,6 +120,7 @@ jobs:
         env:
           ENV: ${{ github.event.inputs.environment == 'production' && 'prod' || 'staging' }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          APP_STRATEGY: ${{ github.event.inputs.strategy }}
         run: |
           ./scripts/deploy.sh
 

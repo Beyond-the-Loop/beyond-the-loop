@@ -41,6 +41,8 @@ serviceAccount:
 
 # App deployment
 app:
+  strategy:
+    type: RollingUpdate
   replicas: 2
   resources:
     requests:
@@ -120,6 +122,14 @@ gateway:
   # Static IP must be reserved beforehand and its name supplied here.
   staticIpName: ""  # e.g. bchat-staging-ingress-ip
   managedCertSecondaryNames: []  # extra SANs for the managed cert
+
+# DB migration Job — runs `alembic upgrade head` as a pre-upgrade Helm hook
+# using the new release's image. Helm blocks the release on failure so old
+# pods keep serving traffic.
+migrationJob:
+  enabled: true
+  activeDeadlineSeconds: 900  # 15 min — headroom for large migrations
+  # resources are optional; defaults inside the template are conservative
 
 # Scheduled jobs. Each entry becomes a K8s CronJob that POSTs to an internal
 # endpoint on the app pod. Schedules are interpreted in the timezone below

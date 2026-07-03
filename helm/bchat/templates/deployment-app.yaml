@@ -10,10 +10,12 @@ spec:
   replicas: {{ .Values.app.replicas }}
   {{- end }}
   strategy:
-    type: RollingUpdate
+    type: {{ .Values.app.strategy.type }}
+    {{- if eq .Values.app.strategy.type "RollingUpdate" }}
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
+    {{- end }}
   selector:
     matchLabels:
       {{- include "bchat.appSelector" . | nindent 6 }}
@@ -46,6 +48,10 @@ spec:
               value: "0.0.0.0"
             - name: ENVIRONMENT
               value: {{ .Values.environment | quote }}
+            # Migrations are run by the pre-upgrade Helm hook Job, never by
+            # app pods (otherwise every replica would race the Job on boot).
+            - name: ENABLE_DB_MIGRATIONS
+              value: "false"
           volumeMounts:
             - name: arena
               mountPath: /app/arena_rankings.json

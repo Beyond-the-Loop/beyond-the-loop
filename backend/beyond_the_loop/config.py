@@ -35,15 +35,12 @@ logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 ####################################
 
 
-# Function to run the alembic migrations
 def run_migrations():
     try:
         from alembic import command
         from alembic.config import Config
 
         alembic_cfg = Config(OPEN_WEBUI_DIR / "alembic.ini")
-
-        # Set the script location dynamically
         migrations_path = OPEN_WEBUI_DIR / "migrations"
         alembic_cfg.set_main_option("script_location", str(migrations_path))
 
@@ -52,7 +49,14 @@ def run_migrations():
         log.error(f"Migration error: {e}")
 
 
-run_migrations()
+# In K8s the pre-upgrade Helm hook Job runs migrations before the app pods roll
+# out, so app pods must never race the Job by trying to migrate themselves.
+# Default OFF: safe in prod by construction. Set ENABLE_DB_MIGRATIONS=true in
+# your local .env for the dev-time convenience of auto-migrating on `./start.sh`.
+if os.environ.get("ENABLE_DB_MIGRATIONS", "false").lower() == "true":
+    run_migrations()
+else:
+    log.info("Skipping startup migrations (ENABLE_DB_MIGRATIONS not truthy)")
 
 
 ####################################

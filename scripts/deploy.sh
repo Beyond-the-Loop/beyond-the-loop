@@ -10,6 +10,9 @@ PROJECT_ID="${PROJECT_ID:-beyond-chat-1111}"
 REGION="${REGION:-europe-west3}"
 ENV="${ENV:?ENV is required}"
 IMAGE_TAG="${IMAGE_TAG:?IMAGE_TAG is required (git short sha)}"
+# App deployment strategy: RollingUpdate (default, zero downtime) or Recreate
+# (~45s downtime, use for releases with destructive DB migrations).
+APP_STRATEGY="${APP_STRATEGY:-RollingUpdate}"
 CLUSTER_NAME="gke-${ENV}"
 
 # Ensure kubectl context
@@ -25,6 +28,8 @@ VALUES_ENV="${CHART_PATH}/values.${ENV}.yaml"
 
 PROJECT_NUMBER=$(gcloud --project "$PROJECT_ID" projects describe "$PROJECT_ID" --format='value(projectNumber)')
 
+echo "==> Deploying app with strategy: ${APP_STRATEGY}"
+
 helm upgrade --install bchat "$CHART_PATH" \
   --namespace "$ENV" \
   --create-namespace \
@@ -33,6 +38,7 @@ helm upgrade --install bchat "$CHART_PATH" \
   --set image.tag="$IMAGE_TAG" \
   --set mcpImage.tag="$IMAGE_TAG" \
   --set gcp.projectNumber="$PROJECT_NUMBER" \
+  --set app.strategy.type="$APP_STRATEGY" \
   --set-file litellmConfig="$LITELLM_CONFIG_PATH" \
   --set-file arenaRankings="$ARENA_RANKINGS_PATH" \
   --timeout 10m
