@@ -41,7 +41,7 @@ serviceAccount:
 
 # App deployment
 app:
-  replicas: 1
+  replicas: 2
   resources:
     requests:
       cpu: 500m
@@ -52,12 +52,12 @@ app:
   terminationGracePeriodSeconds: 60
   hpa:
     enabled: true
-    minReplicas: 1
-    maxReplicas: 4
+    minReplicas: 2
+    maxReplicas: 10
     targetCPU: 70
   pdb:
     enabled: true
-    minAvailable: 0  # 0 in single-replica staging; bumped to 1 in prod values
+    minAvailable: 1
   backendConfig:
     # Raises the GCE load balancer -> backend response timeout from the
     # 30s default. Chat streams routinely exceed 30s; the old value caused
@@ -69,7 +69,7 @@ app:
 
 # LiteLLM deployment
 litellm:
-  replicas: 1
+  replicas: 2
   resources:
     requests:
       cpu: 250m
@@ -78,14 +78,17 @@ litellm:
       cpu: 1
       memory: 1Gi
   hpa:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 4
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
     targetCPU: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
 
 # Microsoft 365 MCP server
 mcp:
-  replicas: 1
+  replicas: 2
   publicUrl: ""  # e.g. https://mcp-m365-staging.beyondtheloop.ai
   resources:
     requests:
@@ -94,6 +97,14 @@ mcp:
     limits:
       cpu: 500m
       memory: 512Mi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
 
 # External Secrets Operator — pulls all secrets matching this regex from GCP Secret Manager
 # and rewrites the names by stripping the prefix.

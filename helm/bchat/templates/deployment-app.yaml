@@ -6,7 +6,9 @@ metadata:
     {{- include "bchat.labels" . | nindent 4 }}
     app.kubernetes.io/component: app
 spec:
+  {{- if not .Values.app.hpa.enabled }}
   replicas: {{ .Values.app.replicas }}
+  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
