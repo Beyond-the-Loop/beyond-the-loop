@@ -63,16 +63,16 @@ model_list:
       # Workaround to use the eu endpoint until https://github.com/BerriAI/litellm/issues/25926 is fixed
       api_base: "https://aiplatform.eu.rep.googleapis.com/v1/projects/beyond-chat-1111/locations/eu/publishers/anthropic/models/claude-sonnet-5"
     model_info:
-      context_window: '200K'
-      costFactor: 3
+      context_window: '1M'
+      costFactor: 2
       description: "Balanced model with strong coding and analytical skills."
       hosted_in: 'EU'
       intelligence_score: 4.5
-      knowledge_cutoff: '2025-08-01'
+      knowledge_cutoff: '2026-01-01'
       organization: 'Anthropic'
       reasoning: true
-      speed: 1.5
-      tokens_per_second: 67
+      speed: 2
+      tokens_per_second: 72
       supports_image_input: true
 
   - model_name: "Claude Opus 4.6"
