@@ -61,7 +61,7 @@ def run_chat_archival(x_internal_trigger: str | None = Header(default=None)):
     log.info("internal-cron: chat archival start")
     result = chat_archival_service.run_daily_archival_process()
     if not result.get("success"):
-        raise HTTPException(status_code=500, detail=result.get("error", "chat archival failed"))
+        raise HTTPException(status_code=500, detail="chat archival failed")
     return result
 
 
