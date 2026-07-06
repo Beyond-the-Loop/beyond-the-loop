@@ -29,6 +29,18 @@ easy.
 Each is a Cloud Monitoring Dashboard resource (JSON schema documented at
 https://cloud.google.com/monitoring/api/ref_v3/rest/v1/projects.dashboards).
 
+## Switching environments (prod / staging)
+
+All three dashboards declare a `namespace` template variable that filters
+every PromQL query to a single Kubernetes namespace. The default value is
+`prod`; the filter input appears at the top of each dashboard in the
+Cloud Monitoring UI and can be switched to `staging` (or any other
+namespace) live. The selected value is encoded in the URL, so a link to
+`?namespace=staging` opens the same dashboard scoped to staging.
+
+Because both environments live in the same GCP project and emit the same
+metric families, the filter is what keeps the views from mixing.
+
 ## Create / update the dashboards
 
 ```bash

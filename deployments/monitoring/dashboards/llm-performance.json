@@ -1,5 +1,13 @@
 {
   "displayName": "bchat / LLM Performance",
+  "dashboardFilters": [
+    {
+      "labelKey": "namespace",
+      "templateVariable": "namespace",
+      "stringValue": "prod",
+      "filterType": "RESOURCE_LABEL"
+    }
+  ],
   "mosaicLayout": {
     "columns": 12,
     "tiles": [
@@ -14,7 +22,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (increase(bchat_chat_completions_total[1h]))"
+                  "prometheusQuery": "sum by (model) (increase(bchat_chat_completions_total{namespace=\"${namespace}\"}[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -33,7 +41,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.95, sum by (le, model) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le, model) (rate(bchat_chat_completion_duration_seconds_bucket{namespace=\"${namespace}\", phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               }
@@ -52,19 +60,19 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
+                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{namespace=\"${namespace}\", phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               },
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{namespace=\"${namespace}\", phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               },
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
+                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{namespace=\"${namespace}\", phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               }
@@ -83,7 +91,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (increase(litellm_total_tokens_metric_total[1h]))"
+                  "prometheusQuery": "sum by (model) (increase(litellm_total_tokens_metric_total{namespace=\"${namespace}\"}[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -102,7 +110,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (increase(litellm_spend_metric_total[1h]))"
+                  "prometheusQuery": "sum by (model) (increase(litellm_spend_metric_total{namespace=\"${namespace}\"}[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -121,7 +129,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (api_provider) (increase(litellm_deployment_failure_responses_total[1h]))"
+                  "prometheusQuery": "sum by (api_provider) (increase(litellm_deployment_failure_responses_total{namespace=\"${namespace}\"}[1h]))"
                 },
                 "plotType": "STACKED_AREA"
               }
@@ -140,7 +148,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (increase(bchat_chat_completions_total{status=\"error\"}[1h]))"
+                  "prometheusQuery": "sum by (model) (increase(bchat_chat_completions_total{namespace=\"${namespace}\", status=\"error\"}[1h]))"
                 },
                 "plotType": "STACKED_AREA"
               }
