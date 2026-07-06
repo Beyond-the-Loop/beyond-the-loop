@@ -21,16 +21,35 @@ Grafana Cloud Free instance that reads from GCP Managed Prometheus.
    ```
 
 2. In Grafana Cloud (https://grafana.com/orgs/<your-org>), go to Connections
-   → Data sources → Add new data source → "Google Cloud Monitoring".
+   → Data sources → Add new data source → **"Prometheus"**.
 
-3. Choose "JWT authentication", upload `/tmp/grafana-cloud-reader.json`, save.
+   IMPORTANT: pick "Prometheus", NOT "Google Cloud Monitoring". The Google
+   Cloud Monitoring data source speaks MQL by default and won't run the
+   PromQL queries (`expr: sum(rate(...))`) our dashboard JSONs use. GMP
+   exposes a PromQL-compatible frontend that the standard Prometheus data
+   source queries directly.
 
-4. Delete the local key: `rm /tmp/grafana-cloud-reader.json`. The key is now
+3. **Prometheus server URL:**
+
+   ```
+   https://monitoring.googleapis.com/v1/projects/beyond-chat-1111/location/global/prometheus
+   ```
+
+4. Under the Authentication section, enable **"Google Auth"** and upload
+   `/tmp/grafana-cloud-reader.json` as the Service Account credentials.
+   The Google Auth toggle sits under HTTP/Auth headers in the Prometheus
+   data source config on Grafana Cloud (Grafana 10+).
+
+5. Click "Save & test" — expect "Data source is working" with a green
+   check. If you see "unable to fetch labels" instead, the Service
+   Account is missing `roles/monitoring.viewer` on the project.
+
+6. Delete the local key: `rm /tmp/grafana-cloud-reader.json`. The key is now
    stored in Grafana Cloud; there's no reason to keep a copy on disk.
 
-5. Import the three dashboards from `deployments/grafana/dashboards/*.json`
-   via Dashboards → Import → Upload JSON. Select the data source you just
-   created when prompted.
+7. Import the three dashboards from `deployments/grafana/dashboards/*.json`
+   via Dashboards → Import → Upload JSON. When prompted for a data source,
+   pick the Prometheus DS you just created.
 
 ## Block public `/metrics` at the edge (required)
 
