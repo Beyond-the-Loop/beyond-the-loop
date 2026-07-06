@@ -15,9 +15,6 @@ serviceAccount:
 gateway:
   staticIpName: bchat-staging-ingress-ip
 
-cloudArmor:
-  policyName: ""  # disabled in staging
-
 observability:
   podMonitoring:
     enabled: true

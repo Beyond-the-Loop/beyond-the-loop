@@ -15,9 +15,6 @@ serviceAccount:
 gateway:
   staticIpName: bchat-prod-ingress-ip
 
-cloudArmor:
-  policyName: bchat-prod-armor
-
 observability:
   podMonitoring:
     enabled: true
