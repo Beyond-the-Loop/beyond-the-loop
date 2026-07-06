@@ -350,7 +350,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 anonymize_messages,
                 is_pii_filter_enabled,
             )
-            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT
+            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT, PII_IMAGE_SYSTEM_PROMPT
             from beyond_the_loop.utils.access_control import has_permission
 
             client_pii_enabled = form_data.pop("pii_enabled", True) is not False
@@ -412,8 +412,25 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
                 pii_released_used.extend(ru)
                 filtered_user_content = get_last_user_message(form_data["messages"])
+
+                _pii_base = (
+                    Models.get_model_by_id(model.base_model_id)
+                    if model.base_model_id else None
+                )
+                _pii_model_name = _pii_base.name if _pii_base else model.name
+
+                _pii_is_native_image_model = _pii_model_name == "Nano Banana" or _pii_model_name == "Nano Banana 2" or _pii_model_name == "Nano Banana Pro"
+
                 form_data["messages"].insert(
-                    0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                    0,
+                    {
+                        "role": "system",
+                        "content": (
+                            PII_IMAGE_SYSTEM_PROMPT
+                            if _pii_is_native_image_model
+                            else PII_SYSTEM_PROMPT
+                        ),
+                    },
                 )
                 # Empty description + done=true clears the status — the next
                 # real step (smart router / RAG / generating_response) will
@@ -531,24 +548,37 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 model = model.model_copy(update={"base_model_id": target.id})
             metadata["selected_model_id"] = target.id
 
-            # Override system prompt with an image-gen directive that
-            # mirrors src/lib/utils/default_prompts/image_generation.ts.
+            # Give the routed image target exactly one correct system prompt.
+            # Mirrors src/lib/utils/default_prompts/image_generation.ts.
             _target_cfg = LITELLM_MODEL_CONFIG.get(target.name, {})
             if _target_cfg.get("supports_image_generation"):
-                image_gen_system_prompt = (
-                    "You are an image generation model. When the user requests "
-                    "an image, generate one. Keep any accompanying text short."
-                )
-                replaced = False
-                for msg in form_data["messages"]:
-                    if msg.get("role") == "system":
-                        msg["content"] = image_gen_system_prompt
-                        replaced = True
-                        break
-                if not replaced:
-                    form_data["messages"].insert(
-                        0, {"role": "system", "content": image_gen_system_prompt}
+
+                _target_is_native_image_model = target.name == "Nano Banana" or target.name == "Nano Banana 2" or target.name == "Nano Banana Pro"
+
+                if pii_session is not None:
+                    from beyond_the_loop.prompts import (
+                        PII_IMAGE_SYSTEM_PROMPT,
+                        PII_SYSTEM_PROMPT,
                     )
+                    image_gen_system_prompt = (
+                        PII_IMAGE_SYSTEM_PROMPT
+                        if _target_is_native_image_model
+                        else PII_SYSTEM_PROMPT + "\n\n" + 
+                        "You are an image generation model. When the user requests "
+                        "an image, generate one. Keep any accompanying text short."
+                    )
+                else:
+                    image_gen_system_prompt = (
+                        "You are an image generation model. When the user requests "
+                        "an image, generate one. Keep any accompanying text short."
+                    )
+                    
+                form_data["messages"] = [
+                    m for m in form_data["messages"] if m.get("role") != "system"
+                ]
+                form_data["messages"].insert(
+                    0, {"role": "system", "content": image_gen_system_prompt}
+                )
             else:
                 no_image_gen_guard = (
                     "You do not have access to any image generation tool. "
