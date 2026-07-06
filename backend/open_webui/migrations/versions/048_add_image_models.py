@@ -20,7 +20,7 @@ down_revision: Union[str, None] = '047'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-NEW_MODELS = ["Nano Banana", "Nano Banana Pro", "GPT Image 2"]
+NEW_MODELS = ["Nano Banana", "Nano Banana Pro", "GPT Image 2", "Claude Sonnet 5"]
 
 
 def upgrade() -> None:

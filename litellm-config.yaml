@@ -54,6 +54,26 @@ model_list:
       speed: 1.5
       tokens_per_second: 67
       supports_image_input: true
+    
+  - model_name: "Claude Sonnet 5"
+    litellm_params:
+      model: 'vertex_ai/claude-sonnet-5'
+      vertex_project: 'beyond-chat-1111'
+      vertex_location: 'eu'
+      # Workaround to use the eu endpoint until https://github.com/BerriAI/litellm/issues/25926 is fixed
+      api_base: "https://aiplatform.eu.rep.googleapis.com/v1/projects/beyond-chat-1111/locations/eu/publishers/anthropic/models/claude-sonnet-5"
+    model_info:
+      context_window: '200K'
+      costFactor: 3
+      description: "Balanced model with strong coding and analytical skills."
+      hosted_in: 'EU'
+      intelligence_score: 4.5
+      knowledge_cutoff: '2025-08-01'
+      organization: 'Anthropic'
+      reasoning: true
+      speed: 1.5
+      tokens_per_second: 67
+      supports_image_input: true
 
   - model_name: "Claude Opus 4.6"
     litellm_params:
@@ -77,7 +97,9 @@ model_list:
     litellm_params:
       model: 'vertex_ai/claude-opus-4-8'
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'global'
+      vertex_location: 'eu'
+      # Workaround to use the eu endpoint until https://github.com/BerriAI/litellm/issues/25926 is fixed
+      api_base: "https://aiplatform.eu.rep.googleapis.com/v1/projects/beyond-chat-1111/locations/eu/publishers/anthropic/models/claude-opus-4-8"
     model_info:
       context_window: '1M'
       costFactor: 4
@@ -117,7 +139,10 @@ model_list:
     litellm_params:
       model: 'gemini-3.5-flash'
       vertex_project: 'beyond-chat-1111'
-      vertex_location: 'global'
+      vertex_location: 'eu'
+      # Workaround to use the eu endpoint until https://github.com/BerriAI/litellm/issues/25926 is fixed
+      api_base: "https://aiplatform.eu.rep.googleapis.com/v1/projects/beyond-chat-1111/locations/eu/publishers/google/models/gemini-3.5-flash"
+      
     model_info:
       context_window: '1M'
       category: 2
@@ -744,7 +769,6 @@ model_list:
       modalities: ["image", "text"]
     model_info:
       intelligence_score: 3
-      allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       organization: 'Google'
       hosted_in: 'Global'
@@ -765,7 +789,6 @@ model_list:
       modalities: ["image", "text"]
     model_info:
       intelligence_score: 4
-      allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       organization: 'Google'
       hosted_in: 'Global'
@@ -792,7 +815,6 @@ model_list:
       description: "OpenAI’s highly advanced image generation model, excelling in photorealistic image quality and unprecedented text rendering."
       hosted_in: 'Global'
       intelligence_score: 5
-      allowed_messages_per_three_hours_free: 50
       allowed_messages_per_three_hours_premium: 50
       knowledge_cutoff: '2025-08-31'
       organization: 'OpenAI'
