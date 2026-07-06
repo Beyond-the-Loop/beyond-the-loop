@@ -33,7 +33,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "topk(10, sum by (route) (rate(bchat_http_requests_total[2m])))"
+                  "prometheusQuery": "topk(10, sum by (route) (rate(bchat_http_requests_total{route!~\"/health|unmatched\"}[2m])))"
                 },
                 "plotType": "LINE"
               }
@@ -75,6 +75,25 @@
       {
         "xPos": 0,
         "yPos": 8,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "p95 latency by route — top 10 (seconds)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(bchat_http_request_duration_seconds_bucket{route!~\"/health|unmatched\"}[5m]))))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 12,
         "width": 6,
         "height": 4,
         "widget": {
@@ -93,7 +112,7 @@
       },
       {
         "xPos": 6,
-        "yPos": 8,
+        "yPos": 12,
         "width": 6,
         "height": 4,
         "widget": {
@@ -112,7 +131,7 @@
       },
       {
         "xPos": 0,
-        "yPos": 12,
+        "yPos": 16,
         "width": 4,
         "height": 3,
         "widget": {

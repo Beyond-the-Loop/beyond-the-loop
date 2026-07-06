@@ -83,7 +83,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (rate(litellm_total_tokens[2m]))"
+                  "prometheusQuery": "sum by (model) (rate(litellm_total_tokens_metric_total[2m]))"
                 },
                 "plotType": "LINE"
               }
@@ -102,7 +102,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (rate(litellm_spend_metric[5m])) * 3600"
+                  "prometheusQuery": "sum by (model) (rate(litellm_spend_metric_total[5m])) * 3600"
                 },
                 "plotType": "LINE"
               }
@@ -121,7 +121,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (api_provider) (rate(litellm_deployment_failure_responses[5m]))"
+                  "prometheusQuery": "sum by (api_provider) (rate(litellm_deployment_failure_responses_total[5m]))"
                 },
                 "plotType": "STACKED_AREA"
               }
