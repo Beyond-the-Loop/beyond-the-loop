@@ -120,7 +120,7 @@ from beyond_the_loop.routers.litellm import generate_chat_completion as chat_com
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
-from beyond_the_loop.observability.metrics import metrics_app as _metrics_app
+from beyond_the_loop.observability.metrics import metrics_endpoint as _metrics_endpoint
 from beyond_the_loop.observability.http_middleware import prometheus_http_middleware
 from beyond_the_loop.observability.chat_metrics import record_chat_completion
 from beyond_the_loop.socket.main import (
@@ -498,7 +498,7 @@ app.add_middleware(
 )
 
 app.mount("/ws", socket_app)
-app.mount("/metrics", _metrics_app)
+app.add_api_route("/metrics", _metrics_endpoint, methods=["GET"], include_in_schema=False)
 
 app.include_router(litellm.router, prefix="/openai", tags=["openai"])
 

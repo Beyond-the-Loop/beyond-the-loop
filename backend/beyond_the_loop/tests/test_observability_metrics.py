@@ -3,10 +3,10 @@
 We check three things:
 1. All expected metrics exist and are registered.
 2. Label sets match the design (cardinality safety).
-3. The ASGI /metrics app exposes them in Prometheus text format.
+3. The /metrics endpoint returns valid Prometheus text WITHOUT a trailing
+   slash — GMP scrapes hit the exact path, not a mount prefix.
 """
-from starlette.applications import Starlette
-from starlette.routing import Mount
+from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 from beyond_the_loop.observability.metrics import (
@@ -14,7 +14,7 @@ from beyond_the_loop.observability.metrics import (
     chat_completions_total,
     http_request_duration_seconds,
     http_requests_total,
-    metrics_app,
+    metrics_endpoint,
     websocket_connections,
 )
 
@@ -44,10 +44,13 @@ def test_completion_histogram_buckets_are_tuned_for_multi_second_llm_calls():
     assert upper_bounds[:10] == [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0]
 
 
-def test_metrics_endpoint_serves_prometheus_text():
-    # Mount the metrics_app under /metrics on a bare Starlette app to simulate
-    # how open_webui.main mounts it.
-    app = Starlette(routes=[Mount("/metrics", metrics_app)])
+def test_metrics_endpoint_serves_prometheus_text_at_exact_path():
+    # Register the endpoint the way open_webui.main does — as a plain route,
+    # not a Mount. This is the regression test for the SPA-catchall bug:
+    # GMP hits /metrics (no trailing slash), so that path must serve
+    # Prometheus text directly and never fall through to a catch-all.
+    app = FastAPI()
+    app.add_api_route("/metrics", metrics_endpoint, methods=["GET"])
     with TestClient(app) as client:
         # Trigger one observation so at least one series has a sample.
         http_requests_total.labels(route="/test", method="GET", status_code="200").inc()

@@ -51,8 +51,12 @@ helm upgrade --install bchat "$CHART_PATH" \
 
 echo
 echo "==> Rollout status"
-kubectl -n "$ENV" rollout status deployment/app --timeout=5m
-kubectl -n "$ENV" rollout status deployment/litellm --timeout=3m
+# App: startupProbe tolerates up to 5min per pod (60 × 5s). With
+# maxUnavailable=0 + maxSurge=1 (sequential replacement for 2 replicas),
+# worst-case rollout ≈ 2 × 5min + terminationGracePeriod (60s each) ≈ 12min.
+# Anything under that will time out spuriously on cold-start deploys.
+kubectl -n "$ENV" rollout status deployment/app --timeout=15m
+kubectl -n "$ENV" rollout status deployment/litellm --timeout=5m
 kubectl -n "$ENV" rollout status deployment/ms365-mcp --timeout=3m
 
 echo

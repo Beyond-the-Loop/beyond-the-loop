@@ -12,7 +12,14 @@ Never add task_id, user_id, chat_id, trace_id, or any user-supplied value
 as a label — that would explode series count and either kill GMP or the
 budget.
 """
-from prometheus_client import Counter, Gauge, Histogram, make_asgi_app
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+from starlette.responses import Response
 
 # HTTP request instrumentation — driven from access_log_middleware.
 HTTP_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
@@ -52,7 +59,12 @@ websocket_connections = Gauge(
     "Currently open WebSocket connections.",
 )
 
-# ASGI app to expose the default Prometheus REGISTRY at /metrics.
-# Using the default registry gives us Python process metrics (GC, memory,
-# threads) for free — useful for D1 (cluster health).
-metrics_app = make_asgi_app()
+# /metrics endpoint. Implemented as a plain route (not `make_asgi_app`'s
+# Mount) because Starlette's Mount only matches sub-paths — a request to
+# `/metrics` without a trailing slash falls through to the SPA static
+# mount at `/` and returns index.html. GMP scrapes hit `/metrics`
+# without a slash, so the Mount version silently returned HTML in
+# production. The default REGISTRY still gives us Python process
+# metrics (GC, memory, threads) for free.
+def metrics_endpoint() -> Response:
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
