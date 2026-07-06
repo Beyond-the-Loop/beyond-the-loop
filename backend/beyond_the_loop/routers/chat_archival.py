@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 from open_webui.utils.auth import get_current_user, get_admin_user
 from beyond_the_loop.services.chat_archival_service import chat_archival_service
-from beyond_the_loop.scheduler import task_scheduler
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -33,12 +32,6 @@ class ArchivalPreviewResponse(BaseModel):
     cutoff_date: str
     candidates_count: int
     candidates: list
-
-
-class SchedulerStatusResponse(BaseModel):
-    """Response model for scheduler status"""
-    running: bool
-    jobs: list
 
 
 class ArchivalResultResponse(BaseModel):
@@ -101,42 +94,16 @@ async def preview_archival_candidates(user=Depends(get_admin_user)):
         raise HTTPException(status_code=500, detail=f"Error getting archival preview: {str(e)}")
 
 
-@router.get("/scheduler/status", response_model=SchedulerStatusResponse)
-async def get_scheduler_status(user=Depends(get_admin_user)):
-    """
-    Get the current status of the task scheduler.
-    
-    Args:
-        user: The current authenticated admin user
-        
-    Returns:
-        SchedulerStatusResponse: Current scheduler status and job information
-    """
-    try:
-        status = task_scheduler.get_scheduler_status()
-        return SchedulerStatusResponse(**status)
-        
-    except Exception as e:
-        log.error(f"Error getting scheduler status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting scheduler status: {str(e)}")
-
-
 @router.post("/trigger", response_model=ArchivalResultResponse)
 async def trigger_archival_process(user=Depends(get_admin_user)):
     """
     Manually trigger the chat archival process (for testing/admin purposes).
-    
-    Args:
-        user: The current authenticated admin user
-        
-    Returns:
-        ArchivalResultResponse: Results of the archival process
     """
     try:
         log.info(f"Manual archival process triggered by admin user: {user.email}")
-        result = task_scheduler.trigger_chat_archival_now()
+        result = chat_archival_service.run_daily_archival_process()
         return ArchivalResultResponse(**result)
-        
+
     except Exception as e:
         log.error(f"Error triggering archival process: {e}")
         raise HTTPException(status_code=500, detail=f"Error triggering archival process: {str(e)}")

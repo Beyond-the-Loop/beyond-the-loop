@@ -6,7 +6,9 @@ metadata:
     {{- include "bchat.labels" . | nindent 4 }}
     app.kubernetes.io/component: mcp
 spec:
+  {{- if not .Values.mcp.hpa.enabled }}
   replicas: {{ .Values.mcp.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "bchat.mcpSelector" . | nindent 6 }}

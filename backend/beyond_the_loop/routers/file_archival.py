@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 from open_webui.utils.auth import get_current_user, get_admin_user
 from beyond_the_loop.services.file_service import file_service
-from beyond_the_loop.scheduler import task_scheduler
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -37,12 +36,6 @@ class FileCleanupPreviewResponse(BaseModel):
     protected_count: int
     candidates_count: int
     candidates: list
-
-
-class SchedulerStatusResponse(BaseModel):
-    """Response model for scheduler status"""
-    running: bool
-    jobs: list
 
 
 class FileCleanupResultResponse(BaseModel):
@@ -105,42 +98,16 @@ async def preview_file_cleanup_candidates(user=Depends(get_admin_user)):
         raise HTTPException(status_code=500, detail=f"Error getting file cleanup preview: {str(e)}")
 
 
-@router.get("/scheduler/status", response_model=SchedulerStatusResponse)
-async def get_scheduler_status(user=Depends(get_admin_user)):
-    """
-    Get the current status of the task scheduler.
-    
-    Args:
-        user: The current authenticated admin user
-        
-    Returns:
-        SchedulerStatusResponse: Current scheduler status and job information
-    """
-    try:
-        status = task_scheduler.get_scheduler_status()
-        return SchedulerStatusResponse(**status)
-        
-    except Exception as e:
-        log.error(f"Error getting scheduler status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting scheduler status: {str(e)}")
-
-
 @router.post("/trigger", response_model=FileCleanupResultResponse)
 async def trigger_file_cleanup_process(user=Depends(get_admin_user)):
     """
     Manually trigger the file cleanup process (for testing/admin purposes).
-    
-    Args:
-        user: The current authenticated admin user
-        
-    Returns:
-        FileCleanupResultResponse: Results of the file cleanup process
     """
     try:
         log.info(f"Manual file cleanup process triggered by admin user: {user.email}")
-        result = task_scheduler.trigger_file_cleanup_now()
+        result = file_service.run_daily_file_cleanup()
         return FileCleanupResultResponse(**result)
-        
+
     except Exception as e:
         log.error(f"Error triggering file cleanup process: {e}")
         raise HTTPException(status_code=500, detail=f"Error triggering file cleanup process: {str(e)}")

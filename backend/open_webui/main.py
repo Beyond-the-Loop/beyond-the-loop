@@ -105,6 +105,7 @@ from beyond_the_loop.routers import chat_archival
 from beyond_the_loop.routers import companies
 from beyond_the_loop.routers import domains
 from beyond_the_loop.routers import file_archival
+from beyond_the_loop.routers import internal_cron
 from beyond_the_loop.routers import intercom
 from beyond_the_loop.routers import knowledge, groups, configs, folders, files, chats
 from beyond_the_loop.routers import mcp_servers
@@ -116,10 +117,12 @@ from beyond_the_loop.routers import prompts
 from beyond_the_loop.routers import public_api
 from beyond_the_loop.routers import users
 from beyond_the_loop.routers.litellm import generate_chat_completion as chat_completion_handler
-from beyond_the_loop.scheduler import start_scheduler, shutdown_scheduler
 from beyond_the_loop.services.credit_service import credit_service
 from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_service
 from beyond_the_loop.services.payments_service import payments_service
+from beyond_the_loop.observability.metrics import start_metrics_server as _start_metrics_server
+from beyond_the_loop.observability.http_middleware import prometheus_http_middleware
+from beyond_the_loop.observability.chat_metrics import record_chat_completion
 from beyond_the_loop.socket.main import (
     app as socket_app,
 )
@@ -195,18 +198,6 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
-log.info(rf"""
-
-
-▀█████████▄     ▄████████ ▄██   ▄    ▄██████▄  ███▄▄▄▄   ████████▄           ███        ▄█    █▄       ▄████████       ▄█        ▄██████▄   ▄██████▄     ▄███████▄ 
-  ███    ███   ███    ███ ███   ██▄ ███    ███ ███▀▀▀██▄ ███   ▀███      ▀█████████▄   ███    ███     ███    ███      ███       ███    ███ ███    ███   ███    ███ 
-  ███    ███   ███    █▀  ███▄▄▄███ ███    ███ ███   ███ ███    ███         ▀███▀▀██   ███    ███     ███    █▀       ███       ███    ███ ███    ███   ███    ███ 
- ▄███▄▄▄██▀   ▄███▄▄▄     ▀▀▀▀▀▀███ ███    ███ ███   ███ ███    ███          ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄          ███       ███    ███ ███    ███   ███    ███ 
-▀▀███▀▀▀██▄  ▀▀███▀▀▀     ▄██   ███ ███    ███ ███   ███ ███    ███          ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀          ███       ███    ███ ███    ███ ▀█████████▀  
-  ███    ██▄   ███    █▄  ███   ███ ███    ███ ███   ███ ███    ███          ███       ███    ███     ███    █▄       ███       ███    ███ ███    ███   ███        
-  ███    ███   ███    ███ ███   ███ ███    ███ ███   ███ ███   ▄███          ███       ███    ███     ███    ███      ███▌    ▄ ███    ███ ███    ███   ███        
-▄█████████▀    ██████████  ▀█████▀   ▀██████▀   ▀█   █▀  ████████▀          ▄████▀     ███    █▀      ██████████      █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀                                                                                                                    ▀                                             
-""")
 
 
 @asynccontextmanager
@@ -218,13 +209,11 @@ async def lifespan(app: FastAPI):
         # It will just reset the in-memory config to the default values
         reset_config(None)
 
-    # Start the task scheduler for automated processes
-    start_scheduler()
+    # Prometheus scrape server on a dedicated port. Not exposed via any
+    # Service or Ingress — GMP scrapes the pod IP directly.
+    _start_metrics_server()
 
     yield
-
-    # Shutdown the scheduler gracefully
-    shutdown_scheduler()
 
 
 app = FastAPI(
@@ -404,13 +393,86 @@ async def commit_session_after_request(request: Request, call_next):
     return response
 
 
+access_log = logging.getLogger("access")
+
+# Silence Uvicorn's default text access log — this middleware emits the same
+# information in structured JSON and Uvicorn's line-per-request output would
+# otherwise double our Cloud Logging volume and stay unqueryable.
+logging.getLogger("uvicorn.access").disabled = True
+
+# python-engineio prints an INFO line per WebSocket connect/disconnect
+# ("connection open" / "connection closed"), which fires many times per user
+# session as the browser reconnects. Nothing actionable — errors still surface
+# at WARNING+ via `socketio.server`.
+logging.getLogger("engineio.server").setLevel(logging.WARNING)
+
+# Health probes hit on a fixed schedule and are pure noise.
+_ACCESS_LOG_SKIP_PATHS = {"/health", "/health/liveliness", "/api/health", "/metrics"}
+
+# Static assets: SvelteKit fingerprints these under /_app/immutable/ (cached
+# forever by CDN), plus root-level icons/manifests. All unactionable.
+_ACCESS_LOG_SKIP_PREFIXES = ("/_app/", "/static/", "/assets/")
+_ACCESS_LOG_SKIP_SUFFIXES = (
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+    ".css", ".js", ".mjs", ".map",
+    ".woff", ".woff2", ".ttf",
+)
+
+
+def _should_skip_access_log(path: str, status_code: int) -> bool:
+    if path in _ACCESS_LOG_SKIP_PATHS:
+        return True
+    if path.startswith(_ACCESS_LOG_SKIP_PREFIXES):
+        return True
+    if path.endswith(_ACCESS_LOG_SKIP_SUFFIXES):
+        return True
+    # 304 Not Modified = client cache hit, no server work happened.
+    if status_code == 304:
+        return True
+    return False
+
+
 @app.middleware("http")
-async def check_url(request: Request, call_next):
-    start_time = int(time.time())
-    response = await call_next(request)
-    process_time = int(time.time()) - start_time
-    response.headers["X-Process-Time"] = str(process_time)
+async def access_log_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+    except Exception:
+        # Compute latency even on unhandled exceptions so we can spot broken
+        # routes in the metric; re-raise so the framework's own error handling
+        # still runs.
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        access_log.exception(
+            "request failed",
+            extra={
+                "event": "http_request",
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 500,
+                "duration_ms": duration_ms,
+            },
+        )
+        raise
+
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    response.headers["X-Process-Time"] = str(duration_ms)
+
+    if not _should_skip_access_log(request.url.path, status_code):
+        access_log.info(
+            "request",
+            extra={
+                "event": "http_request",
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+            },
+        )
     return response
+
+
+app.middleware("http")(prometheus_http_middleware)
 
 
 @app.middleware("http")
@@ -476,6 +538,7 @@ app.include_router(companies.router, prefix="/api/v1/companies", tags=["companie
 app.include_router(domains.router, prefix="/api/v1/domains", tags=["domains"])
 app.include_router(chat_archival.router, prefix="/api/v1/chat-archival", tags=["chat-archival"])
 app.include_router(file_archival.router, prefix="/api/v1/file-archival", tags=["file-archival"])
+app.include_router(internal_cron.router, prefix="/internal/cron", tags=["internal-cron"], include_in_schema=False)
 app.include_router(intercom.router, prefix="/api/v1/intercom", tags=["intercom"])
 app.include_router(pii_router.router, prefix="/api/v1/pii", tags=["pii"])
 app.include_router(public_api.router, prefix="/api/openai", tags=["public-api"])
@@ -600,6 +663,14 @@ async def chat_completion(
         user=Depends(get_verified_user),
 ):
     tasks = form_data.pop("background_tasks", None)
+    is_streaming = bool(form_data.get("stream", False))
+    # Per-phase timing so we can tell in the logs whether latency comes from
+    # our own middleware (RAG/PII/prompt build) or from the provider's initial
+    # response. See `event=chat_enqueue` log below for the aggregated shape.
+    t_start = time.perf_counter()
+    t_payload_done = None
+    t_litellm_done = None
+    model_name_for_log = None
 
     try:
         model_id = form_data.get("model", None)
@@ -608,6 +679,8 @@ async def chat_completion(
             model = SMART_ROUTER_MODEL
         else:
             model = Models.get_model_by_id(model_id)
+
+        model_name_for_log = getattr(model, "name", None) if model else None
 
         metadata = {
             "user_id": user.id,
@@ -623,9 +696,17 @@ async def chat_completion(
         form_data, metadata, events, model = await process_chat_payload(
             request, form_data, metadata, user, model
         )
+        t_payload_done = time.perf_counter()
 
     except ClientDisconnectedError:
         log.info("Client disconnected during chat payload processing")
+        record_chat_completion(
+            model=model_name_for_log,
+            payload_seconds=None,
+            litellm_seconds=None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         return JSONResponse(
             status_code=499,
             content={"detail": "Client disconnected"},
@@ -633,12 +714,26 @@ async def chat_completion(
     except PIIRedactionError as e:
         # Fail-closed: anonymization broke mid-flight. Returning 503 instead of
         # 400 because the failure is server-side, not a malformed client request.
+        record_chat_completion(
+            model=model_name_for_log,
+            payload_seconds=None,
+            litellm_seconds=None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e),
         )
     except Exception as e:
         log.error(f"Error processing chat payload: {e}")
+        record_chat_completion(
+            model=model_name_for_log,
+            payload_seconds=None,
+            litellm_seconds=None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -646,12 +741,50 @@ async def chat_completion(
 
     try:
         response, model = await chat_completion_handler(form_data, user, model)
+        t_litellm_done = time.perf_counter()
 
-        return await process_chat_response(
+        result = await process_chat_response(
             request, response, form_data, user, events, metadata, tasks, model
         )
+        t_response_done = time.perf_counter()
+
+        # For stream=true this is enqueue time (task_id returned, actual tokens
+        # arrive later via Socket.IO — see `event=chat_stream_end` for that).
+        # For stream=false this is the full request/response time end-to-end.
+        payload_seconds = t_payload_done - t_start
+        litellm_seconds = t_litellm_done - t_payload_done
+        total_seconds = t_response_done - t_start
+        log.info(
+            "chat completion done",
+            extra={
+                "event": "chat_enqueue",
+                "stream": is_streaming,
+                "model": getattr(model, "name", model_name_for_log),
+                "model_id": form_data.get("model"),
+                "payload_ms": round(payload_seconds * 1000, 2),
+                "litellm_ms": round(litellm_seconds * 1000, 2),
+                "response_ms": round((t_response_done - t_litellm_done) * 1000, 2),
+                "total_ms": round(total_seconds * 1000, 2),
+                "task_id": result.get("task_id") if isinstance(result, dict) else None,
+            },
+        )
+        record_chat_completion(
+            model=getattr(model, "name", model_name_for_log),
+            payload_seconds=payload_seconds,
+            litellm_seconds=litellm_seconds,
+            total_seconds=total_seconds,
+            status="success",
+        )
+        return result
     except Exception as e:
         log.error(f"Error processing chat response: {e}")
+        record_chat_completion(
+            model=getattr(model, "name", model_name_for_log),
+            payload_seconds=(t_payload_done - t_start) if t_payload_done is not None else None,
+            litellm_seconds=(t_litellm_done - t_payload_done) if t_litellm_done is not None else None,
+            total_seconds=time.perf_counter() - t_start,
+            status="error",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

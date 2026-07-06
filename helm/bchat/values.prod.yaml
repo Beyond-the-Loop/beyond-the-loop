@@ -12,30 +12,9 @@ domains:
 serviceAccount:
   gcpServiceAccount: bchat-app-prod@beyond-chat-1111.iam.gserviceaccount.com
 
-app:
-  replicas: 2
-  resources:
-    requests:
-      cpu: 1
-      memory: 2Gi
-    limits:
-      cpu: 2
-      memory: 4Gi
-  hpa:
-    minReplicas: 2
-    maxReplicas: 8
-  pdb:
-    minAvailable: 1
-
-litellm:
-  replicas: 2
-
-mcp:
-  replicas: 1
-  publicUrl: https://mcp-m365.beyondtheloop.ai
-
 gateway:
   staticIpName: bchat-prod-ingress-ip
 
-cloudArmor:
-  policyName: bchat-prod-armor
+observability:
+  podMonitoring:
+    enabled: true

@@ -74,6 +74,12 @@ RUN apt-get update && apt-get install -y \
 # copy backend files
 COPY --chown=$UID:$GID ./backend .
 
+# Precompile Python bytecode for app + site-packages so pod cold-start
+# doesn't spend CPU generating .pyc files on first import.
+# `|| true`: compileall is strict about syntax errors in unrelated dev/test
+# files; a partial precompile is still a win.
+RUN python3 -m compileall -q -j 0 /app /usr/local/lib/python3.11/site-packages || true
+
 EXPOSE 8080
 
 HEALTHCHECK CMD curl --silent --fail http://localhost:${PORT:-8080}/health | jq -ne 'input.status == true' || exit 1

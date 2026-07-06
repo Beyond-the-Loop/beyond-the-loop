@@ -1,0 +1,10 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: app
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+spec:
+  timeoutSec: {{ .Values.app.backendConfig.timeoutSec }}
+  connectionDraining:
+    drainingTimeoutSec: {{ .Values.app.backendConfig.drainingTimeoutSec }}

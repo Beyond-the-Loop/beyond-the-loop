@@ -6,7 +6,9 @@ metadata:
     {{- include "bchat.labels" . | nindent 4 }}
     app.kubernetes.io/component: litellm
 spec:
+  {{- if not .Values.litellm.hpa.enabled }}
   replicas: {{ .Values.litellm.replicas }}
+  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:

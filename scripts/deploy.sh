@@ -15,6 +15,9 @@ PROJECT_ID="${PROJECT_ID:-beyond-chat-1111}"
 REGION="${REGION:-europe-west3}"
 ENV="${ENV:?ENV is required}"
 IMAGE_TAG="${IMAGE_TAG:?IMAGE_TAG is required (git short sha)}"
+# App deployment strategy: RollingUpdate (default, zero downtime) or Recreate
+# (~45s downtime, use for releases with destructive DB migrations).
+APP_STRATEGY="${APP_STRATEGY:-RollingUpdate}"
 MCP_IMAGE_TAG="${MCP_IMAGE_TAG:-$IMAGE_TAG}"
 CLUSTER_NAME="gke-${ENV}"
 
@@ -31,6 +34,8 @@ VALUES_ENV="${CHART_PATH}/values.${ENV}.yaml"
 
 PROJECT_NUMBER=$(gcloud --project "$PROJECT_ID" projects describe "$PROJECT_ID" --format='value(projectNumber)')
 
+echo "==> Deploying app with strategy: ${APP_STRATEGY}"
+
 helm upgrade --install bchat "$CHART_PATH" \
   --namespace "$ENV" \
   --create-namespace \
@@ -39,14 +44,19 @@ helm upgrade --install bchat "$CHART_PATH" \
   --set image.tag="$IMAGE_TAG" \
   --set mcpImage.tag="$MCP_IMAGE_TAG" \
   --set gcp.projectNumber="$PROJECT_NUMBER" \
+  --set app.strategy.type="$APP_STRATEGY" \
   --set-file litellmConfig="$LITELLM_CONFIG_PATH" \
   --set-file arenaRankings="$ARENA_RANKINGS_PATH" \
   --timeout 10m
 
 echo
 echo "==> Rollout status"
-kubectl -n "$ENV" rollout status deployment/app --timeout=5m
-kubectl -n "$ENV" rollout status deployment/litellm --timeout=3m
+# App: startupProbe tolerates up to 5min per pod (60 × 5s). With
+# maxUnavailable=0 + maxSurge=1 (sequential replacement for 2 replicas),
+# worst-case rollout ≈ 2 × 5min + terminationGracePeriod (60s each) ≈ 12min.
+# Anything under that will time out spuriously on cold-start deploys.
+kubectl -n "$ENV" rollout status deployment/app --timeout=15m
+kubectl -n "$ENV" rollout status deployment/litellm --timeout=5m
 kubectl -n "$ENV" rollout status deployment/ms365-mcp --timeout=3m
 
 echo

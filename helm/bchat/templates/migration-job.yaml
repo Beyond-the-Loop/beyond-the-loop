@@ -1,0 +1,54 @@
+{{- if .Values.migrationJob.enabled }}
+# Runs `alembic upgrade head` inside a short-lived pod before the app deployment
+# is updated. Helm blocks the rest of the release until this Job succeeds, so
+# app pods never race the migration and never boot against a schema the
+# migration hasn't finished producing. If the migration fails, `helm upgrade`
+# exits non-zero and the app deployment stays on the previous image — old pods
+# keep serving traffic.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Include the image tag in the name so re-running helm upgrade with a new tag
+  # produces a new Job object (Jobs are immutable — same name would fail).
+  name: db-migrate-{{ .Values.image.tag | trunc 40 | trimSuffix "-" }}
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db-migrate
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ .Values.migrationJob.activeDeadlineSeconds | default 900 }}
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        {{- include "bchat.labels" . | nindent 8 }}
+        app.kubernetes.io/component: db-migrate
+    spec:
+      serviceAccountName: {{ include "bchat.serviceAccountName" . }}
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /app/backend/open_webui
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              export PYTHONPATH=/app/backend
+              python -m alembic upgrade head
+          envFrom:
+            - secretRef:
+                name: {{ include "bchat.appConfigName" . }}
+          env:
+            # Migrations run in a one-shot pod; the app-side gate does not apply here.
+            - name: ENVIRONMENT
+              value: {{ .Values.environment | quote }}
+          resources:
+            {{- toYaml (.Values.migrationJob.resources | default (dict "requests" (dict "cpu" "200m" "memory" "512Mi") "limits" (dict "cpu" "1" "memory" "1Gi"))) | nindent 12 }}
+{{- end }}

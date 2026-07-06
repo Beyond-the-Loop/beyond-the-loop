@@ -76,7 +76,7 @@ if GLOBAL_LOG_LEVEL not in log_levels:
 logging.root.setLevel(GLOBAL_LOG_LEVEL)
 
 log = logging.getLogger(__name__)
-log.info("GLOBAL_LOG_LEVEL: %s", GLOBAL_LOG_LEVEL)
+log.debug("GLOBAL_LOG_LEVEL: %s", GLOBAL_LOG_LEVEL)
 
 log_sources = [
     "AUDIO",
@@ -98,7 +98,7 @@ for source in log_sources:
     SRC_LOG_LEVELS[source] = os.environ.get(log_env_var, "").upper()
     if SRC_LOG_LEVELS[source] not in log_levels:
         SRC_LOG_LEVELS[source] = GLOBAL_LOG_LEVEL
-    log.info(f"{log_env_var}: {SRC_LOG_LEVELS[source]}")
+    log.debug(f"{log_env_var}: {SRC_LOG_LEVELS[source]}")
 
 log.setLevel(SRC_LOG_LEVELS["CONFIG"])
 

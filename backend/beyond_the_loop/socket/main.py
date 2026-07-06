@@ -14,6 +14,7 @@ from open_webui.env import (
 )
 from open_webui.utils.auth import decode_token
 from beyond_the_loop.socket.utils import RedisDict
+from beyond_the_loop.observability.metrics import websocket_connections
 
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
@@ -70,6 +71,7 @@ app = socketio.ASGIApp(
 
 @sio.event
 async def connect(sid, environ, auth):
+    websocket_connections.inc()
     user = None
     if auth and "token" in auth:
         data = decode_token(auth["token"])
@@ -179,6 +181,7 @@ async def channel_events(sid, data):
 
 @sio.event
 async def disconnect(sid):
+    websocket_connections.dec()
     def _unregister_session():
         if sid not in SESSION_POOL:
             return False

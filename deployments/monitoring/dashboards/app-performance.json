@@ -1,0 +1,156 @@
+{
+  "displayName": "bchat / App Performance",
+  "dashboardFilters": [
+    {
+      "labelKey": "namespace",
+      "templateVariable": "namespace",
+      "stringValue": "prod",
+      "filterType": "RESOURCE_LABEL"
+    }
+  ],
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Total requests per hour",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(bchat_http_requests_total{namespace=\"${namespace}\"}[1h]))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Requests per hour — top 10 routes",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by (route) (increase(bchat_http_requests_total{namespace=\"${namespace}\", route!~\"/health|unmatched\"}[1h])))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 4,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "Latency p50 / p95 / p99 (all routes, seconds)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_http_request_duration_seconds_bucket{namespace=\"${namespace}\"}[1h])))"
+                },
+                "plotType": "LINE"
+              },
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_http_request_duration_seconds_bucket{namespace=\"${namespace}\"}[1h])))"
+                },
+                "plotType": "LINE"
+              },
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_http_request_duration_seconds_bucket{namespace=\"${namespace}\"}[1h])))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 8,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "p95 latency by route — top 10 (seconds)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(bchat_http_request_duration_seconds_bucket{namespace=\"${namespace}\", route!~\"/health|unmatched\"}[1h]))))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 12,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "5xx per hour by route",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (route) (increase(bchat_http_requests_total{namespace=\"${namespace}\", status_code=~\"5..\"}[1h]))"
+                },
+                "plotType": "STACKED_AREA"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 12,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "4xx per hour by route",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (route) (increase(bchat_http_requests_total{namespace=\"${namespace}\", status_code=~\"4..\"}[1h]))"
+                },
+                "plotType": "STACKED_AREA"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 16,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Active WebSocket connections",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(bchat_websocket_connections{namespace=\"${namespace}\"})"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
