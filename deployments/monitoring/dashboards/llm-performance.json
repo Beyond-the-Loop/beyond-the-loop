@@ -9,12 +9,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Completions per minute by model",
+          "title": "Completions per hour by model",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (rate(bchat_chat_completions_total[2m])) * 60"
+                  "prometheusQuery": "sum by (model) (increase(bchat_chat_completions_total[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -33,7 +33,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.95, sum by (le, model) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le, model) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               }
@@ -52,19 +52,19 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               },
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               },
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_chat_completion_duration_seconds_bucket{phase=\"total\"}[1h])))"
                 },
                 "plotType": "LINE"
               }
@@ -78,12 +78,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Tokens per second by model (LiteLLM)",
+          "title": "Tokens per hour by model (LiteLLM)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (rate(litellm_total_tokens_metric_total[2m]))"
+                  "prometheusQuery": "sum by (model) (increase(litellm_total_tokens_metric_total[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -102,7 +102,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (rate(litellm_spend_metric_total[5m])) * 3600"
+                  "prometheusQuery": "sum by (model) (increase(litellm_spend_metric_total[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -116,12 +116,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Failure rate by provider (LiteLLM)",
+          "title": "Failures per hour by provider (LiteLLM)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (api_provider) (rate(litellm_deployment_failure_responses_total[5m]))"
+                  "prometheusQuery": "sum by (api_provider) (increase(litellm_deployment_failure_responses_total[1h]))"
                 },
                 "plotType": "STACKED_AREA"
               }
@@ -135,12 +135,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Error rate by model (bchat)",
+          "title": "Errors per hour by model (bchat)",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (model) (rate(bchat_chat_completions_total{status=\"error\"}[5m]))"
+                  "prometheusQuery": "sum by (model) (increase(bchat_chat_completions_total{status=\"error\"}[1h]))"
                 },
                 "plotType": "STACKED_AREA"
               }

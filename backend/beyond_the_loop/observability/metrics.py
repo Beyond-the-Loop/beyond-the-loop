@@ -15,7 +15,7 @@ budget.
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # HTTP request instrumentation — driven from access_log_middleware.
-HTTP_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
+HTTP_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 240, 360, 600, 1200)
 
 http_request_duration_seconds = Histogram(
     "bchat_http_request_duration_seconds",
@@ -31,7 +31,7 @@ http_requests_total = Counter(
 )
 
 # Chat completion instrumentation — driven from the chat_enqueue log site.
-COMPLETION_BUCKETS = (0.1, 0.5, 1, 2, 5, 10, 20, 30, 60, 120)
+COMPLETION_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 240, 360, 600, 1200)
 
 chat_completion_duration_seconds = Histogram(
     "bchat_chat_completion_duration_seconds",

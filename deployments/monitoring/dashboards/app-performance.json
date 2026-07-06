@@ -9,12 +9,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Total request rate (RPS)",
+          "title": "Total requests per hour",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum(rate(bchat_http_requests_total[2m]))"
+                  "prometheusQuery": "sum(increase(bchat_http_requests_total[1h]))"
                 },
                 "plotType": "LINE"
               }
@@ -28,12 +28,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "Request rate — top 10 routes",
+          "title": "Requests per hour — top 10 routes",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "topk(10, sum by (route) (rate(bchat_http_requests_total{route!~\"/health|unmatched\"}[2m])))"
+                  "prometheusQuery": "topk(10, sum by (route) (increase(bchat_http_requests_total{route!~\"/health|unmatched\"}[1h])))"
                 },
                 "plotType": "LINE"
               }
@@ -52,19 +52,19 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_http_request_duration_seconds_bucket[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_http_request_duration_seconds_bucket[1h])))"
                 },
                 "plotType": "LINE"
               },
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_http_request_duration_seconds_bucket[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_http_request_duration_seconds_bucket[1h])))"
                 },
                 "plotType": "LINE"
               },
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_http_request_duration_seconds_bucket[5m])))"
+                  "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_http_request_duration_seconds_bucket[1h])))"
                 },
                 "plotType": "LINE"
               }
@@ -83,7 +83,7 @@
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(bchat_http_request_duration_seconds_bucket{route!~\"/health|unmatched\"}[5m]))))"
+                  "prometheusQuery": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(bchat_http_request_duration_seconds_bucket{route!~\"/health|unmatched\"}[1h]))))"
                 },
                 "plotType": "LINE"
               }
@@ -97,12 +97,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "5xx rate by route",
+          "title": "5xx per hour by route",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (route) (rate(bchat_http_requests_total{status_code=~\"5..\"}[2m]))"
+                  "prometheusQuery": "sum by (route) (increase(bchat_http_requests_total{status_code=~\"5..\"}[1h]))"
                 },
                 "plotType": "STACKED_AREA"
               }
@@ -116,12 +116,12 @@
         "width": 6,
         "height": 4,
         "widget": {
-          "title": "4xx rate by route",
+          "title": "4xx per hour by route",
           "xyChart": {
             "dataSets": [
               {
                 "timeSeriesQuery": {
-                  "prometheusQuery": "sum by (route) (rate(bchat_http_requests_total{status_code=~\"4..\"}[2m]))"
+                  "prometheusQuery": "sum by (route) (increase(bchat_http_requests_total{status_code=~\"4..\"}[1h]))"
                 },
                 "plotType": "STACKED_AREA"
               }

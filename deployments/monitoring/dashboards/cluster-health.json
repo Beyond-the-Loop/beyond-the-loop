@@ -61,49 +61,30 @@
         }
       },
       {
-        "xPos": 4,
-        "yPos": 4,
-        "width": 4,
-        "height": 4,
-        "widget": {
-          "title": "HPA replicas — current vs desired",
-          "xyChart": {
-            "dataSets": [
-              {
-                "timeSeriesQuery": {
-                  "prometheusQuery": "kube_horizontalpodautoscaler_status_current_replicas"
-                },
-                "plotType": "LINE"
-              },
-              {
-                "timeSeriesQuery": {
-                  "prometheusQuery": "kube_horizontalpodautoscaler_status_desired_replicas"
-                },
-                "plotType": "LINE"
-              }
-            ]
-          }
-        }
-      },
-      {
-        "xPos": 8,
-        "yPos": 4,
-        "width": 4,
-        "height": 4,
-        "widget": {
-          "title": "Node CPU utilisation (%)",
-          "xyChart": {
-            "dataSets": [
-              {
-                "timeSeriesQuery": {
-                  "prometheusQuery": "100 * (1 - avg by (node) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m])))"
-                },
-                "plotType": "LINE"
-              }
-            ]
-          }
-        }
-      }
+				"xPos": 4,
+				"yPos": 4,
+				"width": 4,
+				"height": 4,
+				"widget": {
+					"title": "HPA replicas — current vs desired",
+					"xyChart": {
+						"dataSets": [
+							{
+								"timeSeriesQuery": {
+									"prometheusQuery": "kube_horizontalpodautoscaler_status_current_replicas"
+								},
+								"plotType": "LINE"
+							},
+							{
+								"timeSeriesQuery": {
+									"prometheusQuery": "kube_horizontalpodautoscaler_status_desired_replicas"
+								},
+								"plotType": "LINE"
+							}
+						]
+					}
+				}
+			}
     ]
   }
 }
