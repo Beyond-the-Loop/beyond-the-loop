@@ -38,6 +38,12 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            # Prometheus scrape port. Deliberately not routed via any
+            # Service — GMP scrapes the pod IP directly, so this port is
+            # unreachable from outside the cluster network.
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
           envFrom:
             - secretRef:
                 name: {{ include "bchat.appConfigName" . }}

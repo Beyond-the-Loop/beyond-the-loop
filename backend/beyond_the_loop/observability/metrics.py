@@ -12,14 +12,7 @@ Never add task_id, user_id, chat_id, trace_id, or any user-supplied value
 as a label — that would explode series count and either kill GMP or the
 budget.
 """
-from prometheus_client import (
-    CONTENT_TYPE_LATEST,
-    Counter,
-    Gauge,
-    Histogram,
-    generate_latest,
-)
-from starlette.responses import Response
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # HTTP request instrumentation — driven from access_log_middleware.
 HTTP_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
@@ -59,12 +52,21 @@ websocket_connections = Gauge(
     "Currently open WebSocket connections.",
 )
 
-# /metrics endpoint. Implemented as a plain route (not `make_asgi_app`'s
-# Mount) because Starlette's Mount only matches sub-paths — a request to
-# `/metrics` without a trailing slash falls through to the SPA static
-# mount at `/` and returns index.html. GMP scrapes hit `/metrics`
-# without a slash, so the Mount version silently returned HTML in
-# production. The default REGISTRY still gives us Python process
-# metrics (GC, memory, threads) for free.
-def metrics_endpoint() -> Response:
-    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+# Metrics are exposed on a dedicated port that is NOT reachable via the
+# GCE ingress. GMP scrapes the pod IP directly on this port. Serving on
+# a second port (rather than adding /metrics to the FastAPI app) means:
+# - no risk of leaking metrics to the public internet
+# - no Cloud Armor / auth workaround needed
+# - no interference with FastAPI's mount routing (Mount /metrics silently
+#   fell through to the SPA catch-all before this change)
+METRICS_PORT = 9090
+
+
+def start_metrics_server(port: int = METRICS_PORT) -> None:
+    """Start a background WSGI HTTP server exposing the default registry.
+
+    Called once from main.py's lifespan startup. The server runs in a
+    daemon thread; on pod shutdown Kubernetes SIGKILLs the process and
+    the OS reclaims the port.
+    """
+    start_http_server(port)

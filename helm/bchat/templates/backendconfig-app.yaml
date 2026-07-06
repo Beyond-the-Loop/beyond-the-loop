@@ -8,11 +8,3 @@ spec:
   timeoutSec: {{ .Values.app.backendConfig.timeoutSec }}
   connectionDraining:
     drainingTimeoutSec: {{ .Values.app.backendConfig.drainingTimeoutSec }}
-  {{- if .Values.cloudArmor.policyName }}
-  # Attach the Cloud Armor policy at the backend-service level. The policy's
-  # rules (including the deny rule that blocks external /metrics access —
-  # see deployments/grafana/README.md) protect anything reachable via the
-  # GCE ingress. GMP scrapes hit the pod IP directly and bypass this.
-  securityPolicy:
-    name: {{ .Values.cloudArmor.policyName }}
-  {{- end }}

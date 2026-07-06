@@ -11,7 +11,7 @@ spec:
     matchLabels:
       {{- include "bchat.appSelector" . | nindent 6 }}
   endpoints:
-    - port: http
+    - port: metrics
       path: /metrics
       interval: {{ .Values.observability.podMonitoring.interval | default "30s" }}
 {{- end }}
