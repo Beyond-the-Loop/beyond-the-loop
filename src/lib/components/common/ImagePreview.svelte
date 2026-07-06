@@ -24,8 +24,9 @@
 	$: current = images[currentIndex] ?? { src, alt };
 
 	const collectImages = () => {
+		const scope = document.getElementById('messages-container') ?? document;
 		const els = Array.from(
-			document.querySelectorAll('img[data-cy="image"]')
+			scope.querySelectorAll('img[data-cy="image"]')
 		) as HTMLImageElement[];
 
 		const seen = new Set<string>();
@@ -93,6 +94,9 @@
 
 	onDestroy(() => {
 		show = false;
+
+		window.removeEventListener('keydown', handleKeyDown);
+		document.body.style.overflow = 'unset';
 
 		if (previewElement) {
 			document.body.removeChild(previewElement);
