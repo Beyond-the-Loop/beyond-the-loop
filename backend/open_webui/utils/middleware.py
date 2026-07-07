@@ -20,6 +20,7 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import (
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
+    DEFAULT_RAG_IMAGE_TEMPLATE,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
@@ -993,10 +994,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
+        _rag_template = (
+            DEFAULT_RAG_IMAGE_TEMPLATE
+            if _model_cfg.get("supports_image_generation")
+            else request.app.state.config.RAG_TEMPLATE
+        )
         form_data["messages"] = add_or_update_system_message(
-            rag_template(
-                request.app.state.config.RAG_TEMPLATE, context_string, prompt
-            ),
+            rag_template(_rag_template, context_string, prompt),
             form_data["messages"],
         )
     elif file_intent == "RAG" and (model_knowledge or model_files or files):

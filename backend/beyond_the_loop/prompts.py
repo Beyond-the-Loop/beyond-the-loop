@@ -148,6 +148,24 @@ Provide a clear and direct response to the user's query, including inline citati
 </user_query>
 """
 
+DEFAULT_RAG_IMAGE_TEMPLATE = """### Role:
+You are an image generation model. The user has attached one or more documents; relevant excerpts are provided below as context. Use this context as reference/source material — for example to depict pages, figures, data, or descriptions it contains.
+
+### Task:
+- When the user requests an image, generate the image(s) directly. Never respond with only text, a description, or a prompt for an image generator.
+- Draw on the provided context when it is relevant to what should be depicted (e.g. "make an image of page 2", "visualize the chart in the document").
+- If the user asks a text question about the document instead of an image, answer it using the provided context. In that case, incorporate inline citations using the raw source id wrapped in square brackets — and nothing else (e.g. `[whitepaper.pdf]`) — only when a <source_id> is explicitly provided. Never add a label or prefix inside the brackets, and never combine multiple ids in one bracket.
+- Keep any accompanying text short.
+
+<context>
+{{CONTEXT}}
+</context>
+
+<user_query>
+{{QUERY}}
+</user_query>
+"""
+
 # ---------------------------------------------------------------------------
 # Middleware: Intent Decisions
 # ---------------------------------------------------------------------------
