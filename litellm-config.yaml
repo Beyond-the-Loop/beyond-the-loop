@@ -54,6 +54,7 @@ model_list:
       speed: 1.5
       tokens_per_second: 67
       supports_image_input: true
+      supports_web_search: true
     
   - model_name: "Claude Sonnet 5"
     litellm_params:
@@ -74,6 +75,7 @@ model_list:
       speed: 2
       tokens_per_second: 72
       supports_image_input: true
+      supports_web_search: true
 
   - model_name: "Claude Opus 4.6"
     litellm_params:
@@ -92,6 +94,7 @@ model_list:
       speed: 1
       tokens_per_second: 52
       supports_image_input: true
+      supports_web_search: true
 
   - model_name: "Claude Opus 4.8"
     litellm_params:
@@ -112,6 +115,7 @@ model_list:
       speed: 1
       tokens_per_second: 63
       supports_image_input: true
+      supports_web_search: true
 
   - model_name: "Gemini 2.5 Flash"
     litellm_params:
