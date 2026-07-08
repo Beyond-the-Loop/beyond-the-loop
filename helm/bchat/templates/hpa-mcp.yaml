@@ -1,0 +1,23 @@
+{{- if .Values.mcp.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ms365-mcp
+  labels:
+    {{- include "bchat.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ms365-mcp
+  minReplicas: {{ .Values.mcp.hpa.minReplicas }}
+  maxReplicas: {{ .Values.mcp.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.mcp.hpa.targetCPU }}
+{{- end }}

@@ -881,6 +881,9 @@ litellm_settings:
   drop_params: true # Drop unsupported params from the request body
   reasoning_auto_summary: true
   default_fallbacks: ["Gemini 2.5 Flash"]
+  # Emits litellm_* Prometheus metrics on GET /metrics of the LiteLLM proxy.
+  # See helm/bchat/templates/podmonitoring-litellm.yaml for the scrape config.
+  callbacks: ["prometheus"]
 
 files_settings:
   - custom_llm_provider: azure

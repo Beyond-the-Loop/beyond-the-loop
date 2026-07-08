@@ -117,7 +117,7 @@ class FileService:
             log.error(f"Error during daily file cleanup: {e}", exc_info=True)
             return {
                 "success": False,
-                "error": str(e),
+                "error": "file cleanup failed",
                 "companies_processed": len(self.processed_companies),
                 "files_deleted": self.deleted_count,
                 "files_protected": self.protected_files_count

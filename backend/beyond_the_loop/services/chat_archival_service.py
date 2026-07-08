@@ -72,7 +72,7 @@ class ChatArchivalService:
             log.error(f"Error during daily archival process: {e}", exc_info=True)
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Internal error during chat archival process",
                 "companies_processed": len(self.processed_companies),
                 "chats_archived": self.archived_count,
                 "chats_deleted": self.deleted_count

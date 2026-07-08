@@ -438,10 +438,11 @@ class PaymentsService:
                 "success": True,
                 "companies_processed": [c.id for c in due_companies]
             }
-        except Exception as e:
+        except Exception:
+            log.exception("Error running credit recharge checks")
             return {
                 "success": False,
-                "error": str(e)
+                "error": "credit recharge checks failed"
             }
 
     # Legacy

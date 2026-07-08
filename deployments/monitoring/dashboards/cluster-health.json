@@ -1,0 +1,98 @@
+{
+  "displayName": "bchat / Cluster Health",
+  "dashboardFilters": [
+    {
+      "labelKey": "namespace",
+      "templateVariable": "namespace",
+      "stringValue": "prod",
+      "filterType": "RESOURCE_LABEL"
+    }
+  ],
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "CPU per pod (cores)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (pod) (rate(container_cpu_usage_seconds_total{${namespace}, pod=~\"app-.*|litellm-.*|mcp-.*\", container!=\"\"}[2m]))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Memory per pod (MiB)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (pod) (container_memory_working_set_bytes{${namespace}, pod=~\"app-.*|litellm-.*|mcp-.*\", container!=\"\"}) / 1024 / 1024"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 4,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Pod restarts (24h)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (pod) (increase(kube_pod_container_status_restarts_total{${namespace}}[24h]))"
+                },
+                "plotType": "STACKED_BAR"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 4,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "HPA replicas — current vs desired",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "kube_horizontalpodautoscaler_status_current_replicas{${namespace}}"
+                },
+                "plotType": "LINE"
+              },
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "kube_horizontalpodautoscaler_status_desired_replicas{${namespace}}"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

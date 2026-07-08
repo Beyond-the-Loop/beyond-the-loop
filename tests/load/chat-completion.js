@@ -2,12 +2,19 @@ import http from 'k6/http';
 import { check, fail, sleep } from 'k6';
 import { Trend, Counter, Rate } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
-import { scenario } from 'k6/execution';
+import { scenario, vu } from 'k6/execution';
 
 const BASE_URL = __ENV.BASE_URL || 'https://staging.chat.beyondtheloop.ai';
 const MODEL_ID = __ENV.MODEL_ID || fail('MODEL_ID env var required (DB id of a Model row, not the friendly name)');
 const THINK_TIME = Number(__ENV.THINK_TIME || 2);
-const STREAM = (__ENV.STREAM || 'true') === 'true';
+const STREAM = (__ENV.STREAM || 'true') === 'false';
+// How many small-body samples to log per VU. Keeps output readable while
+// still surfacing whether "successful" responses are real content or the
+// server's short SSE error frame.
+const BODY_LOG_MAX_PER_VU = Number(__ENV.BODY_LOG_MAX_PER_VU || 3);
+// Below this size, a "successful" response is suspicious — real streamed
+// completions are hundreds of bytes minimum. Non-stream JSON responses too.
+const SUSPICIOUS_BODY_BYTES = Number(__ENV.SUSPICIOUS_BODY_BYTES || 300);
 
 const users = new SharedArray('users', () => {
   const raw = __ENV.USERS_JSON;
@@ -30,6 +37,14 @@ const totalDuration = new Trend('chat_total_ms', true);
 const streamBytes = new Trend('chat_stream_bytes');
 const chatErrors = new Counter('chat_errors');
 const chatOk = new Rate('chat_success_rate');
+// Real-content rate: HTTP 200 alone is not enough — the server can
+// return 200 + a tiny SSE error frame when downstream (LiteLLM/DB) fails
+// mid-stream, since headers were already committed. Track separately.
+const realContentRate = new Rate('chat_real_content_rate');
+
+// Per-VU counter of how many small-body samples we've already logged.
+// k6 exposes per-VU state via a globalthis object per VU sandbox.
+let bodySamplesLogged = 0;
 
 export const options = {
   scenarios: {
@@ -50,6 +65,8 @@ export const options = {
     chat_ttft_ms: ['p(95)<4000', 'p(99)<8000'],
     chat_total_ms: ['p(95)<30000'],
     chat_success_rate: ['rate>0.98'],
+    // Independent from success_rate: 200-status-only is not enough.
+    chat_real_content_rate: ['rate>0.95'],
     http_req_failed: ['rate<0.02'],
   },
   discardResponseBodies: false,
@@ -113,6 +130,23 @@ export default function (data) {
     ttft.add(res.timings.waiting);
     totalDuration.add(t1 - t0);
     streamBytes.add(res.body.length);
+
+    // A real chat response has either "role":"assistant" (non-stream JSON)
+    // or a substantial body of streamed SSE frames. If neither holds, the
+    // server likely returned a single-frame error payload with status 200.
+    const body = String(res.body);
+    const looksReal = body.length >= SUSPICIOUS_BODY_BYTES
+      || body.includes('"role":"assistant"')
+      || body.includes('"delta":{"content"');
+    realContentRate.add(looksReal);
+
+    if (!looksReal && bodySamplesLogged < BODY_LOG_MAX_PER_VU) {
+      bodySamplesLogged += 1;
+      console.warn(
+        `VU${vu.idInTest} suspicious 200 (${body.length}B, waited ${Math.round(res.timings.waiting)}ms): ` +
+        body.slice(0, 250).replace(/\n/g, '\\n')
+      );
+    }
   }
 
   sleep(THINK_TIME);

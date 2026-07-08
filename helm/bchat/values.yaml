@@ -41,7 +41,9 @@ serviceAccount:
 
 # App deployment
 app:
-  replicas: 1
+  strategy:
+    type: RollingUpdate
+  replicas: 2
   resources:
     requests:
       cpu: 500m
@@ -52,32 +54,43 @@ app:
   terminationGracePeriodSeconds: 60
   hpa:
     enabled: true
-    minReplicas: 1
-    maxReplicas: 4
+    minReplicas: 2
+    maxReplicas: 10
     targetCPU: 70
   pdb:
     enabled: true
-    minAvailable: 0  # 0 in single-replica staging; bumped to 1 in prod values
+    minAvailable: 1
+  backendConfig:
+    # Raises the GCE load balancer -> backend response timeout from the
+    # 30s default. Chat streams routinely exceed 30s; the old value caused
+    # 502s on legitimate long completions.
+    timeoutSec: 300
+    # During rolling updates, let the LB keep sending traffic to a
+    # terminating pod for this long so in-flight streams can finish.
+    drainingTimeoutSec: 60
 
 # LiteLLM deployment
 litellm:
-  replicas: 1
+  replicas: 2
   resources:
     requests:
-      cpu: 250m
+      cpu: 500m
       memory: 512Mi
     limits:
       cpu: 1
       memory: 1Gi
   hpa:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 4
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
     targetCPU: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
 
 # Microsoft 365 MCP server
 mcp:
-  replicas: 1
+  replicas: 2
   publicUrl: ""  # e.g. https://mcp-m365-staging.beyondtheloop.ai
   resources:
     requests:
@@ -86,6 +99,14 @@ mcp:
     limits:
       cpu: 500m
       memory: 512Mi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
 
 # External Secrets Operator — pulls all secrets matching this regex from GCP Secret Manager
 # and rewrites the names by stripping the prefix.
@@ -102,11 +123,67 @@ gateway:
   staticIpName: ""  # e.g. bchat-staging-ingress-ip
   managedCertSecondaryNames: []  # extra SANs for the managed cert
 
-# CronJob for monthly credit recharge / daily checks
+# DB migration Job — runs `alembic upgrade head` as a pre-upgrade Helm hook
+# using the new release's image. Helm blocks the release on failure so old
+# pods keep serving traffic.
+migrationJob:
+  enabled: true
+  activeDeadlineSeconds: 900  # 15 min — headroom for large migrations
+  # resources are optional; defaults inside the template are conservative
+
+# Scheduled jobs. Each entry becomes a K8s CronJob that POSTs to an internal
+# endpoint on the app pod. Schedules are interpreted in the timezone below
+# (matches the times the old in-process APScheduler used before we moved cron
+# out of the request-serving pod).
 cronjobs:
+  chatArchival:
+    enabled: true
+    name: chat-archival
+    schedule: "0 23 * * *"  # 23:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/chat-archival"
+    activeDeadlineSeconds: 3600
+    curlMaxTime: 3600
+  fileCleanup:
+    enabled: true
+    name: file-cleanup
+    schedule: "30 23 * * *"  # 23:30 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/file-cleanup"
+    activeDeadlineSeconds: 3600
+    curlMaxTime: 3600
+  companiesAdoptionRate:
+    enabled: true
+    name: companies-adoption-rate
+    schedule: "0 1 * * *"  # 01:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/companies-adoption-rate"
+    activeDeadlineSeconds: 1800
+    curlMaxTime: 1800
   creditRechargeCheck:
     enabled: true
-    schedule: "0 2 * * *"  # 02:00 UTC daily
+    name: credit-recharge-check
+    schedule: "0 1 * * *"  # 01:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/credit-recharge-check"
+    activeDeadlineSeconds: 1800
+    curlMaxTime: 1800
+  companyCreditConsumption:
+    enabled: true
+    name: company-credit-consumption
+    schedule: "30 1 * * *"  # 01:30 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/company-credit-consumption"
+    activeDeadlineSeconds: 1800
+    curlMaxTime: 1800
+  userCreditConsumption:
+    enabled: true
+    name: user-credit-consumption
+    schedule: "0 2 * * *"  # 02:00 Europe/Berlin daily
+    timeZone: "Europe/Berlin"
+    path: "/internal/cron/user-credit-consumption"
+    activeDeadlineSeconds: 3600
+    curlMaxTime: 3600
 
 # Litellm config — full YAML inlined. Override via --set-file in CI.
 litellmConfig: ""
@@ -114,6 +191,8 @@ litellmConfig: ""
 # Arena rankings — inlined. Override via --set-file in CI.
 arenaRankings: ""
 
-# Cloud Armor security policy attached to backend service (optional).
-cloudArmor:
-  policyName: ""  # e.g. bchat-prod-armor
+# Observability configuration (GKE Managed Prometheus, etc.)
+observability:
+  podMonitoring:
+    enabled: false
+    interval: 30s
