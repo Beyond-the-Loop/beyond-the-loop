@@ -45,9 +45,14 @@ app:
     type: RollingUpdate
   replicas: 2
   resources:
+    # Raised requests.memory 1Gi → 2Gi: prod container RSS sat at 1.2–1.9 GB,
+    # so nodes hit Kernel memory pressure and evicted us (74 evictions in 24h,
+    # plus a scheduling failure with "4 Insufficient memory" on 2026-07-08).
+    # Setting requests near actual usage keeps GKE Autopilot from overpacking
+    # nodes.
     requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 2Gi
     limits:
       cpu: 2
       memory: 4Gi
@@ -67,23 +72,40 @@ app:
     timeoutSec: 300
     # During rolling updates, let the LB keep sending traffic to a
     # terminating pod for this long so in-flight streams can finish.
-    drainingTimeoutSec: 60
+    # Bumped 60 → 120 after seeing >5000 LB-side 502s on WebSocket routes
+    # during pod churn.
+    drainingTimeoutSec: 120
 
 # LiteLLM deployment
 litellm:
   replicas: 2
   resources:
+    # LiteLLM v1.81 with 40+ models and enterprise callbacks (prometheus,
+    # semantic filter, cost tracking) burns CPU under streaming load. Prod
+    # 24h stress on the old 500m/1c limits produced 132 `context deadline
+    # exceeded` liveness failures and 198 pod restarts. Sized for the
+    # observed steady-state (2600+ completions/day) with headroom for spikes.
     requests:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1500m
+      memory: 1500Mi
     limits:
-      cpu: 1
-      memory: 1Gi
+      cpu: 4
+      memory: 3Gi
+  # Grace period for uvicorn to finish in-flight streams. Combined with the
+  # preStop delay, gives about 70s of drain time before SIGKILL.
+  terminationGracePeriodSeconds: 90
+  # Sleep before uvicorn stops accepting connections, so the k8s Service
+  # endpoints controller can remove this pod from rotation first.
+  preStopDelaySeconds: 20
   hpa:
     enabled: true
     minReplicas: 2
     maxReplicas: 10
-    targetCPU: 70
+    targetCPU: 60
+    # HPA scale-down held for this long after CPU falls below target. Longer
+    # window prevents thrashing when a spiky workload briefly cools off, and
+    # keeps pods around long enough for streaming responses to finish.
+    scaleDownStabilizationSeconds: 600
   pdb:
     enabled: true
     minAvailable: 1
@@ -99,6 +121,10 @@ mcp:
     limits:
       cpu: 500m
       memory: 512Mi
+  # Grace period for open MCP HTTP/SSE sessions to drain instead of being
+  # cut mid-transaction. Prod saw 114 mcp pods in 24h without any drain.
+  terminationGracePeriodSeconds: 60
+  preStopDelaySeconds: 15
   hpa:
     enabled: true
     minReplicas: 2

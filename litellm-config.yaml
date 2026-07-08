@@ -844,6 +844,8 @@ model_list:
       model: "azure/whisper"
       api_base: os.environ/AZURE_OPENAI_ENDPOINT
       api_key: os.environ/AZURE_OPENAI_API_KEY
+    model_info:
+      base_model: "whisper-1"
 
 router_settings:
   fallbacks:
@@ -891,20 +893,4 @@ files_settings:
     api_key: os.environ/AZURE_OPENAI_API_KEY
     api_version: "2025-04-01-preview"
 
-general_settings:
-  alerting: ["slack"]
-  alert_types: [
-    "llm_exceptions",
-    "llm_too_slow",
-    "cooldown_deployment",
-  ]
-
-  # [OPTIONAL ALERTING ARGS]
-  alerting_args:
-      outage_alert_ttl: 60           # 1 minute in seconds
-      region_outage_alert_ttl: 60    # 1 minute in seconds
-      minor_outage_alert_threshold: 5
-      major_outage_alert_threshold: 10
-      max_outage_alert_list_size: 1000
-      log_to_console: true
-      log_request_body: true
+general_settings: {}

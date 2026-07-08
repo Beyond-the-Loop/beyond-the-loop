@@ -23,8 +23,13 @@ spec:
         {{- include "bchat.litellmSelector" . | nindent 8 }}
       annotations:
         checksum/litellm-config: {{ .Values.litellmConfig | sha256sum }}
+        # Prevent Cluster Autoscaler from evicting LiteLLM pods for node
+        # scale-down while they hold long-lived streaming connections to
+        # upstream providers. Voluntary evictions still go through the PDB.
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
       serviceAccountName: {{ include "bchat.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.litellm.terminationGracePeriodSeconds }}
       containers:
         - name: litellm
           image: "{{ .Values.litellmImage.repository }}:{{ .Values.litellmImage.tag }}"
@@ -42,19 +47,33 @@ spec:
               mountPath: /app/config.yaml
               subPath: config.yaml
               readOnly: true
+          # preStop sleeps so the k8s Service endpoint controller has time to
+          # remove this pod from rotation before uvicorn stops accepting new
+          # connections. Existing streams then get the full grace period to
+          # drain.
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep {{ .Values.litellm.preStopDelaySeconds }}"
           readinessProbe:
             httpGet:
               path: /health/liveliness
               port: http
             periodSeconds: 5
-            timeoutSeconds: 3
+            timeoutSeconds: 5
+          # timeoutSeconds bumped to 5s: under CPU pressure the async event
+          # loop can miss the 3s window and cause spurious pod restarts,
+          # which kills in-flight streaming responses.
           livenessProbe:
             httpGet:
               path: /health/liveliness
               port: http
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.litellm.resources | nindent 12 }}
       volumes:
