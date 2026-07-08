@@ -21,6 +21,7 @@ ARENA_TO_LITELLM: dict[str, str] = {
     "claude-opus-4-8": "Claude Opus 4.8",
     "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5",
     "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "claude-sonnet-5-thinking": "Claude Sonnet 5",
     "deepseek-r1": "DeepSeek R1",
     "deepseek-r1-0528": "DeepSeek R1-0528",
     "deepseek-v3.2": "DeepSeek-V3.2",

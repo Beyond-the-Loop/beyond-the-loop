@@ -29,6 +29,30 @@ import { modelsInfo } from '$lib/stores';
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const imageExtensionFromBlob = (blob: Blob) => {
+	const subtype = (blob.type || '').split('/')[1]?.split(';')[0];
+	if (!subtype) return 'png';
+	if (subtype === 'jpeg') return 'jpg';
+	if (subtype === 'svg+xml') return 'svg';
+	return subtype;
+};
+
+export const downloadImage = (url: string) => {
+	return fetch(url)
+		.then((response) => response.blob())
+		.then((blob) => {
+			const objectUrl = window.URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = objectUrl;
+			link.download = `${uuidv4()}.${imageExtensionFromBlob(blob)}`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(objectUrl);
+		})
+		.catch((error) => console.error('Error downloading image:', error));
+};
+
 function escapeRegExp(string: string): string {
 	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -1052,6 +1076,11 @@ export const promptTemplate = (
 	let template = isImageGenerationModel
 		? image_generation_prompt
 		: templates[instruction.promptStyle];
+	if(modelName == 'Nano Banana 2' || modelName == 'Nano Banana Pro')
+	{
+		template = ''
+	}
+		
 
 	// Replace {{CURRENT_DATE}} in the template with the formatted date
 	template = template.replace('{{CURRENT_DATE}}', currentWeekday + ' ' + formattedDate);

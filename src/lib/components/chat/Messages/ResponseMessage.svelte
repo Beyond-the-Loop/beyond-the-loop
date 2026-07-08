@@ -848,16 +848,23 @@
 						{/if}
 					</div>
 
-					{#if message?.files && message.files?.filter((f) => f.type === 'image').length > 0}
-						<div class="my-2.5 w-full flex overflow-x-auto gap-2 flex-wrap">
-							{#each message.files as file}
-								<div>
-									{#if file.type === 'image'}
-										<Image src={file.url} alt={message.content} />
-									{/if}
-								</div>
-							{/each}
-						</div>
+					{#if message?.files}
+						{@const images = message.files.filter((f) => f.type === 'image')}
+						{#if images.length > 0}
+							<div 
+								class="my-2.5 w-full gap-2 flex flex-wrap sm:grid"
+								style="grid-template-columns: {images.length === 1 ? '60%' : `repeat(${Math.min(images.length, 5)}, 1fr)`};"
+							>
+								{#each images as file}
+									<Image
+										src={file.url}
+										alt={message.content}
+										showDownload={true}
+										className="w-full outline-none focus:outline-none"
+									/>
+								{/each}
+							</div>
+						{/if}
 					{/if}
 				</div>
 
