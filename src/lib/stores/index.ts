@@ -51,6 +51,8 @@ export const chatTitle = writable('');
 // id of the message whose "continue in new chat" button is currently working (shows a spinner)
 export const continuingInNewChatId = writable<string | null>(null);
 
+export const newChatFolderId = writable<string | null>(null);
+
 export const channels = writable([]);
 export const chats = writable([]);
 export const pinnedChats = writable([]);

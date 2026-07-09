@@ -68,7 +68,10 @@ async def create_new_chat(form_data: ChatForm, user=Depends(get_verified_user)):
                 if source.chat.get("pii_session"):
                     form_data.chat["pii_session"] = source.chat["pii_session"]
 
-        chat = Chats.insert_new_chat(user.id, form_data)
+        # "New chat in project": create the chat directly in its folder.
+        folder_id = form_data.chat.pop("folder_id", None)
+
+        chat = Chats.insert_new_chat(user.id, form_data, folder_id=folder_id)
         return ChatResponse(**chat.model_dump())
     except Exception as e:
         log.exception(e)

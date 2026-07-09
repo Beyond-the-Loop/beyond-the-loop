@@ -5,6 +5,7 @@ import litellm
 
 from beyond_the_loop.config import LITELLM_MODEL_CONFIG, LITELLM_MODEL_MAP
 from beyond_the_loop.models.chats import Chats
+from beyond_the_loop.models.folders import Folders
 from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import CHAT_COMPRESSION_NOTICE
 from beyond_the_loop.utils.structured_completion import ChatSummaryResponse, structured_completion
@@ -212,6 +213,17 @@ def _build_summary_block(summary_text: str) -> str:
     )
 
 
+def _merge_system_block(messages: list[dict], addition: str) -> list[dict]:
+    """Append `addition` to the first system message (or prepend a new one), keeping
+    every other message in order."""
+    system_msgs = [m for m in messages if m.get("role") == "system"]
+    others = [m for m in messages if m.get("role") != "system"]
+    if system_msgs:
+        merged = {**system_msgs[0], "content": system_msgs[0]["content"] + "\n\n" + addition}
+        return [merged, *system_msgs[1:], *others]
+    return [{"role": "system", "content": addition}, *others]
+
+
 def _build_payload(
     system_msgs: list[dict],
     summary_text: str | None,
@@ -224,14 +236,11 @@ def _build_payload(
     if notice_text:
         blocks.append(notice_text)
 
+    combined = [*system_msgs, *conversational_messages]
     if not blocks:
-        return [*system_msgs, *conversational_messages]
+        return combined
 
-    addition = "\n\n".join(blocks)
-    if system_msgs:
-        merged = {**system_msgs[0], "content": system_msgs[0]["content"] + "\n\n" + addition}
-        return [merged, *system_msgs[1:], *conversational_messages]
-    return [{"role": "system", "content": addition}, *conversational_messages]
+    return _merge_system_block(combined, "\n\n".join(blocks))
 
 
 # ---------------------------------------------------------------------------
@@ -411,3 +420,80 @@ async def build_continuation_seed(
         return None
 
     return {"messages": [], "summary": summary}
+
+
+async def gather_and_inject_project_context(
+    form_data: dict,
+    chat_id: str,
+    model: ModelModel,
+    event_emitter=None,
+    pii_active: bool = False,
+    user=None,
+) -> dict:
+    """If this chat belongs to a folder (project): for every OTHER chat in the project,
+    make sure its own compression.summary is current — if it has pending compression
+    ["messages"], fold them in first via compress_chat — then collect the summaries into
+    folder.meta['summaries'] and append them to the prompt. Each chat keeps only its own
+    summary."""
+    if not user or not chat_id:
+        return form_data
+
+    chat_data = Chats.get_chat_by_id(chat_id)
+    if not chat_data or not chat_data.folder_id:
+        return form_data
+
+    folder = Folders.get_folder_by_id_and_user_id(chat_data.folder_id, user.id)
+    if not folder:
+        return form_data
+
+    siblings = [
+        c
+        for c in Chats.get_chats_by_folder_id_and_user_id(chat_data.folder_id, user.id)
+        if c.id != chat_id
+    ]
+    if not siblings:
+        return form_data
+
+    summaries: dict = {}
+    emitted = False
+
+    for sib in siblings:
+        compression = sib.chat.get("compression") or {}
+        summary = compression.get("summary")
+
+        # Only summary, no pending messages → already up to date. Pending messages →
+        # fold them into the summary first (compress_chat), then persist the chat's state.
+        if compression.get("messages"):
+            if event_emitter and not emitted:
+                await event_emitter(
+                    {"type": "status", "data": {"action": "project_context",
+                     "description": "Aktualisiere Projektkontext", "done": False}}
+                )
+                emitted = True
+            await compress_chat(compression, agent_model=model, keep_budget=0,
+                                pii_active=pii_active, user=user)
+            _save_compression_state(sib.id, compression)
+            summary = compression.get("summary")
+
+        if summary:
+            summaries[sib.id] = {"title": sib.title, "summary": summary}
+
+    # The folder holds the list of all its chats' summaries (write only on change).
+    if summaries != (folder.meta or {}).get("summaries"):
+        Folders.update_folder_meta_by_id_and_user_id(
+            chat_data.folder_id, user.id, {**(folder.meta or {}), "summaries": summaries}
+        )
+
+    blocks = [f"[{e['title']}]\n{e['summary']}" for e in summaries.values() if e.get("summary")]
+    if not blocks:
+        return form_data
+
+    context = (
+        "[PROJECT CONTEXT]\n"
+        "Current summaries of the OTHER chats in this project, refreshed for THIS message. "
+        "This is the authoritative, up-to-date list — if it differs from anything said "
+        "earlier in this conversation, trust this list over your previous answers.\n\n"
+        + "\n\n".join(blocks)
+    )
+    form_data["messages"] = _merge_system_block(form_data.get("messages", []), context)
+    return form_data
