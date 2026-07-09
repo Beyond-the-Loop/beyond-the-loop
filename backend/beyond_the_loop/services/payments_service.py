@@ -421,6 +421,7 @@ class PaymentsService:
                     "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
                 }
 
+            custom_seats = _get_custom_seats(subscription)
             return {
                 "plan": plan_id,
                 "status": subscription.get("status"),
@@ -433,14 +434,13 @@ class PaymentsService:
                     "cancel_at_period_end") and subscription.get("status") == 'active' else None,
                 "flex_credits_remaining": company.flex_credit_balance,
                 "credits_remaining": company.credit_balance,
-                "seats": plan.get("seats", 0),
+                "seats": custom_seats if custom_seats is not None else plan.get("seats", 0),
+                "custom_seats": custom_seats,
                 "seats_taken": Users.count_users_by_company_id(company_id),
                 "auto_recharge": company.auto_recharge,
                 "image_url": image_url,
                 "credits_per_month": plan.get("credits_per_month", 0),
-                "custom_credit_amount": int(
-                    subscription.get("metadata", {}).get("custom_credit_amount")) if subscription.get("metadata").get(
-                    "custom_credit_amount") is not None else None,
+                "custom_credit_amount": _get_custom_credit_amount(subscription),
                 "next_credit_recharge": company.next_credit_charge_check,
                 "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
             }
