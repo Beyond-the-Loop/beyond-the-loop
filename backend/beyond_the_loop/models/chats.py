@@ -106,7 +106,9 @@ class ChatTitleIdResponse(BaseModel):
 
 
 class ChatTable:
-    def insert_new_chat(self, user_id: str, form_data: ChatForm) -> Optional[ChatModel]:
+    def insert_new_chat(
+        self, user_id: str, form_data: ChatForm, folder_id: Optional[str] = None
+    ) -> Optional[ChatModel]:
         with get_db() as db:
             id = str(uuid.uuid4())
             chat = ChatModel(
@@ -119,6 +121,7 @@ class ChatTable:
                         else "New chat"
                     ),
                     "chat": form_data.chat,
+                    "folder_id": folder_id,
                     "created_at": int(time.time()),
                     "updated_at": int(time.time()),
                 }

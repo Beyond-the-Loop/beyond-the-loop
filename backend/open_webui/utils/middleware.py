@@ -73,7 +73,7 @@ from open_webui.env import (
 from open_webui.constants import TASKS
 from beyond_the_loop.utils.chat_compression import (
     maybe_compress_chat,
-    gather_and_inject_folder_context,
+    gather_and_inject_project_context,
 )
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
@@ -462,7 +462,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 pii_active=pii_session is not None,
                 user=user,
             )
-            form_data = await gather_and_inject_folder_context(
+            form_data = await gather_and_inject_project_context(
                 form_data=form_data,
                 chat_id=chat_id,
                 model=compression_model,

@@ -422,12 +422,7 @@ async def build_continuation_seed(
     return {"messages": [], "summary": summary}
 
 
-# ---------------------------------------------------------------------------
-# Project context (folder = project) — Projects v2
-# ---------------------------------------------------------------------------
-
-
-async def gather_and_inject_folder_context(
+async def gather_and_inject_project_context(
     form_data: dict,
     chat_id: str,
     model: ModelModel,

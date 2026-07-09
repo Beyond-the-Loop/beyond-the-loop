@@ -774,7 +774,7 @@
 				onAdd={() => {
 					createFolder();
 				}}
-				onAddLabel={$i18n.t('New folder')}
+				onAddLabel={$i18n.t('New project')}
 				on:import={(e) => {
 					importChatHandler(e.detail);
 				}}
