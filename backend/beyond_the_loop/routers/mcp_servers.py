@@ -45,6 +45,17 @@ router = APIRouter()
 
 
 VALID_TRANSPORTS = {"sse", "streamable_http"}
+
+
+def _compute_scope_mismatch(row) -> bool:
+    """Return True when the requested OAuth scopes are not fully covered by
+    the scopes the provider actually granted.  Either field being absent /
+    empty is treated as "no mismatch" so we don't surface false positives
+    before the OAuth flow has run.
+    """
+    requested = set((row.oauth_scope or "").split())
+    granted = set((row.oauth_granted_scope or "").split())
+    return bool(requested - granted)
 VALID_AUTH_TYPES = {None, "bearer", "oauth"}
 TEST_CONNECTION_TIMEOUT_SECONDS = 8.0
 
@@ -79,6 +90,8 @@ def _to_response(server: MCPServerModel) -> MCPServerResponse:
             "has_oauth_client_secret": bool(server.oauth_client_secret_encrypted),
             "has_oauth_access_token": bool(server.oauth_access_token_encrypted),
             "has_oauth_refresh_token": bool(server.oauth_refresh_token_encrypted),
+            "scope_mismatch": _compute_scope_mismatch(server),
+            "available_scopes": server.available_scopes,
         }
     )
 
