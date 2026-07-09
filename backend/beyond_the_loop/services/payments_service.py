@@ -27,6 +27,42 @@ def is_flat_rate_plan(plan: str | None) -> bool:
     return plan in FLAT_RATE_PLANS
 
 
+def _get_custom_seats(subscription: dict) -> int | None:
+    """Extract ``custom_seats`` from a Stripe subscription's metadata.
+
+    Returns a positive int, or ``None`` when the metadata is missing, empty,
+    zero/negative, or malformed. Callers fall back to the plan's default
+    ``seats`` value on ``None``.
+    """
+    raw = (subscription.get("metadata") or {}).get("custom_seats")
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+        return n if n > 0 else None
+    except (ValueError, TypeError):
+        log.warning(f"Invalid custom_seats metadata: {raw!r}")
+        return None
+
+
+def _get_custom_credit_amount(subscription: dict) -> int | None:
+    """Extract ``custom_credit_amount`` from a Stripe subscription's metadata.
+
+    Returns a positive int, or ``None`` when the metadata is missing, empty,
+    zero/negative, or malformed. Callers fall back to the plan's default
+    ``credits_per_month`` value on ``None``.
+    """
+    raw = (subscription.get("metadata") or {}).get("custom_credit_amount")
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+        return n if n > 0 else None
+    except (ValueError, TypeError):
+        log.warning(f"Invalid custom_credit_amount metadata: {raw!r}")
+        return None
+
+
 def _next_monthly_anchor_after(anchor_dt: datetime, after_dt: datetime) -> datetime:
     """Find the next datetime with anchor_dt's day-of-month and time-of-day
     that is strictly after ``after_dt``. Month-end days clamp naturally via
@@ -337,14 +373,16 @@ class PaymentsService:
 
                 plan_id, plan, image_url = self.get_plan_details_from_subscription(trial_subscription)
 
+                custom_seats = _get_custom_seats(trial_subscription)
                 return {
                     'credits_remaining': company.credit_balance,
                     'flex_credits_remaining': company.flex_credit_balance,
                     'credits_per_month': plan.get("credits_per_month", 0),
-                    'custom_credit_amount': int(trial_subscription.get("metadata", {}).get("custom_credit_amount")) if trial_subscription.get("metadata", {}).get("custom_credit_amount") is not None else None,
+                    'custom_credit_amount': _get_custom_credit_amount(trial_subscription),
                     'plan': plan_id,
                     'is_trial': True,
-                    "seats": plan.get("seats", 0),
+                    "seats": custom_seats if custom_seats is not None else plan.get("seats", 0),
+                    "custom_seats": custom_seats,
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     'trial_end': trial_end,
                     'days_remaining': days_remaining,
@@ -383,6 +421,7 @@ class PaymentsService:
                     "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
                 }
 
+            custom_seats = _get_custom_seats(subscription)
             return {
                 "plan": plan_id,
                 "status": subscription.get("status"),
@@ -395,14 +434,13 @@ class PaymentsService:
                     "cancel_at_period_end") and subscription.get("status") == 'active' else None,
                 "flex_credits_remaining": company.flex_credit_balance,
                 "credits_remaining": company.credit_balance,
-                "seats": plan.get("seats", 0),
+                "seats": custom_seats if custom_seats is not None else plan.get("seats", 0),
+                "custom_seats": custom_seats,
                 "seats_taken": Users.count_users_by_company_id(company_id),
                 "auto_recharge": company.auto_recharge,
                 "image_url": image_url,
                 "credits_per_month": plan.get("credits_per_month", 0),
-                "custom_credit_amount": int(
-                    subscription.get("metadata", {}).get("custom_credit_amount")) if subscription.get("metadata").get(
-                    "custom_credit_amount") is not None else None,
+                "custom_credit_amount": _get_custom_credit_amount(subscription),
                 "next_credit_recharge": company.next_credit_charge_check,
                 "is_kickstart_customer": subscription.get("metadata", {}).get("is_kickstart_customer") == "true"
             }
@@ -511,16 +549,10 @@ class PaymentsService:
                     f"No plan found for price ID: {price_id}. Known price IDs: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }")
                 return None, None, None
 
-            subscription_metadata = event_data.get('metadata', {})
-            custom_credit_amount = subscription_metadata.get('custom_credit_amount')
-
-            if custom_credit_amount:
-                try:
-                    credits_per_month = int(custom_credit_amount)
-                except (ValueError, TypeError):
-                    credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
-            else:
-                credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+            credits_per_month = (
+                _get_custom_credit_amount(event_data)
+                or payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+            )
 
             if reset_billing_period and credits_per_month > 0:
                 Companies.update_company_by_id(company.id, {
