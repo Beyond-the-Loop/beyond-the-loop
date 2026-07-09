@@ -683,7 +683,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                         "transport": s.transport,
                         "auth_type": s.auth_type,
                         "access_token_plain": access_token,
-                        "tool_filter": s.tool_filter,
+                        "tools": s.tools or [],
                     })
                 if resolved:
                     metadata["mcp_servers_resolved"] = resolved
