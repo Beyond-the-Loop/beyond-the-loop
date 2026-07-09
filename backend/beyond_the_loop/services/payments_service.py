@@ -373,14 +373,16 @@ class PaymentsService:
 
                 plan_id, plan, image_url = self.get_plan_details_from_subscription(trial_subscription)
 
+                custom_seats = _get_custom_seats(trial_subscription)
                 return {
                     'credits_remaining': company.credit_balance,
                     'flex_credits_remaining': company.flex_credit_balance,
                     'credits_per_month': plan.get("credits_per_month", 0),
-                    'custom_credit_amount': int(trial_subscription.get("metadata", {}).get("custom_credit_amount")) if trial_subscription.get("metadata", {}).get("custom_credit_amount") is not None else None,
+                    'custom_credit_amount': _get_custom_credit_amount(trial_subscription),
                     'plan': plan_id,
                     'is_trial': True,
-                    "seats": plan.get("seats", 0),
+                    "seats": custom_seats if custom_seats is not None else plan.get("seats", 0),
+                    "custom_seats": custom_seats,
                     "seats_taken": Users.count_users_by_company_id(company_id),
                     'trial_end': trial_end,
                     'days_remaining': days_remaining,
