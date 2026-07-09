@@ -13,7 +13,13 @@ from open_webui.env import (
     WEBSOCKET_MANAGER,
 )
 from open_webui.utils.auth import decode_token
-from beyond_the_loop.socket.utils import RedisDict
+from beyond_the_loop.socket.utils import (
+    RedisDict,
+    SessionStore,
+    UserSessionSet,
+    InMemorySessionStore,
+    InMemoryUserSessionSet,
+)
 from beyond_the_loop.observability.metrics import websocket_connections
 
 from open_webui.env import (
@@ -56,11 +62,15 @@ STRIPE_PRODUCT_CACHE = RedisDict(":stripe_product_cache", redis_url=REDIS_URL)
 
 if WEBSOCKET_MANAGER == "redis":
     log.debug("Using Redis to manage websockets.")
-    SESSION_POOL = RedisDict("open-webui:session_pool", redis_url=REDIS_URL)
-    USER_POOL = RedisDict("open-webui:user_pool", redis_url=REDIS_URL)
+    # Per-sid keys with TTL replace the old `open-webui:session_pool` /
+    # `open-webui:user_pool` hashes. Prefix intentionally different so a
+    # rolling deploy does not read the old hash and mistake it for a fresh
+    # store — the old keys were leaking anyway; leftovers expire naturally.
+    SESSION_POOL = SessionStore("open-webui:session", redis_url=REDIS_URL)
+    USER_POOL = UserSessionSet("open-webui:user_sessions", redis_url=REDIS_URL)
 else:
-    SESSION_POOL = {}
-    USER_POOL = {}
+    SESSION_POOL = InMemorySessionStore()
+    USER_POOL = InMemoryUserSessionSet()
 
 
 app = socketio.ASGIApp(

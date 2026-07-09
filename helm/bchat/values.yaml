@@ -61,8 +61,14 @@ app:
     # overpack the node → kubelet evicts on node-level pressure. Requests
     # must reflect real p95 RSS or evictions keep happening. Limit bumped
     # 4Gi → 5Gi for headroom on model-cache growth.
+    # 500m → 800m on 2026-07-09: HPA at target 70% saw sustained mean of
+    # 0.30-0.40 cores/pod during business hours (peaks to 2 cores = limit),
+    # keeping replicas glued to maxReplicas: 10 all day. Real usage was
+    # far above the 500m request, so HPA scaled aggressively without the
+    # actual node capacity being the bottleneck. Right-sizing the request
+    # lets HPA rate the same real load at ~40-50% target instead of >100%.
     requests:
-      cpu: 500m
+      cpu: 800m
       memory: 3Gi
     limits:
       cpu: 2
@@ -80,7 +86,10 @@ app:
     enabled: true
     minReplicas: 2
     maxReplicas: 10
-    targetCPU: 70
+    # 70 → 80 on 2026-07-09 together with cpu request 500m → 800m. Higher
+    # target tolerates short bursts without scaling out, works with the
+    # right-sized request to keep replica count moderate under normal load.
+    targetCPU: 80
     # HPA scale-down held for this long after CPU drops. Without this,
     # HPA was collapsing 9 → 2 replicas in seconds, SIGTERM'ing pods with
     # open streams. Longer window prevents thrashing during traffic dips.

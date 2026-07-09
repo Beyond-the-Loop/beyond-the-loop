@@ -95,3 +95,132 @@ class RedisDict:
         if key not in self:
             self[key] = default
         return self[key]
+
+
+# Session state used to live inside two big Redis hashes (RedisDict). That had
+# two problems: (1) hash fields cannot expire individually, so any sid that
+# never reached the disconnect handler (SIGKILL, node eviction, autopilot
+# rotation) leaked forever, and (2) USER_POOL had to be modified via
+# read-modify-write, which lost sids under concurrent connects. The stores
+# below replace that: per-sid Redis keys with TTL (SessionStore) and a Redis
+# Set per user (UserSessionSet) — both atomic and self-healing.
+_SESSION_TTL_SECONDS = 86400  # 24h; refreshed on every connect/user-join
+
+
+class SessionStore:
+    """sid → user_dump JSON, one Redis key per sid with a TTL.
+
+    Any sid whose pod died without firing `disconnect` disappears after
+    _SESSION_TTL_SECONDS instead of accumulating forever in Redis.
+    """
+
+    def __init__(self, prefix, redis_url, ttl_seconds=_SESSION_TTL_SECONDS):
+        self.prefix = prefix
+        self.ttl = ttl_seconds
+        self.redis = redis.Redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
+
+    def _key(self, sid):
+        return f"{self.prefix}:{sid}"
+
+    def set(self, sid, value):
+        self.redis.set(self._key(sid), json.dumps(value), ex=self.ttl)
+
+    def get(self, sid, default=None):
+        raw = self.redis.get(self._key(sid))
+        if raw is None:
+            return default
+        return json.loads(raw)
+
+    def delete(self, sid):
+        return self.redis.delete(self._key(sid)) == 1
+
+    def __contains__(self, sid):
+        return bool(self.redis.exists(self._key(sid)))
+
+
+class UserSessionSet:
+    """user_id → SET of active sids, Redis-native atomic ops.
+
+    Replaces `USER_POOL[user_id] = USER_POOL[user_id] + [sid]` (racy
+    read-modify-write that produced duplicates via connect+user-join AND lost
+    sids under concurrent connects). SADD is atomic and idempotent. TTL is
+    refreshed on every add so an idle user drops out after 24h, and Redis
+    removes the key automatically once the set becomes empty on SREM.
+    """
+
+    def __init__(self, prefix, redis_url, ttl_seconds=_SESSION_TTL_SECONDS):
+        self.prefix = prefix
+        self.ttl = ttl_seconds
+        self.redis = redis.Redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
+
+    def _key(self, user_id):
+        return f"{self.prefix}:{user_id}"
+
+    def add(self, user_id, sid):
+        key = self._key(user_id)
+        pipe = self.redis.pipeline()
+        pipe.sadd(key, sid)
+        pipe.expire(key, self.ttl)
+        pipe.execute()
+
+    def remove(self, user_id, sid):
+        self.redis.srem(self._key(user_id), sid)
+
+    def get_sids(self, user_id):
+        return list(self.redis.smembers(self._key(user_id)))
+
+    def has_user(self, user_id):
+        return bool(self.redis.exists(self._key(user_id)))
+
+
+class InMemorySessionStore:
+    """Dev/test fallback for SessionStore when WEBSOCKET_MANAGER is unset."""
+
+    def __init__(self, ttl_seconds=None):  # ttl ignored in-memory
+        self._data = {}
+
+    def set(self, sid, value):
+        self._data[sid] = value
+
+    def get(self, sid, default=None):
+        return self._data.get(sid, default)
+
+    def delete(self, sid):
+        return self._data.pop(sid, None) is not None
+
+    def __contains__(self, sid):
+        return sid in self._data
+
+
+class InMemoryUserSessionSet:
+    """Dev/test fallback for UserSessionSet when WEBSOCKET_MANAGER is unset."""
+
+    def __init__(self, ttl_seconds=None):
+        self._data = {}
+
+    def add(self, user_id, sid):
+        self._data.setdefault(user_id, set()).add(sid)
+
+    def remove(self, user_id, sid):
+        sids = self._data.get(user_id)
+        if not sids:
+            return
+        sids.discard(sid)
+        if not sids:
+            del self._data[user_id]
+
+    def get_sids(self, user_id):
+        return list(self._data.get(user_id, set()))
+
+    def has_user(self, user_id):
+        return user_id in self._data
