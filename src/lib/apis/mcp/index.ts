@@ -78,7 +78,7 @@ export type InstallTemplateBody = {
 export type TestConnectionResult = {
 	success: boolean;
 	transport: string;
-	tools?: string[] | null;
+	tools?: Array<{ name: string; description?: string }> | null;
 	message?: string | null;
 };
 

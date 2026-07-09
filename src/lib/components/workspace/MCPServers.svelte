@@ -86,6 +86,12 @@
 	let testing = false;
 	let testResult: TestConnectionResult | null = null;
 
+	// Tools checkbox list state (edit modal)
+	let modalTools: Array<{ name: string; description: string; enabled: boolean }> = [];
+	let toolsLoading = false;
+	let toolsError: string | null = null;
+	let toolsStale = false;
+
 	function blankForm(): MCPServerForm {
 		return {
 			name: '',
@@ -211,6 +217,10 @@
 		testResult = null;
 		showAdvancedOauth = false;
 		createdInThisSession = false;
+		modalTools = [];
+		toolsLoading = false;
+		toolsError = null;
+		toolsStale = false;
 		showEditor = true;
 	}
 
@@ -288,7 +298,11 @@
 				// For OAuth connectors the row already exists (connectOAuth
 				// silently created it). For others we may also be editing an
 				// existing row. Either way: PATCH.
-				await updateMCPServer(localStorage.token, editingId, buildSavePayload());
+				const payload = buildSavePayload();
+				if (modalTools.length > 0) {
+					payload.tools = modalTools.map((t) => ({ name: t.name, enabled: t.enabled }));
+				}
+				await updateMCPServer(localStorage.token, editingId, payload);
 				toast.success($i18n.t('Connector updated'));
 			} else {
 				// Reached only for non-OAuth connectors — OAuth ones get
@@ -522,6 +536,45 @@
 		}
 	}
 
+	async function fetchTools() {
+		if (!editingServer?.id) return;
+		toolsLoading = true;
+		toolsError = null;
+		toolsStale = false;
+		try {
+			const r = await testExistingMCPServerConnection(localStorage.token, editingServer.id);
+			if (r.success && r.tools) {
+				const stored = new Map(
+					(editingServer.tools || []).map((t) => [t.name, t.enabled])
+				);
+				modalTools = r.tools.map((t) => ({
+					name: t.name,
+					description: t.description || '',
+					enabled: stored.has(t.name) ? !!stored.get(t.name) : true
+				}));
+			} else {
+				// Fall back to cached tools
+				modalTools = (editingServer.tools || []).map((t) => ({
+					name: t.name,
+					description: (t as any).description || '',
+					enabled: t.enabled
+				}));
+				toolsStale = true;
+				toolsError = r.message || 'Verbindung fehlgeschlagen';
+			}
+		} catch (e) {
+			modalTools = (editingServer.tools || []).map((t) => ({
+				name: t.name,
+				description: (t as any).description || '',
+				enabled: t.enabled
+			}));
+			toolsStale = true;
+			toolsError = (e as Error).message;
+		} finally {
+			toolsLoading = false;
+		}
+	}
+
 	async function testServer(srv: MCPServerResponse) {
 		const t = toast.loading($i18n.t('Testing {{name}}...', { name: srv.name }));
 		try {
@@ -605,6 +658,9 @@
 		}
 		prevShowEditor = showEditor;
 	}
+
+	// Auto-fetch tools when the edit modal opens for an existing server
+	$: if (showEditor && editingServer?.id) fetchTools();
 
 	let scrollContainer: HTMLDivElement;
 
@@ -898,6 +954,72 @@
 					{$i18n.t('Enabled')}
 				</label>
 
+				{#if editingServer?.id}
+					<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
+						<div class="flex items-center justify-between mb-2">
+							<h4 class="text-sm font-semibold dark:text-customGray-100">Tools</h4>
+							<div class="flex items-center gap-2">
+								{#if editingServer?.tools_fetched_at}
+									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
+										Zuletzt aktualisiert: {new Date(editingServer.tools_fetched_at * 1000).toLocaleString()}
+									</span>
+								{/if}
+								<button
+									type="button"
+									class="text-xs underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
+									disabled={toolsLoading}
+									on:click={fetchTools}
+								>
+									Neu laden
+								</button>
+							</div>
+						</div>
+
+						{#if toolsStale}
+							<div class="mb-2 rounded border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs text-yellow-800">
+								Konnte Verbindung nicht testen — zeige zuletzt bekannte Tools.
+							</div>
+						{/if}
+
+						{#if toolsLoading}
+							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">Lade Tools…</div>
+						{:else if modalTools.length === 0}
+							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">Keine Tools bekannt.</div>
+						{:else}
+							<div class="flex items-center gap-2 mb-2 text-xs">
+								<button
+									type="button"
+									class="underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100"
+									on:click={() => (modalTools = modalTools.map((t) => ({ ...t, enabled: true })))}
+								>
+									Alle aktivieren
+								</button>
+								<span class="text-lightGray-1200 dark:text-customGray-100/40">·</span>
+								<button
+									type="button"
+									class="underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100"
+									on:click={() => (modalTools = modalTools.map((t) => ({ ...t, enabled: false })))}
+								>
+									Alle deaktivieren
+								</button>
+							</div>
+							<ul class="space-y-1 max-h-64 overflow-y-auto border border-lightGray-400 dark:border-customGray-700 rounded p-2">
+								{#each modalTools as tool (tool.name)}
+									<li class="flex items-start gap-2">
+										<input type="checkbox" bind:checked={tool.enabled} class="mt-1 accent-blue-500" />
+										<div>
+											<div class="text-sm font-medium dark:text-customGray-100">{tool.name}</div>
+											{#if tool.description}
+												<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50">{tool.description}</div>
+											{/if}
+										</div>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
+
 				<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 					<div class="flex items-center gap-2 flex-wrap">
 						<button
@@ -917,7 +1039,7 @@
 								{testResult.message ?? (testResult.success ? 'OK' : 'Failed')}
 								{#if testResult.tools && testResult.tools.length > 0}
 									<span class="text-lightGray-1200 dark:text-customGray-100/60">
-										({testResult.tools.slice(0, 5).join(', ')}{testResult.tools.length > 5
+										({testResult.tools.slice(0, 5).map((t) => t.name).join(', ')}{testResult.tools.length > 5
 											? '…'
 											: ''})
 									</span>
