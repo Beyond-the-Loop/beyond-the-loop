@@ -47,6 +47,31 @@ router = APIRouter()
 VALID_TRANSPORTS = {"sse", "streamable_http"}
 
 
+def reconcile_tools(
+    existing: Optional[list[dict]],
+    discovered: list[dict],
+) -> list[dict]:
+    """Merge freshly-discovered tools with stored enabled flags.
+
+    - Discovered tools already present in `existing` keep their `enabled`.
+    - Discovered tools not in `existing` default to `enabled=True`.
+    - Tools in `existing` but not in `discovered` are dropped.
+    """
+    stored = {t["name"]: t for t in (existing or [])}
+    result: list[dict] = []
+    for t in discovered:
+        name = t.get("name")
+        if not name:
+            continue
+        prior = stored.get(name)
+        result.append({
+            "name": name,
+            "description": t.get("description", ""),
+            "enabled": bool(prior["enabled"]) if prior and "enabled" in prior else True,
+        })
+    return result
+
+
 def _compute_scope_mismatch(row) -> bool:
     """Return True when the requested OAuth scopes are not fully covered by
     the scopes the provider actually granted.  Either field being absent /
@@ -181,7 +206,7 @@ def _assert_url_safe(url: str) -> None:
 class TestConnectionResult(BaseModel):
     success: bool
     transport: str
-    tools: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None  # [{name, description}]
     message: Optional[str] = None
 
 
@@ -406,13 +431,17 @@ async def _run_connection_test(
             message=f"MCP error: {tools_body['error'].get('message', tools_body['error'])}",
         )
 
-    tools = tools_body.get("result", {}).get("tools", [])
-    tool_names = [t.get("name") for t in tools if isinstance(t, dict) and t.get("name")]
+    tools_raw = tools_body.get("result", {}).get("tools", [])
+    tools_out = [
+        {"name": t["name"], "description": t.get("description", "")}
+        for t in tools_raw
+        if isinstance(t, dict) and t.get("name")
+    ]
     return TestConnectionResult(
         success=True,
         transport=transport,
-        tools=tool_names,
-        message=f"Discovered {len(tool_names)} tool(s).",
+        tools=tools_out,
+        message=f"Discovered {len(tools_out)} tool(s).",
     )
 
 
@@ -859,12 +888,25 @@ async def test_connection_existing(server_id: str, user=Depends(get_verified_use
     # once we have the fresh token in hand.
     effective_auth_type = "bearer" if auth_token_plain else None
 
-    return await _run_connection_test(
+    result = await _run_connection_test(
         url=server.url,
         transport=server.transport,
         auth_type=effective_auth_type,
         auth_token_plain=auth_token_plain,
     )
+
+    if result.success and result.tools is not None:
+        from datetime import datetime, timezone
+        from open_webui.internal.db import get_db
+        from beyond_the_loop.models.mcp_servers import MCPServer
+        with get_db() as db:
+            db_row = db.query(MCPServer).filter_by(id=server_id, user_id=user.id).first()
+            if db_row is not None:
+                db_row.tools = reconcile_tools(db_row.tools, result.tools)
+                db_row.tools_fetched_at = datetime.now(timezone.utc)
+                db.commit()
+
+    return result
 
 
 ############################
