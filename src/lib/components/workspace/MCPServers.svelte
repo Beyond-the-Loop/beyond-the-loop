@@ -59,7 +59,7 @@
 	let installTenantId = '';
 
 	// Company-level M365 defaults set in the Konnektoren tab.
-	$: companyM365 = ($companyConfig as any)?.connectors?.['microsoft-365'] ?? {
+	$: companyM365 = ($companyConfig as any)?.config?.connectors?.['microsoft-365'] ?? {
 		has_client_id: false,
 		has_tenant_id: false,
 		has_client_secret: false
@@ -667,8 +667,22 @@
 		prevShowEditor = showEditor;
 	}
 
-	// Auto-fetch tools when the edit modal opens for an existing server
-	$: if (showEditor && editingServer?.id) fetchTools();
+	// Auto-fetch tools when the edit modal opens for an existing server.
+	// `lastFetchedForId` prevents re-entry when reload() reassigns editingServer
+	// with the same id (which would otherwise trigger a second concurrent POST).
+	let lastFetchedForId: string | null = null;
+	$: if (showEditor && editingServer?.id && editingServer.id !== lastFetchedForId) {
+		lastFetchedForId = editingServer.id;
+		fetchTools();
+	}
+	$: if (!showEditor) lastFetchedForId = null;
+
+	// Manual reload from the "Neu laden" button — forces a refetch even when the
+	// server id hasn't changed since the last auto-fetch.
+	function manualFetchTools() {
+		lastFetchedForId = null;
+		fetchTools();
+	}
 
 	let scrollContainer: HTMLDivElement;
 
@@ -976,7 +990,7 @@
 									type="button"
 									class="text-xs underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
 									disabled={toolsLoading}
-									on:click={fetchTools}
+									on:click={manualFetchTools}
 								>
 									Neu laden
 								</button>

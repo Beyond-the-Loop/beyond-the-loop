@@ -1,6 +1,7 @@
 import logging
 import time
 import uuid
+from datetime import datetime
 from typing import Any, Optional
 
 from open_webui.internal.db import Base, get_db
@@ -103,7 +104,7 @@ class MCPServerModel(BaseModel):
 
     enabled: bool = True
     tools: Optional[list[dict]] = None
-    tools_fetched_at: Optional[int] = None
+    tools_fetched_at: Optional[datetime] = None
     available_scopes: Optional[list[str]] = None
     template_slug: Optional[str] = None
 
@@ -347,7 +348,9 @@ class MCPServersTable:
                     stored = {t["name"]: t for t in (row.tools or [])}
                     new_tools = []
                     for incoming in form_data.tools:
-                        name = incoming["name"]
+                        name = incoming.get("name")
+                        if not name:
+                            continue
                         base = stored.get(name, {"name": name, "description": ""})
                         new_tools.append({
                             "name": name,

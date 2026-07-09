@@ -110,8 +110,11 @@ def _to_response(server: MCPServerModel) -> MCPServerResponse:
                     "oauth_pending_state",
                     "oauth_pending_code_verifier",
                     "oauth_pending_created_at",
+                    "tools_fetched_at",
                 }
             ),
+            "tools_fetched_at": int(server.tools_fetched_at.timestamp())
+                if server.tools_fetched_at else None,
             "has_auth_token": bool(server.auth_token_encrypted),
             "has_oauth_client_secret": bool(server.oauth_client_secret_encrypted),
             "has_oauth_access_token": bool(server.oauth_access_token_encrypted),

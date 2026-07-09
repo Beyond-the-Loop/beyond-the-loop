@@ -41,4 +41,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    raise NotImplementedError(
+        "Migration 049 is forward-only. To roll back you must "
+        "restore from a pre-049 backup or manually reinstate "
+        "the mcp_server.tool_filter column and drop tools/tools_fetched_at/available_scopes."
+    )

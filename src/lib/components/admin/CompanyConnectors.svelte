@@ -9,7 +9,7 @@
 	type CredField = 'client_id' | 'tenant_id' | 'client_secret';
 
 	// Derive has_* flags from the store so they update reactively after a save
-	$: m365 = ($companyConfig as any)?.connectors?.['microsoft-365'] ?? {
+	$: m365 = ($companyConfig as any)?.config?.connectors?.['microsoft-365'] ?? {
 		has_client_id: false,
 		has_tenant_id: false,
 		has_client_secret: false
