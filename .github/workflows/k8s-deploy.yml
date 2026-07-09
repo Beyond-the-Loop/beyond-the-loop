@@ -37,7 +37,7 @@ jobs:
       image_tag: ${{ steps.meta.outputs.sha_short }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Compute short SHA
         id: meta
@@ -92,7 +92,7 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Auth to GCP (Workload Identity Federation)
         uses: google-github-actions/auth@v2
@@ -144,7 +144,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
