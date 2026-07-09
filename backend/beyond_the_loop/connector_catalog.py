@@ -32,7 +32,6 @@ class ConnectorTemplate:
     # the OAuth authority is tenant-specific. The placeholder is substituted
     # at install time from the user-supplied tenant_id input.
     issuer_url: str
-    scope: Optional[str] = None  # None = let the provider use its default scope
     extra_authorize_params: dict = field(default_factory=dict)
     # User must paste their own client_id (and optionally client_secret) at
     # install. Set this for providers that don't support DCR (Microsoft,
@@ -58,9 +57,6 @@ def _build_catalog() -> list[ConnectorTemplate]:
             server_url="https://mcp.notion.com/mcp",
             transport="streamable_http",
             issuer_url="https://mcp.notion.com",
-            # Notion's authorize endpoint accepts no `scope` param — the workspace
-            # selection during consent decides what the token sees.
-            scope=None,
         ),
         ConnectorTemplate(
             slug="hubspot",
@@ -81,7 +77,6 @@ def _build_catalog() -> list[ConnectorTemplate]:
             # resulting client_id/client_secret at install. Scopes are
             # configured on the app itself, so the authorize call passes none.
             issuer_url="https://mcp.hubspot.com",
-            scope=None,
             requires_user_credentials=True,
             credentials_help_url=(
                 "https://developers.hubspot.com/docs/guides/apps/public-apps/overview"
@@ -104,9 +99,6 @@ def _build_catalog() -> list[ConnectorTemplate]:
             # Discovery returns issuer = https://cf.mcp.atlassian.com (Atlassian's
             # auth subdomain), not the MCP server's own hostname.
             issuer_url="https://cf.mcp.atlassian.com",
-            # Atlassian's authorize endpoint derives scopes from the consent
-            # screen — passing an explicit `scope` is not required.
-            scope=None,
         ),
     ]
 
@@ -137,15 +129,6 @@ def _build_catalog() -> list[ConnectorTemplate]:
             transport="streamable_http",
             # `{tenant_id}` is substituted at install time from the form input.
             issuer_url="https://login.microsoftonline.com/{tenant_id}/v2.0",
-            # `offline_access` is Microsoft's way to issue a refresh_token —
-            # without it Entra/AAD only hands out a 1-hour access_token and
-            # no refresh path. Files+Sites.Read.All cover SharePoint/OneDrive
-            # via Microsoft Graph; ms-365-mcp-server forwards the token to
-            # Graph for every tool call.
-            scope=(
-                "openid email offline_access "
-                "Files.Read.All Sites.Read.All User.Read"
-            ),
             requires_user_credentials=True,
             requires_tenant_id=True,
             credentials_help_url=(
