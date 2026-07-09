@@ -27,7 +27,7 @@ def is_flat_rate_plan(plan: str | None) -> bool:
     return plan in FLAT_RATE_PLANS
 
 
-def _get_custom_seats(subscription):
+def _get_custom_seats(subscription: dict) -> int | None:
     """Extract ``custom_seats`` from a Stripe subscription's metadata.
 
     Returns a positive int, or ``None`` when the metadata is missing, empty,
@@ -45,7 +45,7 @@ def _get_custom_seats(subscription):
         return None
 
 
-def _get_custom_credit_amount(subscription):
+def _get_custom_credit_amount(subscription: dict) -> int | None:
     """Extract ``custom_credit_amount`` from a Stripe subscription's metadata.
 
     Returns a positive int, or ``None`` when the metadata is missing, empty,
