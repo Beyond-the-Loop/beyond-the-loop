@@ -45,6 +45,24 @@ def _get_custom_seats(subscription):
         return None
 
 
+def _get_custom_credit_amount(subscription):
+    """Extract ``custom_credit_amount`` from a Stripe subscription's metadata.
+
+    Returns a positive int, or ``None`` when the metadata is missing, empty,
+    zero/negative, or malformed. Callers fall back to the plan's default
+    ``credits_per_month`` value on ``None``.
+    """
+    raw = (subscription.get("metadata") or {}).get("custom_credit_amount")
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+        return n if n > 0 else None
+    except (ValueError, TypeError):
+        log.warning(f"Invalid custom_credit_amount metadata: {raw!r}")
+        return None
+
+
 def _next_monthly_anchor_after(anchor_dt: datetime, after_dt: datetime) -> datetime:
     """Find the next datetime with anchor_dt's day-of-month and time-of-day
     that is strictly after ``after_dt``. Month-end days clamp naturally via

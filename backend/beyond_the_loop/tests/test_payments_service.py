@@ -176,3 +176,50 @@ class TestGetCustomSeats:
         with caplog.at_level("WARNING"):
             assert ps._get_custom_seats(sub) is None
         assert any("custom_seats" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# _get_custom_credit_amount
+# ---------------------------------------------------------------------------
+
+
+class TestGetCustomCreditAmount:
+    """Reads custom_credit_amount from Stripe subscription metadata. Returns a
+    positive int or None. Harmonizes previous inline handling that treated
+    "0" and malformed values inconsistently across get_subscription and the
+    subscription webhook.
+    """
+
+    def test_returns_int_for_positive_string(self):
+        sub = {"metadata": {"custom_credit_amount": "500"}}
+        assert ps._get_custom_credit_amount(sub) == 500
+
+    def test_returns_none_when_metadata_key_missing(self):
+        sub = {"metadata": {"other_key": "x"}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_when_metadata_dict_missing(self):
+        sub = {}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_when_metadata_is_none(self):
+        sub = {"metadata": None}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_empty_string(self):
+        sub = {"metadata": {"custom_credit_amount": ""}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_zero(self):
+        sub = {"metadata": {"custom_credit_amount": "0"}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_negative(self):
+        sub = {"metadata": {"custom_credit_amount": "-10"}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_non_numeric(self, caplog):
+        sub = {"metadata": {"custom_credit_amount": "abc"}}
+        with caplog.at_level("WARNING"):
+            assert ps._get_custom_credit_amount(sub) is None
+        assert any("custom_credit_amount" in r.message for r in caplog.records)
