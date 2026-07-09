@@ -1151,6 +1151,43 @@ export const updateCompanyConfig = async (
 	return res;
 }
 
+/**
+ * Generic POST to /companies/config — accepts any flat key/value payload.
+ * Used by the Konnektoren tab to save connector credentials without
+ * touching the typed updateCompanyConfig signature.
+ */
+export const updateCompanyConfigRaw = async (
+	token: string,
+	payload: Record<string, unknown>
+) => {
+	let error = null;
+
+	const res = await fetch(`${WEBUI_API_BASE_URL}/companies/config`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		},
+		credentials: 'include',
+		body: JSON.stringify(payload)
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+};
+
 export const deleteCompany = async (token: string, confirmation: string) => {
 	const res = await fetch(`${WEBUI_API_BASE_URL}/companies`, {
 		method: 'DELETE',

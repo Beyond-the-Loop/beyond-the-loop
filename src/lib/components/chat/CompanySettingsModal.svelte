@@ -27,6 +27,7 @@
 	import BackIcon from '../icons/BackIcon.svelte';
 	import DomainSettings from './Settings/CompanySettings/DomainSettings.svelte';
 	import DomainSettingsIcon from '../icons/DomainSettingsIcon.svelte';
+	import CompanyConnectors from '$lib/components/admin/CompanyConnectors.svelte';
 
 	
 	const i18n = getContext('i18n');
@@ -82,10 +83,15 @@
 			]
 		},
 		{
+			id: 'konnektoren',
+			title: 'Konnektoren',
+			keywords: ['connector', 'mcp', 'oauth', 'microsoft', 'm365']
+		},
+		{
 			id: 'billing',
 			title: 'Billing',
 			keywords: [
-		
+
 			]
 		}
 		];
@@ -327,6 +333,24 @@
 								<div class=" self-center">{$i18n.t('Analytics')}</div>
 							</div>
 						</button>
+						{:else if settingsTab.id === 'konnektoren'}
+						<button
+							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
+							'konnektoren'
+								? 'bg-lightGray-700 dark:bg-customGray-800'
+								: ' text-lightGray-100 dark:text-customGray-100 hover:bg-lightGray-700 dark:hover:bg-customGray-800 dark:hover:text-white'}"
+							on:click={() => {
+								selectedTab = 'konnektoren';
+								updateTabParam(selectedTab);
+							}}
+						>
+							<div class="flex items-center md:mb-1">
+								<div class=" self-center mr-2">
+									<ModelControlIcon/>
+								</div>
+								<div class=" self-center">{$i18n.t('Konnektoren')}</div>
+							</div>
+						</button>
 						{:else if settingsTab.id === 'billing'}
 						<button
 							class="md:px-3 py-5 md:py-2.5 border-b md:border-b-0 border-lightGray-400 dark:border-customGray-700 md:rounded-md flex-1 md:flex-none text-left transition {selectedTab ===
@@ -378,6 +402,8 @@
 					<ModelControl/>
 				{:else if selectedTab === 'analytics'}
 					<Analytics/>
+				{:else if selectedTab === 'konnektoren'}
+					<CompanyConnectors/>
 				{:else if selectedTab === 'billing'}
 					<Billing bind:autoRecharge bind:subscriptionLoading/>
 				{/if}

@@ -8,7 +8,8 @@
 		mcpServers as _mcpServers,
 		showSidebar,
 		mobile,
-		user
+		user,
+		companyConfig
 	} from '$lib/stores';
 
 	import {
@@ -56,6 +57,13 @@
 	let installClientId = '';
 	let installClientSecret = '';
 	let installTenantId = '';
+
+	// Company-level M365 defaults set in the Konnektoren tab.
+	$: companyM365 = ($companyConfig as any)?.connectors?.['microsoft-365'] ?? {
+		has_client_id: false,
+		has_tenant_id: false,
+		has_client_secret: false
+	};
 
 	let query = '';
 	let showInput = false;
@@ -459,11 +467,11 @@
 
 	async function installFromTemplate() {
 		if (!selectedTemplate) return;
-		if (selectedTemplate.requires_user_credentials && !installClientId.trim()) {
+		if (selectedTemplate.requires_user_credentials && !installClientId.trim() && !companyM365.has_client_id) {
 			toast.error($i18n.t('Client ID is required.'));
 			return;
 		}
-		if (selectedTemplate.requires_tenant_id && !installTenantId.trim()) {
+		if (selectedTemplate.requires_tenant_id && !installTenantId.trim() && !companyM365.has_tenant_id) {
 			toast.error($i18n.t('Tenant ID is required.'));
 			return;
 		}
@@ -1125,42 +1133,94 @@
 								<label class="block">
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 										{$i18n.t('Tenant ID')}
+										{#if companyM365.has_tenant_id}
+											<span class="ml-1 text-green-500">✓</span>
+										{/if}
 									</span>
-									<input
-										type="text"
-										class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
-										bind:value={installTenantId}
-										placeholder="00000000-0000-0000-0000-000000000000"
-										autocomplete="off"
-									/>
+									{#if companyM365.has_tenant_id}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono outline-none cursor-not-allowed opacity-60"
+											disabled
+											value=""
+											placeholder="••••••••"
+											autocomplete="off"
+										/>
+										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
+											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+										</p>
+									{:else}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
+											bind:value={installTenantId}
+											placeholder="00000000-0000-0000-0000-000000000000"
+											autocomplete="off"
+										/>
+									{/if}
 								</label>
 							{/if}
 							{#if selectedTemplate.requires_user_credentials}
 								<label class="block">
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 										{$i18n.t('Client ID')}
+										{#if companyM365.has_client_id}
+											<span class="ml-1 text-green-500">✓</span>
+										{/if}
 									</span>
-									<input
-										type="text"
-										class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
-										bind:value={installClientId}
-										placeholder="00000000-0000-0000-0000-000000000000"
-										autocomplete="off"
-									/>
+									{#if companyM365.has_client_id}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono outline-none cursor-not-allowed opacity-60"
+											disabled
+											value=""
+											placeholder="••••••••"
+											autocomplete="off"
+										/>
+										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
+											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+										</p>
+									{:else}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
+											bind:value={installClientId}
+											placeholder="00000000-0000-0000-0000-000000000000"
+											autocomplete="off"
+										/>
+									{/if}
 								</label>
 								<label class="block">
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 										{$i18n.t('Client Secret')}
-										<span class="text-lightGray-1200/70 dark:text-customGray-100/40">
-											— {$i18n.t('optional')}
-										</span>
+										{#if companyM365.has_client_secret}
+											<span class="ml-1 text-green-500">✓</span>
+										{:else}
+											<span class="text-lightGray-1200/70 dark:text-customGray-100/40">
+												— {$i18n.t('optional')}
+											</span>
+										{/if}
 									</span>
-									<input
-										type="password"
-										class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
-										bind:value={installClientSecret}
-										autocomplete="off"
-									/>
+									{#if companyM365.has_client_secret}
+										<input
+											type="password"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono outline-none cursor-not-allowed opacity-60"
+											disabled
+											value=""
+											placeholder="••••••••"
+											autocomplete="off"
+										/>
+										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
+											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+										</p>
+									{:else}
+										<input
+											type="password"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
+											bind:value={installClientSecret}
+											autocomplete="off"
+										/>
+									{/if}
 								</label>
 							{/if}
 							<div class="text-xs text-lightGray-1200/80 dark:text-customGray-100/50">
