@@ -233,6 +233,27 @@ class FolderTable:
             log.error(f"update_folder: {e}")
             return
 
+    def update_folder_meta_by_id_and_user_id(
+        self, id: str, user_id: str, meta: dict
+    ) -> Optional[FolderModel]:
+        """Overwrite folder.meta (used for project context: meta['summaries'])."""
+        try:
+            with get_db() as db:
+                folder = db.query(Folder).filter_by(id=id, user_id=user_id).first()
+
+                if not folder:
+                    return None
+
+                folder.meta = meta
+                folder.updated_at = int(time.time())
+
+                db.commit()
+
+                return FolderModel.model_validate(folder)
+        except Exception as e:
+            log.error(f"update_folder_meta: {e}")
+            return
+
     def delete_folder_by_id_and_user_id(self, id: str, user_id: str) -> bool:
         """Delete a folder. Subfolders cascade via folder.parent_id, chats
         cascade via chat.folder_id (both set up in migration 039)."""

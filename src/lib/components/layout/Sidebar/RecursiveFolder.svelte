@@ -28,11 +28,14 @@
 		importChat,
 		updateChatFolderIdById
 	} from '$lib/apis/chats';
+	import { newChatFolderId } from '$lib/stores';
 	import ChatItem from './ChatItem.svelte';
 	import FolderMenu from './Folders/FolderMenu.svelte';
 	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import FolderIcon from '$lib/components/icons/FolderIcon.svelte';
 	import FolderOpenIcon from '$lib/components/icons/FolderOpenIcon.svelte';
+	import Plus from '$lib/components/icons/Plus.svelte';
+	import { goto } from '$app/navigation';
 
 	export let open = false;
 
@@ -428,6 +431,26 @@
 						{folders[folderId].name}
 					{/if}
 				</div>
+
+				<button
+					class="absolute z-10 right-8 md:invisible group-hover:visible self-center flex items-center dark:text-gray-300"
+					aria-label={$i18n.t('New chat')}
+					title={$i18n.t('New chat')}
+					on:pointerup={(e) => {
+						e.stopPropagation();
+					}}
+					on:click={(e) => {
+						e.stopPropagation();
+						// Lazy like the normal "+ New chat": no chat is created until the first
+						// message is sent — then it lands in this project (see Chat.svelte).
+						newChatFolderId.set(folderId);
+						goto('/');
+						const newChatButton = document.getElementById('new-chat-button');
+						setTimeout(() => newChatButton?.click(), 0);
+					}}
+				>
+					<Plus className="size-4" strokeWidth="2.5" />
+				</button>
 
 				<button
 					class="absolute z-10 right-2 md:invisible group-hover:visible self-center flex items-center dark:text-gray-300"

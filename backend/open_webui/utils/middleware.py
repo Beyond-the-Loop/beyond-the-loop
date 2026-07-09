@@ -71,7 +71,10 @@ from open_webui.env import (
     ENABLE_REALTIME_CHAT_SAVE,
 )
 from open_webui.constants import TASKS
-from beyond_the_loop.utils.chat_compression import maybe_compress_chat
+from beyond_the_loop.utils.chat_compression import (
+    maybe_compress_chat,
+    gather_and_inject_folder_context,
+)
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -459,8 +462,16 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 pii_active=pii_session is not None,
                 user=user,
             )
+            form_data = await gather_and_inject_folder_context(
+                form_data=form_data,
+                chat_id=chat_id,
+                model=compression_model,
+                event_emitter=event_emitter,
+                pii_active=pii_session is not None,
+                user=user,
+            )
     except Exception as e:
-        log.exception(f"[chat_compression] failed, continuing without compression: {e}")
+        log.exception(f"[chat_compression] failed, continuing without compression/project context: {e}")
 
     log.debug(f"form_data: {form_data}")
 

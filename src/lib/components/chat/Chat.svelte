@@ -20,6 +20,8 @@
 		chats,
 		chatTitle,
 		continuingInNewChatId,
+		newChatFolderId,
+		sidebarKey,
 		companyConfig,
 		config,
 		currentChatPage,
@@ -435,6 +437,7 @@
 					await saveChatHandler($chatId, history);
 					currentChatPage.set(1);
 					await chats.set(await getChatList(localStorage.token, $currentChatPage));
+					sidebarKey.update((n) => n + 1); // refresh folders so a project chat shows its new title
 				} else if (type === 'chat:tags') {
 					chat = await getChatById(localStorage.token, $chatId);
 					allTags.set(await getAllTags(localStorage.token));
@@ -896,6 +899,7 @@
 
 	const loadChat = async () => {
 		chatId.set(chatIdProp);
+		newChatFolderId.set(null); // opening an existing chat cancels a pending "+ in project" intent
 		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
 			return;
@@ -2042,6 +2046,8 @@
 		let _chatId = $chatId;
 
 		if (!$temporaryChatEnabled) {
+			// Project id set by "+" in a folder; read at send time so it survives re-inits.
+			const folderId = $newChatFolderId;
 			chat = await createNewChat(localStorage.token, {
 				id: _chatId,
 				title: $i18n.t('New chat'),
@@ -2051,7 +2057,8 @@
 				history: history,
 				messages: createMessagesList(history, history.currentId),
 				tags: [],
-				timestamp: Date.now()
+				timestamp: Date.now(),
+				...(folderId ? { folder_id: folderId } : {})
 			});
 
 			_chatId = chat.id;
@@ -2059,6 +2066,12 @@
 
 			await chats.set(await getChatList(localStorage.token, $currentChatPage));
 			currentChatPage.set(1);
+
+			// New chat landed in a project → clear the intent and refresh the sidebar.
+			if (folderId) {
+				newChatFolderId.set(null);
+				sidebarKey.update((n) => n + 1);
+			}
 
 			window.history.replaceState(history.state, '', `/c/${_chatId}`);
 		} else {
