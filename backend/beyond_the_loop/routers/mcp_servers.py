@@ -600,6 +600,40 @@ async def install_template(
                 MCPServers.get_server_by_id_and_user(existing.id, user.id)
                 or existing
             )
+
+        # Refresh available_scopes (PRM snapshot) and resolved_scope on every
+        # re-install so the row stays in sync with the server's current metadata.
+        # Wrapped in a 3 s timeout so a slow PRM never stalls an idempotent
+        # re-install — mirrors the lazy-refresh pattern in GET /{server_id}.
+        try:
+            _reuse_prm = await asyncio.wait_for(
+                discover_protected_resource(template.server_url), timeout=3.0
+            )
+            _reuse_available = (
+                list(_reuse_prm.get("scopes_supported") or []) if _reuse_prm else None
+            )
+            _reuse_scope = await asyncio.wait_for(
+                resolve_scopes(template.server_url), timeout=3.0
+            )
+            from open_webui.internal.db import get_db
+            from beyond_the_loop.models.mcp_servers import MCPServer
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(
+                    id=existing.id, user_id=user.id
+                ).first()
+                if row is not None:
+                    if _reuse_available is not None:
+                        row.available_scopes = _reuse_available
+                    if _reuse_scope:
+                        row.oauth_scope = _reuse_scope
+                    db.commit()
+            existing = (
+                MCPServers.get_server_by_id_and_user(existing.id, user.id)
+                or existing
+            )
+        except Exception as e:
+            log.info("[mcp] PRM refresh skipped on catalog re-install for %s: %s", existing.id, e)
+
         return _to_response(existing)
 
     form = MCPServerForm(
