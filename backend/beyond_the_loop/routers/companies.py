@@ -99,7 +99,7 @@ def get_company_connector_credentials(
     if enc:
         try:
             result["client_secret"] = decrypt_secret(enc)
-        except (InvalidToken, Exception):
+        except (InvalidToken, ValueError):
             pass
     return result or None
 
@@ -250,7 +250,10 @@ async def update_company_config(
         
         # Get the updated config
         updated_config = get_config(company_id)
-        
+
+        # Scrub connector credentials before returning
+        scrub_connector_credentials(updated_config)
+
         return {"config": updated_config}
     except Exception as e:
         log.error(f"Error updating company config: {e}")
