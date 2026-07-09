@@ -549,16 +549,10 @@ class PaymentsService:
                     f"No plan found for price ID: {price_id}. Known price IDs: { {k: v.get('stripe_price_id') for k, v in payments_service.SUBSCRIPTION_PLANS.items()} }")
                 return None, None, None
 
-            subscription_metadata = event_data.get('metadata', {})
-            custom_credit_amount = subscription_metadata.get('custom_credit_amount')
-
-            if custom_credit_amount:
-                try:
-                    credits_per_month = int(custom_credit_amount)
-                except (ValueError, TypeError):
-                    credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
-            else:
-                credits_per_month = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+            credits_per_month = (
+                _get_custom_credit_amount(event_data)
+                or payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month", 0)
+            )
 
             if reset_billing_period and credits_per_month > 0:
                 Companies.update_company_by_id(company.id, {
