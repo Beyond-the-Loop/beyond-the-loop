@@ -14,7 +14,7 @@ export type MCPServerForm = {
 	// the backend never returns a stored token to the client.
 	auth_token?: string | null;
 	enabled?: boolean;
-	tool_filter?: string[] | null;
+	tools?: Array<{ name: string; enabled: boolean }>;
 	// OAuth config (optional; issuer URL defaults to `url`, client creds via DCR)
 	oauth_issuer_url?: string | null;
 	oauth_scope?: string | null;
@@ -31,7 +31,10 @@ export type MCPServerResponse = {
 	auth_type: string | null;
 	has_auth_token: boolean;
 	enabled: boolean;
-	tool_filter: string[] | null;
+	tools?: Array<{ name: string; description?: string; enabled: boolean }> | null;
+	tools_fetched_at?: number | null;
+	available_scopes?: string[] | null;
+	scope_mismatch: boolean;
 	template_slug: string | null;
 	oauth_issuer_url: string | null;
 	oauth_scope: string | null;

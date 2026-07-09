@@ -95,7 +95,6 @@
 			auth_type: null,
 			auth_token: '',
 			enabled: true,
-			tool_filter: null,
 			oauth_issuer_url: '',
 			oauth_scope: '',
 			oauth_client_id: '',
@@ -226,7 +225,6 @@
 			auth_type: srv.auth_type as 'bearer' | 'oauth' | null,
 			auth_token: '',
 			enabled: srv.enabled,
-			tool_filter: srv.tool_filter,
 			oauth_issuer_url: srv.oauth_issuer_url ?? '',
 			oauth_scope: srv.oauth_scope ?? '',
 			oauth_client_id: '',
@@ -852,10 +850,17 @@
 										</div>
 									{/if}
 								</div>
+								{#if editingServer?.scope_mismatch}
+									<div class="mb-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+										Neue Rechte verfügbar. Bitte neu verbinden.
+									</div>
+								{/if}
 								<div class="flex gap-2">
 									<button
 										type="button"
 										class="text-xs px-3 py-1.5 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 disabled:opacity-50"
+										class:ring-2={editingServer?.scope_mismatch}
+										class:ring-yellow-400={editingServer?.scope_mismatch}
 										on:click={connectOAuth}
 										disabled={connecting}
 									>
@@ -1305,6 +1310,12 @@
 								</div>
 							</div>
 						</div>
+						{#if (item.kind === 'template' && item.row?.scope_mismatch) || (item.kind === 'custom' && item.server.scope_mismatch)}
+							<span
+								class="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-yellow-400"
+								title="Neue Rechte verfügbar — bitte neu verbinden"
+							></span>
+						{/if}
 					</button>
 				{/each}
 			</div>
