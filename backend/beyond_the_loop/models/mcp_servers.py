@@ -8,7 +8,7 @@ from open_webui.internal.db import Base, get_db
 log = logging.getLogger(__name__)
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Boolean, Column, ForeignKey, JSON, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, JSON, String, Text
 
 
 ####################
@@ -32,7 +32,9 @@ class MCPServer(Base):
     auth_token_encrypted = Column(Text, nullable=True)  # Fernet ciphertext, bearer only
 
     enabled = Column(Boolean, nullable=False, default=True)
-    tool_filter = Column(JSON, nullable=True)  # None = all tools allowed, else list of tool names
+    tools = Column(JSON, nullable=True)  # [{name, description, enabled}]
+    tools_fetched_at = Column(DateTime(timezone=True), nullable=True)
+    available_scopes = Column(JSON, nullable=True)  # RFC 9728 PRM snapshot
 
     # Catalog template this row was installed from. NULL for custom (user-added)
     # connectors. A partial unique index on (user_id, template_slug) ensures
@@ -100,7 +102,9 @@ class MCPServerModel(BaseModel):
     auth_token_encrypted: Optional[str] = None
 
     enabled: bool = True
-    tool_filter: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None
+    tools_fetched_at: Optional[int] = None
+    available_scopes: Optional[list[str]] = None
     template_slug: Optional[str] = None
 
     oauth_issuer_url: Optional[str] = None
@@ -148,7 +152,7 @@ class MCPServerForm(BaseModel):
     auth_token: Optional[str] = None
 
     enabled: bool = True
-    tool_filter: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None  # [{name, enabled}] — admin's toggle state
 
     # OAuth configuration (all optional; defaults derived from `url` + DCR)
     oauth_issuer_url: Optional[str] = None
@@ -177,7 +181,10 @@ class MCPServerResponse(BaseModel):
     has_auth_token: bool = False
 
     enabled: bool
-    tool_filter: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None
+    tools_fetched_at: Optional[int] = None
+    available_scopes: Optional[list[str]] = None
+    scope_mismatch: bool = False
     template_slug: Optional[str] = None
 
     # OAuth status fields (display-safe; no secrets)
@@ -223,7 +230,7 @@ class MCPServersTable:
             auth_type=form_data.auth_type,
             auth_token_encrypted=auth_token_encrypted,
             enabled=form_data.enabled,
-            tool_filter=form_data.tool_filter,
+            tools=form_data.tools,
             template_slug=template_slug,
             oauth_issuer_url=form_data.oauth_issuer_url,
             oauth_scope=form_data.oauth_scope,
@@ -333,7 +340,19 @@ class MCPServersTable:
                 row.transport = form_data.transport
                 row.auth_type = form_data.auth_type
                 row.enabled = form_data.enabled
-                row.tool_filter = form_data.tool_filter
+                if form_data.tools is not None:
+                    # Admin edit: preserve description from stored row, apply incoming enabled flags
+                    stored = {t["name"]: t for t in (row.tools or [])}
+                    new_tools = []
+                    for incoming in form_data.tools:
+                        name = incoming["name"]
+                        base = stored.get(name, {"name": name, "description": ""})
+                        new_tools.append({
+                            "name": name,
+                            "description": base.get("description", ""),
+                            "enabled": bool(incoming.get("enabled", True)),
+                        })
+                    row.tools = new_tools
                 # OAuth user-editable fields (issuer URL, scope, manual client_id).
                 # Discovery cache + tokens are managed via dedicated methods below.
                 row.oauth_issuer_url = form_data.oauth_issuer_url
