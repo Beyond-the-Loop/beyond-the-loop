@@ -786,3 +786,47 @@ def pending_is_fresh(server: MCPServerModel) -> bool:
     if not server.oauth_pending_created_at:
         return False
     return int(time.time()) - server.oauth_pending_created_at <= PENDING_TTL_SECONDS
+
+
+####################
+# Scope resolver
+####################
+
+
+async def resolve_scopes(server_url: str) -> Optional[str]:
+    """Discover required OAuth scopes for an MCP server.
+
+    Composes:
+      1. RFC 9728 Protected Resource Metadata for the resource-level scopes.
+      2. The authorization server's metadata to conditionally append
+         `offline_access` when refresh tokens are supported and advertised.
+
+    Returns a space-joined scope string, or None when the resource
+    advertises no scopes (some providers, e.g. Notion, want no explicit
+    scope parameter — callers preserve today's "no scope" behavior).
+    """
+    prm = await discover_protected_resource(server_url)
+    if not prm:
+        return None
+
+    resource_scopes = prm.get("scopes_supported") or []
+    if not resource_scopes:
+        return None
+
+    scopes = list(dict.fromkeys(str(s) for s in resource_scopes))  # dedupe, keep order
+
+    as_urls = prm.get("authorization_servers") or []
+    if as_urls:
+        try:
+            as_meta = await discover(as_urls[0])
+        except Exception as e:
+            log.info("[mcp-oauth] AS discovery failed for %s: %s", as_urls[0], e)
+            as_meta = None
+        if as_meta:
+            grants = set(as_meta.get("grant_types_supported") or [])
+            as_scopes = set(as_meta.get("scopes_supported") or [])
+            if "refresh_token" in grants and "offline_access" in as_scopes \
+                    and "offline_access" not in scopes:
+                scopes.append("offline_access")
+
+    return " ".join(scopes)
