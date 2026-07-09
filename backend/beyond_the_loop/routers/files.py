@@ -106,9 +106,14 @@ def upload_file(
 @router.get("/{id}", response_model=Optional[FileModel])
 async def get_file_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
     file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+    if file.user_id == user.id or (user.role == "admin" and file_user and file_user.company_id == user.company_id):
         return file
     else:
         raise HTTPException(
@@ -125,9 +130,14 @@ async def get_file_by_id(id: str, user=Depends(get_verified_user)):
 @router.get("/{id}/data/content")
 async def get_file_data_content_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
     file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+    if file.user_id == user.id or (user.role == "admin" and file_user and file_user.company_id == user.company_id):
         return {"content": file.data.get("content", "")}
     else:
         raise HTTPException(
@@ -150,9 +160,14 @@ async def update_file_data_content_by_id(
     request: Request, id: str, form_data: ContentForm, user=Depends(get_verified_user)
 ):
     file = Files.get_file_by_id(id)
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
     file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+    if file.user_id == user.id or (user.role == "admin" and file_user and file_user.company_id == user.company_id):
         try:
             process_file(
                 request,
@@ -180,9 +195,14 @@ async def update_file_data_content_by_id(
 @router.get("/{id}/content")
 async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
     file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+    if file.user_id == user.id or (user.role == "admin" and file_user and file_user.company_id == user.company_id):
         try:
             file_path = Storage.get_file(file.path)
             file_path = Path(file_path)
@@ -227,9 +247,14 @@ async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
 @router.get("/{id}/content/{file_name}")
 async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
     file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+    if file.user_id == user.id or (user.role == "admin" and file_user and file_user.company_id == user.company_id):
         file_path = file.path
 
         # Handle Unicode filenames
@@ -280,9 +305,14 @@ async def get_file_content_by_id(id: str, user=Depends(get_verified_user)):
 @router.delete("/{id}")
 async def delete_file_by_id(id: str, user=Depends(get_verified_user)):
     file = Files.get_file_by_id(id)
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
     file_user = Users.get_user_by_id(file.user_id)
 
-    if file and (file.user_id == user.id or (user.role == "admin" and file_user.company_id == user.company_id)):
+    if file.user_id == user.id or (user.role == "admin" and file_user and file_user.company_id == user.company_id):
         # We should add Chroma cleanup here
 
         result = Files.delete_file_by_id(id)

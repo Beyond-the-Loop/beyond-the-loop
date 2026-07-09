@@ -20,4 +20,21 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.litellm.hpa.targetCPU }}
+  # Long scale-down stabilization keeps replicas around after CPU spikes so
+  # transient traffic bursts do not immediately terminate pods that still
+  # hold open streams. Streaming LLM responses (30–120s typical) cannot
+  # survive default 5min stabilization plus abrupt SIGTERM cycles.
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.litellm.hpa.scaleDownStabilizationSeconds }}
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
 {{- end }}

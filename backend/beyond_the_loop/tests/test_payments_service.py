@@ -126,3 +126,100 @@ class TestNextMonthlyAnchorAfter:
         now = datetime(2026, 5, 5, 8, 0, 0)
         result = ps._next_monthly_anchor_after(anchor, now)
         assert result == datetime(2026, 5, 15, 10, 30, 45)
+
+
+# ---------------------------------------------------------------------------
+# _get_custom_seats
+# ---------------------------------------------------------------------------
+
+
+class TestGetCustomSeats:
+    """Reads custom_seats from Stripe subscription metadata. Returns a positive
+    int or None. Malformed non-empty values log a warning and return None so
+    callers fall back to the plan's default seats value.
+    """
+
+    def test_returns_int_for_positive_string(self):
+        sub = {"metadata": {"custom_seats": "200"}}
+        assert ps._get_custom_seats(sub) == 200
+
+    def test_returns_int_for_large_value(self):
+        sub = {"metadata": {"custom_seats": "1000"}}
+        assert ps._get_custom_seats(sub) == 1000
+
+    def test_returns_none_when_metadata_key_missing(self):
+        sub = {"metadata": {"other_key": "x"}}
+        assert ps._get_custom_seats(sub) is None
+
+    def test_returns_none_when_metadata_dict_missing(self):
+        sub = {}
+        assert ps._get_custom_seats(sub) is None
+
+    def test_returns_none_when_metadata_is_none(self):
+        sub = {"metadata": None}
+        assert ps._get_custom_seats(sub) is None
+
+    def test_returns_none_for_empty_string(self):
+        sub = {"metadata": {"custom_seats": ""}}
+        assert ps._get_custom_seats(sub) is None
+
+    def test_returns_none_for_zero(self):
+        sub = {"metadata": {"custom_seats": "0"}}
+        assert ps._get_custom_seats(sub) is None
+
+    def test_returns_none_for_negative(self):
+        sub = {"metadata": {"custom_seats": "-5"}}
+        assert ps._get_custom_seats(sub) is None
+
+    def test_returns_none_for_non_numeric(self, caplog):
+        sub = {"metadata": {"custom_seats": "abc"}}
+        with caplog.at_level("WARNING"):
+            assert ps._get_custom_seats(sub) is None
+        assert any("custom_seats" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# _get_custom_credit_amount
+# ---------------------------------------------------------------------------
+
+
+class TestGetCustomCreditAmount:
+    """Reads custom_credit_amount from Stripe subscription metadata. Returns a
+    positive int or None. Harmonizes previous inline handling that treated
+    "0" and malformed values inconsistently across get_subscription and the
+    subscription webhook.
+    """
+
+    def test_returns_int_for_positive_string(self):
+        sub = {"metadata": {"custom_credit_amount": "500"}}
+        assert ps._get_custom_credit_amount(sub) == 500
+
+    def test_returns_none_when_metadata_key_missing(self):
+        sub = {"metadata": {"other_key": "x"}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_when_metadata_dict_missing(self):
+        sub = {}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_when_metadata_is_none(self):
+        sub = {"metadata": None}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_empty_string(self):
+        sub = {"metadata": {"custom_credit_amount": ""}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_zero(self):
+        sub = {"metadata": {"custom_credit_amount": "0"}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_negative(self):
+        sub = {"metadata": {"custom_credit_amount": "-10"}}
+        assert ps._get_custom_credit_amount(sub) is None
+
+    def test_returns_none_for_non_numeric(self, caplog):
+        sub = {"metadata": {"custom_credit_amount": "abc"}}
+        with caplog.at_level("WARNING"):
+            assert ps._get_custom_credit_amount(sub) is None
+        assert any("custom_credit_amount" in r.message for r in caplog.records)

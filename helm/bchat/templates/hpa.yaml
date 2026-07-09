@@ -19,4 +19,23 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.app.hpa.targetCPU }}
+  # Long scale-down stabilization keeps replicas around after CPU dips so
+  # transient traffic drops do not immediately terminate pods that still
+  # hold open chat streams. Default 5min stabilization + abrupt SIGTERM
+  # cycles cannot survive 30–120s streaming responses. Same behavior as
+  # litellm's HPA — was missing on app and contributed to the exit-137
+  # cascade during the 2026-07-08 rollout.
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.app.hpa.scaleDownStabilizationSeconds }}
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
 {{- end }}

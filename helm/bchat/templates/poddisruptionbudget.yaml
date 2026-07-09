@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "bchat.labels" . | nindent 4 }}
 spec:
-  minAvailable: {{ .Values.app.pdb.minAvailable }}
+  # Quoted so numeric values ("1") and percentage strings ("50%") both
+  # render as strings and pass K8s IntOrString validation.
+  minAvailable: {{ .Values.app.pdb.minAvailable | quote }}
   selector:
     matchLabels:
       {{- include "bchat.appSelector" . | nindent 6 }}

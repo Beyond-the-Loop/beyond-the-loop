@@ -1379,6 +1379,10 @@
 				message.id,
 				createMessagesList(history, message.id)
 			);
+			if((message.modelName == "Nano Banana Pro" || message.modelName == "Nano Banana 2") && message.content == "I'm just a language model and can't help with that.")
+			{
+				toast.info($i18n.t("Gemini's safety policies are currently very restrictive. Rephrase your input or switch to a different model."));
+			}
 		}
 
 		if (autoScroll) {
@@ -1713,7 +1717,7 @@
 			},
 			...historyMessages
 		]
-			.filter((message) => message?.content?.trim())
+			.filter((message) => message?.content?.trim() || message.files?.some((f) => f.type === 'image'))
 			.map((message, idx, arr) => {
 				const ownImages =
 					(message.role === 'user' || message === lastAssistantWithImages)

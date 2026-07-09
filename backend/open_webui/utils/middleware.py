@@ -20,6 +20,7 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import (
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
+    DEFAULT_RAG_IMAGE_TEMPLATE,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
@@ -50,6 +51,9 @@ from beyond_the_loop.storage.provider import Storage
 # which added ~29s to every pod cold-start (measured with `python -X importtime`).
 # It is imported lazily inside the file-loading function below, since it is
 # only used on the RAG file upload path — regular chat completions never need it.
+from beyond_the_loop.retrieval.loaders.main import Loader
+from beyond_the_loop.routers.litellm import generate_chat_completion
+from beyond_the_loop.utils.image_generation import generate_image, resolve_image_urls
 from open_webui.utils.task import (
     rag_template,
 )
@@ -347,7 +351,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 anonymize_messages,
                 is_pii_filter_enabled,
             )
-            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT
+            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT, PII_IMAGE_SYSTEM_PROMPT
             from beyond_the_loop.utils.access_control import has_permission
 
             client_pii_enabled = form_data.pop("pii_enabled", True) is not False
@@ -409,8 +413,25 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
                 pii_released_used.extend(ru)
                 filtered_user_content = get_last_user_message(form_data["messages"])
+
+                _pii_base = (
+                    Models.get_model_by_id(model.base_model_id)
+                    if model.base_model_id else None
+                )
+                _pii_model_name = _pii_base.name if _pii_base else model.name
+
+                _pii_is_native_image_model = _pii_model_name == "Nano Banana" or _pii_model_name == "Nano Banana 2" or _pii_model_name == "Nano Banana Pro"
+
                 form_data["messages"].insert(
-                    0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                    0,
+                    {
+                        "role": "system",
+                        "content": (
+                            PII_IMAGE_SYSTEM_PROMPT
+                            if _pii_is_native_image_model
+                            else PII_SYSTEM_PROMPT
+                        ),
+                    },
                 )
                 # Empty description + done=true clears the status — the next
                 # real step (smart router / RAG / generating_response) will
@@ -528,24 +549,37 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 model = model.model_copy(update={"base_model_id": target.id})
             metadata["selected_model_id"] = target.id
 
-            # Override system prompt with an image-gen directive that
-            # mirrors src/lib/utils/default_prompts/image_generation.ts.
+            # Give the routed image target exactly one correct system prompt.
+            # Mirrors src/lib/utils/default_prompts/image_generation.ts.
             _target_cfg = LITELLM_MODEL_CONFIG.get(target.name, {})
             if _target_cfg.get("supports_image_generation"):
-                image_gen_system_prompt = (
-                    "You are an image generation model. When the user requests "
-                    "an image, generate one. Keep any accompanying text short."
-                )
-                replaced = False
-                for msg in form_data["messages"]:
-                    if msg.get("role") == "system":
-                        msg["content"] = image_gen_system_prompt
-                        replaced = True
-                        break
-                if not replaced:
-                    form_data["messages"].insert(
-                        0, {"role": "system", "content": image_gen_system_prompt}
+
+                _target_is_native_image_model = target.name == "Nano Banana" or target.name == "Nano Banana 2" or target.name == "Nano Banana Pro"
+
+                if pii_session is not None:
+                    from beyond_the_loop.prompts import (
+                        PII_IMAGE_SYSTEM_PROMPT,
+                        PII_SYSTEM_PROMPT,
                     )
+                    image_gen_system_prompt = (
+                        PII_IMAGE_SYSTEM_PROMPT
+                        if _target_is_native_image_model
+                        else PII_SYSTEM_PROMPT + "\n\n" + 
+                        "You are an image generation model. When the user requests "
+                        "an image, generate one. Keep any accompanying text short."
+                    )
+                else:
+                    image_gen_system_prompt = (
+                        "You are an image generation model. When the user requests "
+                        "an image, generate one. Keep any accompanying text short."
+                    )
+                    
+                form_data["messages"] = [
+                    m for m in form_data["messages"] if m.get("role") != "system"
+                ]
+                form_data["messages"].insert(
+                    0, {"role": "system", "content": image_gen_system_prompt}
+                )
             else:
                 no_image_gen_guard = (
                     "You do not have access to any image generation tool. "
@@ -604,7 +638,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
 
     if features.get("web_search") and _model_cfg.get("supports_web_search"):
         metadata["web_search_enabled"] = True
-    if features.get("image_generation") and _model_cfg.get("supports_image_generation"):
+    if _model_cfg.get("supports_image_generation"):
         metadata["image_generation_enabled"] = True
     if features.get("code_interpreter") and _model_cfg.get("supports_code_execution"):
         metadata["code_interpreter_enabled"] = True
@@ -960,10 +994,13 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
+        _rag_template = (
+            DEFAULT_RAG_IMAGE_TEMPLATE
+            if _model_cfg.get("supports_image_generation")
+            else request.app.state.config.RAG_TEMPLATE
+        )
         form_data["messages"] = add_or_update_system_message(
-            rag_template(
-                request.app.state.config.RAG_TEMPLATE, context_string, prompt
-            ),
+            rag_template(_rag_template, context_string, prompt),
             form_data["messages"],
         )
     elif file_intent == "RAG" and (model_knowledge or model_files or files):
@@ -1431,6 +1468,9 @@ async def process_chat_response(
             response_images = []
             used_search_queries = []
 
+            pending_image_call = None
+            pending_image_index = None
+
             sources = None  # Store sources from the LLMs ("citations") at this scope
 
             # We might want to disable this by default
@@ -1476,6 +1516,11 @@ async def process_chat_response(
                     nonlocal response_images
                     nonlocal anonymized_content_snapshot
                     nonlocal used_search_queries
+                    nonlocal pending_image_call
+                    nonlocal pending_image_index
+
+                    pending_image_call = None
+                    pending_image_index = None
 
                     generating_response = True
 
@@ -1594,6 +1639,19 @@ async def process_chat_response(
                                 delta_images = delta.get("images", None)
 
                                 if delta_images:
+                                    if (
+                                        content_blocks
+                                        and content_blocks[-1]["type"] == "reasoning"
+                                        and content_blocks[-1].get("attributes", {}).get("type") == "reasoning_content"
+                                        and "duration" not in content_blocks[-1]
+                                    ):
+                                        reasoning_block = content_blocks[-1]
+                                        reasoning_block["ended_at"] = time.time()
+                                        reasoning_block["duration"] = int(
+                                            reasoning_block["ended_at"]
+                                            - reasoning_block["started_at"]
+                                        )
+
                                     for delta_image in delta_images:
                                         image_base64 = delta_image['image_url']["url"]
 
@@ -1601,6 +1659,20 @@ async def process_chat_response(
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
+
+                                    if func.get("name") == "generate_image":
+                                        pending_image_index = idx
+                                        pending_image_call = {
+                                            "id": dtc.get("id"),
+                                            "args": "",
+                                        }
+
+                                    if (
+                                        pending_image_call is not None
+                                        and idx == pending_image_index
+                                        and func.get("arguments")
+                                    ):
+                                        pending_image_call["args"] += func["arguments"]
 
                                     if func.get("name") == "web_search":
                                         pending_search_index = idx
@@ -1873,12 +1945,82 @@ async def process_chat_response(
 
                 await stream_body_handler(response)
 
+                MAX_IMAGE_ROUNDS = 10
+                image_rounds = 0
+
+                while pending_image_call is not None and image_rounds < MAX_IMAGE_ROUNDS:
+                    image_rounds += 1
+                    call = pending_image_call
+                    pending_image_call = None  # consumed; reset before reinvoke
+
+                    try:
+                        image_args = json.loads(call["args"] or "{}")
+                    except json.JSONDecodeError:
+                        image_args = {}
+
+                    input_urls = resolve_image_urls(
+                        image_args.get("input_image_indices", []),
+                        form_data["messages"],
+                    )
+
+                    await event_emitter({
+                        "type": "status",
+                        "data": {
+                            "action": "generating_image",
+                            "done": False,
+                            "description": "Generating image…",
+                        },
+                    })
+
+                    data_uri, image_error = await generate_image(
+                        image_args.get("prompt", ""),
+                        image_args.get("size", "auto"),
+                        input_urls,
+                    )
+
+                    await event_emitter({
+                        "type": "status",
+                        "data": {"action": "generating_image", "done": True},
+                    })
+
+                    if data_uri:
+                        response_images.append({"type": "image", "url": data_uri})
+
+                    form_data["messages"].append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [{
+                            "id": call["id"],
+                            "type": "function",
+                            "function": {
+                                "name": "generate_image",
+                                "arguments": call["args"] or "{}",
+                            },
+                        }],
+                    })
+                    form_data["messages"].append({
+                        "role": "tool",
+                        "tool_call_id": call["id"],
+                        "content": image_error
+                        or "Image generated successfully and shown to the user.",
+                    })
+
+                    response, _ = await generate_chat_completion(
+                        form_data, user, model
+                    )
+                    await stream_body_handler(response)
+
                 for block in content_blocks:
                     if block.get("type") == "text" and "sandbox:/mnt/data/" in block.get("content", ""):
                         block["content"] = re.sub(
                             r'\(sandbox:/mnt/data/([^)]+)\)',
                             r'(unavailable://\1)',
                             block["content"]
+                        )
+                    # Strip internal [Image N] reference markers for image gen models
+                    if block.get("type") == "text" and "content" in block:
+                        block["content"] = re.sub(
+                            r'\s*\[Image \d+\]', '', block["content"]
                         )
 
                 title = Chats.get_chat_title_by_id(metadata["chat_id"])

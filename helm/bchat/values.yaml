@@ -43,47 +43,114 @@ serviceAccount:
 app:
   strategy:
     type: RollingUpdate
+    # 1 → 25%: at HPA=9 the previous surge of 1 forced a sequential 1-by-1
+    # replacement (~5min startupProbe × 9 pods = ~45min rollout) while old
+    # pods were terminated with a too-short grace and preStop, producing
+    # exit-137 cascades in prod on 2026-07-08. 25% lets 2–3 replacements
+    # proceed in parallel and keeps the rollout inside minutes.
+    maxSurge: 25%
+    maxUnavailable: 0
   replicas: 2
   resources:
+    # Raised requests.memory 2Gi → 3Gi on 2026-07-09 after a live cluster
+    # check found a pod evicted with RSS = 3.04 GB (request 2Gi, limit 4Gi):
+    #   "The node was low on resource: memory. Threshold: 100Mi,
+    #    available: 66056Ki. Container app was using 3188356Ki,
+    #    request is 2Gi, has larger consumption of memory."
+    # Container was under its 4Gi limit, but exceeding request lets Autopilot
+    # overpack the node → kubelet evicts on node-level pressure. Requests
+    # must reflect real p95 RSS or evictions keep happening. Limit bumped
+    # 4Gi → 5Gi for headroom on model-cache growth.
+    # 500m → 800m on 2026-07-09: HPA at target 70% saw sustained mean of
+    # 0.30-0.40 cores/pod during business hours (peaks to 2 cores = limit),
+    # keeping replicas glued to maxReplicas: 10 all day. Real usage was
+    # far above the 500m request, so HPA scaled aggressively without the
+    # actual node capacity being the bottleneck. Right-sizing the request
+    # lets HPA rate the same real load at ~40-50% target instead of >100%.
     requests:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 800m
+      memory: 3Gi
     limits:
       cpu: 2
-      memory: 4Gi
-  terminationGracePeriodSeconds: 60
+      memory: 5Gi
+  # 60 → 180: chat streams routinely run 30–120s and the LB draining
+  # window is 120s. Grace must exceed preStopDelaySeconds + typical
+  # in-flight stream length, otherwise SIGKILL cuts streams (exit 137).
+  terminationGracePeriodSeconds: 180
+  # Sleep before uvicorn stops accepting connections, so the k8s Service
+  # endpoints controller can remove the pod from rotation and the GCE LB
+  # can finish its drainingTimeoutSec (120s) drain before the process exits.
+  # Same drain pattern as litellm/mcp — was missing on app.
+  preStopDelaySeconds: 120
   hpa:
     enabled: true
     minReplicas: 2
     maxReplicas: 10
-    targetCPU: 70
+    # 70 → 80 on 2026-07-09 together with cpu request 500m → 800m. Higher
+    # target tolerates short bursts without scaling out, works with the
+    # right-sized request to keep replica count moderate under normal load.
+    targetCPU: 80
+    # HPA scale-down held for this long after CPU drops. Without this,
+    # HPA was collapsing 9 → 2 replicas in seconds, SIGTERM'ing pods with
+    # open streams. Longer window prevents thrashing during traffic dips.
+    scaleDownStabilizationSeconds: 600
   pdb:
     enabled: true
-    minAvailable: 1
+    # 1 → 50%: with HPA scaling to 10 replicas, minAvailable:1 allowed 9
+    # voluntary evictions at once. Percentage scales with replica count.
+    minAvailable: 50%
   backendConfig:
-    # Raises the GCE load balancer -> backend response timeout from the
-    # 30s default. Chat streams routinely exceed 30s; the old value caused
-    # 502s on legitimate long completions.
-    timeoutSec: 300
+    # GCE LB backend response timeout. For WebSocket connections this is
+    # the max allowed idle time between frames — Socket.IO pings every 25s
+    # so it's normally not hit, but during pod rotation a WebSocket can
+    # pause longer than the previous 300s while the client reconnects to
+    # a new backend. 3600s tolerates that; HTTP responses fit inside it
+    # too (chat completions are bounded by upstream provider timeouts far
+    # below 1h).
+    timeoutSec: 3600
     # During rolling updates, let the LB keep sending traffic to a
     # terminating pod for this long so in-flight streams can finish.
-    drainingTimeoutSec: 60
+    # Bumped 60 → 120 after seeing >5000 LB-side 502s on WebSocket routes
+    # during pod churn.
+    drainingTimeoutSec: 120
+    # Sticky-session cookie TTL. Keeps a browser pinned to the same
+    # backend pod for a whole Socket.IO session, so the polling handshake
+    # doesn't break across pods and long-lived WebSockets stay put. The LB
+    # falls back gracefully when the pinned pod is drained. 1h matches a
+    # typical work session; longer makes no sense since HPA rotates pods
+    # faster than that anyway.
+    affinityCookieTtlSec: 3600
 
 # LiteLLM deployment
 litellm:
   replicas: 2
   resources:
+    # LiteLLM v1.81 with 40+ models and enterprise callbacks (prometheus,
+    # semantic filter, cost tracking) burns CPU under streaming load. Prod
+    # 24h stress on the old 500m/1c limits produced 132 `context deadline
+    # exceeded` liveness failures and 198 pod restarts. Sized for the
+    # observed steady-state (2600+ completions/day) with headroom for spikes.
     requests:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1500m
+      memory: 1500Mi
     limits:
-      cpu: 1
-      memory: 1Gi
+      cpu: 4
+      memory: 3Gi
+  # Grace period for uvicorn to finish in-flight streams. Combined with the
+  # preStop delay, gives about 70s of drain time before SIGKILL.
+  terminationGracePeriodSeconds: 90
+  # Sleep before uvicorn stops accepting connections, so the k8s Service
+  # endpoints controller can remove this pod from rotation first.
+  preStopDelaySeconds: 20
   hpa:
     enabled: true
     minReplicas: 2
     maxReplicas: 10
-    targetCPU: 70
+    targetCPU: 60
+    # HPA scale-down held for this long after CPU falls below target. Longer
+    # window prevents thrashing when a spiky workload briefly cools off, and
+    # keeps pods around long enough for streaming responses to finish.
+    scaleDownStabilizationSeconds: 600
   pdb:
     enabled: true
     minAvailable: 1
@@ -99,6 +166,10 @@ mcp:
     limits:
       cpu: 500m
       memory: 512Mi
+  # Grace period for open MCP HTTP/SSE sessions to drain instead of being
+  # cut mid-transaction. Prod saw 114 mcp pods in 24h without any drain.
+  terminationGracePeriodSeconds: 60
+  preStopDelaySeconds: 15
   hpa:
     enabled: true
     minReplicas: 2

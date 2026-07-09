@@ -408,23 +408,20 @@ async def update_chat_by_id(
 
 @router.delete("/{id}", response_model=bool)
 async def delete_chat_by_id(request: Request, id: str, user=Depends(get_verified_user)):
+    chat = Chats.get_chat_by_id(id)
+    if chat is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    for tag in chat.meta.get("tags", []):
+        if Chats.count_chats_by_tag_name_and_user_id(tag, user.id) == 1:
+            Tags.delete_tag_by_name_and_user_id(tag, user.id)
+
     if user.role == "admin":
-        chat = Chats.get_chat_by_id(id)
-        for tag in chat.meta.get("tags", []):
-            if Chats.count_chats_by_tag_name_and_user_id(tag, user.id) == 1:
-                Tags.delete_tag_by_name_and_user_id(tag, user.id)
-
-        result = Chats.delete_chat_by_id(id)
-
-        return result
-    else:
-        chat = Chats.get_chat_by_id(id)
-        for tag in chat.meta.get("tags", []):
-            if Chats.count_chats_by_tag_name_and_user_id(tag, user.id) == 1:
-                Tags.delete_tag_by_name_and_user_id(tag, user.id)
-
-        result = Chats.delete_chat_by_id_and_user_id(id, user.id)
-        return result
+        return Chats.delete_chat_by_id(id)
+    return Chats.delete_chat_by_id_and_user_id(id, user.id)
 
 
 ############################

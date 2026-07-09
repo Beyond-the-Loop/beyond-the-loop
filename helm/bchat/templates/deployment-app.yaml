@@ -13,8 +13,8 @@ spec:
     type: {{ .Values.app.strategy.type }}
     {{- if eq .Values.app.strategy.type "RollingUpdate" }}
     rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+      maxUnavailable: {{ .Values.app.strategy.maxUnavailable }}
+      maxSurge: {{ .Values.app.strategy.maxSurge }}
     {{- end }}
   selector:
     matchLabels:
@@ -27,6 +27,12 @@ spec:
         # Forces pod restart on ConfigMap/Secret content change
         checksum/litellm-config: {{ .Values.litellmConfig | sha256sum }}
         checksum/arena-rankings: {{ .Values.arenaRankings | sha256sum }}
+        # Prevent Cluster Autoscaler from evicting app pods for node
+        # scale-down while they hold long-lived streaming connections
+        # (chat completions, SSE, WebSockets). Voluntary evictions still
+        # go through the PDB. Same pattern as litellm/mcp — was missing
+        # on app and contributed to the 2026-07-08 prod incident.
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
       serviceAccountName: {{ include "bchat.serviceAccountName" . }}
       terminationGracePeriodSeconds: {{ .Values.app.terminationGracePeriodSeconds }}
@@ -78,20 +84,34 @@ spec:
               path: /health
               port: http
             periodSeconds: 5
-            timeoutSeconds: 3
+            # 3s → 5s: live cluster on 2026-07-09 showed multiple
+            # "context deadline exceeded" readiness failures on healthy
+            # pods (event loop busy under streaming load). Same reason
+            # litellm bumped to 5s.
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
               port: http
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 5
+            # 3s → 5s and failureThreshold 5 → 6 for the same reason:
+            # spurious liveness kills restart pods with open streams,
+            # producing exit-137 cascades.
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
+          # preStop sleeps so the k8s Service endpoints controller and the
+          # GCE LB (drainingTimeoutSec) have time to remove this pod from
+          # rotation before uvicorn stops accepting new connections. Existing
+          # streams then get the full terminationGracePeriodSeconds to drain.
           lifecycle:
             preStop:
               exec:
-                command: ["sh", "-c", "sleep 15"]
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep {{ .Values.app.preStopDelaySeconds }}"
       volumes:
         - name: arena
           configMap:

@@ -60,6 +60,13 @@
 			reconnection: true,
 			reconnectionDelay: 1000,
 			reconnectionDelayMax: 5000,
+			// Cap retries so `reconnect_failed` actually fires. Default is
+			// Infinity, which means the client silently retries forever and
+			// the UI ends up "connected in the store, dead in reality" —
+			// exactly the state that caused chat-switch to hang until reload.
+			// ~10 attempts with the delay envelope above ≈ 30–50s of retrying
+			// before we give up and reload.
+			reconnectionAttempts: 10,
 			randomizationFactor: 0.5,
 			path: '/ws/socket.io',
 			transports: enableWebsocket ? ['websocket'] : ['polling', 'websocket'],
@@ -81,7 +88,14 @@
 		});
 
 		_socket.on('reconnect_failed', () => {
-			console.log('reconnect_failed');
+			// After reconnectionAttempts exhausted, the socket is dead but the
+			// app still thinks it's connected. Force a full reload so the
+			// user gets a fresh session — otherwise chat-switch and other
+			// WebSocket-dependent flows hang indefinitely.
+			console.log('reconnect_failed — reloading page for fresh session');
+			if (typeof window !== 'undefined') {
+				window.location.reload();
+			}
 		});
 
 		_socket.on('disconnect', (reason, details) => {

@@ -16,7 +16,14 @@ spec:
     metadata:
       labels:
         {{- include "bchat.mcpSelector" . | nindent 8 }}
+      annotations:
+        # MCP holds long-lived stateful HTTP/SSE sessions to authenticated
+        # M365 clients. Cluster Autoscaler eviction mid-session means the
+        # tokens/state on that pod are gone. Voluntary evictions still go
+        # through the PDB.
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
+      terminationGracePeriodSeconds: {{ .Values.mcp.terminationGracePeriodSeconds }}
       containers:
         - name: ms365-mcp
           image: "{{ .Values.mcpImage.repository }}:{{ .Values.mcpImage.tag }}"
@@ -31,6 +38,18 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          # preStop lets the k8s Service endpoints controller pull this pod
+          # out of rotation before the process starts shutting down. Prod
+          # saw 114 unique mcp pods in 24h with 63 FailedPreStopHook events
+          # against the app deployment — this brings mcp in line with the
+          # drain pattern used by app/litellm.
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep {{ .Values.mcp.preStopDelaySeconds }}"
           readinessProbe:
             tcpSocket:
               port: http
