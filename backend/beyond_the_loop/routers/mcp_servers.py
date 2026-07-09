@@ -21,6 +21,7 @@ from beyond_the_loop.connector_catalog import (
     ConnectorTemplate,
     get_template,
 )
+from beyond_the_loop.routers.companies import get_company_connector_credentials
 from beyond_the_loop.models.mcp_servers import (
     MCPServerForm,
     MCPServerModel,
@@ -598,8 +599,14 @@ async def install_template(
             detail=f"Unknown connector: {slug}",
         )
 
-    client_id = (form_data.client_id or "").strip() or None
-    client_secret = (form_data.client_secret or "").strip() or None
+    # Fall back to company-level connector credentials when the user hasn't
+    # supplied their own. This allows end-users to install a connector without
+    # pasting credentials that the company admin already configured via the
+    # "Konnektoren" tab.
+    defaults = get_company_connector_credentials(user.company_id, slug) or {}
+    client_id = (form_data.client_id or "").strip() or defaults.get("client_id") or None
+    tenant_id = (form_data.tenant_id or "").strip() or defaults.get("tenant_id") or None
+    client_secret = (form_data.client_secret or "").strip() or defaults.get("client_secret") or None
 
     if template.requires_user_credentials and not client_id:
         raise HTTPException(
@@ -609,7 +616,7 @@ async def install_template(
 
     # Substitute `{tenant_id}` placeholder in issuer_url (Microsoft templates).
     # Raises 400 if the template requires tenant_id but the form omitted it.
-    resolved_issuer = _resolve_issuer_url(template, form_data.tenant_id)
+    resolved_issuer = _resolve_issuer_url(template, tenant_id)
 
     _assert_url_safe(template.server_url)
 
