@@ -1,155 +1,202 @@
 {
-  "displayName": "bchat / App Performance",
   "dashboardFilters": [
     {
+      "filterType": "RESOURCE_LABEL",
       "labelKey": "namespace",
-      "templateVariable": "namespace",
       "stringValue": "prod",
-      "filterType": "RESOURCE_LABEL"
+      "templateVariable": "namespace",
+      "valueType": "STRING"
     }
   ],
+  "displayName": "bchat / App Performance",
   "mosaicLayout": {
     "columns": 12,
     "tiles": [
       {
-        "xPos": 0,
-        "yPos": 0,
-        "width": 6,
         "height": 4,
         "widget": {
           "title": "Total requests per hour",
           "xyChart": {
             "dataSets": [
               {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "sum(increase(bchat_http_requests_total{${namespace}}[1h]))"
-                },
-                "plotType": "LINE"
+                }
               }
             ]
           }
-        }
+        },
+        "width": 6
       },
       {
-        "xPos": 6,
-        "yPos": 0,
-        "width": 6,
         "height": 4,
         "widget": {
           "title": "Requests per hour — top 10 routes",
           "xyChart": {
             "dataSets": [
               {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "topk(10, sum by (route) (increase(bchat_http_requests_total{${namespace}, route!~\"/health|unmatched\"}[1h])))"
-                },
-                "plotType": "LINE"
+                }
               }
             ]
           }
-        }
+        },
+        "width": 6,
+        "xPos": 6
       },
       {
-        "xPos": 0,
-        "yPos": 4,
-        "width": 12,
         "height": 4,
         "widget": {
           "title": "Latency p50 / p95 / p99 (all routes, seconds)",
           "xyChart": {
             "dataSets": [
               {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "histogram_quantile(0.50, sum by (le) (rate(bchat_http_request_duration_seconds_bucket{${namespace}}[1h])))"
-                },
-                "plotType": "LINE"
+                }
               },
               {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "histogram_quantile(0.95, sum by (le) (rate(bchat_http_request_duration_seconds_bucket{${namespace}}[1h])))"
-                },
-                "plotType": "LINE"
+                }
               },
               {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(bchat_http_request_duration_seconds_bucket{${namespace}}[1h])))"
-                },
-                "plotType": "LINE"
+                }
               }
             ]
           }
-        }
+        },
+        "width": 12,
+        "yPos": 4
       },
       {
-        "xPos": 0,
-        "yPos": 8,
-        "width": 12,
         "height": 4,
         "widget": {
           "title": "p95 latency by route — top 10 (seconds)",
           "xyChart": {
             "dataSets": [
               {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(bchat_http_request_duration_seconds_bucket{${namespace}, route!~\"/health|unmatched\"}[1h]))))"
-                },
-                "plotType": "LINE"
+                }
               }
             ]
           }
-        }
+        },
+        "width": 12,
+        "yPos": 8
       },
       {
-        "xPos": 0,
-        "yPos": 12,
-        "width": 6,
         "height": 4,
         "widget": {
           "title": "5xx per hour by route",
           "xyChart": {
             "dataSets": [
               {
+                "plotType": "STACKED_AREA",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "sum by (route) (increase(bchat_http_requests_total{${namespace}, status_code=~\"5..\"}[1h]))"
-                },
-                "plotType": "STACKED_AREA"
+                }
               }
             ]
           }
-        }
+        },
+        "width": 6,
+        "yPos": 12
       },
       {
-        "xPos": 6,
-        "yPos": 12,
-        "width": 6,
         "height": 4,
         "widget": {
           "title": "4xx per hour by route",
           "xyChart": {
             "dataSets": [
               {
+                "plotType": "STACKED_AREA",
+                "targetAxis": "Y1",
                 "timeSeriesQuery": {
                   "prometheusQuery": "sum by (route) (increase(bchat_http_requests_total{${namespace}, status_code=~\"4..\"}[1h]))"
-                },
-                "plotType": "STACKED_AREA"
+                }
               }
             ]
           }
-        }
+        },
+        "width": 6,
+        "xPos": 6,
+        "yPos": 12
       },
       {
-        "xPos": 0,
-        "yPos": 16,
-        "width": 4,
         "height": 3,
         "widget": {
-          "title": "Active WebSocket connections",
           "scorecard": {
             "timeSeriesQuery": {
               "prometheusQuery": "sum(bchat_websocket_connections{${namespace}})"
             }
-          }
-        }
+          },
+          "title": "Active WebSocket connections"
+        },
+        "width": 4,
+        "yPos": 16
+      },
+      {
+        "height": 3,
+        "widget": {
+          "scorecard": {
+            "sparkChartView": {
+              "sparkChartType": "SPARK_LINE"
+            },
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(bchat_chat_completions_total{${namespace}}[24h]))"
+            }
+          },
+          "title": "Chat completions (last 24h)"
+        },
+        "width": 4,
+        "xPos": 4,
+        "yPos": 16
+      },
+      {
+        "height": 8,
+        "widget": {
+          "logsPanel": {
+            "filter": "resource.type=\"k8s_container\" resource.labels.namespace_name=\"prod\" resource.labels.container_name=\"app\" jsonPayload.status_code=404",
+            "resourceNames": [
+              "projects/beyond-chat-1111"
+            ]
+          },
+          "title": "404 responses — recent (prod)"
+        },
+        "width": 12,
+        "yPos": 19
+      },
+      {
+        "height": 8,
+        "widget": {
+          "logsPanel": {
+            "filter": "resource.type=\"k8s_container\" resource.labels.namespace_name=\"prod\" resource.labels.container_name=\"app\" jsonPayload.event=\"http_request\" jsonPayload.duration_ms>1000",
+            "resourceNames": [
+              "projects/beyond-chat-1111"
+            ]
+          },
+          "title": "Slow requests — duration > 1s (~top 5%, prod)"
+        },
+        "width": 12,
+        "yPos": 27
       }
     ]
   }
