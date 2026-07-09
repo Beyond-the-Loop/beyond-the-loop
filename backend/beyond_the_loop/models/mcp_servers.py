@@ -217,6 +217,7 @@ class MCPServersTable:
         form_data: MCPServerForm,
         auth_token_encrypted: Optional[str] = None,
         template_slug: Optional[str] = None,
+        available_scopes: Optional[list] = None,
     ) -> Optional[MCPServerModel]:
         now = int(time.time())
         server = MCPServerModel(
@@ -235,6 +236,7 @@ class MCPServersTable:
             oauth_issuer_url=form_data.oauth_issuer_url,
             oauth_scope=form_data.oauth_scope,
             oauth_client_id=form_data.oauth_client_id,
+            available_scopes=available_scopes,
             created_at=now,
             updated_at=now,
         )

@@ -4,6 +4,7 @@ Per-user ownership: each MCP server belongs to exactly one user. No sharing,
 no admin override. Access is gated by the `workspace.mcp_connections` group
 permission and by row-level ownership.
 """
+import asyncio
 import ipaddress
 import logging
 from ipaddress import AddressValueError
@@ -29,6 +30,7 @@ from beyond_the_loop.models.mcp_servers import (
 from beyond_the_loop.utils.access_control import has_permission
 from beyond_the_loop.utils.encryption import decrypt_secret, encrypt_secret
 from beyond_the_loop.utils import mcp_oauth
+from beyond_the_loop.utils.mcp_oauth import discover_protected_resource, resolve_scopes
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import MCP_OAUTH_REDIRECT_URI
 from open_webui.utils.auth import get_verified_user
@@ -429,6 +431,10 @@ async def create_server(form_data: MCPServerForm, user=Depends(get_verified_user
         encrypt_secret(form_data.auth_token) if form_data.auth_token else None
     )
 
+    # If no scope was provided by the user, try to discover one via PRM.
+    if not form_data.oauth_scope and form_data.auth_type == "oauth":
+        form_data.oauth_scope = await resolve_scopes(form_data.url)
+
     server = MCPServers.insert_new_server(
         user_id=user.id,
         company_id=user.company_id,
@@ -565,6 +571,11 @@ async def install_template(
 
     _assert_url_safe(template.server_url)
 
+    # Discover required scopes via RFC 9728 PRM. Falls back to None gracefully.
+    resolved_scope = await resolve_scopes(template.server_url)
+    _prm = await discover_protected_resource(template.server_url)
+    available = list(_prm.get("scopes_supported") or []) if _prm else None
+
     # Re-use the existing Library row if there is one for this (user, slug).
     existing = MCPServers.get_template_row_for_user(slug, user.id)
     if existing is not None:
@@ -580,7 +591,7 @@ async def install_template(
                 auth_type="oauth",
                 enabled=True,
                 oauth_issuer_url=resolved_issuer,
-                oauth_scope=template.scope,
+                oauth_scope=resolved_scope,
                 oauth_client_id=client_id,
                 oauth_client_secret=client_secret,
             )
@@ -599,7 +610,7 @@ async def install_template(
         auth_type="oauth",
         enabled=True,
         oauth_issuer_url=resolved_issuer,
-        oauth_scope=template.scope,
+        oauth_scope=resolved_scope,
         oauth_client_id=client_id,
         oauth_client_secret=client_secret,
     )
@@ -609,6 +620,7 @@ async def install_template(
         company_id=user.company_id,
         form_data=form,
         template_slug=slug,
+        available_scopes=available,
     )
     if not server:
         raise HTTPException(
@@ -641,6 +653,39 @@ async def get_server(server_id: str, user=Depends(get_verified_user)):
     server = _require_owner(
         MCPServers.get_server_by_id_and_user(server_id, user.id), user
     )
+
+    # Best-effort PRM refresh. Never surface errors — a stale scope cache
+    # just means the mismatch banner may be off until the next successful call.
+    if server.auth_type == "oauth" and server.url:
+        try:
+            new_scope = await asyncio.wait_for(
+                resolve_scopes(server.url), timeout=3.0
+            )
+            _prm = await asyncio.wait_for(
+                discover_protected_resource(server.url), timeout=3.0
+            )
+            new_available = list(_prm.get("scopes_supported") or []) if _prm else None
+            dirty = False
+            if new_scope and new_scope != server.oauth_scope:
+                dirty = True
+            if new_available and new_available != server.available_scopes:
+                dirty = True
+            if dirty:
+                from open_webui.internal.db import get_db
+                from beyond_the_loop.models.mcp_servers import MCPServer
+                with get_db() as db:
+                    row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
+                    if row is not None:
+                        if new_scope and new_scope != server.oauth_scope:
+                            row.oauth_scope = new_scope
+                        if new_available and new_available != server.available_scopes:
+                            row.available_scopes = new_available
+                        db.commit()
+                        db.refresh(row)
+                        server = MCPServers.get_server_by_id_and_user(server_id, user.id) or server
+        except Exception as e:
+            log.info("[mcp] PRM refresh failed for %s: %s", server.id, e)
+
     return _to_response(server)
 
 
@@ -917,6 +962,22 @@ async def oauth_start(server_id: str, user=Depends(get_verified_user)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OAuth not bootstrapped — save the server first.",
         )
+
+    # Refresh scope from PRM before building the authorize URL. Best-effort —
+    # on failure we proceed with whatever scope is already on the row.
+    try:
+        new_scope = await resolve_scopes(server.url)
+        if new_scope and new_scope != server.oauth_scope:
+            from open_webui.internal.db import get_db
+            from beyond_the_loop.models.mcp_servers import MCPServer
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
+                if row is not None:
+                    row.oauth_scope = new_scope
+                    db.commit()
+            server = MCPServers.get_server_by_id_and_user(server.id, user.id) or server
+    except Exception as e:
+        log.info("[mcp] scope refresh failed before oauth/start for %s: %s", server.id, e)
 
     verifier, challenge = mcp_oauth.generate_pkce_pair()
     state = mcp_oauth.generate_state()
