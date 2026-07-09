@@ -79,62 +79,58 @@ app = socketio.ASGIApp(
 )
 
 
+def _register_session(sid, user):
+    """Store the session in SESSION_POOL / USER_POOL. Idempotent — SADD in
+    UserSessionSet deduplicates automatically, so calling this from both
+    `connect` and `user-join` is safe (unlike the previous list-based code
+    that appended duplicates on every reconnect)."""
+    user_dump = user.model_dump()
+    SESSION_POOL.set(sid, user_dump)
+    USER_POOL.add(user.id, sid)
+
+
 @sio.event
 async def connect(sid, environ, auth):
     websocket_connections.inc()
-    user = None
-    if auth and "token" in auth:
-        data = decode_token(auth["token"])
-
-        if data is not None and "id" in data:
-            user = await asyncio.to_thread(Users.get_user_by_id, data["id"])
-
-        if user:
-            user_dump = user.model_dump()
-
-            def _register_session():
-                SESSION_POOL[sid] = user_dump
-                if user.id in USER_POOL:
-                    USER_POOL[user.id] = USER_POOL[user.id] + [sid]
-                else:
-                    USER_POOL[user.id] = [sid]
-
-            await asyncio.to_thread(_register_session)
-            log.debug(f"user {user.id} connected with session ID {sid}")
+    if not auth or "token" not in auth:
+        return
+    data = decode_token(auth["token"])
+    if data is None or "id" not in data:
+        return
+    user = await asyncio.to_thread(Users.get_user_by_id, data["id"])
+    if not user:
+        return
+    await asyncio.to_thread(_register_session, sid, user)
+    log.debug(f"user {user.id} connected with session ID {sid}")
 
 
 @sio.on("user-join")
 async def user_join(sid, data):
-
     auth = data["auth"] if "auth" in data else None
     if not auth or "token" not in auth:
         return
 
-    data = decode_token(auth["token"])
-    if data is None or "id" not in data:
+    token_data = decode_token(auth["token"])
+    if token_data is None or "id" not in token_data:
         return
 
-    user = await asyncio.to_thread(Users.get_user_by_id, data["id"])
+    user = await asyncio.to_thread(Users.get_user_by_id, token_data["id"])
     if not user:
         return
 
-    user_dump = user.model_dump()
-
-    def _register_session():
-        SESSION_POOL[sid] = user_dump
-        if user.id in USER_POOL:
-            USER_POOL[user.id] = USER_POOL[user.id] + [sid]
-        else:
-            USER_POOL[user.id] = [sid]
+    # Re-register defensively: the frontend emits `user-join` right after
+    # `connect`. In normal flow `connect` already registered this sid, but
+    # if the connect handler skipped registration (e.g. transient auth
+    # decode issue) this is our safety net. SADD is idempotent, so this
+    # no longer produces duplicates like the old list-append code did.
+    await asyncio.to_thread(_register_session, sid, user)
 
     channels = await asyncio.to_thread(Channels.get_channels_by_user_id, user.id)
-    await asyncio.to_thread(_register_session)
-
     log.debug(f"{channels=}")
     for channel in channels:
         await sio.enter_room(sid, f"channel:{channel.id}")
 
-    log.debug(f"user {user.email}({user.id}) connected with session ID {sid}")
+    log.debug(f"user {user.email}({user.id}) joined rooms")
     return {"id": user.id, "first_name": user.first_name, "last_name": user.last_name}
 
 
@@ -174,7 +170,7 @@ async def channel_events(sid, data):
     event_type = event_data["type"]
 
     if event_type == "typing":
-        session_user = await asyncio.to_thread(SESSION_POOL.get, sid)
+        session_user = await asyncio.to_thread(SESSION_POOL.get, sid, None)
         if session_user is None:
             return
         await sio.emit(
@@ -192,15 +188,13 @@ async def channel_events(sid, data):
 @sio.event
 async def disconnect(sid):
     websocket_connections.dec()
+
     def _unregister_session():
-        if sid not in SESSION_POOL:
+        user = SESSION_POOL.get(sid)
+        if user is None:
             return False
-        user = SESSION_POOL[sid]
-        del SESSION_POOL[sid]
-        user_id = user["id"]
-        USER_POOL[user_id] = [_sid for _sid in USER_POOL[user_id] if _sid != sid]
-        if len(USER_POOL[user_id]) == 0:
-            del USER_POOL[user_id]
+        SESSION_POOL.delete(sid)
+        USER_POOL.remove(user["id"], sid)
         return True
 
     unregistered = await asyncio.to_thread(_unregister_session)
@@ -211,7 +205,7 @@ async def disconnect(sid):
 def get_event_emitter(request_info):
     async def __event_emitter__(event_data):
         user_id = request_info["user_id"]
-        session_ids_from_pool = await asyncio.to_thread(USER_POOL.get, user_id, [])
+        session_ids_from_pool = await asyncio.to_thread(USER_POOL.get_sids, user_id)
         session_ids = list(
             set(session_ids_from_pool + [request_info["session_id"]])
         )
@@ -265,18 +259,34 @@ def get_event_emitter(request_info):
     return __event_emitter__
 
 
+# Explicit short timeout for sio.call. Without it, python-socketio defaults
+# to 60s. When the target sid is stale (client disconnected but the sid
+# hasn't been evicted by the socketio manager yet — very common after pod
+# rotation), every chat completion path that goes through event_call would
+# block for the full 60s. Chat requests appeared to "load forever" in the
+# browser as a result. 5s is enough for a healthy client to round-trip.
+_EVENT_CALL_TIMEOUT_SECONDS = 5
+
+
 def get_event_call(request_info):
     async def __event_caller__(event_data):
-        response = await sio.call(
-            "chat-events",
-            {
-                "chat_id": request_info["chat_id"],
-                "message_id": request_info["message_id"],
-                "data": event_data,
-            },
-            to=request_info["session_id"],
-        )
-        return response
+        try:
+            return await sio.call(
+                "chat-events",
+                {
+                    "chat_id": request_info["chat_id"],
+                    "message_id": request_info["message_id"],
+                    "data": event_data,
+                },
+                to=request_info["session_id"],
+                timeout=_EVENT_CALL_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            log.warning(
+                f"sio.call timed out (sid={request_info['session_id']}, "
+                f"chat_id={request_info['chat_id']}); client is likely gone"
+            )
+            return None
 
     return __event_caller__
 
@@ -306,6 +316,4 @@ def get_user_ids_from_room(room):
 
 
 def get_active_status_by_user_id(user_id):
-    if user_id in USER_POOL:
-        return True
-    return False
+    return USER_POOL.has_user(user_id)

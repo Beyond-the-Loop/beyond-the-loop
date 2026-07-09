@@ -8,3 +8,12 @@ spec:
   timeoutSec: {{ .Values.app.backendConfig.timeoutSec }}
   connectionDraining:
     drainingTimeoutSec: {{ .Values.app.backendConfig.drainingTimeoutSec }}
+  # Cookie-based sticky sessions so a browser stays on the same backend pod
+  # for the duration of a Socket.IO / SSE session. Without this, GCE round-
+  # robins each HTTP request and the polling-transport handshake breaks
+  # across pods. GENERATED_COOKIE works behind NAT / corporate proxies
+  # unlike CLIENT_IP. Affinity is soft — if the target pod is drained/gone,
+  # the LB falls back to another healthy backend.
+  sessionAffinity:
+    affinityType: GENERATED_COOKIE
+    affinityCookieTtlSec: {{ .Values.app.backendConfig.affinityCookieTtlSec }}

@@ -100,15 +100,26 @@ app:
     # voluntary evictions at once. Percentage scales with replica count.
     minAvailable: 50%
   backendConfig:
-    # Raises the GCE load balancer -> backend response timeout from the
-    # 30s default. Chat streams routinely exceed 30s; the old value caused
-    # 502s on legitimate long completions.
-    timeoutSec: 300
+    # GCE LB backend response timeout. For WebSocket connections this is
+    # the max allowed idle time between frames — Socket.IO pings every 25s
+    # so it's normally not hit, but during pod rotation a WebSocket can
+    # pause longer than the previous 300s while the client reconnects to
+    # a new backend. 3600s tolerates that; HTTP responses fit inside it
+    # too (chat completions are bounded by upstream provider timeouts far
+    # below 1h).
+    timeoutSec: 3600
     # During rolling updates, let the LB keep sending traffic to a
     # terminating pod for this long so in-flight streams can finish.
     # Bumped 60 → 120 after seeing >5000 LB-side 502s on WebSocket routes
     # during pod churn.
     drainingTimeoutSec: 120
+    # Sticky-session cookie TTL. Keeps a browser pinned to the same
+    # backend pod for a whole Socket.IO session, so the polling handshake
+    # doesn't break across pods and long-lived WebSockets stay put. The LB
+    # falls back gracefully when the pinned pod is drained. 1h matches a
+    # typical work session; longer makes no sense since HPA rotates pods
+    # faster than that anyway.
+    affinityCookieTtlSec: 3600
 
 # LiteLLM deployment
 litellm:
