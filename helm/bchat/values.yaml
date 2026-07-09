@@ -43,28 +43,53 @@ serviceAccount:
 app:
   strategy:
     type: RollingUpdate
+    # 1 → 25%: at HPA=9 the previous surge of 1 forced a sequential 1-by-1
+    # replacement (~5min startupProbe × 9 pods = ~45min rollout) while old
+    # pods were terminated with a too-short grace and preStop, producing
+    # exit-137 cascades in prod on 2026-07-08. 25% lets 2–3 replacements
+    # proceed in parallel and keeps the rollout inside minutes.
+    maxSurge: 25%
+    maxUnavailable: 0
   replicas: 2
   resources:
-    # Raised requests.memory 1Gi → 2Gi: prod container RSS sat at 1.2–1.9 GB,
-    # so nodes hit Kernel memory pressure and evicted us (74 evictions in 24h,
-    # plus a scheduling failure with "4 Insufficient memory" on 2026-07-08).
-    # Setting requests near actual usage keeps GKE Autopilot from overpacking
-    # nodes.
+    # Raised requests.memory 2Gi → 3Gi on 2026-07-09 after a live cluster
+    # check found a pod evicted with RSS = 3.04 GB (request 2Gi, limit 4Gi):
+    #   "The node was low on resource: memory. Threshold: 100Mi,
+    #    available: 66056Ki. Container app was using 3188356Ki,
+    #    request is 2Gi, has larger consumption of memory."
+    # Container was under its 4Gi limit, but exceeding request lets Autopilot
+    # overpack the node → kubelet evicts on node-level pressure. Requests
+    # must reflect real p95 RSS or evictions keep happening. Limit bumped
+    # 4Gi → 5Gi for headroom on model-cache growth.
     requests:
       cpu: 500m
-      memory: 2Gi
+      memory: 3Gi
     limits:
       cpu: 2
-      memory: 4Gi
-  terminationGracePeriodSeconds: 60
+      memory: 5Gi
+  # 60 → 180: chat streams routinely run 30–120s and the LB draining
+  # window is 120s. Grace must exceed preStopDelaySeconds + typical
+  # in-flight stream length, otherwise SIGKILL cuts streams (exit 137).
+  terminationGracePeriodSeconds: 180
+  # Sleep before uvicorn stops accepting connections, so the k8s Service
+  # endpoints controller can remove the pod from rotation and the GCE LB
+  # can finish its drainingTimeoutSec (120s) drain before the process exits.
+  # Same drain pattern as litellm/mcp — was missing on app.
+  preStopDelaySeconds: 120
   hpa:
     enabled: true
     minReplicas: 2
     maxReplicas: 10
     targetCPU: 70
+    # HPA scale-down held for this long after CPU drops. Without this,
+    # HPA was collapsing 9 → 2 replicas in seconds, SIGTERM'ing pods with
+    # open streams. Longer window prevents thrashing during traffic dips.
+    scaleDownStabilizationSeconds: 600
   pdb:
     enabled: true
-    minAvailable: 1
+    # 1 → 50%: with HPA scaling to 10 replicas, minAvailable:1 allowed 9
+    # voluntary evictions at once. Percentage scales with replica count.
+    minAvailable: 50%
   backendConfig:
     # Raises the GCE load balancer -> backend response timeout from the
     # 30s default. Chat streams routinely exceed 30s; the old value caused
