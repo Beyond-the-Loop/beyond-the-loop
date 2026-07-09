@@ -27,6 +27,24 @@ def is_flat_rate_plan(plan: str | None) -> bool:
     return plan in FLAT_RATE_PLANS
 
 
+def _get_custom_seats(subscription):
+    """Extract ``custom_seats`` from a Stripe subscription's metadata.
+
+    Returns a positive int, or ``None`` when the metadata is missing, empty,
+    zero/negative, or malformed. Callers fall back to the plan's default
+    ``seats`` value on ``None``.
+    """
+    raw = (subscription.get("metadata") or {}).get("custom_seats")
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+        return n if n > 0 else None
+    except (ValueError, TypeError):
+        log.warning(f"Invalid custom_seats metadata: {raw!r}")
+        return None
+
+
 def _next_monthly_anchor_after(anchor_dt: datetime, after_dt: datetime) -> datetime:
     """Find the next datetime with anchor_dt's day-of-month and time-of-day
     that is strictly after ``after_dt``. Month-end days clamp naturally via
