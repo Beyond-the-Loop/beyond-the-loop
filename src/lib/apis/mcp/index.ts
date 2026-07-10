@@ -62,7 +62,6 @@ export type MCPConnectorTemplate = {
 	server_url: string;
 	transport: 'sse' | 'streamable_http';
 	issuer_url: string;
-	scope: string | null;
 	requires_user_credentials: boolean;
 	requires_tenant_id: boolean;
 	credentials_help_url: string | null;

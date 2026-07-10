@@ -518,10 +518,6 @@ class ConnectorTemplateResponse(BaseModel):
     server_url: str
     transport: str
     issuer_url: str
-    # None means "no scope param sent to the authorize endpoint" — some
-    # providers (Notion) don't accept a scope and let the user choose access
-    # at consent time.
-    scope: Optional[str] = None
     requires_user_credentials: bool
     requires_tenant_id: bool = False
     credentials_help_url: Optional[str] = None
@@ -548,7 +544,6 @@ def _template_to_response(t: ConnectorTemplate) -> ConnectorTemplateResponse:
         server_url=t.server_url,
         transport=t.transport,
         issuer_url=t.issuer_url,
-        scope=t.scope,
         requires_user_credentials=t.requires_user_credentials,
         requires_tenant_id=t.requires_tenant_id,
         credentials_help_url=t.credentials_help_url,
