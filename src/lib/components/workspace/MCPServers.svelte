@@ -114,6 +114,17 @@
 	let toolsError: string | null = null;
 	let toolsStale = false;
 	let expandedTools: Set<string> = new Set();
+	let toolsFilter = '';
+
+	// Substring match on the tool name (case-insensitive). Empty filter shows
+	// everything. Rendering iterates this derived list, but the underlying
+	// `modalTools` (and its enabled flags) is preserved so saves still cover
+	// tools hidden by the filter.
+	$: filteredModalTools = toolsFilter.trim()
+		? modalTools.filter((t) =>
+				t.name.toLowerCase().includes(toolsFilter.trim().toLowerCase())
+			)
+		: modalTools;
 
 	function toggleToolExpanded(name: string) {
 		if (expandedTools.has(name)) expandedTools.delete(name);
@@ -250,6 +261,7 @@
 		toolsLoading = false;
 		toolsError = null;
 		toolsStale = false;
+		toolsFilter = '';
 		showEditor = true;
 	}
 
@@ -1126,8 +1138,19 @@
 									Alle deaktivieren
 								</button>
 							</div>
+							<input
+								type="text"
+								class="mb-2 w-full px-2 py-1 rounded border border-lightGray-400 dark:border-customGray-700 bg-transparent text-xs dark:text-customGray-100 outline-none focus:border-customBlue-500"
+								placeholder="Tools suchen…"
+								bind:value={toolsFilter}
+							/>
 							<ul class="space-y-1 max-h-64 overflow-y-auto border border-lightGray-400 dark:border-customGray-700 rounded p-2">
-								{#each modalTools as tool (tool.name)}
+								{#if filteredModalTools.length === 0}
+									<li class="text-xs text-lightGray-1200 dark:text-customGray-100/50 px-1 py-0.5">
+										Keine Treffer.
+									</li>
+								{/if}
+								{#each filteredModalTools as tool (tool.name)}
 									<li class="flex items-start gap-2">
 										<input type="checkbox" bind:checked={tool.enabled} class="mt-1 accent-blue-500" />
 										<div class="min-w-0 flex-1">
@@ -1327,8 +1350,19 @@
 									{$i18n.t('Alle deaktivieren')}
 								</button>
 							</div>
+							<input
+								type="text"
+								class="mb-2 w-full px-2 py-1 rounded border border-lightGray-400 dark:border-customGray-700 bg-transparent text-xs dark:text-customGray-100 outline-none focus:border-customBlue-500"
+								placeholder={$i18n.t('Tools suchen…')}
+								bind:value={toolsFilter}
+							/>
 							<ul class="space-y-1 max-h-64 overflow-y-auto border rounded p-2 dark:border-customGray-700">
-								{#each modalTools as tool (tool.name)}
+								{#if filteredModalTools.length === 0}
+									<li class="text-xs text-lightGray-1200 dark:text-customGray-100/50 px-1 py-0.5">
+										{$i18n.t('Keine Treffer.')}
+									</li>
+								{/if}
+								{#each filteredModalTools as tool (tool.name)}
 									<li class="flex items-start gap-2">
 										<input type="checkbox" bind:checked={tool.enabled} class="mt-1" />
 										<div class="min-w-0 flex-1">
