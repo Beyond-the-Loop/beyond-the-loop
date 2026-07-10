@@ -601,30 +601,36 @@
 		}
 	}
 
-	// Refresh scope info (and any other row state) for a specific server by
-	// re-fetching GET /{id}, which triggers the backend's lazy PRM-refresh
-	// side-effect. Updates whichever local state the given server belongs to.
-	let scopesReloading = false;
-	async function refreshServerScopes(server?: MCPServerResponse | null) {
-		if (!server?.id || scopesReloading) return;
-		scopesReloading = true;
+	// Refresh EVERYTHING about a connector — scopes (via GET /{id} +
+	// backend's lazy PRM refresh) and tools (via test-connection with its
+	// reconcile side-effect) — in parallel. Fed by the single refresh icon
+	// next to the "Verbunden" pill so users don't juggle per-section reload
+	// links.
+	let connectorReloading = false;
+	async function refreshConnector(server?: MCPServerResponse | null) {
+		if (!server?.id || connectorReloading) return;
+		connectorReloading = true;
 		try {
-			const fresh = await getMCPServer(localStorage.token, server.id);
+			// Bypass the auto-fetch guard on the tools side so we always
+			// re-fetch when the user hits refresh.
+			lastFetchedForId = null;
+			const [fresh] = await Promise.all([
+				getMCPServer(localStorage.token, server.id),
+				fetchTools(server)
+			]);
 			if (fresh) {
 				if (editingServer && editingServer.id === fresh.id) {
 					editingServer = fresh;
 				}
-				// selectedRow is derived from `servers`; refreshing the list
-				// re-computes it with the new row values.
 				if (selectedRow && selectedRow.id === fresh.id) {
 					await reload();
 				}
-				toast.success($i18n.t('Berechtigungen aktualisiert'));
 			}
+			toast.success($i18n.t('Konnektor aktualisiert'));
 		} catch (e) {
 			toast.error(`${e}`);
 		} finally {
-			scopesReloading = false;
+			connectorReloading = false;
 		}
 	}
 
@@ -992,18 +998,25 @@
 
 						<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 							{#if editingServer?.has_oauth_access_token}
-								<div class="text-xs dark:text-customGray-100 mb-2">
-									<span class="font-medium">{$i18n.t('Connected')}</span>
-									{#if editingServer.oauth_granted_scope}
-										<div class="text-lightGray-1200 dark:text-customGray-100/60 mt-1">
-											{$i18n.t('Scope')}: {editingServer.oauth_granted_scope}
-										</div>
-									{/if}
-									{#if editingServer.oauth_access_token_expires_at}
-										<div class="text-lightGray-1200 dark:text-customGray-100/60">
-											{formatExpiresIn(editingServer.oauth_access_token_expires_at)}
-										</div>
-									{/if}
+								<div class="flex items-start gap-2 mb-2">
+									<div class="flex-1 text-xs dark:text-customGray-100">
+										<span class="font-medium">{$i18n.t('Connected')}</span>
+										{#if editingServer.oauth_access_token_expires_at}
+											<div class="text-lightGray-1200 dark:text-customGray-100/60 mt-1">
+												{formatExpiresIn(editingServer.oauth_access_token_expires_at)}
+											</div>
+										{/if}
+									</div>
+									<button
+										type="button"
+										class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
+										disabled={connectorReloading}
+										title={$i18n.t('Konnektor aktualisieren')}
+										aria-label={$i18n.t('Konnektor aktualisieren')}
+										on:click={() => refreshConnector(editingServer)}
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+									</button>
 								</div>
 								{#if editingServer?.scope_mismatch}
 									<div class="mb-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
@@ -1047,9 +1060,6 @@
 							<MCPScopesList
 								oauthScope={editingServer?.oauth_scope}
 								oauthGrantedScope={editingServer?.oauth_granted_scope}
-								canReload={!!editingServer?.id}
-								reloading={scopesReloading}
-								on:reload={() => refreshServerScopes(editingServer)}
 							/>
 						</div>
 					</div>
@@ -1064,21 +1074,11 @@
 					<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 						<div class="flex items-center justify-between mb-2">
 							<h4 class="text-sm font-semibold dark:text-customGray-100">Tools</h4>
-							<div class="flex items-center gap-2">
 								{#if editingServer?.tools_fetched_at}
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
 										Zuletzt aktualisiert: {new Date(editingServer.tools_fetched_at * 1000).toLocaleString()}
 									</span>
 								{/if}
-								<button
-									type="button"
-									class="text-xs underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
-									disabled={toolsLoading}
-									on:click={() => manualFetchTools(editingServer)}
-								>
-									Neu laden
-								</button>
-							</div>
 						</div>
 
 						{#if toolsStale}
@@ -1227,16 +1227,28 @@
 				</div>
 
 				{#if selectedConnected}
-					<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 p-3 text-xs dark:text-customGray-100">
-						<div class="flex items-center gap-2 leading-none font-medium">
-							<span class="size-1.5 rounded-full bg-green-500"></span>
-							{$i18n.t('Connected')}
-						</div>
-						{#if selectedRow?.oauth_last_error}
-							<div class="text-red-600 dark:text-red-400 mt-1">
-								{selectedRow.oauth_last_error}
+					<div class="flex items-start gap-2">
+						<div class="flex-1 rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 p-3 text-xs dark:text-customGray-100">
+							<div class="flex items-center gap-2 leading-none font-medium">
+								<span class="size-1.5 rounded-full bg-green-500"></span>
+								{$i18n.t('Connected')}
 							</div>
-						{/if}
+							{#if selectedRow?.oauth_last_error}
+								<div class="text-red-600 dark:text-red-400 mt-1">
+									{selectedRow.oauth_last_error}
+								</div>
+							{/if}
+						</div>
+						<button
+							type="button"
+							class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
+							disabled={connectorReloading}
+							title={$i18n.t('Konnektor aktualisieren')}
+							aria-label={$i18n.t('Konnektor aktualisieren')}
+							on:click={() => refreshConnector(selectedRow)}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+						</button>
 					</div>
 
 					{#if selectedRow?.scope_mismatch}
@@ -1248,9 +1260,6 @@
 					<MCPScopesList
 						oauthScope={selectedRow?.oauth_scope}
 						oauthGrantedScope={selectedRow?.oauth_granted_scope}
-						canReload={!!selectedRow?.id}
-						reloading={scopesReloading}
-						on:reload={() => refreshServerScopes(selectedRow)}
 					/>
 
 					<div class="mt-4">
@@ -1258,23 +1267,13 @@
 							<h4 class="text-sm font-semibold dark:text-customGray-100">
 								{$i18n.t('Tools')}
 							</h4>
-							<div class="flex items-center gap-2">
-								{#if selectedRow?.tools_fetched_at}
-									<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
-										{$i18n.t('Zuletzt aktualisiert')}: {new Date(
-											selectedRow.tools_fetched_at * 1000
-										).toLocaleString()}
-									</span>
-								{/if}
-								<button
-									type="button"
-									class="text-xs underline dark:text-customGray-100"
-									disabled={toolsLoading}
-									on:click={() => manualFetchTools(selectedRow)}
-								>
-									{$i18n.t('Neu laden')}
-								</button>
-							</div>
+							{#if selectedRow?.tools_fetched_at}
+								<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
+									{$i18n.t('Zuletzt aktualisiert')}: {new Date(
+										selectedRow.tools_fetched_at * 1000
+									).toLocaleString()}
+								</span>
+							{/if}
 						</div>
 
 						{#if toolsStale}
