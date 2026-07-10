@@ -58,3 +58,19 @@ class EmailService:
             })
         except Exception as e:
             log.error(f"Exception when sending budget 100 email: {e}")
+
+    def send_auto_recharge_disabled_mail(self, to_email: str, admin_name: str, company_name: str, billing_page_link: str):
+        """Notify admins that auto-recharge was disabled after a card decline.
+
+        We disable auto_recharge on the first card decline to prevent a spiral of
+        invoice-pay attempts on every subsequent chat completion; the admin has
+        to fix the payment method and re-enable it manually.
+        """
+        try:
+            loops_service.send_transactional_email(to_email, "cmreqgsyl0r530j3a7sgdk88d", data_variables={
+                "admin_name": admin_name,
+                "workspace_name": company_name,
+                "billing_page_link": billing_page_link
+            })
+        except Exception as e:
+            log.error(f"Exception when sending auto-recharge-disabled email: {e}")

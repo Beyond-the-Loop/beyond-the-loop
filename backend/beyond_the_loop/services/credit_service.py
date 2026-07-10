@@ -62,34 +62,53 @@ class CreditService:
 
             # Recharge if base_credits + flex_credits - credit_cost < 80% of credit limit
             if Companies.get_auto_recharge(user.company_id) and current_credit_balance - credit_cost < eighty_percent_credit_limit:
-                try:
-                    # Check if the company has a stripe customer ID and payment method before recharging
-                    if not company.stripe_customer_id:
-                        log.warning(f"Auto-recharge failed: No stripe customer ID for company {user.company_id}")
-                        # Don't attempt to recharge if there's no stripe customer ID
-                    else:
-                        # Check if the customer has any payment methods
-                        try:
-                            payment_methods = stripe.PaymentMethod.list(
-                                customer=company.stripe_customer_id,
-                                type="card"
-                            )
+                if not company.stripe_customer_id:
+                    log.warning(f"Auto-recharge failed: No stripe customer ID for company {user.company_id}")
+                else:
+                    try:
+                        payment_methods = stripe.PaymentMethod.list(
+                            customer=company.stripe_customer_id,
+                            type="card"
+                        )
+                    except Exception as e:
+                        log.error(f"Error listing payment methods for company {user.company_id}: {e}")
+                        payment_methods = None
 
-                            if not payment_methods or len(payment_methods.data) == 0:
-                                log.warning(
-                                    f"Auto-recharge failed: No payment methods found for company {user.company_id}")
-                                # Don't attempt to recharge if there are no payment methods
+                    if not payment_methods or len(payment_methods.data) == 0:
+                        log.warning(
+                            f"Auto-recharge failed: No payment methods found for company {user.company_id}")
+                    else:
+                        try:
+                            await self.recharge_flex_credits(user)
+                            # Note: The webhook will handle adding the credits when payment succeeds
+                            should_send_budget_email_80 = False  # Don't send email if auto-recharge succeeded
+                        except HTTPException as e:
+                            # A 400 out of recharge_flex_credits is a card decline
+                            # (see payments.py: stripe.error.CardError → 400).
+                            # Retrying it on every subsequent completion spams
+                            # Stripe with dozens of invoice-pay attempts within
+                            # minutes; Stripe Radar then starts blocking them
+                            # and the customer's Radar score suffers. Disable
+                            # auto-recharge on decline and notify admins so
+                            # they can fix the payment method before re-enabling.
+                            if e.status_code == 400:
+                                log.error(
+                                    f"Auto-recharge card declined for company {user.company_id}; "
+                                    f"disabling auto_recharge and notifying admins: {e.detail}"
+                                )
+                                Companies.update_auto_recharge(user.company_id, False)
+                                admins = Users.get_admin_users_by_company(company.id)
+                                for admin in admins:
+                                    EmailService().send_auto_recharge_disabled_mail(
+                                        to_email=admin.email,
+                                        admin_name=admin.first_name,
+                                        company_name=company.name,
+                                        billing_page_link=os.getenv("FRONTEND_BASE_URL") + "?modal=company-settings&tab=billing",
+                                    )
                             else:
-                                # Trigger auto-recharge using the charge_customer endpoint
-                                await self.recharge_flex_credits(user)
-                                # Note: The webhook will handle adding the credits when payment succeeds
-                                should_send_budget_email_80 = False  # Don't send email if auto-recharge succeeded
+                                log.error(f"Auto-recharge failed for company {user.company_id}: {e.detail}")
                         except Exception as e:
-                            log.error(f"Error checking payment methods: {str(e)}")
-                except HTTPException as e:
-                    log.error(f"Auto-recharge failed: {str(e)}")
-                except Exception as e:
-                    log.error(f"Unexpected error during auto-recharge: {str(e)}")
+                            log.error(f"Unexpected error during auto-recharge for company {user.company_id}: {e}")
 
             if should_send_budget_email_80 and not company.budget_mail_80_sent:
                 admins = Users.get_admin_users_by_company(company.id)

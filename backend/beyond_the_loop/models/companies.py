@@ -402,9 +402,19 @@ class CompanyTable:
         """
         Calculate the credit limit at which the 80% warning should be triggered,
         based on the company's subscription plan.
-        
+
         For free plans or when no subscription exists, returns a default value of 1.
-        For paid plans, returns 20% of the monthly credit allocation from the subscription.
+        For paid plans, returns 20% of the monthly credit allocation, preferring
+        the negotiated ``custom_credit_amount`` on the Stripe subscription
+        metadata over the plan's built-in ``credits_per_month``.
+
+        Why prefer ``custom_credit_amount``: Enterprise/Kickstart customers
+        often have a negotiated monthly credit amount that differs from the
+        plan default. If the threshold uses the plan default (e.g. 450 for
+        enterprise) while the actual monthly refill uses the custom value
+        (e.g. 200), the customer stays permanently below threshold after each
+        recharge only adds €20 — triggering an endless auto-recharge attempt
+        on every subsequent completion.
         """
         try:
             with get_db() as db:
@@ -417,16 +427,22 @@ class CompanyTable:
                 subscription = payments_service.get_subscription(company.id)
 
                 plan_id = subscription.get('plan')
-                
+
                 if plan_id not in payments_service.SUBSCRIPTION_PLANS:
                     return 1  # Unknown plan
-                
+
+                monthly_credits = (
+                    subscription.get("custom_credit_amount")
+                    or payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month")
+                )
+
+                if not monthly_credits:
+                    return 1  # Plan has no credits_per_month (e.g. premium)
+
                 # Calculate 20% of the monthly credit allocation
                 # (which means the warning triggers when 80% is used)
-                monthly_credits = payments_service.SUBSCRIPTION_PLANS[plan_id].get("credits_per_month")
-
                 return monthly_credits * 0.2
-                
+
         except Exception as e:
             log.error(f"Error calculating credit limit for company {company_id}: {e}")
             return 1  # Default fallback value

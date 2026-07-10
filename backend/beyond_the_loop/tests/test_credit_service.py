@@ -90,8 +90,11 @@ _Companies.subtract_credit_balance = MagicMock()
 _Companies.update_company_by_id = MagicMock()
 _stub_module("beyond_the_loop.models.companies", Companies=_Companies)
 
-# beyond_the_loop.services.email_service stub
-_stub_module("beyond_the_loop.services.email_service", EmailService=MagicMock)
+# beyond_the_loop.services.email_service stub — instance-shaped so tests can
+# assert on which method was called on the EmailService object created inside
+# credit_service (EmailService() returns the same return_value each time).
+_EmailServiceClass = MagicMock()
+_stub_module("beyond_the_loop.services.email_service", EmailService=_EmailServiceClass)
 
 # beyond_the_loop.config stub
 _stub_module(
@@ -143,10 +146,13 @@ def reset_mocks():
     """Reset all spies and side_effects between tests so state doesn't leak."""
     _Completions.insert_new_completion.reset_mock()
     _Companies.subtract_credit_balance.reset_mock()
+    _Companies.update_auto_recharge.reset_mock()
     _Companies.get_base_credit_balance.return_value = 1000.0
     _Companies.get_credit_balance.return_value = 1000.0
     _Companies.get_eighty_percent_credit_limit.return_value = 200.0
     _Companies.get_auto_recharge.return_value = False
+    _EmailServiceClass.reset_mock()
+    _Users.get_admin_users_by_company.reset_mock(return_value=True)
     # reset_mock(side_effect=True) is required — plain reset_mock() does not
     # clear side_effects set by an earlier test (e.g. the exception-swallowing
     # test below leaks its Exception side_effect otherwise).
@@ -462,3 +468,104 @@ class TestSubtractForTTS:
         args, kwargs = _Completions.insert_new_completion.call_args
         assert args[2] == 0.0
         assert kwargs.get("kind") == "tts"
+
+
+# ---------------------------------------------------------------------------
+# Auto-recharge card-decline handling
+#
+# Regression coverage for the July 2026 Deutscher Apotheker Verlag incident:
+# a company with auto_recharge=true and a declined card generated ~500
+# stripe.Invoice.pay attempts in ~48h because every subsequent completion
+# re-triggered the recharge with no persisted failure state. On a card
+# decline (HTTP 400 out of recharge_flex_credits) we now disable auto_recharge
+# and notify admins so the loop cannot spin up again on the next completion.
+# ---------------------------------------------------------------------------
+
+
+class TestAutoRechargeCardDecline:
+    @pytest.fixture(autouse=True)
+    def _low_balance_and_auto_recharge_on(self, monkeypatch):
+        # Force the recharge branch: balance below 80% threshold, auto_recharge
+        # on, one card on file, budget_mail_80 already sent (so we don't fan
+        # out through the warning-mail path).
+        _Companies.get_base_credit_balance.return_value = 0.0
+        _Companies.get_credit_balance.return_value = 63.0
+        _Companies.get_eighty_percent_credit_limit.return_value = 90.0
+        _Companies.get_auto_recharge.return_value = True
+        # NB: ``name`` is reserved on MagicMock (sets the mock's display name,
+        # not a real attribute), so set company.name explicitly.
+        company_mock = MagicMock(
+            id="company-1",
+            stripe_customer_id="cus_1",
+            budget_mail_80_sent=True,
+        )
+        company_mock.name = "ACME"
+        _Companies.get_company_by_id.return_value = company_mock
+        # stripe.PaymentMethod.list returns a card
+        pm_list = MagicMock()
+        pm_list.data = [MagicMock(id="pm_1")]
+        cs.stripe.PaymentMethod.list = MagicMock(return_value=pm_list)
+        _Users.get_admin_users_by_company.return_value = [
+            MagicMock(email="admin@acme.com", first_name="Ada"),
+        ]
+        # billing_page_link uses os.getenv("FRONTEND_BASE_URL") + suffix — set
+        # it here so the string concat doesn't blow up in the decline branch.
+        monkeypatch.setenv("FRONTEND_BASE_URL", "https://app.example.com")
+        yield
+
+    @pytest.mark.anyio
+    async def test_card_decline_disables_auto_recharge_and_notifies_admins(self, user, usage_response):
+        from fastapi import HTTPException
+
+        # recharge_flex_credits raises a 400 on card decline (see payments.py).
+        with patch.object(
+            cs.CreditService, "recharge_flex_credits",
+            side_effect=HTTPException(status_code=400, detail="Card declined: card was declined."),
+        ):
+            await cs.credit_service.record_completion(
+                user, usage_response, "GPT-4o",
+                agent_or_task_prompt=False,
+                subscription={"plan": "enterprise_monthly"},
+            )
+
+        # auto_recharge flipped off so the next completion doesn't try again
+        _Companies.update_auto_recharge.assert_called_once_with(user.company_id, False)
+        # Admin notified about the disable
+        _EmailServiceClass.return_value.send_auto_recharge_disabled_mail.assert_called_once()
+        call_kwargs = _EmailServiceClass.return_value.send_auto_recharge_disabled_mail.call_args.kwargs
+        assert call_kwargs["to_email"] == "admin@acme.com"
+        assert call_kwargs["admin_name"] == "Ada"
+        assert call_kwargs["company_name"] == "ACME"
+        # Completion row is still written even though the recharge failed
+        _Completions.insert_new_completion.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_non_400_recharge_error_does_not_disable(self, user, usage_response):
+        # A 500 (Stripe API glitch, network, ...) is transient — don't punish
+        # the customer by flipping auto_recharge off.
+        from fastapi import HTTPException
+
+        with patch.object(
+            cs.CreditService, "recharge_flex_credits",
+            side_effect=HTTPException(status_code=500, detail="Failed to recharge credits"),
+        ):
+            await cs.credit_service.record_completion(
+                user, usage_response, "GPT-4o",
+                agent_or_task_prompt=False,
+                subscription={"plan": "enterprise_monthly"},
+            )
+
+        _Companies.update_auto_recharge.assert_not_called()
+        _EmailServiceClass.return_value.send_auto_recharge_disabled_mail.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_successful_recharge_leaves_auto_recharge_untouched(self, user, usage_response):
+        with patch.object(cs.CreditService, "recharge_flex_credits", new=AsyncMock(return_value={"ok": True})):
+            await cs.credit_service.record_completion(
+                user, usage_response, "GPT-4o",
+                agent_or_task_prompt=False,
+                subscription={"plan": "enterprise_monthly"},
+            )
+
+        _Companies.update_auto_recharge.assert_not_called()
+        _EmailServiceClass.return_value.send_auto_recharge_disabled_mail.assert_not_called()
