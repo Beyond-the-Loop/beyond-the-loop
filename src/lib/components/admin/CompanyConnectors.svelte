@@ -68,12 +68,12 @@
 
 	async function save() {
 		const payload: Record<string, string> = {};
-		if (editingClientId && valueClientId)
-			payload['connectors_microsoft365_client_id'] = valueClientId;
-		if (editingTenantId && valueTenantId)
-			payload['connectors_microsoft365_tenant_id'] = valueTenantId;
-		if (editingClientSecret && valueClientSecret)
-			payload['connectors_microsoft365_client_secret'] = valueClientSecret;
+		// Send whatever the user typed. The input is disabled while `has_field`
+		// is set and the user isn't in edit-mode, so a non-empty value here
+		// always represents a fresh input (first-time set OR explicit "Ändern").
+		if (valueClientId) payload['connectors_microsoft365_client_id'] = valueClientId;
+		if (valueTenantId) payload['connectors_microsoft365_tenant_id'] = valueTenantId;
+		if (valueClientSecret) payload['connectors_microsoft365_client_secret'] = valueClientSecret;
 
 		if (!Object.keys(payload).length) {
 			toast.error($i18n.t('Keine Änderungen zum Speichern.'));
