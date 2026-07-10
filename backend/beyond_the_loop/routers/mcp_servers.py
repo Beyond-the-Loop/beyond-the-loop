@@ -110,11 +110,11 @@ def _to_response(server: MCPServerModel) -> MCPServerResponse:
                     "oauth_pending_state",
                     "oauth_pending_code_verifier",
                     "oauth_pending_created_at",
-                    "tools_fetched_at",
+                    "last_refreshed_at",
                 }
             ),
-            "tools_fetched_at": int(server.tools_fetched_at.timestamp())
-                if server.tools_fetched_at else None,
+            "last_refreshed_at": int(server.last_refreshed_at.timestamp())
+                if server.last_refreshed_at else None,
             "has_auth_token": bool(server.auth_token_encrypted),
             "has_oauth_client_secret": bool(server.oauth_client_secret_encrypted),
             "has_oauth_access_token": bool(server.oauth_access_token_encrypted),
@@ -738,22 +738,31 @@ async def get_server(server_id: str, user=Depends(get_verified_user)):
     )
 
     # Best-effort PRM refresh. Never surface errors — a stale scope cache
-    # just means the mismatch banner may be off until the next successful call.
+    # just means the mismatch banner may be off until the next successful
+    # call. Every successful PRM call also touches last_refreshed_at so the
+    # UI's "Zuletzt aktualisiert" reflects the most recent conversation with
+    # the MCP server (not just the tools-list side effect).
     if server.auth_type == "oauth" and server.url:
         try:
             new_scope = await asyncio.wait_for(
                 resolve_scopes(server.url), timeout=3.0
             )
-            if new_scope and new_scope != server.oauth_scope:
-                from open_webui.internal.db import get_db
-                from beyond_the_loop.models.mcp_servers import MCPServer
-                with get_db() as db:
-                    row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
-                    if row is not None:
+            from datetime import datetime, timezone
+            from open_webui.internal.db import get_db
+            from beyond_the_loop.models.mcp_servers import MCPServer
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
+                if row is not None:
+                    if new_scope and new_scope != server.oauth_scope:
                         row.oauth_scope = new_scope
-                        db.commit()
-                        db.refresh(row)
-                        server = MCPServers.get_server_by_id_and_user(server_id, user.id) or server
+                    if new_scope:
+                        # Only bump the timestamp on a successful PRM roundtrip
+                        # (new_scope is None when discovery failed or returned
+                        # no scopes — nothing worth calling "refreshed").
+                        row.last_refreshed_at = datetime.now(timezone.utc)
+                    db.commit()
+                    db.refresh(row)
+                    server = MCPServers.get_server_by_id_and_user(server_id, user.id) or server
         except Exception as e:
             log.info("[mcp] PRM refresh failed for %s: %s", server.id, e)
 
@@ -898,7 +907,7 @@ async def test_connection_existing(server_id: str, user=Depends(get_verified_use
             db_row = db.query(MCPServer).filter_by(id=server_id, user_id=user.id).first()
             if db_row is not None:
                 db_row.tools = reconcile_tools(db_row.tools, result.tools)
-                db_row.tools_fetched_at = datetime.now(timezone.utc)
+                db_row.last_refreshed_at = datetime.now(timezone.utc)
                 db.commit()
 
     return result

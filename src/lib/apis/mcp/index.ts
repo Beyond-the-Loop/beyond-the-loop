@@ -32,7 +32,7 @@ export type MCPServerResponse = {
 	has_auth_token: boolean;
 	enabled: boolean;
 	tools?: Array<{ name: string; description?: string; enabled: boolean }> | null;
-	tools_fetched_at?: number | null;
+	last_refreshed_at?: number | null;
 	scope_mismatch: boolean;
 	template_slug: string | null;
 	oauth_issuer_url: string | null;

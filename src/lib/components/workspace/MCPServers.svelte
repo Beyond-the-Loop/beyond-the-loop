@@ -1007,16 +1007,23 @@
 											</div>
 										{/if}
 									</div>
-									<button
-										type="button"
-										class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
-										disabled={connectorReloading}
-										title={$i18n.t('Konnektor aktualisieren')}
-										aria-label={$i18n.t('Konnektor aktualisieren')}
-										on:click={() => refreshConnector(editingServer)}
-									>
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-									</button>
+									<div class="shrink-0 flex flex-col items-end gap-1">
+										<button
+											type="button"
+											class="p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
+											disabled={connectorReloading}
+											title={$i18n.t('Konnektor aktualisieren')}
+											aria-label={$i18n.t('Konnektor aktualisieren')}
+											on:click={() => refreshConnector(editingServer)}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+										</button>
+										{#if editingServer?.last_refreshed_at}
+											<span class="text-[10px] leading-none text-lightGray-1200/60 dark:text-customGray-100/50 whitespace-nowrap">
+												{new Date(editingServer.last_refreshed_at * 1000).toLocaleString()}
+											</span>
+										{/if}
+									</div>
 								</div>
 								{#if editingServer?.scope_mismatch}
 									<div class="mb-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
@@ -1074,11 +1081,6 @@
 					<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 						<div class="flex items-center justify-between mb-2">
 							<h4 class="text-sm font-semibold dark:text-customGray-100">Tools</h4>
-								{#if editingServer?.tools_fetched_at}
-									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/50">
-										Zuletzt aktualisiert: {new Date(editingServer.tools_fetched_at * 1000).toLocaleString()}
-									</span>
-								{/if}
 						</div>
 
 						{#if toolsStale}
@@ -1239,16 +1241,23 @@
 								</div>
 							{/if}
 						</div>
-						<button
-							type="button"
-							class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
-							disabled={connectorReloading}
-							title={$i18n.t('Konnektor aktualisieren')}
-							aria-label={$i18n.t('Konnektor aktualisieren')}
-							on:click={() => refreshConnector(selectedRow)}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-						</button>
+						<div class="shrink-0 flex flex-col items-end gap-1">
+							<button
+								type="button"
+								class="p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
+								disabled={connectorReloading}
+								title={$i18n.t('Konnektor aktualisieren')}
+								aria-label={$i18n.t('Konnektor aktualisieren')}
+								on:click={() => refreshConnector(selectedRow)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+							</button>
+							{#if selectedRow?.last_refreshed_at}
+								<span class="text-[10px] leading-none text-lightGray-1200/60 dark:text-customGray-100/50 whitespace-nowrap">
+									{new Date(selectedRow.last_refreshed_at * 1000).toLocaleString()}
+								</span>
+							{/if}
+						</div>
 					</div>
 
 					{#if selectedRow?.scope_mismatch}
@@ -1267,13 +1276,6 @@
 							<h4 class="text-sm font-semibold dark:text-customGray-100">
 								{$i18n.t('Tools')}
 							</h4>
-							{#if selectedRow?.tools_fetched_at}
-								<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
-									{$i18n.t('Zuletzt aktualisiert')}: {new Date(
-										selectedRow.tools_fetched_at * 1000
-									).toLocaleString()}
-								</span>
-							{/if}
 						</div>
 
 						{#if toolsStale}

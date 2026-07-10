@@ -34,7 +34,7 @@ class MCPServer(Base):
 
     enabled = Column(Boolean, nullable=False, default=True)
     tools = Column(JSON, nullable=True)  # [{name, description, enabled}]
-    tools_fetched_at = Column(DateTime(timezone=True), nullable=True)
+    last_refreshed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Catalog template this row was installed from. NULL for custom (user-added)
     # connectors. A partial unique index on (user_id, template_slug) ensures
@@ -103,7 +103,7 @@ class MCPServerModel(BaseModel):
 
     enabled: bool = True
     tools: Optional[list[dict]] = None
-    tools_fetched_at: Optional[datetime] = None
+    last_refreshed_at: Optional[datetime] = None
     template_slug: Optional[str] = None
 
     oauth_issuer_url: Optional[str] = None
@@ -181,7 +181,7 @@ class MCPServerResponse(BaseModel):
 
     enabled: bool
     tools: Optional[list[dict]] = None
-    tools_fetched_at: Optional[int] = None
+    last_refreshed_at: Optional[int] = None
     scope_mismatch: bool = False
     template_slug: Optional[str] = None
 
