@@ -601,6 +601,33 @@
 		}
 	}
 
+	// Refresh scope info (and any other row state) for a specific server by
+	// re-fetching GET /{id}, which triggers the backend's lazy PRM-refresh
+	// side-effect. Updates whichever local state the given server belongs to.
+	let scopesReloading = false;
+	async function refreshServerScopes(server?: MCPServerResponse | null) {
+		if (!server?.id || scopesReloading) return;
+		scopesReloading = true;
+		try {
+			const fresh = await getMCPServer(localStorage.token, server.id);
+			if (fresh) {
+				if (editingServer && editingServer.id === fresh.id) {
+					editingServer = fresh;
+				}
+				// selectedRow is derived from `servers`; refreshing the list
+				// re-computes it with the new row values.
+				if (selectedRow && selectedRow.id === fresh.id) {
+					await reload();
+				}
+				toast.success($i18n.t('Berechtigungen aktualisiert'));
+			}
+		} catch (e) {
+			toast.error(`${e}`);
+		} finally {
+			scopesReloading = false;
+		}
+	}
+
 	let savingTemplateTools = false;
 	async function saveTemplateTools() {
 		if (!selectedRow?.id) return;
@@ -1020,6 +1047,9 @@
 							<MCPScopesList
 								oauthScope={editingServer?.oauth_scope}
 								oauthGrantedScope={editingServer?.oauth_granted_scope}
+								canReload={!!editingServer?.id}
+								reloading={scopesReloading}
+								on:reload={() => refreshServerScopes(editingServer)}
 							/>
 						</div>
 					</div>
@@ -1218,6 +1248,9 @@
 					<MCPScopesList
 						oauthScope={selectedRow?.oauth_scope}
 						oauthGrantedScope={selectedRow?.oauth_granted_scope}
+						canReload={!!selectedRow?.id}
+						reloading={scopesReloading}
+						on:reload={() => refreshServerScopes(selectedRow)}
 					/>
 
 					<div class="mt-4">

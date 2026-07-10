@@ -1,10 +1,13 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { createEventDispatcher, getContext } from 'svelte';
 
 	const i18n = getContext<any>('i18n');
+	const dispatch = createEventDispatcher<{ reload: void }>();
 
 	export let oauthScope: string | null | undefined;
 	export let oauthGrantedScope: string | null | undefined;
+	export let reloading = false;
+	export let canReload = false;
 
 	// Two dimensions to display:
 	//   requested — what our authorize URL asked for (oauth_scope)
@@ -29,15 +32,27 @@
 			<h4 class="text-sm font-semibold dark:text-customGray-100">
 				{$i18n.t('Berechtigungen')}
 			</h4>
-			{#if hasComparison}
-				<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
-					{grantedCount} / {rows.length} {$i18n.t('gewährt')}
-				</span>
-			{:else}
-				<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
-					{rows.length} {$i18n.t('gewährt')}
-				</span>
-			{/if}
+			<div class="flex items-center gap-2">
+				{#if hasComparison}
+					<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
+						{grantedCount} / {rows.length} {$i18n.t('gewährt')}
+					</span>
+				{:else}
+					<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
+						{rows.length} {$i18n.t('gewährt')}
+					</span>
+				{/if}
+				{#if canReload}
+					<button
+						type="button"
+						class="text-xs underline dark:text-customGray-100 disabled:opacity-40"
+						disabled={reloading}
+						on:click={() => dispatch('reload')}
+					>
+						{reloading ? $i18n.t('Lade…') : $i18n.t('Neu laden')}
+					</button>
+				{/if}
+			</div>
 		</div>
 		<ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 max-h-48 overflow-y-auto border rounded p-2 dark:border-customGray-700">
 			{#each rows as scope (scope)}
