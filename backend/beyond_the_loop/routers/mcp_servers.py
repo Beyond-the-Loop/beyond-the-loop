@@ -120,7 +120,6 @@ def _to_response(server: MCPServerModel) -> MCPServerResponse:
             "has_oauth_access_token": bool(server.oauth_access_token_encrypted),
             "has_oauth_refresh_token": bool(server.oauth_refresh_token_encrypted),
             "scope_mismatch": _compute_scope_mismatch(server),
-            "available_scopes": server.available_scopes,
         }
     )
 
@@ -625,8 +624,6 @@ async def install_template(
     # which providers like Microsoft reject with an opaque OAuth error the
     # user then hits at the popup.
     resolved_scope = await resolve_scopes(template.server_url)
-    _prm = await discover_protected_resource(template.server_url)
-    available = list(_prm.get("scopes_supported") or []) if _prm else None
 
     if template.requires_tenant_id and not resolved_scope:
         raise HTTPException(
@@ -663,17 +660,11 @@ async def install_template(
                 or existing
             )
 
-        # Refresh available_scopes (PRM snapshot) and resolved_scope on every
-        # re-install so the row stays in sync with the server's current metadata.
-        # Wrapped in a 3 s timeout so a slow PRM never stalls an idempotent
-        # re-install — mirrors the lazy-refresh pattern in GET /{server_id}.
+        # Refresh oauth_scope on every re-install so the row stays in sync
+        # with the server's current PRM. Wrapped in a 3 s timeout so a slow
+        # PRM never stalls an idempotent re-install — mirrors the lazy-refresh
+        # pattern in GET /{server_id}.
         try:
-            _reuse_prm = await asyncio.wait_for(
-                discover_protected_resource(template.server_url), timeout=3.0
-            )
-            _reuse_available = (
-                list(_reuse_prm.get("scopes_supported") or []) if _reuse_prm else None
-            )
             _reuse_scope = await asyncio.wait_for(
                 resolve_scopes(template.server_url), timeout=3.0
             )
@@ -683,11 +674,8 @@ async def install_template(
                 row = db.query(MCPServer).filter_by(
                     id=existing.id, user_id=user.id
                 ).first()
-                if row is not None:
-                    if _reuse_available is not None:
-                        row.available_scopes = _reuse_available
-                    if _reuse_scope:
-                        row.oauth_scope = _reuse_scope
+                if row is not None and _reuse_scope:
+                    row.oauth_scope = _reuse_scope
                     db.commit()
             existing = (
                 MCPServers.get_server_by_id_and_user(existing.id, user.id)
@@ -716,7 +704,6 @@ async def install_template(
         company_id=user.company_id,
         form_data=form,
         template_slug=slug,
-        available_scopes=available,
     )
     if not server:
         raise HTTPException(
@@ -757,25 +744,13 @@ async def get_server(server_id: str, user=Depends(get_verified_user)):
             new_scope = await asyncio.wait_for(
                 resolve_scopes(server.url), timeout=3.0
             )
-            _prm = await asyncio.wait_for(
-                discover_protected_resource(server.url), timeout=3.0
-            )
-            new_available = list(_prm.get("scopes_supported") or []) if _prm else None
-            dirty = False
             if new_scope and new_scope != server.oauth_scope:
-                dirty = True
-            if new_available and new_available != server.available_scopes:
-                dirty = True
-            if dirty:
                 from open_webui.internal.db import get_db
                 from beyond_the_loop.models.mcp_servers import MCPServer
                 with get_db() as db:
                     row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
                     if row is not None:
-                        if new_scope and new_scope != server.oauth_scope:
-                            row.oauth_scope = new_scope
-                        if new_available and new_available != server.available_scopes:
-                            row.available_scopes = new_available
+                        row.oauth_scope = new_scope
                         db.commit()
                         db.refresh(row)
                         server = MCPServers.get_server_by_id_and_user(server_id, user.id) or server

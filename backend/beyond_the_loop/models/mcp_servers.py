@@ -35,7 +35,6 @@ class MCPServer(Base):
     enabled = Column(Boolean, nullable=False, default=True)
     tools = Column(JSON, nullable=True)  # [{name, description, enabled}]
     tools_fetched_at = Column(DateTime(timezone=True), nullable=True)
-    available_scopes = Column(JSON, nullable=True)  # RFC 9728 PRM snapshot
 
     # Catalog template this row was installed from. NULL for custom (user-added)
     # connectors. A partial unique index on (user_id, template_slug) ensures
@@ -105,7 +104,6 @@ class MCPServerModel(BaseModel):
     enabled: bool = True
     tools: Optional[list[dict]] = None
     tools_fetched_at: Optional[datetime] = None
-    available_scopes: Optional[list[str]] = None
     template_slug: Optional[str] = None
 
     oauth_issuer_url: Optional[str] = None
@@ -184,7 +182,6 @@ class MCPServerResponse(BaseModel):
     enabled: bool
     tools: Optional[list[dict]] = None
     tools_fetched_at: Optional[int] = None
-    available_scopes: Optional[list[str]] = None
     scope_mismatch: bool = False
     template_slug: Optional[str] = None
 
@@ -218,7 +215,6 @@ class MCPServersTable:
         form_data: MCPServerForm,
         auth_token_encrypted: Optional[str] = None,
         template_slug: Optional[str] = None,
-        available_scopes: Optional[list] = None,
     ) -> Optional[MCPServerModel]:
         now = int(time.time())
         server = MCPServerModel(
@@ -237,7 +233,6 @@ class MCPServersTable:
             oauth_issuer_url=form_data.oauth_issuer_url,
             oauth_scope=form_data.oauth_scope,
             oauth_client_id=form_data.oauth_client_id,
-            available_scopes=available_scopes,
             created_at=now,
             updated_at=now,
         )

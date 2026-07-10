@@ -33,7 +33,6 @@ export type MCPServerResponse = {
 	enabled: boolean;
 	tools?: Array<{ name: string; description?: string; enabled: boolean }> | null;
 	tools_fetched_at?: number | null;
-	available_scopes?: string[] | null;
 	scope_mismatch: boolean;
 	template_slug: string | null;
 	oauth_issuer_url: string | null;
