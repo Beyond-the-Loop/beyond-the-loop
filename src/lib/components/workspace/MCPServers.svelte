@@ -1210,6 +1210,40 @@
 						</div>
 					{/if}
 
+					{#if selectedRow?.oauth_scope}
+						{@const requestedScopes = (selectedRow.oauth_scope || '').split(/\s+/).filter(Boolean)}
+						{@const grantedSet = new Set((selectedRow.oauth_granted_scope || '').split(/\s+/).filter(Boolean))}
+						{@const grantedCount = requestedScopes.filter((s) => grantedSet.has(s)).length}
+						<div class="mt-4">
+							<div class="flex items-center justify-between mb-2">
+								<h4 class="text-sm font-semibold dark:text-customGray-100">
+									{$i18n.t('Berechtigungen')}
+								</h4>
+								<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
+									{grantedCount} / {requestedScopes.length} {$i18n.t('gewährt')}
+								</span>
+							</div>
+							<ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 max-h-48 overflow-y-auto border rounded p-2 dark:border-customGray-700">
+								{#each requestedScopes as scope (scope)}
+									{@const granted = grantedSet.has(scope)}
+									<li
+										class="flex items-center gap-1.5 text-xs font-mono truncate {granted
+											? 'text-lightGray-100 dark:text-customGray-100'
+											: 'text-lightGray-1200/40 dark:text-customGray-100/30 line-through'}"
+										title={granted ? $i18n.t('Gewährt') : $i18n.t('Nicht gewährt')}
+									>
+										{#if granted}
+											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-500 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+										{:else}
+											<span class="w-2.5 shrink-0"></span>
+										{/if}
+										<span class="truncate">{scope}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+
 					<div class="mt-4">
 						<div class="flex items-center justify-between mb-2">
 							<h4 class="text-sm font-semibold dark:text-customGray-100">
