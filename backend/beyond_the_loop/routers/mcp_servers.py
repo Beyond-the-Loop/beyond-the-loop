@@ -618,10 +618,25 @@ async def install_template(
 
     _assert_url_safe(template.server_url)
 
-    # Discover required scopes via RFC 9728 PRM. Falls back to None gracefully.
+    # Discover required scopes via RFC 9728 PRM. Falls back to None gracefully
+    # for providers whose authorize endpoint doesn't accept a scope param
+    # (Notion, HubSpot, Confluence). Templates that DO need a scope must fail
+    # loudly here — silently proceeding builds an authorize URL without scope,
+    # which providers like Microsoft reject with an opaque OAuth error the
+    # user then hits at the popup.
     resolved_scope = await resolve_scopes(template.server_url)
     _prm = await discover_protected_resource(template.server_url)
     available = list(_prm.get("scopes_supported") or []) if _prm else None
+
+    if template.requires_tenant_id and not resolved_scope:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                f"Konnte die benötigten Scopes vom MCP-Server nicht ermitteln "
+                f"({template.server_url}). Prüfe ob der Server erreichbar ist "
+                f"und RFC 9728 Protected Resource Metadata exponiert."
+            ),
+        )
 
     # Re-use the existing Library row if there is one for this (user, slug).
     existing = MCPServers.get_template_row_for_user(slug, user.id)

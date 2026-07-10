@@ -552,9 +552,17 @@
 		}
 	}
 
+	// Synchronous in-flight guard. `toolsLoading` alone isn't enough because
+	// Svelte can queue multiple reactive triggers before the async assignment
+	// lands; guarding on a plain boolean set BEFORE any await prevents the
+	// race that otherwise fires 8 concurrent test-connection POSTs on modal
+	// open.
+	let fetchToolsInflight = false;
 	async function fetchTools(server?: MCPServerResponse | null) {
+		if (fetchToolsInflight) return;
 		const active = server ?? editingServer;
 		if (!active?.id) return;
+		fetchToolsInflight = true;
 		toolsLoading = true;
 		toolsError = null;
 		toolsStale = false;
@@ -588,6 +596,7 @@
 			toolsError = (e as Error).message;
 		} finally {
 			toolsLoading = false;
+			fetchToolsInflight = false;
 		}
 	}
 
