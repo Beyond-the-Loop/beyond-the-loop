@@ -24,6 +24,7 @@
 		disconnectMCPOAuth,
 		getConnectorCatalog,
 		installConnectorTemplate,
+		type MCPAuthType,
 		type MCPServerForm,
 		type MCPServerResponse,
 		type TestConnectionResult,
@@ -99,6 +100,13 @@
 	let toolsLoading = false;
 	let toolsError: string | null = null;
 	let toolsStale = false;
+	let expandedTools: Set<string> = new Set();
+
+	function toggleToolExpanded(name: string) {
+		if (expandedTools.has(name)) expandedTools.delete(name);
+		else expandedTools.add(name);
+		expandedTools = expandedTools;
+	}
 
 	function blankForm(): MCPServerForm {
 		return {
@@ -544,16 +552,17 @@
 		}
 	}
 
-	async function fetchTools() {
-		if (!editingServer?.id) return;
+	async function fetchTools(server?: MCPServerResponse | null) {
+		const active = server ?? editingServer;
+		if (!active?.id) return;
 		toolsLoading = true;
 		toolsError = null;
 		toolsStale = false;
 		try {
-			const r = await testExistingMCPServerConnection(localStorage.token, editingServer.id);
+			const r = await testExistingMCPServerConnection(localStorage.token, active.id);
 			if (r.success && r.tools) {
 				const stored = new Map(
-					(editingServer.tools || []).map((t) => [t.name, t.enabled])
+					(active.tools || []).map((t) => [t.name, t.enabled])
 				);
 				modalTools = r.tools.map((t) => ({
 					name: t.name,
@@ -561,8 +570,7 @@
 					enabled: stored.has(t.name) ? !!stored.get(t.name) : true
 				}));
 			} else {
-				// Fall back to cached tools
-				modalTools = (editingServer.tools || []).map((t) => ({
+				modalTools = (active.tools || []).map((t) => ({
 					name: t.name,
 					description: (t as any).description || '',
 					enabled: t.enabled
@@ -571,7 +579,7 @@
 				toolsError = r.message || 'Verbindung fehlgeschlagen';
 			}
 		} catch (e) {
-			modalTools = (editingServer.tools || []).map((t) => ({
+			modalTools = (active.tools || []).map((t) => ({
 				name: t.name,
 				description: (t as any).description || '',
 				enabled: t.enabled
@@ -580,6 +588,28 @@
 			toolsError = (e as Error).message;
 		} finally {
 			toolsLoading = false;
+		}
+	}
+
+	let savingTemplateTools = false;
+	async function saveTemplateTools() {
+		if (!selectedRow?.id) return;
+		savingTemplateTools = true;
+		try {
+			await updateMCPServer(localStorage.token, selectedRow.id, {
+				name: selectedRow.name,
+				url: selectedRow.url,
+				transport: selectedRow.transport,
+				auth_type: (selectedRow.auth_type ?? null) as MCPAuthType,
+				enabled: selectedRow.enabled,
+				tools: modalTools.map((t) => ({ name: t.name, enabled: t.enabled }))
+			});
+			await reload();
+			toast.success($i18n.t('Saved'));
+		} catch (e) {
+			toast.error((e as Error).message);
+		} finally {
+			savingTemplateTools = false;
 		}
 	}
 
@@ -667,21 +697,31 @@
 		prevShowEditor = showEditor;
 	}
 
-	// Auto-fetch tools when the edit modal opens for an existing server.
-	// `lastFetchedForId` prevents re-entry when reload() reassigns editingServer
-	// with the same id (which would otherwise trigger a second concurrent POST).
+	// Auto-fetch tools when either modal opens for an existing server.
+	// `lastFetchedForId` prevents re-entry when a store update reassigns the
+	// server object with the same id (which would otherwise trigger a second
+	// concurrent POST).
 	let lastFetchedForId: string | null = null;
 	$: if (showEditor && editingServer?.id && editingServer.id !== lastFetchedForId) {
 		lastFetchedForId = editingServer.id;
-		fetchTools();
+		fetchTools(editingServer);
 	}
-	$: if (!showEditor) lastFetchedForId = null;
+	$: if (
+		showCatalogModal &&
+		selectedConnected &&
+		selectedRow?.id &&
+		selectedRow.id !== lastFetchedForId
+	) {
+		lastFetchedForId = selectedRow.id;
+		fetchTools(selectedRow);
+	}
+	$: if (!showEditor && !showCatalogModal) lastFetchedForId = null;
 
 	// Manual reload from the "Neu laden" button — forces a refetch even when the
 	// server id hasn't changed since the last auto-fetch.
-	function manualFetchTools() {
+	function manualFetchTools(server?: MCPServerResponse | null) {
 		lastFetchedForId = null;
-		fetchTools();
+		fetchTools(server);
 	}
 
 	let scrollContainer: HTMLDivElement;
@@ -990,7 +1030,7 @@
 									type="button"
 									class="text-xs underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
 									disabled={toolsLoading}
-									on:click={manualFetchTools}
+									on:click={() => manualFetchTools(editingServer)}
 								>
 									Neu laden
 								</button>
@@ -1029,10 +1069,18 @@
 								{#each modalTools as tool (tool.name)}
 									<li class="flex items-start gap-2">
 										<input type="checkbox" bind:checked={tool.enabled} class="mt-1 accent-blue-500" />
-										<div>
+										<div class="min-w-0 flex-1">
 											<div class="text-sm font-medium dark:text-customGray-100">{tool.name}</div>
 											{#if tool.description}
-												<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50">{tool.description}</div>
+												{@const expanded = expandedTools.has(tool.name)}
+												<button
+													type="button"
+													class="text-xs text-left text-lightGray-1200 dark:text-customGray-100/50 hover:underline w-full {expanded ? 'whitespace-pre-wrap' : 'truncate'}"
+													on:click={() => toggleToolExpanded(tool.name)}
+													title={expanded ? 'Einklappen' : 'Ausklappen'}
+												>
+													{tool.description}
+												</button>
 											{/if}
 										</div>
 									</li>
@@ -1137,6 +1185,106 @@
 						{#if selectedRow?.oauth_last_error}
 							<div class="text-red-600 dark:text-red-400 mt-1">
 								{selectedRow.oauth_last_error}
+							</div>
+						{/if}
+					</div>
+
+					{#if selectedRow?.scope_mismatch}
+						<div class="mt-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-100">
+							{$i18n.t('Neue Rechte verfügbar. Bitte neu verbinden.')}
+						</div>
+					{/if}
+
+					<div class="mt-4">
+						<div class="flex items-center justify-between mb-2">
+							<h4 class="text-sm font-semibold dark:text-customGray-100">
+								{$i18n.t('Tools')}
+							</h4>
+							<div class="flex items-center gap-2">
+								{#if selectedRow?.tools_fetched_at}
+									<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
+										{$i18n.t('Zuletzt aktualisiert')}: {new Date(
+											selectedRow.tools_fetched_at * 1000
+										).toLocaleString()}
+									</span>
+								{/if}
+								<button
+									type="button"
+									class="text-xs underline dark:text-customGray-100"
+									disabled={toolsLoading}
+									on:click={() => manualFetchTools(selectedRow)}
+								>
+									{$i18n.t('Neu laden')}
+								</button>
+							</div>
+						</div>
+
+						{#if toolsStale}
+							<div class="mb-2 rounded border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-100">
+								{$i18n.t('Konnte Verbindung nicht testen — zeige zuletzt bekannte Tools.')}
+							</div>
+						{/if}
+
+						{#if toolsLoading}
+							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">
+								{$i18n.t('Lade Tools…')}
+							</div>
+						{:else if modalTools.length === 0}
+							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">
+								{$i18n.t('Keine Tools bekannt.')}
+							</div>
+						{:else}
+							<div class="flex items-center gap-2 mb-2 text-xs dark:text-customGray-100">
+								<button
+									type="button"
+									class="underline"
+									on:click={() =>
+										(modalTools = modalTools.map((t) => ({ ...t, enabled: true })))}
+								>
+									{$i18n.t('Alle aktivieren')}
+								</button>
+								<span>·</span>
+								<button
+									type="button"
+									class="underline"
+									on:click={() =>
+										(modalTools = modalTools.map((t) => ({ ...t, enabled: false })))}
+								>
+									{$i18n.t('Alle deaktivieren')}
+								</button>
+							</div>
+							<ul class="space-y-1 max-h-64 overflow-y-auto border rounded p-2 dark:border-customGray-700">
+								{#each modalTools as tool (tool.name)}
+									<li class="flex items-start gap-2">
+										<input type="checkbox" bind:checked={tool.enabled} class="mt-1" />
+										<div class="min-w-0 flex-1">
+											<div class="text-sm font-medium dark:text-customGray-100">
+												{tool.name}
+											</div>
+											{#if tool.description}
+												{@const expanded = expandedTools.has(tool.name)}
+												<button
+													type="button"
+													class="text-xs text-left text-lightGray-1200 dark:text-customGray-100/60 hover:underline w-full {expanded ? 'whitespace-pre-wrap' : 'truncate'}"
+													on:click={() => toggleToolExpanded(tool.name)}
+													title={expanded ? $i18n.t('Einklappen') : $i18n.t('Ausklappen')}
+												>
+													{tool.description}
+												</button>
+											{/if}
+										</div>
+									</li>
+								{/each}
+							</ul>
+							<div class="flex justify-end mt-2">
+								<button
+									type="button"
+									class="text-sm px-3 py-1.5 rounded-lg bg-customBlue-500 text-white hover:bg-customBlue-700 disabled:opacity-50"
+									disabled={savingTemplateTools}
+									on:click={saveTemplateTools}
+								>
+									{savingTemplateTools ? $i18n.t('Speichern…') : $i18n.t('Save')}
+								</button>
 							</div>
 						{/if}
 					</div>
