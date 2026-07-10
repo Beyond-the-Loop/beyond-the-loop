@@ -1312,7 +1312,7 @@
 					<div class="mt-4">
 						<div class="flex items-center justify-between mb-2">
 							<h4 class="text-sm font-semibold dark:text-customGray-100">
-								{$i18n.t('Tools')}
+								Tools
 							</h4>
 						</div>
 
@@ -1353,7 +1353,7 @@
 							<input
 								type="text"
 								class="mb-2 w-full px-2 py-1 rounded border border-lightGray-400 dark:border-customGray-700 bg-transparent text-xs dark:text-customGray-100 outline-none focus:border-customBlue-500"
-								placeholder={$i18n.t('Tools suchen…')}
+								placeholder="Tools suchen…"
 								bind:value={toolsFilter}
 							/>
 							<ul class="space-y-1 max-h-64 overflow-y-auto border rounded p-2 dark:border-customGray-700">
