@@ -1073,14 +1073,20 @@
 											<div class="text-sm font-medium dark:text-customGray-100">{tool.name}</div>
 											{#if tool.description}
 												{@const expanded = expandedTools.has(tool.name)}
+												<div class="flex items-start gap-1 mt-0.5">
 												<button
 													type="button"
-													class="text-xs text-left text-lightGray-1200 dark:text-customGray-100/50 hover:underline w-full {expanded ? 'whitespace-pre-wrap' : 'truncate'}"
+													class="mt-0.5 shrink-0 text-lightGray-1200 dark:text-customGray-100/50 hover:text-lightGray-100 dark:hover:text-customGray-100 transition-transform {expanded ? 'rotate-90' : ''}"
 													on:click={() => toggleToolExpanded(tool.name)}
 													title={expanded ? 'Einklappen' : 'Ausklappen'}
+													aria-label={expanded ? 'Einklappen' : 'Ausklappen'}
 												>
-													{tool.description}
+													<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
 												</button>
+												<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50 min-w-0 flex-1 {expanded ? 'whitespace-pre-wrap' : 'truncate'}">
+													{tool.description}
+												</div>
+												</div>
 											{/if}
 										</div>
 									</li>
@@ -1261,17 +1267,23 @@
 											<div class="text-sm font-medium dark:text-customGray-100">
 												{tool.name}
 											</div>
-											{#if tool.description}
-												{@const expanded = expandedTools.has(tool.name)}
-												<button
-													type="button"
-													class="text-xs text-left text-lightGray-1200 dark:text-customGray-100/60 hover:underline w-full {expanded ? 'whitespace-pre-wrap' : 'truncate'}"
-													on:click={() => toggleToolExpanded(tool.name)}
-													title={expanded ? $i18n.t('Einklappen') : $i18n.t('Ausklappen')}
-												>
-													{tool.description}
-												</button>
-											{/if}
+												{#if tool.description}
+													{@const expanded = expandedTools.has(tool.name)}
+													<div class="flex items-start gap-1 mt-0.5">
+														<button
+															type="button"
+															class="mt-0.5 shrink-0 text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100 transition-transform {expanded ? 'rotate-90' : ''}"
+															on:click={() => toggleToolExpanded(tool.name)}
+															title={expanded ? $i18n.t('Einklappen') : $i18n.t('Ausklappen')}
+															aria-label={expanded ? $i18n.t('Einklappen') : $i18n.t('Ausklappen')}
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+														</button>
+														<div class="text-xs text-lightGray-1200 dark:text-customGray-100/60 min-w-0 flex-1 {expanded ? 'whitespace-pre-wrap' : 'truncate'}">
+															{tool.description}
+														</div>
+													</div>
+												{/if}
 										</div>
 									</li>
 								{/each}
