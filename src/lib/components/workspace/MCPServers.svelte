@@ -83,6 +83,18 @@
 	let editingId: string | null = null;
 	let editingServer: MCPServerResponse | null = null;
 	let form: MCPServerForm = blankForm();
+
+	// True when the currently-edited custom connector counts as "connected":
+	// bearer with a stored token, OAuth with an access token, or no-auth once
+	// saved. Feeds the shared green Verbunden box + refresh button in the
+	// edit modal so all three auth types get the same summary chrome and the
+	// "Test connection" button hides itself when it would be redundant.
+	$: editingConnected = !!(
+		editingServer?.id &&
+		((editingServer.auth_type === 'bearer' && editingServer.has_auth_token) ||
+			(editingServer.auth_type === 'oauth' && editingServer.has_oauth_access_token) ||
+			editingServer.auth_type == null)
+	);
 	let saving = false;
 	let connecting = false;
 	let showAdvancedOauth = false;
@@ -896,6 +908,36 @@
 					</label>
 				</div>
 
+					{#if editingConnected}
+						<div class="flex items-center gap-2">
+							<div class="flex-1 rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
+								<div class="flex items-center gap-2 leading-none font-medium">
+									<span class="size-1.5 rounded-full bg-green-500"></span>
+									{$i18n.t('Connected')}
+								</div>
+								{#if editingServer?.last_refreshed_at}
+									<div class="text-lightGray-1200/70 dark:text-customGray-100/50 mt-1.5">
+										{$i18n.t('Zuletzt aktualisiert')}: {new Date(editingServer.last_refreshed_at * 1000).toLocaleString()}
+									</div>
+								{/if}
+								{#if editingServer?.oauth_last_error}
+									<div class="text-red-600 dark:text-red-400 mt-1">
+										{editingServer.oauth_last_error}
+									</div>
+								{/if}
+							</div>
+							<button
+								type="button"
+								class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
+								disabled={connectorReloading}
+								title={$i18n.t('Konnektor aktualisieren')}
+								aria-label={$i18n.t('Konnektor aktualisieren')}
+								on:click={() => refreshConnector(editingServer)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+							</button>
+						</div>
+					{/if}
 				{#if form.auth_type === 'bearer'}
 					<label class="block">
 						<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
@@ -998,31 +1040,11 @@
 
 						<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 							{#if editingServer?.has_oauth_access_token}
-								<div class="flex items-center gap-2 mb-2">
-									<div class="flex-1 text-xs dark:text-customGray-100">
-										<span class="font-medium">{$i18n.t('Connected')}</span>
-										{#if editingServer?.last_refreshed_at}
-											<div class="text-lightGray-1200/70 dark:text-customGray-100/50 mt-1">
-												{$i18n.t('Zuletzt aktualisiert')}: {new Date(editingServer.last_refreshed_at * 1000).toLocaleString()}
-											</div>
-										{/if}
-										{#if editingServer.oauth_access_token_expires_at}
-											<div class="text-lightGray-1200 dark:text-customGray-100/60 mt-1">
-												{formatExpiresIn(editingServer.oauth_access_token_expires_at)}
-											</div>
-										{/if}
+								{#if editingServer.oauth_access_token_expires_at}
+									<div class="text-xs text-lightGray-1200 dark:text-customGray-100/60 mb-2">
+										{formatExpiresIn(editingServer.oauth_access_token_expires_at)}
 									</div>
-									<button
-										type="button"
-										class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
-										disabled={connectorReloading}
-										title={$i18n.t('Konnektor aktualisieren')}
-										aria-label={$i18n.t('Konnektor aktualisieren')}
-										on:click={() => refreshConnector(editingServer)}
-									>
-										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-									</button>
-								</div>
+								{/if}
 								{#if editingServer?.scope_mismatch}
 									<div class="mb-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
 										Neue Rechte verfügbar. Bitte neu verbinden.
@@ -1142,14 +1164,16 @@
 
 				<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 					<div class="flex items-center gap-2 flex-wrap">
-						<button
-							type="button"
-							class="text-xs px-3 py-1.5 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 disabled:opacity-50"
-							disabled={testing || !form.url || (form.auth_type === 'oauth' && !editingServer?.has_oauth_access_token)}
-							on:click={runTestFromForm}
-						>
-							{testing ? $i18n.t('Testing...') : $i18n.t('Test connection')}
-						</button>
+						{#if !editingConnected}
+							<button
+								type="button"
+								class="text-xs px-3 py-1.5 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 disabled:opacity-50"
+								disabled={testing || !form.url || (form.auth_type === 'oauth' && !editingServer?.has_oauth_access_token)}
+								on:click={runTestFromForm}
+							>
+								{testing ? $i18n.t('Testing...') : $i18n.t('Test connection')}
+							</button>
+						{/if}
 						{#if testResult}
 							<span
 								class="text-xs {testResult.success
