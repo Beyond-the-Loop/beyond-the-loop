@@ -1,4 +1,4 @@
-"""MCP-Server CRUD, connection test, and OAuth 2.0 (Authorization Code + PKCE).
+"""MCP-Server CRUD, tool discovery, and OAuth 2.0 (Authorization Code + PKCE).
 
 Per-user ownership: each MCP server belongs to exactly one user. No sharing,
 no admin override. Access is gated by the `workspace.mcp_connections` group
@@ -304,9 +304,14 @@ async def _post_jsonrpc(
     return _parse_jsonrpc_response(resp), dict(resp.headers)
 
 
-async def _run_connection_test(
+async def _probe_mcp_server(
     url: str, transport: str, auth_type: Optional[str], auth_token_plain: Optional[str]
 ) -> TestConnectionResult:
+    """Perform an MCP handshake (initialize → notifications/initialized →
+    tools/list) and return the discovered tools. Used by (a) the editor's
+    pre-save preview and (b) the internal tool-discovery pass that runs
+    after a successful connect/save.
+    """
     _assert_url_safe(url)
     url = _normalize_and_allowlist_mcp_url(url)
 
@@ -494,6 +499,12 @@ async def create_server(form_data: MCPServerForm, user=Depends(get_verified_user
 
     if form_data.auth_type == "oauth":
         await _bootstrap_oauth(server, form_data, user)
+        server = MCPServers.get_server_by_id_and_user(server.id, user.id) or server
+    else:
+        # Bearer / no-auth: we have a working config right now (OAuth still
+        # needs the popup round-trip). Discover the tools so the row's tools
+        # list is populated from the start.
+        await _persist_discovered_tools(server.id)
         server = MCPServers.get_server_by_id_and_user(server.id, user.id) or server
 
     return _to_response(server)
@@ -820,6 +831,13 @@ async def update_server(
         MCPServers.clear_oauth_tokens(server_id, user.id)
         updated = MCPServers.get_server_by_id_and_user(server_id, user.id) or updated
 
+    # Re-discover tools if the connection state might have changed. OAuth
+    # servers get their tools refreshed via /oauth/callback after Reconnect
+    # completes, so we skip them here.
+    if form_data.auth_type != "oauth":
+        await _persist_discovered_tools(server_id)
+        updated = MCPServers.get_server_by_id_and_user(server_id, user.id) or updated
+
     return _to_response(updated)
 
 
@@ -843,7 +861,7 @@ async def delete_server(server_id: str, user=Depends(get_verified_user)):
 
 
 ############################
-# Connection test
+# Editor-side connection preview
 ############################
 
 
@@ -851,10 +869,14 @@ async def delete_server(server_id: str, user=Depends(get_verified_user)):
 async def test_connection_pre_save(
     form_data: MCPServerForm, user=Depends(get_verified_user)
 ):
-    """Test a configuration before saving — uses the plaintext token from the form."""
+    """Editor-only preview: probe a config with the plaintext token from the
+    form so the user sees the discovered tool count before saving. Does not
+    touch any row — persisted tool discovery happens automatically on
+    create / update / OAuth callback via `_persist_discovered_tools`.
+    """
     _require_mcp_permission(user)
     _validate_form(form_data)
-    return await _run_connection_test(
+    return await _probe_mcp_server(
         url=form_data.url,
         transport=form_data.transport,
         auth_type=form_data.auth_type,
@@ -862,55 +884,64 @@ async def test_connection_pre_save(
     )
 
 
-@router.post("/{server_id}/test-connection", response_model=TestConnectionResult)
-async def test_connection_existing(server_id: str, user=Depends(get_verified_user)):
-    """Test an already-saved server — decrypts the stored token server-side."""
-    _require_mcp_permission(user)
-    server = _require_owner(
-        MCPServers.get_server_by_id_and_user(server_id, user.id), user
-    )
+############################
+# Post-connect tool discovery
+############################
 
-    if server.auth_type == "oauth" and not server.oauth_access_token_encrypted:
-        return TestConnectionResult(
-            success=False,
-            transport=server.transport,
-            message="Not connected. Click 'Connect with OAuth' first.",
+
+async def _persist_discovered_tools(server_id: str) -> None:
+    """Probe the server with its current stored credentials, and write the
+    discovered tools back to the row. Best-effort — a failure here does not
+    surface to the caller because the surrounding operation (create / update
+    / oauth-callback) has already succeeded; the user can reconnect if their
+    tools stay empty.
+    """
+    from datetime import datetime, timezone
+    from open_webui.internal.db import get_db
+    from beyond_the_loop.models.mcp_servers import MCPServer
+
+    with get_db() as db:
+        row = db.query(MCPServer).filter_by(id=server_id).first()
+        if row is None:
+            return
+        server = MCPServerModel.model_validate(row)
+
+    if server.auth_type == "oauth":
+        if not server.oauth_access_token_encrypted:
+            return
+        auth_token_plain = await mcp_oauth.get_fresh_bearer(server)
+    elif server.auth_type == "bearer":
+        auth_token_plain = (
+            decrypt_secret(server.auth_token_encrypted)
+            if server.auth_token_encrypted else None
         )
+    else:
+        auth_token_plain = None
 
-    auth_token_plain = await mcp_oauth.get_fresh_bearer(server)
-    if server.auth_type == "oauth" and not auth_token_plain:
-        # Refresh failed; surface whatever last_error we recorded.
-        latest = MCPServers.get_server_by_id_and_user(server_id, user.id)
-        msg = (latest.oauth_last_error if latest else None) or "Token refresh failed."
-        return TestConnectionResult(
-            success=False,
-            transport=server.transport,
-            message=f"{msg} Reconnect required.",
-        )
-
-    # Bearer is reported as 'bearer' to the test runner; OAuth becomes bearer
-    # once we have the fresh token in hand.
+    # `_probe_mcp_server` treats a live bearer as auth_type="bearer";
+    # no-auth servers pass None through.
     effective_auth_type = "bearer" if auth_token_plain else None
 
-    result = await _run_connection_test(
-        url=server.url,
-        transport=server.transport,
-        auth_type=effective_auth_type,
-        auth_token_plain=auth_token_plain,
-    )
+    try:
+        result = await _probe_mcp_server(
+            url=server.url,
+            transport=server.transport,
+            auth_type=effective_auth_type,
+            auth_token_plain=auth_token_plain,
+        )
+    except Exception as e:
+        log.warning("[mcp] tool discovery failed for %s: %s", server_id, e)
+        return
 
-    if result.success and result.tools is not None:
-        from datetime import datetime, timezone
-        from open_webui.internal.db import get_db
-        from beyond_the_loop.models.mcp_servers import MCPServer
-        with get_db() as db:
-            db_row = db.query(MCPServer).filter_by(id=server_id, user_id=user.id).first()
-            if db_row is not None:
-                db_row.tools = reconcile_tools(db_row.tools, result.tools)
-                db_row.last_refreshed_at = datetime.now(timezone.utc)
-                db.commit()
+    if not result.success or result.tools is None:
+        return
 
-    return result
+    with get_db() as db:
+        db_row = db.query(MCPServer).filter_by(id=server_id).first()
+        if db_row is not None:
+            db_row.tools = reconcile_tools(db_row.tools, result.tools)
+            db_row.last_refreshed_at = datetime.now(timezone.utc)
+            db.commit()
 
 
 ############################
@@ -1193,6 +1224,11 @@ async def oauth_callback(request: Request):
         principal_label=principal_label,
         clear_pending=True,
     )
+
+    # Populate the tools list right now so the connector modal is correct on
+    # its first open. Best-effort: if discovery hits a transient error we
+    # still report connect success — the user can reconnect later if needed.
+    await _persist_discovered_tools(server.id)
 
     return HTMLResponse(
         _callback_html(ok=True, message="Connected.", server_id=server.id),

@@ -592,5 +592,53 @@ class MCPServersTable:
             log.error(f"Error clearing oauth tokens for {server_id}: {e}")
             return False
 
+    def soft_disconnect_oauth(
+        self,
+        server_id: str,
+        *,
+        error: str,
+        wipe_client_credentials: bool = False,
+    ) -> bool:
+        """Auto-disconnect after a failed refresh/test.
+
+        Zeroes out tokens, expiry, scope and principal so the UI immediately
+        flips to "not connected" — but keeps the row + endpoints so the user
+        can hit Reconnect without going through Library re-install.
+
+        `wipe_client_credentials=True` also clears the DCR client_id / secret
+        / registration metadata. Used when the provider signalled the client
+        itself is dead (e.g. Notion's `invalid_grant: Client ID mismatch`),
+        so the next Reconnect triggers fresh DCR instead of exchanging codes
+        against a stale client.
+
+        `error` is persisted to `oauth_last_error` so the UI can show it
+        under the red "Reconnect required" pill.
+        """
+        try:
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(id=server_id).first()
+                if row is None:
+                    return False
+                row.oauth_access_token_encrypted = None
+                row.oauth_refresh_token_encrypted = None
+                row.oauth_access_token_expires_at = None
+                row.oauth_granted_scope = None
+                row.oauth_principal_label = None
+                row.oauth_last_error = error
+                row.oauth_pending_state = None
+                row.oauth_pending_code_verifier = None
+                row.oauth_pending_created_at = None
+                if wipe_client_credentials:
+                    row.oauth_client_id = None
+                    row.oauth_client_secret_encrypted = None
+                    row.oauth_registration_client_uri = None
+                    row.oauth_registration_access_token_encrypted = None
+                row.updated_at = int(time.time())
+                db.commit()
+                return True
+        except Exception as e:
+            log.error(f"Error soft-disconnecting oauth for {server_id}: {e}")
+            return False
+
 
 MCPServers = MCPServersTable()

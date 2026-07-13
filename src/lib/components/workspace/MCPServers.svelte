@@ -19,7 +19,6 @@
 		updateMCPServer,
 		deleteMCPServer,
 		testMCPServerConnection,
-		testExistingMCPServerConnection,
 		startMCPOAuth,
 		disconnectMCPOAuth,
 		getConnectorCatalog,
@@ -108,11 +107,11 @@
 	let testing = false;
 	let testResult: TestConnectionResult | null = null;
 
-	// Tools checkbox list state (edit modal)
+	// Tools checkbox list state (edit modal). Seeded from the row's persisted
+	// tools on modal open — the backend keeps the list current by re-probing
+	// on create/update and on OAuth-callback success, so we never call out to
+	// the MCP server from the client.
 	let modalTools: Array<{ name: string; description: string; enabled: boolean }> = [];
-	let toolsLoading = false;
-	let toolsError: string | null = null;
-	let toolsStale = false;
 	let expandedTools: Set<string> = new Set();
 	let toolsFilter = '';
 
@@ -182,6 +181,7 @@
 				template: MCPConnectorTemplate;
 				row: MCPServerResponse | null;
 				active: boolean;
+				needsReconnect: boolean;
 		  }
 		| {
 				kind: 'custom';
@@ -190,6 +190,7 @@
 				description: string;
 				server: MCPServerResponse;
 				active: boolean;
+				needsReconnect: boolean;
 		  };
 
 	function isCustomActive(s: MCPServerResponse): boolean {
@@ -197,6 +198,18 @@
 		if (s.auth_type === 'bearer') return s.has_auth_token;
 		if (s.auth_type === 'oauth') return s.has_oauth_access_token;
 		return true; // no-auth servers are always "active" when enabled
+	}
+
+	// True when an OAuth server has an error on file AND no working access
+	// token — i.e. the backend auto-disconnected it after a failed refresh.
+	// Rendered as a red pill in the catalog grid so the user notices without
+	// opening the card. `enabled=false` custom rows get their own "Disabled"
+	// pill and shouldn't clash with this red state.
+	function isNeedsReconnect(s: MCPServerResponse | null): boolean {
+		if (!s) return false;
+		if (s.auth_type !== 'oauth') return false;
+		if (s.has_oauth_access_token) return false;
+		return !!s.oauth_last_error;
 	}
 
 	$: customServers = servers.filter((s) => !s.template_slug);
@@ -212,7 +225,8 @@
 				description: tpl.description,
 				template: tpl,
 				row,
-				active: !!(row && row.has_oauth_access_token)
+				active: !!(row && row.has_oauth_access_token),
+				needsReconnect: isNeedsReconnect(row)
 			});
 		}
 		for (const srv of customServers) {
@@ -222,7 +236,8 @@
 				name: srv.name,
 				description: srv.description ?? srv.url,
 				server: srv,
-				active: isCustomActive(srv)
+				active: isCustomActive(srv),
+				needsReconnect: isNeedsReconnect(srv)
 			});
 		}
 		// Active first, then alphabetical by name.
@@ -258,9 +273,6 @@
 		showAdvancedOauth = false;
 		createdInThisSession = false;
 		modalTools = [];
-		toolsLoading = false;
-		toolsError = null;
-		toolsStale = false;
 		toolsFilter = '';
 		showEditor = true;
 	}
@@ -577,87 +589,6 @@
 		}
 	}
 
-	// Synchronous in-flight guard. `toolsLoading` alone isn't enough because
-	// Svelte can queue multiple reactive triggers before the async assignment
-	// lands; guarding on a plain boolean set BEFORE any await prevents the
-	// race that otherwise fires 8 concurrent test-connection POSTs on modal
-	// open.
-	let fetchToolsInflight = false;
-	async function fetchTools(server?: MCPServerResponse | null) {
-		if (fetchToolsInflight) return;
-		const active = server ?? editingServer;
-		if (!active?.id) return;
-		fetchToolsInflight = true;
-		toolsLoading = true;
-		toolsError = null;
-		toolsStale = false;
-		try {
-			const r = await testExistingMCPServerConnection(localStorage.token, active.id);
-			if (r.success && r.tools) {
-				const stored = new Map(
-					(active.tools || []).map((t) => [t.name, t.enabled])
-				);
-				modalTools = r.tools.map((t) => ({
-					name: t.name,
-					description: t.description || '',
-					enabled: stored.has(t.name) ? !!stored.get(t.name) : true
-				}));
-			} else {
-				modalTools = (active.tools || []).map((t) => ({
-					name: t.name,
-					description: (t as any).description || '',
-					enabled: t.enabled
-				}));
-				toolsStale = true;
-				toolsError = r.message || 'Verbindung fehlgeschlagen';
-			}
-		} catch (e) {
-			modalTools = (active.tools || []).map((t) => ({
-				name: t.name,
-				description: (t as any).description || '',
-				enabled: t.enabled
-			}));
-			toolsStale = true;
-			toolsError = (e as Error).message;
-		} finally {
-			toolsLoading = false;
-			fetchToolsInflight = false;
-		}
-	}
-
-	// Refresh EVERYTHING about a connector — scopes (via GET /{id} +
-	// backend's lazy PRM refresh) and tools (via test-connection with its
-	// reconcile side-effect) — in parallel. Fed by the single refresh icon
-	// next to the "Verbunden" pill so users don't juggle per-section reload
-	// links.
-	let connectorReloading = false;
-	async function refreshConnector(server?: MCPServerResponse | null) {
-		if (!server?.id || connectorReloading) return;
-		connectorReloading = true;
-		try {
-			// Bypass the auto-fetch guard on the tools side so we always
-			// re-fetch when the user hits refresh.
-			lastFetchedForId = null;
-			const [fresh] = await Promise.all([
-				getMCPServer(localStorage.token, server.id),
-				fetchTools(server)
-			]);
-			if (fresh) {
-				if (editingServer && editingServer.id === fresh.id) {
-					editingServer = fresh;
-				}
-				if (selectedRow && selectedRow.id === fresh.id) {
-					await reload();
-				}
-			}
-			toast.success($i18n.t('Konnektor aktualisiert'));
-		} catch (e) {
-			toast.error(`${e}`);
-		} finally {
-			connectorReloading = false;
-		}
-	}
-
 	let savingTemplateTools = false;
 	async function saveTemplateTools() {
 		if (!selectedRow?.id) return;
@@ -677,23 +608,6 @@
 			toast.error((e as Error).message);
 		} finally {
 			savingTemplateTools = false;
-		}
-	}
-
-	async function testServer(srv: MCPServerResponse) {
-		const t = toast.loading($i18n.t('Testing {{name}}...', { name: srv.name }));
-		try {
-			const r = await testExistingMCPServerConnection(localStorage.token, srv.id);
-			toast.dismiss(t);
-			if (r.success) {
-				const toolStr = r.tools && r.tools.length > 0 ? ` (${r.tools.length} tools)` : '';
-				toast.success($i18n.t('{{name}}: OK', { name: srv.name }) + toolStr);
-			} else {
-				toast.error($i18n.t('{{name}}: {{msg}}', { name: srv.name, msg: r.message ?? 'failed' }));
-			}
-		} catch (e) {
-			toast.dismiss(t);
-			toast.error(`${e}`);
 		}
 	}
 
@@ -733,13 +647,25 @@
 
 	// Reactive views of the selected template's state — re-evaluate whenever
 	// `servers` changes (e.g. after reload() following install/disconnect), so
-	// the modal flips between Connected and Not-Connected layouts on its own.
+	// the modal flips between Connected / Reconnect-required / Not-Connected
+	// layouts on its own.
+	//
+	// selectedNeedsReconnect: row exists AND we've recorded an OAuth error AND
+	// there's no working access token. Triggered by the backend's
+	// soft_disconnect_oauth after a failed refresh/test-connection. The
+	// missing client_id case (invalid_grant → DCR wiped) is silently absorbed
+	// by installFromTemplate rerunning DCR on the same row on Reconnect click.
 	$: selectedRow = (() => {
 		if (!selectedTemplate || !servers) return null;
 		const slug = selectedTemplate.slug;
 		return servers.find((s) => s.template_slug === slug) ?? null;
 	})();
 	$: selectedConnected = !!(selectedRow && selectedRow.has_oauth_access_token);
+	$: selectedNeedsReconnect = !!(
+		selectedRow &&
+		!selectedRow.has_oauth_access_token &&
+		selectedRow.oauth_last_error
+	);
 
 	// Editor-closed watcher: when the editor closes by ANY route — Cancel,
 	// X, Esc, backdrop-click — and we created a draft row in this session
@@ -764,32 +690,32 @@
 		prevShowEditor = showEditor;
 	}
 
-	// Auto-fetch tools when either modal opens for an existing server.
-	// `lastFetchedForId` prevents re-entry when a store update reassigns the
-	// server object with the same id (which would otherwise trigger a second
-	// concurrent POST).
-	let lastFetchedForId: string | null = null;
-	$: if (showEditor && editingServer?.id && editingServer.id !== lastFetchedForId) {
-		lastFetchedForId = editingServer.id;
-		fetchTools(editingServer);
+	// Modal-open behavior: seed the tools list from what's persisted on the
+	// row. The backend keeps the list current — it re-probes the MCP server
+	// on every create/update and on OAuth-callback success — so we never have
+	// to hit the provider from the client.
+	let lastSeededForId: string | null = null;
+	function seedToolsFromRow(server?: MCPServerResponse | null) {
+		if (!server) return;
+		modalTools = (server.tools || []).map((t) => ({
+			name: t.name,
+			description: (t as any).description || '',
+			enabled: t.enabled
+		}));
+	}
+	$: if (showEditor && editingServer?.id && editingServer.id !== lastSeededForId) {
+		lastSeededForId = editingServer.id;
+		seedToolsFromRow(editingServer);
 	}
 	$: if (
 		showCatalogModal &&
-		selectedConnected &&
 		selectedRow?.id &&
-		selectedRow.id !== lastFetchedForId
+		selectedRow.id !== lastSeededForId
 	) {
-		lastFetchedForId = selectedRow.id;
-		fetchTools(selectedRow);
+		lastSeededForId = selectedRow.id;
+		seedToolsFromRow(selectedRow);
 	}
-	$: if (!showEditor && !showCatalogModal) lastFetchedForId = null;
-
-	// Manual reload from the "Neu laden" button — forces a refetch even when the
-	// server id hasn't changed since the last auto-fetch.
-	function manualFetchTools(server?: MCPServerResponse | null) {
-		lastFetchedForId = null;
-		fetchTools(server);
-	}
+	$: if (!showEditor && !showCatalogModal) lastSeededForId = null;
 
 	let scrollContainer: HTMLDivElement;
 
@@ -856,8 +782,8 @@
 
 			<div class="max-h-[60vh] overflow-y-auto pr-1 space-y-3.5">
 				{#if editingConnected}
-					<div class="flex items-center gap-2 pb-3 border-b border-lightGray-400 dark:border-customGray-700">
-						<div class="flex-1 rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
+					<div class="pb-3 border-b border-lightGray-400 dark:border-customGray-700">
+						<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
 							<div class="flex items-center gap-2 leading-none font-medium">
 								<span class="size-1.5 rounded-full bg-green-500"></span>
 								{$i18n.t('Connected')}
@@ -867,22 +793,7 @@
 									{$i18n.t('Zuletzt aktualisiert')}: {new Date(editingServer.last_refreshed_at * 1000).toLocaleString()}
 								</div>
 							{/if}
-							{#if editingServer?.oauth_last_error}
-								<div class="text-red-600 dark:text-red-400 mt-1">
-									{editingServer.oauth_last_error}
-								</div>
-							{/if}
 						</div>
-						<button
-							type="button"
-							class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
-							disabled={connectorReloading}
-							title={$i18n.t('Konnektor aktualisieren')}
-							aria-label={$i18n.t('Konnektor aktualisieren')}
-							on:click={() => refreshConnector(editingServer)}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-						</button>
 					</div>
 				{/if}
 				<label class="block">
@@ -1110,15 +1021,7 @@
 							<h4 class="text-sm font-semibold dark:text-customGray-100">Tools</h4>
 						</div>
 
-						{#if toolsStale}
-							<div class="mb-2 rounded border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs text-yellow-800">
-								Konnte Verbindung nicht testen — zeige zuletzt bekannte Tools.
-							</div>
-						{/if}
-
-						{#if toolsLoading}
-							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">Lade Tools…</div>
-						{:else if modalTools.length === 0}
+						{#if modalTools.length === 0}
 							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">Keine Tools bekannt.</div>
 						{:else}
 							<div class="flex items-center gap-2 mb-2 text-xs">
@@ -1269,33 +1172,16 @@
 				</div>
 
 				{#if selectedConnected}
-					<div class="flex items-center gap-2">
-						<div class="flex-1 rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
-							<div class="flex items-center gap-2 leading-none font-medium">
-								<span class="size-1.5 rounded-full bg-green-500"></span>
-								{$i18n.t('Connected')}
-							</div>
-							{#if selectedRow?.last_refreshed_at}
-								<div class="text-lightGray-1200/70 dark:text-customGray-100/50 mt-1.5">
-									{$i18n.t('Zuletzt aktualisiert')}: {new Date(selectedRow.last_refreshed_at * 1000).toLocaleString()}
-								</div>
-							{/if}
-							{#if selectedRow?.oauth_last_error}
-								<div class="text-red-600 dark:text-red-400 mt-1">
-									{selectedRow.oauth_last_error}
-								</div>
-							{/if}
+					<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
+						<div class="flex items-center gap-2 leading-none font-medium">
+							<span class="size-1.5 rounded-full bg-green-500"></span>
+							{$i18n.t('Connected')}
 						</div>
-						<button
-							type="button"
-							class="shrink-0 p-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 disabled:opacity-40"
-							disabled={connectorReloading}
-							title={$i18n.t('Konnektor aktualisieren')}
-							aria-label={$i18n.t('Konnektor aktualisieren')}
-							on:click={() => refreshConnector(selectedRow)}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={connectorReloading ? 'animate-spin' : ''}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-						</button>
+						{#if selectedRow?.last_refreshed_at}
+							<div class="text-lightGray-1200/70 dark:text-customGray-100/50 mt-1.5">
+								{$i18n.t('Zuletzt aktualisiert')}: {new Date(selectedRow.last_refreshed_at * 1000).toLocaleString()}
+							</div>
+						{/if}
 					</div>
 
 					{#if selectedRow?.scope_mismatch}
@@ -1316,17 +1202,7 @@
 							</h4>
 						</div>
 
-						{#if toolsStale}
-							<div class="mb-2 rounded border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-100">
-								{$i18n.t('Konnte Verbindung nicht testen — zeige zuletzt bekannte Tools.')}
-							</div>
-						{/if}
-
-						{#if toolsLoading}
-							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">
-								{$i18n.t('Lade Tools…')}
-							</div>
-						{:else if modalTools.length === 0}
+						{#if modalTools.length === 0}
 							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">
 								{$i18n.t('Keine Tools bekannt.')}
 							</div>
@@ -1401,6 +1277,16 @@
 								</button>
 							</div>
 						{/if}
+					</div>
+				{:else if selectedNeedsReconnect}
+					<div class="rounded-lg border border-red-500/40 bg-red-50/40 dark:bg-red-950/30 px-3 py-2.5 text-xs dark:text-customGray-100">
+						<div class="flex items-center gap-2 leading-none font-medium">
+							<span class="size-1.5 rounded-full bg-red-500"></span>
+							{$i18n.t('Reconnect required')}
+						</div>
+						<div class="text-red-600 dark:text-red-400 mt-1.5 whitespace-pre-wrap break-words">
+							{selectedRow?.oauth_last_error}
+						</div>
 					</div>
 				{:else}
 					{#if selectedTemplate.requires_tenant_id || selectedTemplate.requires_user_credentials}
@@ -1555,6 +1441,26 @@
 							on:click={disconnectTemplate}
 						>
 							{$i18n.t('Disconnect')}
+						</button>
+					{:else if selectedNeedsReconnect}
+						<button
+							class="text-sm px-3 py-1.5 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100"
+							on:click={() => (showCatalogModal = false)}
+						>
+							{$i18n.t('Close')}
+						</button>
+						<button
+							class="text-sm px-3 py-1.5 rounded-lg bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/20"
+							on:click={disconnectTemplate}
+						>
+							{$i18n.t('Trennen')}
+						</button>
+						<button
+							class="text-sm px-3 py-1.5 rounded-lg bg-customBlue-500 text-white hover:bg-customBlue-700 disabled:opacity-50"
+							disabled={installing}
+							on:click={installFromTemplate}
+						>
+							{installing ? $i18n.t('Connecting...') : $i18n.t('Reconnect')}
 						</button>
 					{:else}
 						<button
@@ -1715,6 +1621,13 @@
 											<span class="size-1.5 rounded-full bg-green-500"></span>
 											{$i18n.t('Connected')}
 										</span>
+									{:else if item.needsReconnect}
+										<span
+											class="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 px-1.5 py-0.5 rounded"
+										>
+											<span class="size-1.5 rounded-full bg-red-500"></span>
+											{$i18n.t('Reconnect required')}
+										</span>
 									{/if}
 									{#if item.kind === 'custom' && !item.server.enabled}
 										<div
@@ -1733,7 +1646,6 @@
 									>
 										<MCPServerMenu
 											on:edit={() => openEdit(item.server)}
-											on:test={() => testServer(item.server)}
 											on:delete={() => {
 												selectedItem = item.server;
 												showDeleteConfirm = true;

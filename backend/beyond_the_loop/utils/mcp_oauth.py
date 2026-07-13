@@ -760,11 +760,28 @@ async def get_fresh_bearer(server: MCPServerModel) -> Optional[str]:
             token_response = await refresh_access_token(server)
         except OAuthError as e:
             log.warning("[mcp] refresh failed for %s: %s", server.id, e)
-            MCPServers.set_oauth_last_error(server.id, str(e))
+            # Auto-disconnect: any refresh failure means the row is no longer
+            # usable. Flip it to "Reconnect required" now, so both the chat
+            # path (which skips server-less-token servers) and the UI (which
+            # keys the green pill off has_oauth_access_token) agree that the
+            # connector is broken. `invalid_grant` specifically means the
+            # provider no longer recognizes our (client_id, refresh_token)
+            # pair — the DCR client itself is dead, so also wipe client
+            # credentials so Reconnect triggers fresh DCR.
+            wipe_client = "invalid_grant" in str(e).lower()
+            MCPServers.soft_disconnect_oauth(
+                server.id,
+                error=str(e),
+                wipe_client_credentials=wipe_client,
+            )
             return None
         except Exception as e:
             log.exception("[mcp] unexpected refresh error for %s", server.id)
-            MCPServers.set_oauth_last_error(server.id, f"unexpected: {e}")
+            MCPServers.soft_disconnect_oauth(
+                server.id,
+                error=f"unexpected: {e}",
+                wipe_client_credentials=False,
+            )
             return None
         persist_token_response(server.id, token_response)
         # Use the freshly-issued token directly rather than re-reading the DB row

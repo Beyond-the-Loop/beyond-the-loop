@@ -60,27 +60,6 @@
 			<DropdownMenu.Item
 				class="flex gap-2 items-center px-3 py-2 text-xs font-medium text-lightGray-100 dark:text-customGray-100 cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
 				on:click={() => {
-					dispatch('test');
-				}}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="w-[14px] h-[14px]"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
-				<div class="flex items-center">{$i18n.t('Test connection')}</div>
-			</DropdownMenu.Item>
-
-			<DropdownMenu.Item
-				class="flex gap-2 items-center px-3 py-2 text-xs font-medium text-lightGray-100 dark:text-customGray-100 cursor-pointer hover:bg-lightGray-700 dark:hover:bg-customGray-950 rounded-md dark:hover:text-white"
-				on:click={() => {
 					dispatch('delete');
 				}}
 			>

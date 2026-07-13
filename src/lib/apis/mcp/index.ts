@@ -124,11 +124,6 @@ export const testMCPServerConnection = (token: string, form: MCPServerForm) =>
 		body: JSON.stringify(form)
 	});
 
-export const testExistingMCPServerConnection = (token: string, id: string) =>
-	request<TestConnectionResult>(token, `/${encodeURIComponent(id)}/test-connection`, {
-		method: 'POST'
-	});
-
 export const startMCPOAuth = (token: string, id: string) =>
 	request<MCPOAuthStartResponse>(token, `/${encodeURIComponent(id)}/oauth/start`, {
 		method: 'POST'
