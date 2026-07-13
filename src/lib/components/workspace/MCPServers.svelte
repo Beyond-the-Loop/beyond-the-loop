@@ -589,6 +589,37 @@
 		}
 	}
 
+	// Manual refresh — bound to the ↻ button inside the "Verbunden" pill.
+	// A refresh is literally a fresh reconnect: we re-run the same OAuth
+	// flow as the initial connect. With tenant-wide admin consent already
+	// in place, Microsoft skips the consent screen and the popup closes
+	// almost immediately. In exchange we get everything at once — new
+	// access token, current granted scopes, current required scopes (PRM),
+	// and the current tool list from the MCP server — with a single
+	// codepath instead of two divergent "silent refresh" vs "reconnect"
+	// mechanisms.
+	let connectorReloading = false;
+	async function refreshConnector(server?: MCPServerResponse | null) {
+		if (!server?.id || connectorReloading) return;
+		connectorReloading = true;
+		try {
+			// Reset the seed-guard so the modal re-seeds from the fresh row
+			// once reload() lands the new tools list.
+			lastSeededForId = null;
+			if (selectedTemplate && showCatalogModal) {
+				// Templates go through the install path — idempotent, and
+				// covers the edge case where a prior invalid_grant wiped the
+				// DCR client (re-registers before running OAuth).
+				await installFromTemplate();
+			} else if (editingServer && showEditor) {
+				// Custom OAuth servers reuse the editor's connect flow.
+				await connectOAuth();
+			}
+		} finally {
+			connectorReloading = false;
+		}
+	}
+
 	let savingTemplateTools = false;
 	async function saveTemplateTools() {
 		if (!selectedRow?.id) return;
@@ -694,18 +725,20 @@
 	// row. The backend keeps the list current — it re-probes the MCP server
 	// on every create/update and on OAuth-callback success — so we never have
 	// to hit the provider from the client.
+	//
+	// The assignment to `modalTools` is inlined into the reactive block on
+	// purpose: Svelte's compile-time analysis only invalidates derived
+	// reactives (here `filteredModalTools`) when it can statically see the
+	// `modalTools = …` assignment. Hiding it behind a function call caused
+	// the list to render empty until the user typed into the search box.
 	let lastSeededForId: string | null = null;
-	function seedToolsFromRow(server?: MCPServerResponse | null) {
-		if (!server) return;
-		modalTools = (server.tools || []).map((t) => ({
+	$: if (showEditor && editingServer?.id && editingServer.id !== lastSeededForId) {
+		lastSeededForId = editingServer.id;
+		modalTools = (editingServer.tools || []).map((t) => ({
 			name: t.name,
 			description: (t as any).description || '',
 			enabled: t.enabled
 		}));
-	}
-	$: if (showEditor && editingServer?.id && editingServer.id !== lastSeededForId) {
-		lastSeededForId = editingServer.id;
-		seedToolsFromRow(editingServer);
 	}
 	$: if (
 		showCatalogModal &&
@@ -713,7 +746,11 @@
 		selectedRow.id !== lastSeededForId
 	) {
 		lastSeededForId = selectedRow.id;
-		seedToolsFromRow(selectedRow);
+		modalTools = (selectedRow.tools || []).map((t) => ({
+			name: t.name,
+			description: (t as any).description || '',
+			enabled: t.enabled
+		}));
 	}
 	$: if (!showEditor && !showCatalogModal) lastSeededForId = null;
 
@@ -783,7 +820,7 @@
 			<div class="max-h-[60vh] overflow-y-auto pr-1 space-y-3.5">
 				{#if editingConnected}
 					<div class="pb-3 border-b border-lightGray-400 dark:border-customGray-700">
-						<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
+						<div class="relative rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 pr-10 text-xs dark:text-customGray-100">
 							<div class="flex items-center gap-2 leading-none font-medium">
 								<span class="size-1.5 rounded-full bg-green-500"></span>
 								{$i18n.t('Connected')}
@@ -793,6 +830,16 @@
 									{$i18n.t('Zuletzt aktualisiert')}: {new Date(editingServer.last_refreshed_at * 1000).toLocaleString()}
 								</div>
 							{/if}
+							<button
+								type="button"
+								class="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 hover:bg-green-500/10 disabled:opacity-40"
+								disabled={connectorReloading}
+								title={$i18n.t('Konnektor aktualisieren')}
+								aria-label={$i18n.t('Konnektor aktualisieren')}
+								on:click={() => refreshConnector(editingServer)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="block h-3.5 w-3.5 {connectorReloading ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+							</button>
 						</div>
 					</div>
 				{/if}
@@ -1172,7 +1219,7 @@
 				</div>
 
 				{#if selectedConnected}
-					<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 text-xs dark:text-customGray-100">
+					<div class="relative rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 pr-10 text-xs dark:text-customGray-100">
 						<div class="flex items-center gap-2 leading-none font-medium">
 							<span class="size-1.5 rounded-full bg-green-500"></span>
 							{$i18n.t('Connected')}
@@ -1182,6 +1229,16 @@
 								{$i18n.t('Zuletzt aktualisiert')}: {new Date(selectedRow.last_refreshed_at * 1000).toLocaleString()}
 							</div>
 						{/if}
+						<button
+							type="button"
+							class="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 hover:bg-green-500/10 disabled:opacity-40"
+							disabled={connectorReloading}
+							title={$i18n.t('Konnektor aktualisieren')}
+							aria-label={$i18n.t('Konnektor aktualisieren')}
+							on:click={() => refreshConnector(selectedRow)}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="block h-3.5 w-3.5 {connectorReloading ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+						</button>
 					</div>
 
 					{#if selectedRow?.scope_mismatch}
@@ -1266,16 +1323,6 @@
 									</li>
 								{/each}
 							</ul>
-							<div class="flex justify-end mt-2">
-								<button
-									type="button"
-									class="text-sm px-3 py-1.5 rounded-lg bg-customBlue-500 text-white hover:bg-customBlue-700 disabled:opacity-50"
-									disabled={savingTemplateTools}
-									on:click={saveTemplateTools}
-								>
-									{savingTemplateTools ? $i18n.t('Speichern…') : $i18n.t('Save')}
-								</button>
-							</div>
 						{/if}
 					</div>
 				{:else if selectedNeedsReconnect}
@@ -1442,6 +1489,16 @@
 						>
 							{$i18n.t('Disconnect')}
 						</button>
+						{#if modalTools.length > 0}
+							<button
+								type="button"
+								class="text-sm px-3 py-1.5 rounded-lg bg-customBlue-500 text-white hover:bg-customBlue-700 disabled:opacity-50"
+								disabled={savingTemplateTools}
+								on:click={saveTemplateTools}
+							>
+								{savingTemplateTools ? $i18n.t('Speichern…') : $i18n.t('Save')}
+							</button>
+						{/if}
 					{:else if selectedNeedsReconnect}
 						<button
 							class="text-sm px-3 py-1.5 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100"
