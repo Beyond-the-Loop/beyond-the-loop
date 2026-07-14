@@ -130,9 +130,12 @@
 		}
 	}
 	$: {
-		if(message?.error?.content?.includes('402')){
+		// Legacy chats can persist non-string error.content (e.g. `{}`); guard the
+		// includes() call so this reactive block doesn't crash the whole message.
+		const errContent = message?.error?.content;
+		if (typeof errContent === 'string' && errContent.includes('402')) {
 			isBlocked.set(true);
-			blockedMessage.set(message?.error?.content);
+			blockedMessage.set(errContent);
 		}
 	}
 
