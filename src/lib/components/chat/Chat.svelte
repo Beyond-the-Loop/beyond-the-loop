@@ -76,6 +76,22 @@
 
 	const i18n: Writable<i18nType> = getContext('i18n');
 
+	// Persisted error.content must be a string — Error.svelte and other consumers
+	// call .includes() on it, which throws on objects like `{}`.
+	const normalizeErrorContent = (error: unknown): string => {
+		if (typeof error === 'string') return error;
+		if (error == null) return '';
+		if (error instanceof Error) return error.message;
+		if (typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+			return (error as { message: string }).message;
+		}
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return String(error);
+		}
+	};
+
 	export let chatIdProp = '';
 
 	let loading = false;
@@ -967,7 +983,7 @@
 			id: responseMessageId
 		}).catch((error) => {
 			toast.error(`${error}`);
-			messages.at(-1).error = { content: error };
+			messages.at(-1).error = { content: normalizeErrorContent(error) };
 
 			return null;
 		});
@@ -1025,7 +1041,7 @@
 			id: responseMessageId
 		}).catch((error) => {
 			toast.error(`${error}`);
-			messages.at(-1).error = { content: error };
+			messages.at(-1).error = { content: normalizeErrorContent(error) };
 			return null;
 		});
 
@@ -1829,7 +1845,7 @@
 				}
 
 				responseMessage.error = {
-					content: error
+					content: normalizeErrorContent(error)
 				};
 				responseMessage.done = true;
 

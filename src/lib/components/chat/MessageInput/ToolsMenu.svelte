@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
 	import { flyAndScale } from '$lib/utils/transitions';
-	import { getContext, onMount } from 'svelte';
+	import { getContext } from 'svelte';
 
 	import { mcpServers as _mcpServers } from '$lib/stores';
 	import {
@@ -75,7 +75,15 @@
 		return null;
 	}
 
-	onMount(async () => {
+	// Fetches require the mcp_connections workspace permission — hitting them for
+	// users without it produces noisy 401s. Gate the load on `canMcp` (permission
+	// AND model support) and run it once per session, lazily when both are true.
+	let mcpLoaded = false;
+
+	async function loadMcpData() {
+		if (mcpLoaded) return;
+		mcpLoaded = true;
+
 		if (Array.isArray($_mcpServers)) {
 			mcpServerList = $_mcpServers as MCPServerResponse[];
 		} else {
@@ -96,7 +104,9 @@
 		} catch {
 			catalogIconBySlug = {};
 		}
-	});
+	}
+
+	$: if (canMcp) loadMcpData();
 </script>
 
 {#if hasAnyFeature}
