@@ -155,6 +155,86 @@
             ]
           }
         }
+      },
+      {
+        "xPos": 0,
+        "yPos": 16,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Avg input tokens per completion by model (LiteLLM)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (model) (rate(litellm_input_tokens_metric_total{${namespace}}[1h])) / sum by (model) (rate(litellm_requests_metric_total{${namespace}}[1h]))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 16,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Avg output tokens per completion by model (LiteLLM)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (model) (rate(litellm_output_tokens_metric_total{${namespace}}[1h])) / sum by (model) (rate(litellm_requests_metric_total{${namespace}}[1h]))"
+                },
+                "plotType": "LINE"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 20,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Avg input tokens / completion (last 30d)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "round(sum(rate(litellm_input_tokens_metric_total{${namespace}}[30d])) / sum(rate(litellm_requests_metric_total{${namespace}}[30d])))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 20,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Avg output tokens / completion (last 30d)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "round(sum(rate(litellm_output_tokens_metric_total{${namespace}}[30d])) / sum(rate(litellm_requests_metric_total{${namespace}}[30d])))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 20,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Avg total tokens / completion (last 30d)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "round(sum(rate(litellm_total_tokens_metric_total{${namespace}}[30d])) / sum(rate(litellm_requests_metric_total{${namespace}}[30d])))"
+            }
+          }
+        }
       }
     ]
   }

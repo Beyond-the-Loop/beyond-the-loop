@@ -33,7 +33,15 @@
 	export let mcpDisabledServerIds: string[] = [];
 
 	let show = false;
-	let mcpServerList: MCPServerResponse[] = [];
+
+	// Bind directly to the store so this component's tool list follows any
+	// update from anywhere (workspace page reload, another ToolsMenu instance's
+	// initial fetch). Previously we snapshotted the store into a local `let`
+	// inside `loadMcpData`, which meant a fresh mount after the Placeholder →
+	// MessageInput transition would only reflect the store value that existed
+	// at that snapshot moment — race-y, and the reason the connector section
+	// would silently disappear on the first message send.
+	$: mcpServerList = (Array.isArray($_mcpServers) ? ($_mcpServers as MCPServerResponse[]) : []);
 
 	// Map template_slug → icon_url so user-added connectors that were installed
 	// from a catalog template can show the provider's logo in the list. Custom
@@ -78,20 +86,20 @@
 	// Fetches require the mcp_connections workspace permission — hitting them for
 	// users without it produces noisy 401s. Gate the load on `canMcp` (permission
 	// AND model support) and run it once per session, lazily when both are true.
+	// The list itself is bound to the store above; this only handles the initial
+	// populate + the catalog icons cache.
 	let mcpLoaded = false;
 
 	async function loadMcpData() {
 		if (mcpLoaded) return;
 		mcpLoaded = true;
 
-		if (Array.isArray($_mcpServers)) {
-			mcpServerList = $_mcpServers as MCPServerResponse[];
-		} else {
+		if (!Array.isArray($_mcpServers)) {
 			try {
-				mcpServerList = (await getMCPServers(localStorage.token)) ?? [];
-				_mcpServers.set(mcpServerList);
+				const servers = (await getMCPServers(localStorage.token)) ?? [];
+				_mcpServers.set(servers);
 			} catch {
-				mcpServerList = [];
+				_mcpServers.set([]);
 			}
 		}
 
