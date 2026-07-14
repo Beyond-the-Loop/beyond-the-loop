@@ -1,19 +1,28 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import { WEBUI_BASE_URL } from '$lib/constants';
-	import { downloadImage } from '$lib/utils';
+	import { copyToClipboard, downloadImage } from '$lib/utils';
 	import ImagePreview from './ImagePreview.svelte';
 	import Download from '$lib/components/icons/Download.svelte';
+	import Clipboard from '$lib/components/icons/Clipboard.svelte';
 	import Tooltip from './Tooltip.svelte';
 
 	const i18n = getContext('i18n');
 
 	export let src = '';
 	export let alt = '';
+	export let caption = '';
 
 	export let className = ' w-full outline-none focus:outline-none';
 	export let imageClassName = 'rounded-xl';
 	export let showDownload = false;
+
+	const copyCaption = async () => {
+		if (await copyToClipboard(caption)) {
+			toast.success($i18n.t('Copying to clipboard was successful!'));
+		}
+	};
 
 	let _src = '';
 	$: _src = src.startsWith('/') ? `${WEBUI_BASE_URL}${src}` : src;
@@ -44,6 +53,24 @@
 					on:click|stopPropagation={() => downloadImage(_src)}
 				>
 					<Download className="size-4" strokeWidth = "2" />
+				</button>
+			</Tooltip>
+		</div>
+	{/if}
+
+	{#if caption}
+		<div
+			class="absolute inset-x-2 bottom-2 flex items-center gap-1.5 rounded-lg bg-black/50 text-white backdrop-blur-sm px-2 py-1 text-xs"
+		>
+			<span class="truncate" title={caption}>{caption}</span>
+			<Tooltip content={$i18n?.t('Copy')} className="ml-auto shrink-0">
+				<button
+					type="button"
+					aria-label={$i18n?.t('Copy')}
+					class="p-1 rounded-md hover:bg-white/20 outline-none focus:outline-none"
+					on:click|stopPropagation={copyCaption}
+				>
+					<Clipboard className="size-3.5" strokeWidth="2" />
 				</button>
 			</Tooltip>
 		</div>

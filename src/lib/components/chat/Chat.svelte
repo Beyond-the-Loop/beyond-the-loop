@@ -1762,7 +1762,8 @@
 									type: 'image_url',
 									image_url: {
 										url: file.url
-									}
+									},
+									...(file.name ? { name: file.name } : {})
 								}))
 							]
 						}

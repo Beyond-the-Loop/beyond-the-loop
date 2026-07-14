@@ -478,9 +478,12 @@ async def generate_chat_completion(
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    # Tag each image with a [Image N] marker
-    if model_name == 'GPT Image 2' and metadata.get("image_generation_enabled", False):
-        payload["messages"] = label_images_for_model(payload["messages"])
+    # Make each uploaded image's filename visible to image models, plus a
+    # [Image N] index for GPT Image 2's generate_image tool.
+    if metadata.get("image_generation_enabled", False):
+        payload["messages"] = label_images_for_model(
+            payload["messages"], with_index=model_name == "GPT Image 2"
+        )
 
     # Check model access
     if not agent_or_task_prompt and not(

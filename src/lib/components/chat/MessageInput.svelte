@@ -356,7 +356,8 @@
 						...files,
 						{
 							type: 'image',
-							url: `${imageUrl}`
+							url: `${imageUrl}`,
+							name: file.name
 						}
 					];
 				};
