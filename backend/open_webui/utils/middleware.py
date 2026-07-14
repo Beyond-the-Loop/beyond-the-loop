@@ -679,6 +679,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                     resolved.append({
                         "id": s.id,
                         "name": s.name,
+                        "description": s.description,
                         "url": s.url,
                         "transport": s.transport,
                         "auth_type": s.auth_type,

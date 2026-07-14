@@ -439,6 +439,12 @@ async def generate_chat_completion(
                 "require_approval": "never",
                 "defer_loading": True,
             }
+            # server_description lets the model decide from label+description
+            # alone whether to search this server — without it, defer_loading
+            # is largely ineffective and Azure ends up listing tools on every
+            # turn just to give the model something to work with.
+            if s.get("description"):
+                entry["server_description"] = s["description"]
             # `access_token_plain` is already decrypted (and refreshed if it was
             # an OAuth token nearing expiry) by middleware.process_chat_payload.
             if s.get("access_token_plain"):
