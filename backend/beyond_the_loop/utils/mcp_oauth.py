@@ -760,11 +760,28 @@ async def get_fresh_bearer(server: MCPServerModel) -> Optional[str]:
             token_response = await refresh_access_token(server)
         except OAuthError as e:
             log.warning("[mcp] refresh failed for %s: %s", server.id, e)
-            MCPServers.set_oauth_last_error(server.id, str(e))
+            # Auto-disconnect: any refresh failure means the row is no longer
+            # usable. Flip it to "Reconnect required" now, so both the chat
+            # path (which skips server-less-token servers) and the UI (which
+            # keys the green pill off has_oauth_access_token) agree that the
+            # connector is broken. `invalid_grant` specifically means the
+            # provider no longer recognizes our (client_id, refresh_token)
+            # pair — the DCR client itself is dead, so also wipe client
+            # credentials so Reconnect triggers fresh DCR.
+            wipe_client = "invalid_grant" in str(e).lower()
+            MCPServers.soft_disconnect_oauth(
+                server.id,
+                error=str(e),
+                wipe_client_credentials=wipe_client,
+            )
             return None
         except Exception as e:
             log.exception("[mcp] unexpected refresh error for %s", server.id)
-            MCPServers.set_oauth_last_error(server.id, f"unexpected: {e}")
+            MCPServers.soft_disconnect_oauth(
+                server.id,
+                error=f"unexpected: {e}",
+                wipe_client_credentials=False,
+            )
             return None
         persist_token_response(server.id, token_response)
         # Use the freshly-issued token directly rather than re-reading the DB row
@@ -786,3 +803,47 @@ def pending_is_fresh(server: MCPServerModel) -> bool:
     if not server.oauth_pending_created_at:
         return False
     return int(time.time()) - server.oauth_pending_created_at <= PENDING_TTL_SECONDS
+
+
+####################
+# Scope resolver
+####################
+
+
+async def resolve_scopes(server_url: str) -> Optional[str]:
+    """Discover required OAuth scopes for an MCP server.
+
+    Composes:
+      1. RFC 9728 Protected Resource Metadata for the resource-level scopes.
+      2. The authorization server's metadata to conditionally append
+         `offline_access` when refresh tokens are supported and advertised.
+
+    Returns a space-joined scope string, or None when the resource
+    advertises no scopes (some providers, e.g. Notion, want no explicit
+    scope parameter — callers preserve today's "no scope" behavior).
+    """
+    prm = await discover_protected_resource(server_url)
+    if not prm:
+        return None
+
+    resource_scopes = prm.get("scopes_supported") or []
+    if not resource_scopes:
+        return None
+
+    scopes = list(dict.fromkeys(str(s) for s in resource_scopes))  # dedupe, keep order
+
+    as_urls = prm.get("authorization_servers") or []
+    if as_urls:
+        try:
+            as_meta = await discover(as_urls[0])
+        except Exception as e:
+            log.info("[mcp-oauth] AS discovery failed for %s: %s", as_urls[0], e)
+            as_meta = None
+        if as_meta:
+            grants = set(as_meta.get("grant_types_supported") or [])
+            as_scopes = set(as_meta.get("scopes_supported") or [])
+            if "refresh_token" in grants and "offline_access" in as_scopes \
+                    and "offline_access" not in scopes:
+                scopes.append("offline_access")
+
+    return " ".join(scopes)

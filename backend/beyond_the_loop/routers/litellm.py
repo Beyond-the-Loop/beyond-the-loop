@@ -445,8 +445,13 @@ async def generate_chat_completion(
                 entry["headers"] = {
                     "Authorization": f"Bearer {s['access_token_plain']}"
                 }
-            if s.get("tool_filter"):
-                entry["allowed_tools"] = s["tool_filter"]
+            tools_list = s.get("tools") or []
+            enabled_names = [t["name"] for t in tools_list if t.get("enabled", True)]
+            # Only pass `allowed_tools` when a strict subset is enabled. When every
+            # known tool is enabled we omit the filter so tools discovered later by
+            # the MCP server stay auto-enabled without a UI round-trip.
+            if tools_list and len(enabled_names) < len(tools_list):
+                entry["allowed_tools"] = enabled_names
             tools.append(entry)
     elif mcp_servers_resolved:
         log.info(

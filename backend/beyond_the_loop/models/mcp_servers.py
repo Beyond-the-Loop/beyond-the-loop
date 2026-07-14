@@ -1,6 +1,7 @@
 import logging
 import time
 import uuid
+from datetime import datetime
 from typing import Any, Optional
 
 from open_webui.internal.db import Base, get_db
@@ -8,7 +9,7 @@ from open_webui.internal.db import Base, get_db
 log = logging.getLogger(__name__)
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Boolean, Column, ForeignKey, JSON, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, JSON, String, Text
 
 
 ####################
@@ -32,7 +33,8 @@ class MCPServer(Base):
     auth_token_encrypted = Column(Text, nullable=True)  # Fernet ciphertext, bearer only
 
     enabled = Column(Boolean, nullable=False, default=True)
-    tool_filter = Column(JSON, nullable=True)  # None = all tools allowed, else list of tool names
+    tools = Column(JSON, nullable=True)  # [{name, description, enabled}]
+    last_refreshed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Catalog template this row was installed from. NULL for custom (user-added)
     # connectors. A partial unique index on (user_id, template_slug) ensures
@@ -100,7 +102,8 @@ class MCPServerModel(BaseModel):
     auth_token_encrypted: Optional[str] = None
 
     enabled: bool = True
-    tool_filter: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None
+    last_refreshed_at: Optional[datetime] = None
     template_slug: Optional[str] = None
 
     oauth_issuer_url: Optional[str] = None
@@ -148,7 +151,7 @@ class MCPServerForm(BaseModel):
     auth_token: Optional[str] = None
 
     enabled: bool = True
-    tool_filter: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None  # [{name, enabled}] — admin's toggle state
 
     # OAuth configuration (all optional; defaults derived from `url` + DCR)
     oauth_issuer_url: Optional[str] = None
@@ -177,7 +180,9 @@ class MCPServerResponse(BaseModel):
     has_auth_token: bool = False
 
     enabled: bool
-    tool_filter: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None
+    last_refreshed_at: Optional[int] = None
+    scope_mismatch: bool = False
     template_slug: Optional[str] = None
 
     # OAuth status fields (display-safe; no secrets)
@@ -223,7 +228,7 @@ class MCPServersTable:
             auth_type=form_data.auth_type,
             auth_token_encrypted=auth_token_encrypted,
             enabled=form_data.enabled,
-            tool_filter=form_data.tool_filter,
+            tools=form_data.tools,
             template_slug=template_slug,
             oauth_issuer_url=form_data.oauth_issuer_url,
             oauth_scope=form_data.oauth_scope,
@@ -333,7 +338,21 @@ class MCPServersTable:
                 row.transport = form_data.transport
                 row.auth_type = form_data.auth_type
                 row.enabled = form_data.enabled
-                row.tool_filter = form_data.tool_filter
+                if form_data.tools is not None:
+                    # Admin edit: preserve description from stored row, apply incoming enabled flags
+                    stored = {t["name"]: t for t in (row.tools or [])}
+                    new_tools = []
+                    for incoming in form_data.tools:
+                        name = incoming.get("name")
+                        if not name:
+                            continue
+                        base = stored.get(name, {"name": name, "description": ""})
+                        new_tools.append({
+                            "name": name,
+                            "description": base.get("description", ""),
+                            "enabled": bool(incoming.get("enabled", True)),
+                        })
+                    row.tools = new_tools
                 # OAuth user-editable fields (issuer URL, scope, manual client_id).
                 # Discovery cache + tokens are managed via dedicated methods below.
                 row.oauth_issuer_url = form_data.oauth_issuer_url
@@ -571,6 +590,54 @@ class MCPServersTable:
                 return True
         except Exception as e:
             log.error(f"Error clearing oauth tokens for {server_id}: {e}")
+            return False
+
+    def soft_disconnect_oauth(
+        self,
+        server_id: str,
+        *,
+        error: str,
+        wipe_client_credentials: bool = False,
+    ) -> bool:
+        """Auto-disconnect after a failed refresh/test.
+
+        Zeroes out tokens, expiry, scope and principal so the UI immediately
+        flips to "not connected" — but keeps the row + endpoints so the user
+        can hit Reconnect without going through Library re-install.
+
+        `wipe_client_credentials=True` also clears the DCR client_id / secret
+        / registration metadata. Used when the provider signalled the client
+        itself is dead (e.g. Notion's `invalid_grant: Client ID mismatch`),
+        so the next Reconnect triggers fresh DCR instead of exchanging codes
+        against a stale client.
+
+        `error` is persisted to `oauth_last_error` so the UI can show it
+        under the red "Reconnect required" pill.
+        """
+        try:
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(id=server_id).first()
+                if row is None:
+                    return False
+                row.oauth_access_token_encrypted = None
+                row.oauth_refresh_token_encrypted = None
+                row.oauth_access_token_expires_at = None
+                row.oauth_granted_scope = None
+                row.oauth_principal_label = None
+                row.oauth_last_error = error
+                row.oauth_pending_state = None
+                row.oauth_pending_code_verifier = None
+                row.oauth_pending_created_at = None
+                if wipe_client_credentials:
+                    row.oauth_client_id = None
+                    row.oauth_client_secret_encrypted = None
+                    row.oauth_registration_client_uri = None
+                    row.oauth_registration_access_token_encrypted = None
+                row.updated_at = int(time.time())
+                db.commit()
+                return True
+        except Exception as e:
+            log.error(f"Error soft-disconnecting oauth for {server_id}: {e}")
             return False
 
 

@@ -14,7 +14,7 @@ export type MCPServerForm = {
 	// the backend never returns a stored token to the client.
 	auth_token?: string | null;
 	enabled?: boolean;
-	tool_filter?: string[] | null;
+	tools?: Array<{ name: string; enabled: boolean }>;
 	// OAuth config (optional; issuer URL defaults to `url`, client creds via DCR)
 	oauth_issuer_url?: string | null;
 	oauth_scope?: string | null;
@@ -31,7 +31,9 @@ export type MCPServerResponse = {
 	auth_type: string | null;
 	has_auth_token: boolean;
 	enabled: boolean;
-	tool_filter: string[] | null;
+	tools?: Array<{ name: string; description?: string; enabled: boolean }> | null;
+	last_refreshed_at?: number | null;
+	scope_mismatch: boolean;
 	template_slug: string | null;
 	oauth_issuer_url: string | null;
 	oauth_scope: string | null;
@@ -59,7 +61,6 @@ export type MCPConnectorTemplate = {
 	server_url: string;
 	transport: 'sse' | 'streamable_http';
 	issuer_url: string;
-	scope: string | null;
 	requires_user_credentials: boolean;
 	requires_tenant_id: boolean;
 	credentials_help_url: string | null;
@@ -75,7 +76,7 @@ export type InstallTemplateBody = {
 export type TestConnectionResult = {
 	success: boolean;
 	transport: string;
-	tools?: string[] | null;
+	tools?: Array<{ name: string; description?: string }> | null;
 	message?: string | null;
 };
 
@@ -121,11 +122,6 @@ export const testMCPServerConnection = (token: string, form: MCPServerForm) =>
 	request<TestConnectionResult>(token, '/test-connection', {
 		method: 'POST',
 		body: JSON.stringify(form)
-	});
-
-export const testExistingMCPServerConnection = (token: string, id: string) =>
-	request<TestConnectionResult>(token, `/${encodeURIComponent(id)}/test-connection`, {
-		method: 'POST'
 	});
 
 export const startMCPOAuth = (token: string, id: string) =>

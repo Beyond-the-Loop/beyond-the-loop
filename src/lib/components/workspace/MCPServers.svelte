@@ -8,7 +8,8 @@
 		mcpServers as _mcpServers,
 		showSidebar,
 		mobile,
-		user
+		user,
+		companyConfig
 	} from '$lib/stores';
 
 	import {
@@ -18,11 +19,11 @@
 		updateMCPServer,
 		deleteMCPServer,
 		testMCPServerConnection,
-		testExistingMCPServerConnection,
 		startMCPOAuth,
 		disconnectMCPOAuth,
 		getConnectorCatalog,
 		installConnectorTemplate,
+		type MCPAuthType,
 		type MCPServerForm,
 		type MCPServerResponse,
 		type TestConnectionResult,
@@ -38,6 +39,7 @@
 	import ShowSidebarIcon from '../icons/ShowSidebarIcon.svelte';
 	import BackIcon from '../icons/BackIcon.svelte';
 	import CloseIcon from '../icons/CloseIcon.svelte';
+	import MCPScopesList from './MCPScopesList.svelte';
 
 	import MCPServerMenu from './MCPServers/MCPServerMenu.svelte';
 
@@ -57,6 +59,13 @@
 	let installClientSecret = '';
 	let installTenantId = '';
 
+	// Company-level M365 defaults set in the Konnektoren tab.
+	$: companyM365 = ($companyConfig as any)?.config?.connectors?.['microsoft-365'] ?? {
+		has_client_id: false,
+		has_tenant_id: false,
+		has_client_secret: false
+	};
+
 	let query = '';
 	let showInput = false;
 	let fuse: Fuse<any> | null = null;
@@ -73,6 +82,18 @@
 	let editingId: string | null = null;
 	let editingServer: MCPServerResponse | null = null;
 	let form: MCPServerForm = blankForm();
+
+	// True when the currently-edited custom connector counts as "connected":
+	// bearer with a stored token, OAuth with an access token, or no-auth once
+	// saved. Feeds the shared green Verbunden box + refresh button in the
+	// edit modal so all three auth types get the same summary chrome and the
+	// "Test connection" button hides itself when it would be redundant.
+	$: editingConnected = !!(
+		editingServer?.id &&
+		((editingServer.auth_type === 'bearer' && editingServer.has_auth_token) ||
+			(editingServer.auth_type === 'oauth' && editingServer.has_oauth_access_token) ||
+			editingServer.auth_type == null)
+	);
 	let saving = false;
 	let connecting = false;
 	let showAdvancedOauth = false;
@@ -86,6 +107,30 @@
 	let testing = false;
 	let testResult: TestConnectionResult | null = null;
 
+	// Tools checkbox list state (edit modal). Seeded from the row's persisted
+	// tools on modal open — the backend keeps the list current by re-probing
+	// on create/update and on OAuth-callback success, so we never call out to
+	// the MCP server from the client.
+	let modalTools: Array<{ name: string; description: string; enabled: boolean }> = [];
+	let expandedTools: Set<string> = new Set();
+	let toolsFilter = '';
+
+	// Substring match on the tool name (case-insensitive). Empty filter shows
+	// everything. Rendering iterates this derived list, but the underlying
+	// `modalTools` (and its enabled flags) is preserved so saves still cover
+	// tools hidden by the filter.
+	$: filteredModalTools = toolsFilter.trim()
+		? modalTools.filter((t) =>
+				t.name.toLowerCase().includes(toolsFilter.trim().toLowerCase())
+			)
+		: modalTools;
+
+	function toggleToolExpanded(name: string) {
+		if (expandedTools.has(name)) expandedTools.delete(name);
+		else expandedTools.add(name);
+		expandedTools = expandedTools;
+	}
+
 	function blankForm(): MCPServerForm {
 		return {
 			name: '',
@@ -95,7 +140,6 @@
 			auth_type: null,
 			auth_token: '',
 			enabled: true,
-			tool_filter: null,
 			oauth_issuer_url: '',
 			oauth_scope: '',
 			oauth_client_id: '',
@@ -137,6 +181,7 @@
 				template: MCPConnectorTemplate;
 				row: MCPServerResponse | null;
 				active: boolean;
+				needsReconnect: boolean;
 		  }
 		| {
 				kind: 'custom';
@@ -145,6 +190,7 @@
 				description: string;
 				server: MCPServerResponse;
 				active: boolean;
+				needsReconnect: boolean;
 		  };
 
 	function isCustomActive(s: MCPServerResponse): boolean {
@@ -152,6 +198,18 @@
 		if (s.auth_type === 'bearer') return s.has_auth_token;
 		if (s.auth_type === 'oauth') return s.has_oauth_access_token;
 		return true; // no-auth servers are always "active" when enabled
+	}
+
+	// True when an OAuth server has an error on file AND no working access
+	// token — i.e. the backend auto-disconnected it after a failed refresh.
+	// Rendered as a red pill in the catalog grid so the user notices without
+	// opening the card. `enabled=false` custom rows get their own "Disabled"
+	// pill and shouldn't clash with this red state.
+	function isNeedsReconnect(s: MCPServerResponse | null): boolean {
+		if (!s) return false;
+		if (s.auth_type !== 'oauth') return false;
+		if (s.has_oauth_access_token) return false;
+		return !!s.oauth_last_error;
 	}
 
 	$: customServers = servers.filter((s) => !s.template_slug);
@@ -167,7 +225,8 @@
 				description: tpl.description,
 				template: tpl,
 				row,
-				active: !!(row && row.has_oauth_access_token)
+				active: !!(row && row.has_oauth_access_token),
+				needsReconnect: isNeedsReconnect(row)
 			});
 		}
 		for (const srv of customServers) {
@@ -177,7 +236,8 @@
 				name: srv.name,
 				description: srv.description ?? srv.url,
 				server: srv,
-				active: isCustomActive(srv)
+				active: isCustomActive(srv),
+				needsReconnect: isNeedsReconnect(srv)
 			});
 		}
 		// Active first, then alphabetical by name.
@@ -212,6 +272,8 @@
 		testResult = null;
 		showAdvancedOauth = false;
 		createdInThisSession = false;
+		modalTools = [];
+		toolsFilter = '';
 		showEditor = true;
 	}
 
@@ -226,7 +288,6 @@
 			auth_type: srv.auth_type as 'bearer' | 'oauth' | null,
 			auth_token: '',
 			enabled: srv.enabled,
-			tool_filter: srv.tool_filter,
 			oauth_issuer_url: srv.oauth_issuer_url ?? '',
 			oauth_scope: srv.oauth_scope ?? '',
 			oauth_client_id: '',
@@ -290,7 +351,11 @@
 				// For OAuth connectors the row already exists (connectOAuth
 				// silently created it). For others we may also be editing an
 				// existing row. Either way: PATCH.
-				await updateMCPServer(localStorage.token, editingId, buildSavePayload());
+				const payload = buildSavePayload();
+				if (modalTools.length > 0) {
+					payload.tools = modalTools.map((t) => ({ name: t.name, enabled: t.enabled }));
+				}
+				await updateMCPServer(localStorage.token, editingId, payload);
 				toast.success($i18n.t('Connector updated'));
 			} else {
 				// Reached only for non-OAuth connectors — OAuth ones get
@@ -447,11 +512,11 @@
 
 	async function installFromTemplate() {
 		if (!selectedTemplate) return;
-		if (selectedTemplate.requires_user_credentials && !installClientId.trim()) {
+		if (selectedTemplate.requires_user_credentials && !installClientId.trim() && !companyM365.has_client_id) {
 			toast.error($i18n.t('Client ID is required.'));
 			return;
 		}
-		if (selectedTemplate.requires_tenant_id && !installTenantId.trim()) {
+		if (selectedTemplate.requires_tenant_id && !installTenantId.trim() && !companyM365.has_tenant_id) {
 			toast.error($i18n.t('Tenant ID is required.'));
 			return;
 		}
@@ -524,20 +589,56 @@
 		}
 	}
 
-	async function testServer(srv: MCPServerResponse) {
-		const t = toast.loading($i18n.t('Testing {{name}}...', { name: srv.name }));
+	// Manual refresh — bound to the ↻ button inside the "Verbunden" pill.
+	// A refresh is literally a fresh reconnect: we re-run the same OAuth
+	// flow as the initial connect. With tenant-wide admin consent already
+	// in place, Microsoft skips the consent screen and the popup closes
+	// almost immediately. In exchange we get everything at once — new
+	// access token, current granted scopes, current required scopes (PRM),
+	// and the current tool list from the MCP server — with a single
+	// codepath instead of two divergent "silent refresh" vs "reconnect"
+	// mechanisms.
+	let connectorReloading = false;
+	async function refreshConnector(server?: MCPServerResponse | null) {
+		if (!server?.id || connectorReloading) return;
+		connectorReloading = true;
 		try {
-			const r = await testExistingMCPServerConnection(localStorage.token, srv.id);
-			toast.dismiss(t);
-			if (r.success) {
-				const toolStr = r.tools && r.tools.length > 0 ? ` (${r.tools.length} tools)` : '';
-				toast.success($i18n.t('{{name}}: OK', { name: srv.name }) + toolStr);
-			} else {
-				toast.error($i18n.t('{{name}}: {{msg}}', { name: srv.name, msg: r.message ?? 'failed' }));
+			// Reset the seed-guard so the modal re-seeds from the fresh row
+			// once reload() lands the new tools list.
+			lastSeededForId = null;
+			if (selectedTemplate && showCatalogModal) {
+				// Templates go through the install path — idempotent, and
+				// covers the edge case where a prior invalid_grant wiped the
+				// DCR client (re-registers before running OAuth).
+				await installFromTemplate();
+			} else if (editingServer && showEditor) {
+				// Custom OAuth servers reuse the editor's connect flow.
+				await connectOAuth();
 			}
+		} finally {
+			connectorReloading = false;
+		}
+	}
+
+	let savingTemplateTools = false;
+	async function saveTemplateTools() {
+		if (!selectedRow?.id) return;
+		savingTemplateTools = true;
+		try {
+			await updateMCPServer(localStorage.token, selectedRow.id, {
+				name: selectedRow.name,
+				url: selectedRow.url,
+				transport: selectedRow.transport,
+				auth_type: (selectedRow.auth_type ?? null) as MCPAuthType,
+				enabled: selectedRow.enabled,
+				tools: modalTools.map((t) => ({ name: t.name, enabled: t.enabled }))
+			});
+			await reload();
+			toast.success($i18n.t('Saved'));
 		} catch (e) {
-			toast.dismiss(t);
-			toast.error(`${e}`);
+			toast.error((e as Error).message);
+		} finally {
+			savingTemplateTools = false;
 		}
 	}
 
@@ -577,13 +678,25 @@
 
 	// Reactive views of the selected template's state — re-evaluate whenever
 	// `servers` changes (e.g. after reload() following install/disconnect), so
-	// the modal flips between Connected and Not-Connected layouts on its own.
+	// the modal flips between Connected / Reconnect-required / Not-Connected
+	// layouts on its own.
+	//
+	// selectedNeedsReconnect: row exists AND we've recorded an OAuth error AND
+	// there's no working access token. Triggered by the backend's
+	// soft_disconnect_oauth after a failed refresh/test-connection. The
+	// missing client_id case (invalid_grant → DCR wiped) is silently absorbed
+	// by installFromTemplate rerunning DCR on the same row on Reconnect click.
 	$: selectedRow = (() => {
 		if (!selectedTemplate || !servers) return null;
 		const slug = selectedTemplate.slug;
 		return servers.find((s) => s.template_slug === slug) ?? null;
 	})();
 	$: selectedConnected = !!(selectedRow && selectedRow.has_oauth_access_token);
+	$: selectedNeedsReconnect = !!(
+		selectedRow &&
+		!selectedRow.has_oauth_access_token &&
+		selectedRow.oauth_last_error
+	);
 
 	// Editor-closed watcher: when the editor closes by ANY route — Cancel,
 	// X, Esc, backdrop-click — and we created a draft row in this session
@@ -607,6 +720,39 @@
 		}
 		prevShowEditor = showEditor;
 	}
+
+	// Modal-open behavior: seed the tools list from what's persisted on the
+	// row. The backend keeps the list current — it re-probes the MCP server
+	// on every create/update and on OAuth-callback success — so we never have
+	// to hit the provider from the client.
+	//
+	// The assignment to `modalTools` is inlined into the reactive block on
+	// purpose: Svelte's compile-time analysis only invalidates derived
+	// reactives (here `filteredModalTools`) when it can statically see the
+	// `modalTools = …` assignment. Hiding it behind a function call caused
+	// the list to render empty until the user typed into the search box.
+	let lastSeededForId: string | null = null;
+	$: if (showEditor && editingServer?.id && editingServer.id !== lastSeededForId) {
+		lastSeededForId = editingServer.id;
+		modalTools = (editingServer.tools || []).map((t) => ({
+			name: t.name,
+			description: (t as any).description || '',
+			enabled: t.enabled
+		}));
+	}
+	$: if (
+		showCatalogModal &&
+		selectedRow?.id &&
+		selectedRow.id !== lastSeededForId
+	) {
+		lastSeededForId = selectedRow.id;
+		modalTools = (selectedRow.tools || []).map((t) => ({
+			name: t.name,
+			description: (t as any).description || '',
+			enabled: t.enabled
+		}));
+	}
+	$: if (!showEditor && !showCatalogModal) lastSeededForId = null;
 
 	let scrollContainer: HTMLDivElement;
 
@@ -672,6 +818,31 @@
 			</div>
 
 			<div class="max-h-[60vh] overflow-y-auto pr-1 space-y-3.5">
+				{#if editingConnected}
+					<div class="pb-3 border-b border-lightGray-400 dark:border-customGray-700">
+						<div class="relative rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 pr-10 text-xs dark:text-customGray-100">
+							<div class="flex items-center gap-2 leading-none font-medium">
+								<span class="size-1.5 rounded-full bg-green-500"></span>
+								{$i18n.t('Connected')}
+							</div>
+							{#if editingServer?.last_refreshed_at}
+								<div class="text-lightGray-1200/70 dark:text-customGray-100/50 mt-1.5">
+									{$i18n.t('Zuletzt aktualisiert')}: {new Date(editingServer.last_refreshed_at * 1000).toLocaleString()}
+								</div>
+							{/if}
+							<button
+								type="button"
+								class="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 hover:bg-green-500/10 disabled:opacity-40"
+								disabled={connectorReloading}
+								title={$i18n.t('Konnektor aktualisieren')}
+								aria-label={$i18n.t('Konnektor aktualisieren')}
+								on:click={() => refreshConnector(editingServer)}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="block h-3.5 w-3.5 {connectorReloading ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+							</button>
+						</div>
+					</div>
+				{/if}
 				<label class="block">
 					<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 						{$i18n.t('Name')}
@@ -839,23 +1010,22 @@
 
 						<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 							{#if editingServer?.has_oauth_access_token}
-								<div class="text-xs dark:text-customGray-100 mb-2">
-									<span class="font-medium">{$i18n.t('Connected')}</span>
-									{#if editingServer.oauth_granted_scope}
-										<div class="text-lightGray-1200 dark:text-customGray-100/60 mt-1">
-											{$i18n.t('Scope')}: {editingServer.oauth_granted_scope}
-										</div>
-									{/if}
-									{#if editingServer.oauth_access_token_expires_at}
-										<div class="text-lightGray-1200 dark:text-customGray-100/60">
-											{formatExpiresIn(editingServer.oauth_access_token_expires_at)}
-										</div>
-									{/if}
-								</div>
+								{#if editingServer.oauth_access_token_expires_at}
+									<div class="text-xs text-lightGray-1200 dark:text-customGray-100/60 mb-2">
+										{formatExpiresIn(editingServer.oauth_access_token_expires_at)}
+									</div>
+								{/if}
+								{#if editingServer?.scope_mismatch}
+									<div class="mb-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+										Neue Rechte verfügbar. Bitte neu verbinden.
+									</div>
+								{/if}
 								<div class="flex gap-2">
 									<button
 										type="button"
 										class="text-xs px-3 py-1.5 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 disabled:opacity-50"
+										class:ring-2={editingServer?.scope_mismatch}
+										class:ring-yellow-400={editingServer?.scope_mismatch}
 										on:click={connectOAuth}
 										disabled={connecting}
 									>
@@ -884,25 +1054,94 @@
 									{editingServer.oauth_last_error}
 								</div>
 							{/if}
+							<MCPScopesList
+								oauthScope={editingServer?.oauth_scope}
+								oauthGrantedScope={editingServer?.oauth_granted_scope}
+							/>
 						</div>
 					</div>
 				{/if}
 
-				<label class="flex items-center gap-2 text-sm dark:text-customGray-100">
-					<input type="checkbox" class="accent-blue-500" bind:checked={form.enabled} />
-					{$i18n.t('Enabled')}
-				</label>
+				{#if editingServer?.id}
+					<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
+						<div class="flex items-center justify-between mb-2">
+							<h4 class="text-sm font-semibold dark:text-customGray-100">Tools</h4>
+						</div>
+
+						{#if modalTools.length === 0}
+							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">Keine Tools bekannt.</div>
+						{:else}
+							<div class="flex items-center gap-2 mb-2 text-xs">
+								<button
+									type="button"
+									class="underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100"
+									on:click={() => (modalTools = modalTools.map((t) => ({ ...t, enabled: true })))}
+								>
+									Alle aktivieren
+								</button>
+								<span class="text-lightGray-1200 dark:text-customGray-100/40">·</span>
+								<button
+									type="button"
+									class="underline text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100"
+									on:click={() => (modalTools = modalTools.map((t) => ({ ...t, enabled: false })))}
+								>
+									Alle deaktivieren
+								</button>
+							</div>
+							<input
+								type="text"
+								class="mb-2 w-full px-2 py-1 rounded border border-lightGray-400 dark:border-customGray-700 bg-transparent text-xs dark:text-customGray-100 outline-none focus:border-customBlue-500"
+								placeholder="Tools suchen…"
+								bind:value={toolsFilter}
+							/>
+							<ul class="space-y-1 max-h-64 overflow-y-auto border border-lightGray-400 dark:border-customGray-700 rounded p-2">
+								{#if filteredModalTools.length === 0}
+									<li class="text-xs text-lightGray-1200 dark:text-customGray-100/50 px-1 py-0.5">
+										Keine Treffer.
+									</li>
+								{/if}
+								{#each filteredModalTools as tool (tool.name)}
+									<li class="flex items-start gap-2">
+										<input type="checkbox" bind:checked={tool.enabled} class="mt-1 accent-blue-500" />
+										<div class="min-w-0 flex-1">
+											<div class="text-sm font-medium dark:text-customGray-100">{tool.name}</div>
+											{#if tool.description}
+												{@const expanded = expandedTools.has(tool.name)}
+												<div class="flex items-start gap-1 mt-0.5">
+												<button
+													type="button"
+													class="mt-0.5 shrink-0 text-lightGray-1200 dark:text-customGray-100/50 hover:text-lightGray-100 dark:hover:text-customGray-100 transition-transform {expanded ? 'rotate-90' : ''}"
+													on:click={() => toggleToolExpanded(tool.name)}
+													title={expanded ? 'Einklappen' : 'Ausklappen'}
+													aria-label={expanded ? 'Einklappen' : 'Ausklappen'}
+												>
+													<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+												</button>
+												<div class="text-xs text-lightGray-1200 dark:text-customGray-100/50 min-w-0 flex-1 {expanded ? 'whitespace-pre-wrap' : 'truncate'}">
+													{tool.description}
+												</div>
+												</div>
+											{/if}
+										</div>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
 
 				<div class="border-t border-lightGray-400 dark:border-customGray-700 pt-3">
 					<div class="flex items-center gap-2 flex-wrap">
-						<button
-							type="button"
-							class="text-xs px-3 py-1.5 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 disabled:opacity-50"
-							disabled={testing || !form.url || (form.auth_type === 'oauth' && !editingServer?.has_oauth_access_token)}
-							on:click={runTestFromForm}
-						>
-							{testing ? $i18n.t('Testing...') : $i18n.t('Test connection')}
-						</button>
+						{#if !editingConnected}
+							<button
+								type="button"
+								class="text-xs px-3 py-1.5 rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100 disabled:opacity-50"
+								disabled={testing || !form.url || (form.auth_type === 'oauth' && !editingServer?.has_oauth_access_token)}
+								on:click={runTestFromForm}
+							>
+								{testing ? $i18n.t('Testing...') : $i18n.t('Test connection')}
+							</button>
+						{/if}
 						{#if testResult}
 							<span
 								class="text-xs {testResult.success
@@ -912,7 +1151,7 @@
 								{testResult.message ?? (testResult.success ? 'OK' : 'Failed')}
 								{#if testResult.tools && testResult.tools.length > 0}
 									<span class="text-lightGray-1200 dark:text-customGray-100/60">
-										({testResult.tools.slice(0, 5).join(', ')}{testResult.tools.length > 5
+										({testResult.tools.slice(0, 5).map((t) => t.name).join(', ')}{testResult.tools.length > 5
 											? '…'
 											: ''})
 									</span>
@@ -980,16 +1219,121 @@
 				</div>
 
 				{#if selectedConnected}
-					<div class="rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 p-3 text-xs dark:text-customGray-100">
+					<div class="relative rounded-lg border border-green-500/30 bg-green-50/40 dark:bg-green-950/30 px-3 py-2 pr-10 text-xs dark:text-customGray-100">
 						<div class="flex items-center gap-2 leading-none font-medium">
 							<span class="size-1.5 rounded-full bg-green-500"></span>
 							{$i18n.t('Connected')}
 						</div>
-						{#if selectedRow?.oauth_last_error}
-							<div class="text-red-600 dark:text-red-400 mt-1">
-								{selectedRow.oauth_last_error}
+						{#if selectedRow?.last_refreshed_at}
+							<div class="text-lightGray-1200/70 dark:text-customGray-100/50 mt-1.5">
+								{$i18n.t('Zuletzt aktualisiert')}: {new Date(selectedRow.last_refreshed_at * 1000).toLocaleString()}
 							</div>
 						{/if}
+						<button
+							type="button"
+							class="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-lightGray-1200 dark:text-customGray-100/70 hover:text-lightGray-100 dark:hover:text-customGray-100 hover:bg-green-500/10 disabled:opacity-40"
+							disabled={connectorReloading}
+							title={$i18n.t('Konnektor aktualisieren')}
+							aria-label={$i18n.t('Konnektor aktualisieren')}
+							on:click={() => refreshConnector(selectedRow)}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="block h-3.5 w-3.5 {connectorReloading ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+						</button>
+					</div>
+
+					{#if selectedRow?.scope_mismatch}
+						<div class="mt-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-100">
+							{$i18n.t('Neue Rechte verfügbar. Bitte neu verbinden.')}
+						</div>
+					{/if}
+
+					<MCPScopesList
+						oauthScope={selectedRow?.oauth_scope}
+						oauthGrantedScope={selectedRow?.oauth_granted_scope}
+					/>
+
+					<div class="mt-4">
+						<div class="flex items-center justify-between mb-2">
+							<h4 class="text-sm font-semibold dark:text-customGray-100">
+								Tools
+							</h4>
+						</div>
+
+						{#if modalTools.length === 0}
+							<div class="text-sm text-lightGray-1200 dark:text-customGray-100/50">
+								{$i18n.t('Keine Tools bekannt.')}
+							</div>
+						{:else}
+							<div class="flex items-center gap-2 mb-2 text-xs dark:text-customGray-100">
+								<button
+									type="button"
+									class="underline"
+									on:click={() =>
+										(modalTools = modalTools.map((t) => ({ ...t, enabled: true })))}
+								>
+									{$i18n.t('Alle aktivieren')}
+								</button>
+								<span>·</span>
+								<button
+									type="button"
+									class="underline"
+									on:click={() =>
+										(modalTools = modalTools.map((t) => ({ ...t, enabled: false })))}
+								>
+									{$i18n.t('Alle deaktivieren')}
+								</button>
+							</div>
+							<input
+								type="text"
+								class="mb-2 w-full px-2 py-1 rounded border border-lightGray-400 dark:border-customGray-700 bg-transparent text-xs dark:text-customGray-100 outline-none focus:border-customBlue-500"
+								placeholder="Tools suchen…"
+								bind:value={toolsFilter}
+							/>
+							<ul class="space-y-1 max-h-64 overflow-y-auto border rounded p-2 dark:border-customGray-700">
+								{#if filteredModalTools.length === 0}
+									<li class="text-xs text-lightGray-1200 dark:text-customGray-100/50 px-1 py-0.5">
+										{$i18n.t('Keine Treffer.')}
+									</li>
+								{/if}
+								{#each filteredModalTools as tool (tool.name)}
+									<li class="flex items-start gap-2">
+										<input type="checkbox" bind:checked={tool.enabled} class="mt-1" />
+										<div class="min-w-0 flex-1">
+											<div class="text-sm font-medium dark:text-customGray-100">
+												{tool.name}
+											</div>
+												{#if tool.description}
+													{@const expanded = expandedTools.has(tool.name)}
+													<div class="flex items-start gap-1 mt-0.5">
+														<button
+															type="button"
+															class="mt-0.5 shrink-0 text-lightGray-1200 dark:text-customGray-100/60 hover:text-lightGray-100 dark:hover:text-customGray-100 transition-transform {expanded ? 'rotate-90' : ''}"
+															on:click={() => toggleToolExpanded(tool.name)}
+															title={expanded ? $i18n.t('Einklappen') : $i18n.t('Ausklappen')}
+															aria-label={expanded ? $i18n.t('Einklappen') : $i18n.t('Ausklappen')}
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+														</button>
+														<div class="text-xs text-lightGray-1200 dark:text-customGray-100/60 min-w-0 flex-1 {expanded ? 'whitespace-pre-wrap' : 'truncate'}">
+															{tool.description}
+														</div>
+													</div>
+												{/if}
+										</div>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{:else if selectedNeedsReconnect}
+					<div class="rounded-lg border border-red-500/40 bg-red-50/40 dark:bg-red-950/30 px-3 py-2.5 text-xs dark:text-customGray-100">
+						<div class="flex items-center gap-2 leading-none font-medium">
+							<span class="size-1.5 rounded-full bg-red-500"></span>
+							{$i18n.t('Reconnect required')}
+						</div>
+						<div class="text-red-600 dark:text-red-400 mt-1.5 whitespace-pre-wrap break-words">
+							{selectedRow?.oauth_last_error}
+						</div>
 					</div>
 				{:else}
 					{#if selectedTemplate.requires_tenant_id || selectedTemplate.requires_user_credentials}
@@ -998,42 +1342,94 @@
 								<label class="block">
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 										{$i18n.t('Tenant ID')}
+										{#if companyM365.has_tenant_id}
+											<span class="ml-1 text-green-500">✓</span>
+										{/if}
 									</span>
-									<input
-										type="text"
-										class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
-										bind:value={installTenantId}
-										placeholder="00000000-0000-0000-0000-000000000000"
-										autocomplete="off"
-									/>
+									{#if companyM365.has_tenant_id}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono outline-none cursor-not-allowed opacity-60"
+											disabled
+											value=""
+											placeholder="••••••••"
+											autocomplete="off"
+										/>
+										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
+											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+										</p>
+									{:else}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
+											bind:value={installTenantId}
+											placeholder="00000000-0000-0000-0000-000000000000"
+											autocomplete="off"
+										/>
+									{/if}
 								</label>
 							{/if}
 							{#if selectedTemplate.requires_user_credentials}
 								<label class="block">
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 										{$i18n.t('Client ID')}
+										{#if companyM365.has_client_id}
+											<span class="ml-1 text-green-500">✓</span>
+										{/if}
 									</span>
-									<input
-										type="text"
-										class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
-										bind:value={installClientId}
-										placeholder="00000000-0000-0000-0000-000000000000"
-										autocomplete="off"
-									/>
+									{#if companyM365.has_client_id}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono outline-none cursor-not-allowed opacity-60"
+											disabled
+											value=""
+											placeholder="••••••••"
+											autocomplete="off"
+										/>
+										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
+											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+										</p>
+									{:else}
+										<input
+											type="text"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
+											bind:value={installClientId}
+											placeholder="00000000-0000-0000-0000-000000000000"
+											autocomplete="off"
+										/>
+									{/if}
 								</label>
 								<label class="block">
 									<span class="text-xs text-lightGray-1200 dark:text-customGray-100/70">
 										{$i18n.t('Client Secret')}
-										<span class="text-lightGray-1200/70 dark:text-customGray-100/40">
-											— {$i18n.t('optional')}
-										</span>
+										{#if companyM365.has_client_secret}
+											<span class="ml-1 text-green-500">✓</span>
+										{:else}
+											<span class="text-lightGray-1200/70 dark:text-customGray-100/40">
+												— {$i18n.t('optional')}
+											</span>
+										{/if}
 									</span>
-									<input
-										type="password"
-										class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
-										bind:value={installClientSecret}
-										autocomplete="off"
-									/>
+									{#if companyM365.has_client_secret}
+										<input
+											type="password"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono outline-none cursor-not-allowed opacity-60"
+											disabled
+											value=""
+											placeholder="••••••••"
+											autocomplete="off"
+										/>
+										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
+											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+										</p>
+									{:else}
+										<input
+											type="password"
+											class="mt-1 w-full px-3 py-2 rounded-lg border border-lightGray-400 dark:border-customGray-700 bg-transparent text-sm font-mono dark:text-customGray-100 outline-none focus:border-customBlue-500"
+											bind:value={installClientSecret}
+											autocomplete="off"
+										/>
+									{/if}
 								</label>
 							{/if}
 							<div class="text-xs text-lightGray-1200/80 dark:text-customGray-100/50">
@@ -1092,6 +1488,36 @@
 							on:click={disconnectTemplate}
 						>
 							{$i18n.t('Disconnect')}
+						</button>
+						{#if modalTools.length > 0}
+							<button
+								type="button"
+								class="text-sm px-3 py-1.5 rounded-lg bg-customBlue-500 text-white hover:bg-customBlue-700 disabled:opacity-50"
+								disabled={savingTemplateTools}
+								on:click={saveTemplateTools}
+							>
+								{savingTemplateTools ? $i18n.t('Speichern…') : $i18n.t('Save')}
+							</button>
+						{/if}
+					{:else if selectedNeedsReconnect}
+						<button
+							class="text-sm px-3 py-1.5 rounded-lg hover:bg-lightGray-700 dark:hover:bg-customGray-950 dark:text-customGray-100"
+							on:click={() => (showCatalogModal = false)}
+						>
+							{$i18n.t('Close')}
+						</button>
+						<button
+							class="text-sm px-3 py-1.5 rounded-lg bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/20"
+							on:click={disconnectTemplate}
+						>
+							{$i18n.t('Trennen')}
+						</button>
+						<button
+							class="text-sm px-3 py-1.5 rounded-lg bg-customBlue-500 text-white hover:bg-customBlue-700 disabled:opacity-50"
+							disabled={installing}
+							on:click={installFromTemplate}
+						>
+							{installing ? $i18n.t('Connecting...') : $i18n.t('Reconnect')}
 						</button>
 					{:else}
 						<button
@@ -1252,6 +1678,13 @@
 											<span class="size-1.5 rounded-full bg-green-500"></span>
 											{$i18n.t('Connected')}
 										</span>
+									{:else if item.needsReconnect}
+										<span
+											class="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 px-1.5 py-0.5 rounded"
+										>
+											<span class="size-1.5 rounded-full bg-red-500"></span>
+											{$i18n.t('Reconnect required')}
+										</span>
 									{/if}
 									{#if item.kind === 'custom' && !item.server.enabled}
 										<div
@@ -1270,7 +1703,6 @@
 									>
 										<MCPServerMenu
 											on:edit={() => openEdit(item.server)}
-											on:test={() => testServer(item.server)}
 											on:delete={() => {
 												selectedItem = item.server;
 												showDeleteConfirm = true;
@@ -1305,6 +1737,12 @@
 								</div>
 							</div>
 						</div>
+						{#if (item.kind === 'template' && item.row?.scope_mismatch) || (item.kind === 'custom' && item.server.scope_mismatch)}
+							<span
+								class="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-yellow-400"
+								title="Neue Rechte verfügbar — bitte neu verbinden"
+							></span>
+						{/if}
 					</button>
 				{/each}
 			</div>

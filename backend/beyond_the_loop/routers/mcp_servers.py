@@ -1,9 +1,10 @@
-"""MCP-Server CRUD, connection test, and OAuth 2.0 (Authorization Code + PKCE).
+"""MCP-Server CRUD, tool discovery, and OAuth 2.0 (Authorization Code + PKCE).
 
 Per-user ownership: each MCP server belongs to exactly one user. No sharing,
 no admin override. Access is gated by the `workspace.mcp_connections` group
 permission and by row-level ownership.
 """
+import asyncio
 import ipaddress
 import logging
 from ipaddress import AddressValueError
@@ -20,6 +21,7 @@ from beyond_the_loop.connector_catalog import (
     ConnectorTemplate,
     get_template,
 )
+from beyond_the_loop.routers.companies import get_company_connector_credentials
 from beyond_the_loop.models.mcp_servers import (
     MCPServerForm,
     MCPServerModel,
@@ -29,6 +31,7 @@ from beyond_the_loop.models.mcp_servers import (
 from beyond_the_loop.utils.access_control import has_permission
 from beyond_the_loop.utils.encryption import decrypt_secret, encrypt_secret
 from beyond_the_loop.utils import mcp_oauth
+from beyond_the_loop.utils.mcp_oauth import discover_protected_resource, resolve_scopes
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import MCP_OAUTH_REDIRECT_URI
 from open_webui.utils.auth import get_verified_user
@@ -43,6 +46,42 @@ router = APIRouter()
 
 
 VALID_TRANSPORTS = {"sse", "streamable_http"}
+
+
+def reconcile_tools(
+    existing: Optional[list[dict]],
+    discovered: list[dict],
+) -> list[dict]:
+    """Merge freshly-discovered tools with stored enabled flags.
+
+    - Discovered tools already present in `existing` keep their `enabled`.
+    - Discovered tools not in `existing` default to `enabled=True`.
+    - Tools in `existing` but not in `discovered` are dropped.
+    """
+    stored = {t["name"]: t for t in (existing or [])}
+    result: list[dict] = []
+    for t in discovered:
+        name = t.get("name")
+        if not name:
+            continue
+        prior = stored.get(name)
+        result.append({
+            "name": name,
+            "description": t.get("description", ""),
+            "enabled": bool(prior["enabled"]) if prior and "enabled" in prior else True,
+        })
+    return result
+
+
+def _compute_scope_mismatch(row) -> bool:
+    """Return True when the requested OAuth scopes are not fully covered by
+    the scopes the provider actually granted.  Either field being absent /
+    empty is treated as "no mismatch" so we don't surface false positives
+    before the OAuth flow has run.
+    """
+    requested = set((row.oauth_scope or "").split())
+    granted = set((row.oauth_granted_scope or "").split())
+    return bool(requested - granted)
 VALID_AUTH_TYPES = {None, "bearer", "oauth"}
 TEST_CONNECTION_TIMEOUT_SECONDS = 8.0
 
@@ -71,12 +110,16 @@ def _to_response(server: MCPServerModel) -> MCPServerResponse:
                     "oauth_pending_state",
                     "oauth_pending_code_verifier",
                     "oauth_pending_created_at",
+                    "last_refreshed_at",
                 }
             ),
+            "last_refreshed_at": int(server.last_refreshed_at.timestamp())
+                if server.last_refreshed_at else None,
             "has_auth_token": bool(server.auth_token_encrypted),
             "has_oauth_client_secret": bool(server.oauth_client_secret_encrypted),
             "has_oauth_access_token": bool(server.oauth_access_token_encrypted),
             "has_oauth_refresh_token": bool(server.oauth_refresh_token_encrypted),
+            "scope_mismatch": _compute_scope_mismatch(server),
         }
     )
 
@@ -166,7 +209,7 @@ def _assert_url_safe(url: str) -> None:
 class TestConnectionResult(BaseModel):
     success: bool
     transport: str
-    tools: Optional[list[str]] = None
+    tools: Optional[list[dict]] = None  # [{name, description}]
     message: Optional[str] = None
 
 
@@ -261,9 +304,14 @@ async def _post_jsonrpc(
     return _parse_jsonrpc_response(resp), dict(resp.headers)
 
 
-async def _run_connection_test(
+async def _probe_mcp_server(
     url: str, transport: str, auth_type: Optional[str], auth_token_plain: Optional[str]
 ) -> TestConnectionResult:
+    """Perform an MCP handshake (initialize → notifications/initialized →
+    tools/list) and return the discovered tools. Used by (a) the editor's
+    pre-save preview and (b) the internal tool-discovery pass that runs
+    after a successful connect/save.
+    """
     _assert_url_safe(url)
     url = _normalize_and_allowlist_mcp_url(url)
 
@@ -391,13 +439,17 @@ async def _run_connection_test(
             message=f"MCP error: {tools_body['error'].get('message', tools_body['error'])}",
         )
 
-    tools = tools_body.get("result", {}).get("tools", [])
-    tool_names = [t.get("name") for t in tools if isinstance(t, dict) and t.get("name")]
+    tools_raw = tools_body.get("result", {}).get("tools", [])
+    tools_out = [
+        {"name": t["name"], "description": t.get("description", "")}
+        for t in tools_raw
+        if isinstance(t, dict) and t.get("name")
+    ]
     return TestConnectionResult(
         success=True,
         transport=transport,
-        tools=tool_names,
-        message=f"Discovered {len(tool_names)} tool(s).",
+        tools=tools_out,
+        message=f"Discovered {len(tools_out)} tool(s).",
     )
 
 
@@ -429,6 +481,10 @@ async def create_server(form_data: MCPServerForm, user=Depends(get_verified_user
         encrypt_secret(form_data.auth_token) if form_data.auth_token else None
     )
 
+    # If no scope was provided by the user, try to discover one via PRM.
+    if not form_data.oauth_scope and form_data.auth_type == "oauth":
+        form_data.oauth_scope = await resolve_scopes(form_data.url)
+
     server = MCPServers.insert_new_server(
         user_id=user.id,
         company_id=user.company_id,
@@ -443,6 +499,12 @@ async def create_server(form_data: MCPServerForm, user=Depends(get_verified_user
 
     if form_data.auth_type == "oauth":
         await _bootstrap_oauth(server, form_data, user)
+        server = MCPServers.get_server_by_id_and_user(server.id, user.id) or server
+    else:
+        # Bearer / no-auth: we have a working config right now (OAuth still
+        # needs the popup round-trip). Discover the tools so the row's tools
+        # list is populated from the start.
+        await _persist_discovered_tools(server.id)
         server = MCPServers.get_server_by_id_and_user(server.id, user.id) or server
 
     return _to_response(server)
@@ -466,10 +528,6 @@ class ConnectorTemplateResponse(BaseModel):
     server_url: str
     transport: str
     issuer_url: str
-    # None means "no scope param sent to the authorize endpoint" — some
-    # providers (Notion) don't accept a scope and let the user choose access
-    # at consent time.
-    scope: Optional[str] = None
     requires_user_credentials: bool
     requires_tenant_id: bool = False
     credentials_help_url: Optional[str] = None
@@ -496,7 +554,6 @@ def _template_to_response(t: ConnectorTemplate) -> ConnectorTemplateResponse:
         server_url=t.server_url,
         transport=t.transport,
         issuer_url=t.issuer_url,
-        scope=t.scope,
         requires_user_credentials=t.requires_user_credentials,
         requires_tenant_id=t.requires_tenant_id,
         credentials_help_url=t.credentials_help_url,
@@ -550,8 +607,14 @@ async def install_template(
             detail=f"Unknown connector: {slug}",
         )
 
-    client_id = (form_data.client_id or "").strip() or None
-    client_secret = (form_data.client_secret or "").strip() or None
+    # Fall back to company-level connector credentials when the user hasn't
+    # supplied their own. This allows end-users to install a connector without
+    # pasting credentials that the company admin already configured via the
+    # "Konnektoren" tab.
+    defaults = get_company_connector_credentials(user.company_id, slug) or {}
+    client_id = (form_data.client_id or "").strip() or defaults.get("client_id") or None
+    tenant_id = (form_data.tenant_id or "").strip() or defaults.get("tenant_id") or None
+    client_secret = (form_data.client_secret or "").strip() or defaults.get("client_secret") or None
 
     if template.requires_user_credentials and not client_id:
         raise HTTPException(
@@ -561,9 +624,27 @@ async def install_template(
 
     # Substitute `{tenant_id}` placeholder in issuer_url (Microsoft templates).
     # Raises 400 if the template requires tenant_id but the form omitted it.
-    resolved_issuer = _resolve_issuer_url(template, form_data.tenant_id)
+    resolved_issuer = _resolve_issuer_url(template, tenant_id)
 
     _assert_url_safe(template.server_url)
+
+    # Discover required scopes via RFC 9728 PRM. Falls back to None gracefully
+    # for providers whose authorize endpoint doesn't accept a scope param
+    # (Notion, HubSpot, Confluence). Templates that DO need a scope must fail
+    # loudly here — silently proceeding builds an authorize URL without scope,
+    # which providers like Microsoft reject with an opaque OAuth error the
+    # user then hits at the popup.
+    resolved_scope = await resolve_scopes(template.server_url)
+
+    if template.requires_tenant_id and not resolved_scope:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                f"Konnte die benötigten Scopes vom MCP-Server nicht ermitteln "
+                f"({template.server_url}). Prüfe ob der Server erreichbar ist "
+                f"und RFC 9728 Protected Resource Metadata exponiert."
+            ),
+        )
 
     # Re-use the existing Library row if there is one for this (user, slug).
     existing = MCPServers.get_template_row_for_user(slug, user.id)
@@ -580,7 +661,7 @@ async def install_template(
                 auth_type="oauth",
                 enabled=True,
                 oauth_issuer_url=resolved_issuer,
-                oauth_scope=template.scope,
+                oauth_scope=resolved_scope,
                 oauth_client_id=client_id,
                 oauth_client_secret=client_secret,
             )
@@ -589,6 +670,31 @@ async def install_template(
                 MCPServers.get_server_by_id_and_user(existing.id, user.id)
                 or existing
             )
+
+        # Refresh oauth_scope on every re-install so the row stays in sync
+        # with the server's current PRM. Wrapped in a 3 s timeout so a slow
+        # PRM never stalls an idempotent re-install — mirrors the lazy-refresh
+        # pattern in GET /{server_id}.
+        try:
+            _reuse_scope = await asyncio.wait_for(
+                resolve_scopes(template.server_url), timeout=3.0
+            )
+            from open_webui.internal.db import get_db
+            from beyond_the_loop.models.mcp_servers import MCPServer
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(
+                    id=existing.id, user_id=user.id
+                ).first()
+                if row is not None and _reuse_scope:
+                    row.oauth_scope = _reuse_scope
+                    db.commit()
+            existing = (
+                MCPServers.get_server_by_id_and_user(existing.id, user.id)
+                or existing
+            )
+        except Exception as e:
+            log.info("[mcp] PRM refresh skipped on catalog re-install for %s: %s", existing.id, e)
+
         return _to_response(existing)
 
     form = MCPServerForm(
@@ -599,7 +705,7 @@ async def install_template(
         auth_type="oauth",
         enabled=True,
         oauth_issuer_url=resolved_issuer,
-        oauth_scope=template.scope,
+        oauth_scope=resolved_scope,
         oauth_client_id=client_id,
         oauth_client_secret=client_secret,
     )
@@ -641,6 +747,36 @@ async def get_server(server_id: str, user=Depends(get_verified_user)):
     server = _require_owner(
         MCPServers.get_server_by_id_and_user(server_id, user.id), user
     )
+
+    # Best-effort PRM refresh. Never surface errors — a stale scope cache
+    # just means the mismatch banner may be off until the next successful
+    # call. Every successful PRM call also touches last_refreshed_at so the
+    # UI's "Zuletzt aktualisiert" reflects the most recent conversation with
+    # the MCP server (not just the tools-list side effect).
+    if server.auth_type == "oauth" and server.url:
+        try:
+            new_scope = await asyncio.wait_for(
+                resolve_scopes(server.url), timeout=3.0
+            )
+            from datetime import datetime, timezone
+            from open_webui.internal.db import get_db
+            from beyond_the_loop.models.mcp_servers import MCPServer
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
+                if row is not None:
+                    if new_scope and new_scope != server.oauth_scope:
+                        row.oauth_scope = new_scope
+                    if new_scope:
+                        # Only bump the timestamp on a successful PRM roundtrip
+                        # (new_scope is None when discovery failed or returned
+                        # no scopes — nothing worth calling "refreshed").
+                        row.last_refreshed_at = datetime.now(timezone.utc)
+                    db.commit()
+                    db.refresh(row)
+                    server = MCPServers.get_server_by_id_and_user(server_id, user.id) or server
+        except Exception as e:
+            log.info("[mcp] PRM refresh failed for %s: %s", server.id, e)
+
     return _to_response(server)
 
 
@@ -695,6 +831,13 @@ async def update_server(
         MCPServers.clear_oauth_tokens(server_id, user.id)
         updated = MCPServers.get_server_by_id_and_user(server_id, user.id) or updated
 
+    # Re-discover tools if the connection state might have changed. OAuth
+    # servers get their tools refreshed via /oauth/callback after Reconnect
+    # completes, so we skip them here.
+    if form_data.auth_type != "oauth":
+        await _persist_discovered_tools(server_id)
+        updated = MCPServers.get_server_by_id_and_user(server_id, user.id) or updated
+
     return _to_response(updated)
 
 
@@ -718,7 +861,7 @@ async def delete_server(server_id: str, user=Depends(get_verified_user)):
 
 
 ############################
-# Connection test
+# Editor-side connection preview
 ############################
 
 
@@ -726,10 +869,14 @@ async def delete_server(server_id: str, user=Depends(get_verified_user)):
 async def test_connection_pre_save(
     form_data: MCPServerForm, user=Depends(get_verified_user)
 ):
-    """Test a configuration before saving — uses the plaintext token from the form."""
+    """Editor-only preview: probe a config with the plaintext token from the
+    form so the user sees the discovered tool count before saving. Does not
+    touch any row — persisted tool discovery happens automatically on
+    create / update / OAuth callback via `_persist_discovered_tools`.
+    """
     _require_mcp_permission(user)
     _validate_form(form_data)
-    return await _run_connection_test(
+    return await _probe_mcp_server(
         url=form_data.url,
         transport=form_data.transport,
         auth_type=form_data.auth_type,
@@ -737,42 +884,64 @@ async def test_connection_pre_save(
     )
 
 
-@router.post("/{server_id}/test-connection", response_model=TestConnectionResult)
-async def test_connection_existing(server_id: str, user=Depends(get_verified_user)):
-    """Test an already-saved server — decrypts the stored token server-side."""
-    _require_mcp_permission(user)
-    server = _require_owner(
-        MCPServers.get_server_by_id_and_user(server_id, user.id), user
-    )
+############################
+# Post-connect tool discovery
+############################
 
-    if server.auth_type == "oauth" and not server.oauth_access_token_encrypted:
-        return TestConnectionResult(
-            success=False,
-            transport=server.transport,
-            message="Not connected. Click 'Connect with OAuth' first.",
+
+async def _persist_discovered_tools(server_id: str) -> None:
+    """Probe the server with its current stored credentials, and write the
+    discovered tools back to the row. Best-effort — a failure here does not
+    surface to the caller because the surrounding operation (create / update
+    / oauth-callback) has already succeeded; the user can reconnect if their
+    tools stay empty.
+    """
+    from datetime import datetime, timezone
+    from open_webui.internal.db import get_db
+    from beyond_the_loop.models.mcp_servers import MCPServer
+
+    with get_db() as db:
+        row = db.query(MCPServer).filter_by(id=server_id).first()
+        if row is None:
+            return
+        server = MCPServerModel.model_validate(row)
+
+    if server.auth_type == "oauth":
+        if not server.oauth_access_token_encrypted:
+            return
+        auth_token_plain = await mcp_oauth.get_fresh_bearer(server)
+    elif server.auth_type == "bearer":
+        auth_token_plain = (
+            decrypt_secret(server.auth_token_encrypted)
+            if server.auth_token_encrypted else None
         )
+    else:
+        auth_token_plain = None
 
-    auth_token_plain = await mcp_oauth.get_fresh_bearer(server)
-    if server.auth_type == "oauth" and not auth_token_plain:
-        # Refresh failed; surface whatever last_error we recorded.
-        latest = MCPServers.get_server_by_id_and_user(server_id, user.id)
-        msg = (latest.oauth_last_error if latest else None) or "Token refresh failed."
-        return TestConnectionResult(
-            success=False,
-            transport=server.transport,
-            message=f"{msg} Reconnect required.",
-        )
-
-    # Bearer is reported as 'bearer' to the test runner; OAuth becomes bearer
-    # once we have the fresh token in hand.
+    # `_probe_mcp_server` treats a live bearer as auth_type="bearer";
+    # no-auth servers pass None through.
     effective_auth_type = "bearer" if auth_token_plain else None
 
-    return await _run_connection_test(
-        url=server.url,
-        transport=server.transport,
-        auth_type=effective_auth_type,
-        auth_token_plain=auth_token_plain,
-    )
+    try:
+        result = await _probe_mcp_server(
+            url=server.url,
+            transport=server.transport,
+            auth_type=effective_auth_type,
+            auth_token_plain=auth_token_plain,
+        )
+    except Exception as e:
+        log.warning("[mcp] tool discovery failed for %s: %s", server_id, e)
+        return
+
+    if not result.success or result.tools is None:
+        return
+
+    with get_db() as db:
+        db_row = db.query(MCPServer).filter_by(id=server_id).first()
+        if db_row is not None:
+            db_row.tools = reconcile_tools(db_row.tools, result.tools)
+            db_row.last_refreshed_at = datetime.now(timezone.utc)
+            db.commit()
 
 
 ############################
@@ -918,6 +1087,22 @@ async def oauth_start(server_id: str, user=Depends(get_verified_user)):
             detail="OAuth not bootstrapped — save the server first.",
         )
 
+    # Refresh scope from PRM before building the authorize URL. Best-effort —
+    # on failure we proceed with whatever scope is already on the row.
+    try:
+        new_scope = await resolve_scopes(server.url)
+        if new_scope and new_scope != server.oauth_scope:
+            from open_webui.internal.db import get_db
+            from beyond_the_loop.models.mcp_servers import MCPServer
+            with get_db() as db:
+                row = db.query(MCPServer).filter_by(id=server.id, user_id=user.id).first()
+                if row is not None:
+                    row.oauth_scope = new_scope
+                    db.commit()
+            server = MCPServers.get_server_by_id_and_user(server.id, user.id) or server
+    except Exception as e:
+        log.info("[mcp] scope refresh failed before oauth/start for %s: %s", server.id, e)
+
     verifier, challenge = mcp_oauth.generate_pkce_pair()
     state = mcp_oauth.generate_state()
 
@@ -1039,6 +1224,11 @@ async def oauth_callback(request: Request):
         principal_label=principal_label,
         clear_pending=True,
     )
+
+    # Populate the tools list right now so the connector modal is correct on
+    # its first open. Best-effort: if discovery hits a transient error we
+    # still report connect success — the user can reconnect later if needed.
+    await _persist_discovered_tools(server.id)
 
     return HTMLResponse(
         _callback_html(ok=True, message="Connected.", server_id=server.id),

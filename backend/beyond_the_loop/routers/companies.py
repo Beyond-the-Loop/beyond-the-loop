@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import uuid
+from typing import Optional
 
 from beyond_the_loop.assistants.assistants_csv_loader import load_kickstart_assistants
 import httpx
@@ -10,7 +11,9 @@ from PIL import Image
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from cryptography.fernet import InvalidToken
 from beyond_the_loop.config import save_config, get_config, invalidate_company_config_cache
+from beyond_the_loop.utils.encryption import encrypt_secret, decrypt_secret
 from beyond_the_loop.models.models import ModelForm, ModelMeta, ModelParams, Models
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.routers import litellm
@@ -34,6 +37,86 @@ router = APIRouter()
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
+
+
+############################
+# Connector Credential Helpers
+############################
+
+
+def save_company_connector_credentials(
+    company_id: str,
+    slug: str,
+    client_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    client_secret: Optional[str] = None,
+) -> None:
+    """Merge the given credentials into config.connectors[slug].
+
+    None values leave the corresponding key untouched. Empty string ("")
+    deletes the key. `client_secret` is stored encrypted under
+    `client_secret_encrypted`.
+    """
+    config = get_config(company_id) or {}
+    connectors = config.setdefault("connectors", {})
+    entry = connectors.setdefault(slug, {})
+
+    def _apply(key: str, value: Optional[str]) -> None:
+        if value is None:
+            return
+        if value == "":
+            entry.pop(key, None)
+        else:
+            entry[key] = value
+
+    _apply("client_id", client_id)
+    _apply("tenant_id", tenant_id)
+
+    if client_secret is not None:
+        if client_secret == "":
+            entry.pop("client_secret_encrypted", None)
+        else:
+            entry["client_secret_encrypted"] = encrypt_secret(client_secret)
+
+    if not entry:
+        connectors.pop(slug, None)
+    save_config(config, company_id)
+
+
+def get_company_connector_credentials(
+    company_id: str, slug: str
+) -> Optional[dict]:
+    config = get_config(company_id) or {}
+    entry = (config.get("connectors") or {}).get(slug)
+    if not entry:
+        return None
+    result = {}
+    if entry.get("client_id"):
+        result["client_id"] = entry["client_id"]
+    if entry.get("tenant_id"):
+        result["tenant_id"] = entry["tenant_id"]
+    enc = entry.get("client_secret_encrypted")
+    if enc:
+        try:
+            result["client_secret"] = decrypt_secret(enc)
+        except (InvalidToken, ValueError):
+            pass
+    return result or None
+
+
+def scrub_connector_credentials(config: dict) -> dict:
+    """In-place-ish: strips credential values from connectors.* and replaces
+    them with `has_*` booleans. Returns the mutated config for chaining."""
+    connectors = config.get("connectors")
+    if not connectors:
+        return config
+    for slug, entry in list(connectors.items()):
+        connectors[slug] = {
+            "has_client_id": bool(entry.get("client_id")),
+            "has_tenant_id": bool(entry.get("tenant_id")),
+            "has_client_secret": bool(entry.get("client_secret_encrypted")),
+        }
+    return config
 
 
 ############################
@@ -77,6 +160,8 @@ async def get_company_config(user=Depends(get_current_user)):
 
         config.get("rag", {}).get("web", {}).get("search", {}).pop("google_pse_api_key", None)
         config.get("rag", {}).get("web", {}).get("search", {}).pop("google_pse_engine_id", None)
+
+        scrub_connector_credentials(config)
 
         return {"config": config}
     except Exception as e:
@@ -138,6 +223,25 @@ async def update_company_config(
                 current_config["privacy"] = {}
             current_config["privacy"]["pii_filter_enabled"] = form_data.features_pii_filter
 
+        # Handle connector credentials (stored separately under connectors.*)
+        sent = form_data.model_fields_set
+        if any(f in sent for f in (
+            "connectors_microsoft365_client_id",
+            "connectors_microsoft365_tenant_id",
+            "connectors_microsoft365_client_secret",
+        )):
+            save_company_connector_credentials(
+                company_id, "microsoft-365",
+                client_id=form_data.connectors_microsoft365_client_id
+                    if "connectors_microsoft365_client_id" in sent else None,
+                tenant_id=form_data.connectors_microsoft365_tenant_id
+                    if "connectors_microsoft365_tenant_id" in sent else None,
+                client_secret=form_data.connectors_microsoft365_client_secret
+                    if "connectors_microsoft365_client_secret" in sent else None,
+            )
+            # Re-fetch so the tail save_config includes the connector changes
+            current_config = get_config(company_id)
+
         # Save the updated config to the database
         success = save_config(current_config, company_id)
         
@@ -146,7 +250,10 @@ async def update_company_config(
         
         # Get the updated config
         updated_config = get_config(company_id)
-        
+
+        # Scrub connector credentials before returning
+        scrub_connector_credentials(updated_config)
+
         return {"config": updated_config}
     except Exception as e:
         log.error(f"Error updating company config: {e}")

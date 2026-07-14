@@ -105,6 +105,9 @@ class UpdateCompanyConfigRequest(BaseModel):
     custom_user_notice: Optional[str] = None
     features_web_search: Optional[bool] = None
     features_pii_filter: Optional[bool] = None
+    connectors_microsoft365_client_id: Optional[str] = None
+    connectors_microsoft365_tenant_id: Optional[str] = None
+    connectors_microsoft365_client_secret: Optional[str] = None
     
     @field_validator('chat_retention_days')
     @classmethod
