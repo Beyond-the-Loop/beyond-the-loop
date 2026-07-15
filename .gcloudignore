@@ -1,0 +1,12 @@
+# Cloud Build upload excludes. Pulls in .gitignore, then hard-excludes secrets.
+#!include:.gitignore
+
+.git/
+.gitignore
+
+# Never upload local secrets / env files
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json

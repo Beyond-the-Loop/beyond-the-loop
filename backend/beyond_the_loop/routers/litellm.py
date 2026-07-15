@@ -26,7 +26,7 @@ from beyond_the_loop.config import (
     LITELLM_MODEL_CONFIG,
     LITELLM_MODEL_MAP,
 )
-from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
+from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM, IMAGE_TOOL_BLOCK
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
@@ -40,6 +40,7 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
 )
+from open_webui.utils.misc import append_to_system_message
 
 from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.models.groups import Groups
@@ -481,6 +482,10 @@ async def generate_chat_completion(
     # Make each uploaded image's filename visible to image models, plus a
     # [Image N] index for GPT Image 2's generate_image tool.
     if metadata.get("image_generation_enabled", False):
+        if model_name == "GPT Image 2":
+            payload["messages"] = append_to_system_message(
+                IMAGE_TOOL_BLOCK, payload["messages"]
+            )
         payload["messages"] = label_images_for_model(
             payload["messages"], with_index=model_name == "GPT Image 2"
         )

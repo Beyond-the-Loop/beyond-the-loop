@@ -146,6 +146,22 @@ def add_or_update_system_message(content: str, messages: list[dict]):
     return messages
 
 
+def append_to_system_message(content: str, messages: list[dict]):
+    """
+    Appends content to the existing system message at the beginning of the
+    messages list, or inserts a new system message if none is present. Mirror
+    of add_or_update_system_message but appends instead of prepends — used to
+    stack composable image-model prompt blocks after the base intro.
+    """
+
+    if messages and messages[0].get("role") == "system":
+        messages[0]["content"] = f"{messages[0]['content']}\n\n{content}"
+    else:
+        messages.insert(0, {"role": "system", "content": content})
+
+    return messages
+
+
 def add_or_update_user_message(content: str, messages: list[dict]):
     """
     Adds a new user message at the end of the messages list
