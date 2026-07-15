@@ -1,4 +1,5 @@
 import logging
+import redis
 import stripe
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, Header, APIRouter
@@ -9,10 +10,15 @@ log = logging.getLogger(__name__)
 
 from beyond_the_loop.models.companies import Companies
 from beyond_the_loop.models.users import Users
+from open_webui.env import REDIS_URL
 from open_webui.utils.auth import get_verified_user
 from beyond_the_loop.services.payments_service import payments_service, is_flat_rate_plan
 from beyond_the_loop.services.crm_service import crm_service
 from beyond_the_loop.socket.main import STRIPE_COMPANY_ACTIVE_SUBSCRIPTION_CACHE, STRIPE_COMPANY_TRIAL_SUBSCRIPTION_CACHE
+
+# Idempotency window for flex-credit invoice webhooks. Long enough to cover
+# Stripe's 3-day retry ladder plus a wide margin for manual dashboard resends.
+_FLEX_INVOICE_IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24 * 90  # 90 days
 
 router = APIRouter()
 
@@ -237,16 +243,83 @@ def handle_subscription_deleted(event_data):
         log.error(f"Error handling subscription deleted event: {e}")
 
 
+def _sum_flex_credit_line_amounts_in_cents(event_data) -> int:
+    """Sum the net (pre-tax) amount in cents across all invoice line items
+    that reference the Flex Credits Stripe product. Returns 0 if no matching
+    lines exist — that's the signal to skip this invoice entirely.
+    """
+    flex_credit_product_id = payments_service.stripe_flex_credit_product_id
+    lines = (event_data.get("lines") or {}).get("data") or []
+    total = 0
+    for line in lines:
+        price = line.get("price") or {}
+        if price.get("product") == flex_credit_product_id:
+            # amount_excluding_tax is always net (in cents); amount is net iff
+            # tax_behavior is exclusive. Prefer the former for safety.
+            net_cents = line.get("amount_excluding_tax")
+            if net_cents is None:
+                net_cents = line.get("amount") or 0
+            total += net_cents
+    return total
+
+
 def handle_invoice_payment_succeeded(event_data):
+    """
+    Grant Flex Credits for any line items on this invoice that reference the
+    Flex Credits Stripe product. Handles both the app-triggered auto-recharge
+    (fixed 20 EUR) and sales-created top-up invoices from the Stripe dashboard
+    (arbitrary amount).
+
+    Idempotent via Redis SETNX on the invoice id — protects against Stripe
+    retries (at-least-once delivery), manual "resend" from the dashboard, and
+    restarts mid-processing.
+    """
     try:
-        metadata = event_data.get("metadata", {})
-        flex_credits_recharge = metadata.get("flex_credits_recharge")
+        invoice_id = event_data.get("id")
+        if not invoice_id:
+            log.warning("invoice.payment_succeeded event missing invoice id")
+            return
 
-        if flex_credits_recharge == "true":
-            company_id = metadata.get("company_id")
-            base_amount = metadata.get("base_amount")
+        credit_cents = _sum_flex_credit_line_amounts_in_cents(event_data)
+        if credit_cents <= 0:
+            return  # not a flex-credit invoice (e.g. a subscription renewal)
 
-            Companies.add_flex_credit_balance(company_id, float(base_amount) / 100)  # Convert cents into Euros
+        stripe_customer_id = event_data.get("customer")
+        company = Companies.get_company_by_stripe_customer_id(stripe_customer_id)
+        if not company:
+            log.error(
+                f"No company found for stripe_customer_id {stripe_customer_id} "
+                f"on flex-credit invoice {invoice_id}; skipping grant"
+            )
+            return
+
+        # Acquire the idempotency guard BEFORE crediting. If we crash between
+        # SETNX and the DB write we lose this grant — but that requires a
+        # process death within milliseconds, and the alternative (credit first,
+        # SETNX after) risks the much more common double-credit on retry.
+        client = redis.Redis.from_url(
+            REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
+        idempotency_key = f"stripe:processed_flex_invoice:{invoice_id}"
+        acquired = client.set(
+            idempotency_key, "1", nx=True, ex=_FLEX_INVOICE_IDEMPOTENCY_TTL_SECONDS
+        )
+        if not acquired:
+            log.info(
+                f"Skipping flex-credit grant for invoice {invoice_id}: "
+                f"already processed"
+            )
+            return
+
+        credits_eur = credit_cents / 100
+        Companies.add_flex_credit_balance(company.id, credits_eur)
+        log.info(
+            f"Granted {credits_eur} EUR flex credits to company {company.id} "
+            f"from invoice {invoice_id}"
+        )
     except Exception as e:
         log.error(f"Error processing invoice payment succeeded event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -319,21 +392,22 @@ async def recharge_flex_credits(user=Depends(get_verified_user)):
             automatic_tax={"enabled": True},
             default_payment_method=default_payment_method,
             collection_method="charge_automatically",
-            metadata={
-                "company_id": company.id,
-                "flex_credits_recharge": "true",
-                "base_amount": base_amount,
-            }
         )
 
-        # Attach the line item directly to this invoice — avoids it landing on a pending subscription invoice
+        # Line item references the Flex Credits product so the webhook can
+        # identify it via price.product without depending on invoice metadata
+        # (which sales can't easily set from the Stripe dashboard).
         stripe.InvoiceItem.create(
             customer=company.stripe_customer_id,
             invoice=invoice.id,
-            amount=base_amount,
-            currency="eur",
+            price_data={
+                "product": payments_service.stripe_flex_credit_product_id,
+                "currency": "eur",
+                "unit_amount": base_amount,
+                "tax_behavior": "exclusive",
+            },
+            quantity=1,
             description="Flex Credits Recharge",
-            tax_behavior="exclusive",
         )
 
         invoice = stripe.Invoice.finalize_invoice(invoice.id)
