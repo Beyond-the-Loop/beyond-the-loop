@@ -51,7 +51,6 @@ from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_s
 from beyond_the_loop.socket.main import get_event_emitter
 from beyond_the_loop.utils.image_generation import (
     build_image_tool,
-    label_images_for_model,
 )
 
 log = logging.getLogger(__name__)
@@ -479,15 +478,9 @@ async def generate_chat_completion(
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    # Make each uploaded image's filename visible to image models, plus a
-    # [Image N] index for GPT Image 2's generate_image tool.
-    if metadata.get("image_generation_enabled", False):
-        if model_name == "GPT Image 2":
-            payload["messages"] = append_to_system_message(
-                IMAGE_TOOL_BLOCK, payload["messages"]
-            )
-        payload["messages"] = label_images_for_model(
-            payload["messages"], with_index=model_name == "GPT Image 2"
+    if metadata.get("image_generation_enabled", False) and model_name == "GPT Image 2":
+        payload["messages"] = append_to_system_message(
+            IMAGE_TOOL_BLOCK, payload["messages"]
         )
 
     # Check model access

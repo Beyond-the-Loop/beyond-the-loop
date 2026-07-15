@@ -1639,7 +1639,7 @@ async def process_chat_response(
                                     for delta_image in delta_images:
                                         image_base64 = delta_image['image_url']["url"]
 
-                                        response_images.append({"type": "image", "url": image_base64})
+                                        response_images.append({"type": "image", "url": image_base64, "name": f"{uuid.uuid4()}.png"})
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
@@ -1968,7 +1968,7 @@ async def process_chat_response(
                     })
 
                     if data_uri:
-                        response_images.append({"type": "image", "url": data_uri})
+                        response_images.append({"type": "image", "url": data_uri, "name": f"{uuid.uuid4()}.png"})
 
                     form_data["messages"].append({
                         "role": "assistant",

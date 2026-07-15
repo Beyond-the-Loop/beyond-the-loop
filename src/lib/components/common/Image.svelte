@@ -38,7 +38,14 @@
 		}}
 		type="button"
 	>
-		<img src={_src} {alt} class="w-full not-prose {imageClassName}" draggable="false" data-cy="image" />
+		<img
+			src={_src}
+			{alt}
+			title={caption || undefined}
+			class="w-full not-prose {imageClassName}"
+			draggable="false"
+			data-cy="image"
+		/>
 	</button>
 
 	{#if showDownload}
@@ -50,7 +57,7 @@
 					type="button"
 					aria-label={$i18n?.t('Download')}
 					class="p-1.5 rounded-lg bg-white/70 hover:bg-white text-black dark:bg-black/50 dark:hover:bg-black/70 dark:text-white backdrop-blur-sm shadow-sm transition-colors outline-none focus:outline-none"
-					on:click|stopPropagation={() => downloadImage(_src)}
+					on:click|stopPropagation={() => downloadImage(_src, caption || undefined)}
 				>
 					<Download className="size-4" strokeWidth = "2" />
 				</button>
@@ -58,23 +65,6 @@
 		</div>
 	{/if}
 
-	{#if caption}
-		<div
-			class="absolute inset-x-2 bottom-2 flex items-center gap-1.5 rounded-lg bg-black/50 text-white backdrop-blur-sm px-2 py-1 text-xs"
-		>
-			<span class="truncate" title={caption}>{caption}</span>
-			<Tooltip content={$i18n?.t('Copy')} className="ml-auto shrink-0">
-				<button
-					type="button"
-					aria-label={$i18n?.t('Copy')}
-					class="p-1 rounded-md hover:bg-white/20 outline-none focus:outline-none"
-					on:click|stopPropagation={copyCaption}
-				>
-					<Clipboard className="size-3.5" strokeWidth="2" />
-				</button>
-			</Tooltip>
-		</div>
-	{/if}
 </div>
 
-<ImagePreview bind:show={showImagePreview} src={_src} {alt} />
+<ImagePreview bind:show={showImagePreview} src={_src} {alt} {caption} />

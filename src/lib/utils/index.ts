@@ -37,14 +37,14 @@ const imageExtensionFromBlob = (blob: Blob) => {
 	return subtype;
 };
 
-export const downloadImage = (url: string) => {
+export const downloadImage = (url: string, filename?: string) => {
 	return fetch(url)
 		.then((response) => response.blob())
 		.then((blob) => {
 			const objectUrl = window.URL.createObjectURL(blob);
 			const link = document.createElement('a');
 			link.href = objectUrl;
-			link.download = `${uuidv4()}.${imageExtensionFromBlob(blob)}`;
+			link.download = filename || `${uuidv4()}.${imageExtensionFromBlob(blob)}`;
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);

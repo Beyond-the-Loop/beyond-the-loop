@@ -1716,6 +1716,8 @@
 			.reverse()
 			.find((m) => m.role === 'assistant' && m.files?.some((f) => f.type === 'image'));
 
+		let imageMarkerIndex = 0;
+
 		const messages = [
 			{
 				role: 'system',
@@ -1758,13 +1760,18 @@
 									type: 'text',
 									text: message?.merged?.content ?? message.content
 								},
-								...imageFiles.map((file) => ({
-									type: 'image_url',
-									image_url: {
-										url: file.url
+								...imageFiles.flatMap((file) => [
+									{
+										type: 'text',
+										text: `[Image ${imageMarkerIndex++}]${file.name ? ` ${file.name}` : ''}`
 									},
-									...(file.name ? { name: file.name } : {})
-								}))
+									{
+										type: 'image_url',
+										image_url: {
+											url: file.url
+										}
+									}
+								])
 							]
 						}
 						: {

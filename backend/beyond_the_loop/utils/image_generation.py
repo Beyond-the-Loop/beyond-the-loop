@@ -86,42 +86,11 @@ def decode_data_uri(image_url: str):
     return base64.b64decode(b64data), content_type
 
 
-def label_images_for_model(messages, with_index=False):
-    """Return a copy of `messages` where every image_url block is preceded by
-    text markers naming it, so the model can refer to uploads by filename.
-
-    The optional `name` carried on an image_url block (set by the frontend) is
-    emitted as its own text block and then stripped, since it is not part of the
-    provider content schema. With `with_index`, a `[Image N]` marker is also
-    emitted; its 0-based index is what `generate_image`'s `input_image_indices`
-    refers to and mirrors the ordering in `resolve_image_urls`.
-    """
-    labelled = []
-    counter = 0
-    for msg in messages:
-        content = msg.get("content")
-        if not isinstance(content, list):
-            labelled.append(msg)
-            continue
-        new_content = []
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "image_url":
-                if with_index:
-                    new_content.append({"type": "text", "text": f"[Image {counter}]"})
-                    counter += 1
-                name = block.get("name")
-                if name:
-                    new_content.append({"type": "text", "text": name})
-                block = {k: v for k, v in block.items() if k != "name"}
-            new_content.append(block)
-        labelled.append({**msg, "content": new_content})
-    return labelled
-
-
 def resolve_image_urls(indices, messages):
     """Map 0-based indices to the ordered image_url list in the conversation
-    (user uploads + carried assistant images). Mirrors the ordering used by
-    `label_images_for_model`, so index N here is the image tagged `[Image N]`."""
+    (user uploads + carried assistant images). Mirrors the numbering the
+    frontend prints in its "[Image N] <filename>" markers, so index N here is
+    the image tagged `[Image N]`."""
     if not indices:
         return []
     urls = []
