@@ -102,6 +102,7 @@
 		if($companyConfig?.config?.data?.chat_retention_days) {
 			chatRetentionDays = chatRetentionDaysOptions.find((option) => option.value === $companyConfig?.config?.data?.chat_retention_days) || chatRetentionDaysOptions[0];
 		}
+		userNotice = $companyConfig?.config?.ui?.custom_user_notice ?? '';
 	});
 
 	const onSubmit = async () => {
