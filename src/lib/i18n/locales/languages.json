@@ -1,26 +1,32 @@
 [
 	{
 		"code": "de-DE",
+		"title": "Deutsch",
 		"title_translation_key": "German"
 	},
 	{
 		"code": "en-En",
+		"title": "English",
 		"title_translation_key": "English"
 	},
 	{
 		"code": "fr-FR",
+		"title": "Français",
 		"title_translation_key": "French"
 	},
 	{
 		"code": "hu-HU",
+		"title": "Magyar",
 		"title_translation_key": "Hungarian"
 	},
 	{
 		"code": "it-IT",
+		"title": "Italiano",
 		"title_translation_key": "Italian"
 	},
 	{
 		"code": "es-ES",
+		"title": "Español",
 		"title_translation_key": "Spanish"
 	}
 ]

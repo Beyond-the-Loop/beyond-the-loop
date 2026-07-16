@@ -189,7 +189,7 @@
 						>{$i18n.t('Language')}</span
 						>
 						<div class="flex items-center gap-2 text-xs text-lightGray-100 dark:text-customGray-100/50">
-							{$i18n.t(selectedLanguage?.['title_translation_key'])}
+							{selectedLanguage?.['title'] ?? ''}
 							<ChevronDown className="size-3" />
 						</div>
 					</button>
@@ -210,7 +210,7 @@
 											saveSettings({ locale: language['code'] });
 										}}
 									>
-										{$i18n.t(language['title_translation_key'])}
+										{language['title']}
 									</button>
 								{/each}
 							</div>

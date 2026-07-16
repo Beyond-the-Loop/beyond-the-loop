@@ -193,7 +193,8 @@ async def get_total_assistants(user=Depends(get_verified_user)):
             # Query models that belong to the user's company
             total_assistants = db.query(Model).filter(
                 Model.company_id == user.company_id,
-                Model.base_model_id != None
+                Model.base_model_id != None,
+                Model.user_id != "system"
             ).count()
             
             return TotalAssistantsResponse(total_assistants=total_assistants)
