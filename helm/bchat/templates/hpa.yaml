@@ -19,6 +19,14 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.app.hpa.targetCPU }}
+    {{- if .Values.app.hpa.targetMemory }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.app.hpa.targetMemory }}
+    {{- end }}
   # Long scale-down stabilization keeps replicas around after CPU dips so
   # transient traffic drops do not immediately terminate pods that still
   # hold open chat streams. Default 5min stabilization + abrupt SIGTERM

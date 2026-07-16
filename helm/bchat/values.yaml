@@ -67,12 +67,21 @@ app:
     # far above the 500m request, so HPA scaled aggressively without the
     # actual node capacity being the bottleneck. Right-sizing the request
     # lets HPA rate the same real load at ~40-50% target instead of >100%.
+    # requests.memory 3Gi → 5Gi and limits.memory 5Gi → 8Gi on 2026-07-16:
+    # prod app hit the 5Gi limit 12 times in a 3h window that morning,
+    # each kill exit-137 at anon-rss ~5.22 GiB. Baseline post-startup is
+    # already ~1.5-2.4 GiB (torch + transformers + sentence-transformers
+    # MiniLM-L6-v2 loaded at import in main.py:305-325, because
+    # RAG_EMBEDDING_ENGINE=""), leaving only 2.6-3.5 GiB headroom before
+    # runtime growth (file-upload Loader, chat streaming buffers, sync
+    # SQLAlchemy session cache) pushed past the limit. Symptom fix; the
+    # runtime-growth root cause still needs profiling.
     requests:
       cpu: 800m
-      memory: 3Gi
+      memory: 5Gi
     limits:
       cpu: 2
-      memory: 5Gi
+      memory: 8Gi
   # 60 → 180: chat streams routinely run 30–120s and the LB draining
   # window is 120s. Grace must exceed preStopDelaySeconds + typical
   # in-flight stream length, otherwise SIGKILL cuts streams (exit 137).
@@ -90,6 +99,11 @@ app:
     # target tolerates short bursts without scaling out, works with the
     # right-sized request to keep replica count moderate under normal load.
     targetCPU: 80
+    # Memory-based scaling added 2026-07-16. HPA on CPU alone missed the
+    # runtime memory-growth pattern that OOMKilled prod pods (CPU sat at
+    # 14% while memory climbed toward the 5Gi limit). 70% of requests
+    # (5Gi) = ~3.5Gi triggers scale-up before growth reaches the limit.
+    targetMemory: 70
     # HPA scale-down held for this long after CPU drops. Without this,
     # HPA was collapsing 9 → 2 replicas in seconds, SIGTERM'ing pods with
     # open streams. Longer window prevents thrashing during traffic dips.
