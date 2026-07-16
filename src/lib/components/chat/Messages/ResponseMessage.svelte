@@ -558,7 +558,7 @@
 		<div class="flex-auto w-0 pl-1">
 			<div class="self-center font-semibold flex gap-1 items-center">
 				<Name>
-					<span class="line-clamp-1 text-base select-text">
+					<span class="line-clamp-1 text-base select-text" translate="no">
 						{model?.name ?? message.model}
 						{#if selectedModelName}
 							<span class="font-normal text-gray-500 dark:text-gray-400">({selectedModelName})</span>

@@ -81,7 +81,7 @@
 			class=" mt-2 mb-4 text-3xl text-gray-800 dark:text-gray-100 font-medium text-left flex items-center gap-4 font-primary"
 		>
 			<div>
-				<div class=" capitalize line-clamp-1" in:fade={{ duration: 200 }}>
+				<div class=" capitalize line-clamp-1" in:fade={{ duration: 200 }} translate="no">
 					{#if models[selectedModelIdx]?.name}
 						{models[selectedModelIdx]?.name}
 					{:else}
@@ -93,6 +93,7 @@
 					{#if models[selectedModelIdx]?.info?.meta?.description ?? null}
 						<div
 							class="mt-0.5 text-base font-normal text-gray-500 dark:text-gray-400 line-clamp-3 markdown"
+							translate="no"
 						>
 							{@html marked.parse(
 								sanitizeResponseContent(models[selectedModelIdx]?.info?.meta?.description)

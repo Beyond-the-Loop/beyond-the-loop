@@ -234,14 +234,14 @@
 		}}
 	>
 		<div class=" text-sm text-gray-500">
-			{$i18n.t('This will delete')} <span class="  font-semibold">{deletePrompt.command}</span>.
+			{$i18n.t('This will delete')} <span class="  font-semibold" translate="no">{deletePrompt.command}</span>.
 		</div>
 	</DeleteConfirmDialog>
 
 	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
 		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
 			<div class="flex justify-between items-center pb-2.5">
-				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]">{showPrompt?.title}</div>
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]" translate="no">{showPrompt?.title}</div>
 					<button type="button" class="dark:text-white" on:click={() => {
 							showMore = false;
 						}}>
@@ -254,11 +254,11 @@
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
 				{#if showPrompt?.description}
-					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700">
+					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700" translate="no">
 						{showPrompt?.description}
 					</div>
 				{/if}
-				<div class="text-left text-sm pt-2.5 text-lightGray-1400/80 dark:text-customGray-100/80">
+				<div class="text-left text-sm pt-2.5 text-lightGray-1400/80 dark:text-customGray-100/80" translate="no">
 					{showPrompt?.content}
 				</div>
 			</div>
@@ -575,6 +575,7 @@
 											prompt.command || menuIdOpened === prompt.command
 											? 'dark:text-white'
 											: 'dark:text-customGray-100'}"
+										translate="no"
 									>
 										{prompt.title}
 									</div>
@@ -582,6 +583,7 @@
 								<div class="flex justify-between items-center mb-5">
 									<div
 										class="text-xs line-clamp-1 text-lightGray-1200 dark:text-customGray-100/50 text-left"
+										translate="no"
 									>
 										{prompt.description ? prompt.description : prompt.content}
 									</div>

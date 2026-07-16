@@ -63,17 +63,19 @@
 	})();
 </script>
 
-{#key id}
-	<MarkdownTokens
-		{tokens}
-		{id}
-		{save}
-		{onSourceClick}
-		on:update={(e) => {
-			dispatch('update', e.detail);
-		}}
-		on:code={(e) => {
-			dispatch('code', e.detail);
-		}}
-	/>
-{/key}
+<div translate="no">
+	{#key id}
+		<MarkdownTokens
+			{tokens}
+			{id}
+			{save}
+			{onSourceClick}
+			on:update={(e) => {
+				dispatch('update', e.detail);
+			}}
+			on:code={(e) => {
+				dispatch('code', e.detail);
+			}}
+		/>
+	{/key}
+</div>

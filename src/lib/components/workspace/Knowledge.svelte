@@ -163,7 +163,7 @@
 	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
 		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
 			<div class="flex justify-between items-center pb-2.5">
-				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-1500 leading-[1.2]">{showKnowledge?.name}</div>
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-1500 leading-[1.2]" translate="no">{showKnowledge?.name}</div>
 					<button type="button" class="dark:text-white" on:click={() => {
 							showMore = false;
 						}}>
@@ -172,7 +172,7 @@
 				</div>
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
-				<div class="{showKnowledge?.files.length > 0 && "pb-5"} text-left text-sm text-lightGray-1400/80 dark:text-customGray-100/80">
+				<div class="{showKnowledge?.files.length > 0 && "pb-5"} text-left text-sm text-lightGray-1400/80 dark:text-customGray-100/80" translate="no">
 					{showKnowledge?.description}
 				</div>
 				{#if showKnowledge?.files.length > 0}
@@ -182,7 +182,7 @@
 								class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
 							>
 								<DocumentIcon/>
-								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.meta?.name}</span>
+								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1" translate="no">{file?.meta?.name}</span>
 							</li>
 						{/each}
 					</ul>

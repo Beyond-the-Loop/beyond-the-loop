@@ -214,7 +214,7 @@
 						alt="Model"
 						class="rounded-full size-4 self-center mr-2"
 					/>
-					{selectedModel.label}
+					<span translate="no">{selectedModel.label}</span>
 				{:else}
 					{placeholder}
 				{/if}
@@ -232,7 +232,7 @@
 					class="rounded-full size-4 self-center mr-2"
 				/>
 				<!-- {selectedModel.label} -->
-				{baseModel?.model?.name}
+				<span translate="no">{baseModel?.model?.name}</span>
 			{:else}
 				{placeholder}
 			{/if}
@@ -386,7 +386,7 @@
 													class="rounded-full size-5 flex items-center mr-2"
 												/>
 												<div class="text-xs w-[112px]">
-													<span>{item.label}</span>
+													<span translate="no">{item.label}</span>
 													{#if !item.model?.is_active}
 														<span class="text-[0.4rem] ml-[-2px] align-super">Premium</span>
 													{:else if item.model?.fair_usage_limit_reached}
@@ -440,7 +440,7 @@
 							}}}
 						on:mouseleave={setHoverTimeout}
 					>
-						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization || "Beyond the Loop"}</span></div>
+						<div class="mb-1.5 text-xs font-medium text-lightGray-100 dark:text-customGray-100" translate="no">{hoveredItem?.label}{" "}<span class="text-lightGray-900 dark:text-white/50 font-normal">/{" "}{$modelsInfo?.[hoveredItem?.label]?.organization || "Beyond the Loop"}</span></div>
 						<div>
 							<p class="text-xs text-lightGray-100 dark:text-customGray-100">
 								{#if hoveredItem.label == "Smart Router"}

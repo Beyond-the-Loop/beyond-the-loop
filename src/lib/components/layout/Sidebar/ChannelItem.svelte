@@ -72,7 +72,7 @@
 				/>
 			</svg>
 
-			<div class=" text-left self-center overflow-hidden w-full line-clamp-1">
+			<div class=" text-left self-center overflow-hidden w-full line-clamp-1" translate="no">
 				{channel.name}
 			</div>
 		</div>

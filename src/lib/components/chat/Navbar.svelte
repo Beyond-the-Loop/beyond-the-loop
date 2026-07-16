@@ -122,7 +122,7 @@
 										/>
 									{/if}
 								</div>
-								<div class=" self-center font-medium text-sm mr-1 text-lightGray-1300 dark:text-customGray-100">{$company?.name}</div>
+								<div class=" self-center font-medium text-sm mr-1 text-lightGray-1300 dark:text-customGray-100" translate="no">{$company?.name}</div>
 								<ChevronDown className=" size-3" strokeWidth="2.5" />
 							</button>
 						</UserMenu>

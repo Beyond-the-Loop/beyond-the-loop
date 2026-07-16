@@ -200,7 +200,7 @@
 	}}
 >
 	<div class=" text-sm text-gray-500 flex-1 line-clamp-3">
-		{$i18n.t('This will delete')} <span class="  font-semibold">{title}</span>.
+		{$i18n.t('This will delete')} <span class="  font-semibold" translate="no">{title}</span>.
 	</div>
 </DeleteConfirmDialog>
 
@@ -209,7 +209,7 @@
 		<div class=" bg-black/80 backdrop-blur-2xl px-2 py-1 rounded-lg w-fit max-w-40">
 			<div class="flex items-center gap-1">
 				<Document className=" size-[18px]" strokeWidth="2" />
-				<div class=" text-white line-clamp-1">
+				<div class=" text-white line-clamp-1" translate="no">
 					{title}
 				</div>
 			</div>
@@ -232,6 +232,7 @@
 				bind:value={chatTitle}
 				id="chat-title-input-{id}"
 				class=" bg-transparent w-full outline-none mr-10 text-sm"
+				translate="no"
 			/>
 		</div>
 	{:else}
@@ -267,7 +268,7 @@
 				{#if pinned}
 					<PinnedFilledIcon/>
 				{/if}
-				<div class=" text-left text-sm ml-[5px] overflow-hidden truncate text-ellipsis w-[90%] h-[20px]">
+				<div class=" text-left text-sm ml-[5px] overflow-hidden truncate text-ellipsis w-[90%] h-[20px]" translate="no">
 					{title}
 				</div>
 			</div>

@@ -336,7 +336,7 @@
 	<Modal size="sm" containerClassName="bg-lightGray-250/50 dark:bg-[#1D1A1A]/50 backdrop-blur-[6px]" bind:show={showMore}>
 		<div class="px-8 py-6 bg-lightGray-550 dark:bg-customGray-800 rounded-2xl">
 			<div class="flex justify-between items-center pb-2.5">
-				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]">{showAssistant?.name}</div>
+				<div class="text-left line-clamp-2 h-fit text-base dark:text-customGray-100 text-lightGray-100 leading-[1.2]" translate="no">{showAssistant?.name}</div>
 					<button type="button" class="dark:text-white" on:click={() => {
 							showMore = false;
 						}}>
@@ -349,17 +349,17 @@
 			<div>
 			<div class="max-h-[30rem] overflow-y-auto">
 				{#if showAssistant?.meta?.description}
-					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700">
+					<div class="text-left text-sm pb-2.5 text-lightGray-1400/80 dark:text-customGray-100/80 border-b border-lightGray-400 dark:border-customGray-700" translate="no">
 						{showAssistant?.meta?.description}
 					</div>
-				{/if}	
+				{/if}
 			</div>
 			<div class="flex items-center mb-2.5 mt-2.5">
 				<div class="text-sm text-lightGray-1400/60 dark:text-customGray-100/50 mr-1">{$i18n.t("Base model")}:</div>
 				 <div class="flex items-center">
 					{#if baseModel}
-						<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/> 
-						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{baseModel?.name}</div>
+						<img src={getModelIcon(baseModel?.name)} alt={baseModel?.name} class="w-4 h-4 mr-1"/>
+						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80" translate="no">{baseModel?.name}</div>
 					{:else}
 						<div class="text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{$i18n.t('Base model for this assistant is disabled.')}</div>
 					{/if}
@@ -389,8 +389,8 @@
 					{#each showAssistant?.meta?.knowledge as knowledge}
 						<div class="mb-2.5 text-lightGray-100 dark:text-customGray-100/80 flex items-center">
 							<FolderIcon/>
-							<div class="ml-2 text-sm text-lightGray-1400/80 dark:text-customGray-100/80">{knowledge?.name}</div>
-						</div>	
+							<div class="ml-2 text-sm text-lightGray-1400/80 dark:text-customGray-100/80" translate="no">{knowledge?.name}</div>
+						</div>
 					{/each}
 				</div>
 			{/if}
@@ -405,7 +405,7 @@
 								class="flex justify-start items-center text-lightGray-1400/80 dark:text-customGray-100/80"
 							>
 								<DocumentIcon/>
-								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1">{file?.name}</span>
+								<span class="ml-2 overflow-hidden text-ellipsis line-clamp-1" translate="no">{file?.name}</span>
 							</li>
 						{/each}
 					</ul>
@@ -766,6 +766,7 @@
 										class="text-base {hoveredModel === model.id || menuIdOpened === model.id
 											? 'dark:text-white'
 											: 'text-lightGray-100 dark:text-customGray-100'}  line-clamp-2 leading-[1.2]"
+										translate="no"
 									>
 										{model.name}
 									</div>
@@ -778,7 +779,7 @@
 											{$i18n.t('Base model for this assistant is disabled.')}
 										{:else}
 											{#if (model?.meta?.description ?? '').trim()}
-												{model?.meta?.description}
+												<span translate="no">{model?.meta?.description}</span>
 											{/if}
 										{/if}
 										</div>

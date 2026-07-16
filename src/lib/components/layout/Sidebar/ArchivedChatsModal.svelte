@@ -154,7 +154,7 @@
 											>
 												<td class="px-3 py-1 w-2/3">
 													<a href="/c/{chat.id}" target="_blank">
-														<div class=" underline line-clamp-1">
+														<div class=" underline line-clamp-1" translate="no">
 															{chat.title}
 														</div>
 													</a>

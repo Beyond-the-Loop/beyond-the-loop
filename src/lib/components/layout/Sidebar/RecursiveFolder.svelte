@@ -348,7 +348,7 @@
 		<div class=" bg-black/80 backdrop-blur-2xl px-2 py-1 rounded-lg w-fit max-w-40">
 			<div class="flex items-center gap-1">
 				<FolderOpen className="size-3.5" strokeWidth="2" />
-				<div class=" text-sm text-white line-clamp-1">
+				<div class=" text-sm text-white line-clamp-1" translate="no">
 					{folders[folderId].name}
 				</div>
 			</div>
@@ -398,7 +398,7 @@
 					{/if}	
 				</div>
 
-				<div class="flex-1 justify-start text-start line-clamp-1">
+				<div class="flex-1 justify-start text-start line-clamp-1" translate="no">
 					{#if edit}
 						<input
 							id="folder-{folderId}-input"
