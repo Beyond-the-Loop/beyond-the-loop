@@ -27,15 +27,15 @@
 	<div class="mt-4">
 		<div class="flex items-center justify-between mb-2">
 			<h4 class="text-sm font-semibold dark:text-customGray-100">
-				{$i18n.t('Berechtigungen')}
+				{$i18n.t('Permissions')}
 			</h4>
 			{#if hasComparison}
 				<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
-					{grantedCount} / {rows.length} {$i18n.t('gewährt')}
+					{grantedCount} / {rows.length} {$i18n.t('granted')}
 				</span>
 			{:else}
 				<span class="text-xs text-lightGray-1200/60 dark:text-customGray-100/50">
-					{rows.length} {$i18n.t('gewährt')}
+					{rows.length} {$i18n.t('granted')}
 				</span>
 			{/if}
 		</div>
@@ -46,7 +46,7 @@
 					class="flex items-center gap-1.5 text-xs font-mono truncate {granted
 						? 'text-lightGray-100 dark:text-customGray-100'
 						: 'text-lightGray-1200/40 dark:text-customGray-100/30 line-through'}"
-					title={granted ? $i18n.t('Gewährt') : $i18n.t('Nicht gewährt')}
+					title={granted ? $i18n.t('Granted') : $i18n.t('Not granted')}
 				>
 					{#if granted}
 						<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-500 shrink-0"><polyline points="20 6 9 17 4 12"/></svg>

@@ -138,7 +138,7 @@
 {/if}
 
 <div class="flex items-center justify-between pt-2 text-xs">
-	<span class="text-lightGray-900 dark:text-customGray-300">{$i18n.t('Modalitäten')}</span>
+	<span class="text-lightGray-900 dark:text-customGray-300">{$i18n.t('Modalities')}</span>
 	<span class="flex items-center gap-3">
 		<span class="flex items-center gap-1">
 			<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

@@ -76,7 +76,7 @@
 		if (valueClientSecret) payload['connectors_microsoft365_client_secret'] = valueClientSecret;
 
 		if (!Object.keys(payload).length) {
-			toast.error($i18n.t('Keine Änderungen zum Speichern.'));
+			toast.error($i18n.t('No changes to save.'));
 			return;
 		}
 
@@ -162,14 +162,14 @@
 						class="shrink-0 px-3 py-2 text-sm rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-800 transition"
 						on:click={() => toggleEdit(field)}
 					>
-						{$i18n.t('Ändern')}
+						{$i18n.t('Change')}
 					</button>
 					<button
 						type="button"
 						class="shrink-0 px-3 py-2 text-sm rounded-lg border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 transition"
 						on:click={() => clearField(field)}
 					>
-						{$i18n.t('Löschen')}
+						{$i18n.t('Delete')}
 					</button>
 				{:else if editing}
 					<button
@@ -177,7 +177,7 @@
 						class="shrink-0 px-3 py-2 text-sm rounded-lg border border-lightGray-400 dark:border-customGray-700 hover:bg-lightGray-700 dark:hover:bg-customGray-800 transition"
 						on:click={() => toggleEdit(field)}
 					>
-						{$i18n.t('Abbrechen')}
+						{$i18n.t('Cancel')}
 					</button>
 				{/if}
 			</div>
@@ -190,6 +190,6 @@
 		disabled={saving}
 		on:click={save}
 	>
-		{saving ? $i18n.t('Speichern…') : $i18n.t('Speichern')}
+		{saving ? $i18n.t('Saving…') : $i18n.t('Save')}
 	</button>
 </div>

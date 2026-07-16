@@ -1243,7 +1243,7 @@
 
 					{#if selectedRow?.scope_mismatch}
 						<div class="mt-3 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-100">
-							{$i18n.t('Neue Rechte verfügbar. Bitte neu verbinden.')}
+							{$i18n.t('New permissions available. Please reconnect.')}
 						</div>
 					{/if}
 
@@ -1356,7 +1356,7 @@
 											autocomplete="off"
 										/>
 										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
-											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+											{$i18n.t('Inherited from Company Settings')}
 										</p>
 									{:else}
 										<input
@@ -1387,7 +1387,7 @@
 											autocomplete="off"
 										/>
 										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
-											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+											{$i18n.t('Inherited from Company Settings')}
 										</p>
 									{:else}
 										<input
@@ -1420,7 +1420,7 @@
 											autocomplete="off"
 										/>
 										<p class="text-xs text-lightGray-1200/60 dark:text-customGray-100/40 mt-1">
-											{$i18n.t('Wird aus Company-Einstellungen übernommen')}
+											{$i18n.t('Inherited from Company Settings')}
 										</p>
 									{:else}
 										<input
@@ -1496,7 +1496,7 @@
 								disabled={savingTemplateTools}
 								on:click={saveTemplateTools}
 							>
-								{savingTemplateTools ? $i18n.t('Speichern…') : $i18n.t('Save')}
+								{savingTemplateTools ? $i18n.t('Saving…') : $i18n.t('Save')}
 							</button>
 						{/if}
 					{:else if selectedNeedsReconnect}
