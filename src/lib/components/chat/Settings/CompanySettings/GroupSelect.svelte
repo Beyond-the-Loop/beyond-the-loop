@@ -1,5 +1,7 @@
 <script lang="ts">
 	import CloseTagIcon from '$lib/components/icons/CloseTagIcon.svelte';
+    import Info from '$lib/components/icons/Info.svelte';
+    import Tooltip from '$lib/components/common/Tooltip.svelte';
     import { getContext } from 'svelte';
     import { onClickOutside } from '$lib/utils';
 
@@ -113,10 +115,17 @@
         <div class="px-3">
 			{#each available as group}
 				<div
-					class="px-2 py-1 bg-lightGray-700 dark:bg-customGray-800 rounded-lg text-sm w-fit cursor-pointer mb-2 text-lightGray-100 dark:text-customGray-100"
+					class="px-2 py-1 bg-lightGray-700 dark:bg-customGray-800 rounded-lg text-sm w-fit cursor-pointer mb-2 text-lightGray-100 dark:text-customGray-100 inline-flex items-center gap-1"
 					on:click={() => addGroup(group.name, group?.id)}
 				>
 					{group.name}
+					{#if group.description}
+						<span on:click|stopPropagation class="inline-flex">
+							<Tooltip content={group.description} className="inline-flex">
+								<Info className="size-3 opacity-70" />
+							</Tooltip>
+						</span>
+					{/if}
 				</div>
 			{/each}
 

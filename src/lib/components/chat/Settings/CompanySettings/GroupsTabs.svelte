@@ -14,6 +14,8 @@
 	import RenameGroupDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
     import RemoveFromGroup from './RemoveFromGroup.svelte';
+    import Info from '$lib/components/icons/Info.svelte';
+    import Tooltip from '$lib/components/common/Tooltip.svelte';
 
 	const i18n = getContext('i18n');
 	export let users = [];
@@ -186,8 +188,15 @@
 	<div>
 		{#each groups as group (group.id)}
 			<Accordeon id={group.id}>
-				<span slot="title"
+				<span slot="title" class="inline-flex items-center gap-1"
 					>{group.name}
+                    {#if group.description}
+                        <span on:click|stopPropagation class="inline-flex">
+                            <Tooltip content={group.description} className="inline-flex">
+                                <Info className="size-3 opacity-70" />
+                            </Tooltip>
+                        </span>
+                    {/if}
                     {#if users?.filter((user) => group.user_ids?.includes(user.id))?.length > 0}
 					({users?.filter((user) => group.user_ids?.includes(user.id))?.length} {$i18n.t(
 						'Users'
