@@ -127,7 +127,7 @@ def prepend_to_first_user_message_content(
     return messages
 
 
-def add_or_update_system_message(content: str, messages: list[dict]):
+def prepend_system_message(content: str, messages: list[dict]):
     """
     Adds a new system message at the beginning of the messages list
     or updates the existing system message at the beginning.
@@ -150,7 +150,7 @@ def append_to_system_message(content: str, messages: list[dict]):
     """
     Appends content to the existing system message at the beginning of the
     messages list, or inserts a new system message if none is present. Mirror
-    of add_or_update_system_message but appends instead of prepends — used to
+    of prepend_system_message but appends instead of prepends — used to
     stack composable image-model prompt blocks after the base intro.
     """
 

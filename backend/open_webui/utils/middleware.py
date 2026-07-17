@@ -61,7 +61,7 @@ from open_webui.utils.task import (
 )
 from open_webui.utils.misc import (
     get_message_list,
-    add_or_update_system_message,
+    prepend_system_message,
     append_to_system_message,
     add_or_update_user_message,
     get_last_user_message,
@@ -983,7 +983,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 form_data["messages"],
             )
         else:
-            form_data["messages"] = add_or_update_system_message(
+            form_data["messages"] = prepend_system_message(
                 rag_template(request.app.state.config.RAG_TEMPLATE, context_string, prompt),
                 form_data["messages"],
             )
@@ -993,7 +993,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
         # just showed "searching knowledge". Instead, tell the model that the
         # file is attached but the vector search came back empty.
         log.info("[rag] no matching chunks — injecting empty-results fallback notice")
-        form_data["messages"] = add_or_update_system_message(
+        form_data["messages"] = prepend_system_message(
             (
                 "Knowledge search notice: A semantic search was performed over the "
                 "attached document(s) / knowledge base for the user's current "
