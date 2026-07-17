@@ -26,7 +26,7 @@ from beyond_the_loop.config import (
     LITELLM_MODEL_CONFIG,
     LITELLM_MODEL_MAP,
 )
-from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM
+from beyond_the_loop.prompts import COMPLETION_ERROR_MESSAGE_PROMPT, MAGIC_PROMPT_SYSTEM, IMAGE_TOOL_BLOCK
 from open_webui.env import (
     AIOHTTP_CLIENT_TIMEOUT,
     AIOHTTP_CLIENT_TIMEOUT_OPENAI_MODEL_LIST,
@@ -40,6 +40,7 @@ from open_webui.utils.payload import (
     apply_model_params_to_body_openai,
     apply_model_system_prompt_to_body,
 )
+from open_webui.utils.misc import append_to_system_message
 
 from open_webui.utils.auth import get_verified_user, get_current_api_key_user
 from beyond_the_loop.models.groups import Groups
@@ -50,7 +51,6 @@ from beyond_the_loop.services.fair_model_usage_service import fair_model_usage_s
 from beyond_the_loop.socket.main import get_event_emitter
 from beyond_the_loop.utils.image_generation import (
     build_image_tool,
-    label_images_for_model,
 )
 
 log = logging.getLogger(__name__)
@@ -478,9 +478,10 @@ async def generate_chat_completion(
     payload = apply_model_params_to_body_openai(params, payload)
     payload = apply_model_system_prompt_to_body(params, payload, metadata, user)
 
-    # Tag each image with a [Image N] marker
-    if model_name == 'GPT Image 2' and metadata.get("image_generation_enabled", False):
-        payload["messages"] = label_images_for_model(payload["messages"])
+    if metadata.get("image_generation_enabled", False) and model_name == "GPT Image 2":
+        payload["messages"] = append_to_system_message(
+            IMAGE_TOOL_BLOCK, payload["messages"]
+        )
 
     # Check model access
     if not agent_or_task_prompt and not(

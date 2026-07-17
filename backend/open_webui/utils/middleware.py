@@ -20,7 +20,9 @@ from beyond_the_loop.models.models import ModelModel
 from beyond_the_loop.prompts import (
     FILE_INTENT_DECISION_PROMPT,
     KNOWLEDGE_INTENT_DECISION_PROMPT,
-    DEFAULT_RAG_IMAGE_TEMPLATE,
+    IMAGE_INTRO_CORE,
+    IMAGE_PII_BLOCK,
+    IMAGE_RAG_BLOCK,
 )
 from beyond_the_loop.utils.structured_completion import (
     structured_completion,
@@ -59,7 +61,8 @@ from open_webui.utils.task import (
 )
 from open_webui.utils.misc import (
     get_message_list,
-    add_or_update_system_message,
+    prepend_system_message,
+    append_to_system_message,
     add_or_update_user_message,
     get_last_user_message,
     get_last_user_message_item,
@@ -351,7 +354,7 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 anonymize_messages,
                 is_pii_filter_enabled,
             )
-            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT, PII_IMAGE_SYSTEM_PROMPT
+            from beyond_the_loop.prompts import PII_SYSTEM_PROMPT
             from beyond_the_loop.utils.access_control import has_permission
 
             client_pii_enabled = form_data.pop("pii_enabled", True) is not False
@@ -420,19 +423,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 )
                 _pii_model_name = _pii_base.name if _pii_base else model.name
 
-                _pii_is_native_image_model = _pii_model_name == "Nano Banana" or _pii_model_name == "Nano Banana 2" or _pii_model_name == "Nano Banana Pro"
-
-                form_data["messages"].insert(
-                    0,
-                    {
-                        "role": "system",
-                        "content": (
-                            PII_IMAGE_SYSTEM_PROMPT
-                            if _pii_is_native_image_model
-                            else PII_SYSTEM_PROMPT
-                        ),
-                    },
-                )
+                # Image models: append the PII delta to the frontend intro.
+                # Text models: prepend the standalone PII prompt as before.
+                if LITELLM_MODEL_CONFIG.get(_pii_model_name, {}).get("supports_image_generation"):
+                    append_to_system_message(IMAGE_PII_BLOCK, form_data["messages"])
+                else:
+                    form_data["messages"].insert(
+                        0, {"role": "system", "content": PII_SYSTEM_PROMPT}
+                    )
                 # Empty description + done=true clears the status — the next
                 # real step (smart router / RAG / generating_response) will
                 # take over the status slot when it kicks in.
@@ -549,31 +547,14 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 model = model.model_copy(update={"base_model_id": target.id})
             metadata["selected_model_id"] = target.id
 
-            # Give the routed image target exactly one correct system prompt.
-            # Mirrors src/lib/utils/default_prompts/image_generation.ts.
+            # The frontend built its system prompt for "Smart Router" (a text
+            # intro), so for a routed image target it must be rebuilt.
             _target_cfg = LITELLM_MODEL_CONFIG.get(target.name, {})
             if _target_cfg.get("supports_image_generation"):
-
-                _target_is_native_image_model = target.name == "Nano Banana" or target.name == "Nano Banana 2" or target.name == "Nano Banana Pro"
-
+                image_gen_system_prompt = IMAGE_INTRO_CORE
                 if pii_session is not None:
-                    from beyond_the_loop.prompts import (
-                        PII_IMAGE_SYSTEM_PROMPT,
-                        PII_SYSTEM_PROMPT,
-                    )
-                    image_gen_system_prompt = (
-                        PII_IMAGE_SYSTEM_PROMPT
-                        if _target_is_native_image_model
-                        else PII_SYSTEM_PROMPT + "\n\n" + 
-                        "You are an image generation model. When the user requests "
-                        "an image, generate one. Keep any accompanying text short."
-                    )
-                else:
-                    image_gen_system_prompt = (
-                        "You are an image generation model. When the user requests "
-                        "an image, generate one. Keep any accompanying text short."
-                    )
-                    
+                    image_gen_system_prompt += "\n\n" + IMAGE_PII_BLOCK
+
                 form_data["messages"] = [
                     m for m in form_data["messages"] if m.get("role") != "system"
                 ]
@@ -995,22 +976,24 @@ async def process_chat_payload(request, form_data, metadata, user, model: ModelM
                 f"With a 0 relevancy threshold for RAG, the context cannot be empty"
             )
 
-        _rag_template = (
-            DEFAULT_RAG_IMAGE_TEMPLATE
-            if _model_cfg.get("supports_image_generation")
-            else request.app.state.config.RAG_TEMPLATE
-        )
-        form_data["messages"] = add_or_update_system_message(
-            rag_template(_rag_template, context_string, prompt),
-            form_data["messages"],
-        )
+        if _model_cfg.get("supports_image_generation"):
+            # Append the RAG delta after the image intro (+ any PII block).
+            append_to_system_message(
+                rag_template(IMAGE_RAG_BLOCK, context_string, prompt),
+                form_data["messages"],
+            )
+        else:
+            form_data["messages"] = prepend_system_message(
+                rag_template(request.app.state.config.RAG_TEMPLATE, context_string, prompt),
+                form_data["messages"],
+            )
     elif file_intent == "RAG" and (model_knowledge or model_files or files):
         # Retrieval ran but returned no hits. Without a notice the model would
         # answer "I don't see any file" — which confuses the user because the UI
         # just showed "searching knowledge". Instead, tell the model that the
         # file is attached but the vector search came back empty.
         log.info("[rag] no matching chunks — injecting empty-results fallback notice")
-        form_data["messages"] = add_or_update_system_message(
+        form_data["messages"] = prepend_system_message(
             (
                 "Knowledge search notice: A semantic search was performed over the "
                 "attached document(s) / knowledge base for the user's current "
@@ -1656,7 +1639,7 @@ async def process_chat_response(
                                     for delta_image in delta_images:
                                         image_base64 = delta_image['image_url']["url"]
 
-                                        response_images.append({"type": "image", "url": image_base64})
+                                        response_images.append({"type": "image", "url": image_base64, "name": f"{uuid.uuid4()}.png"})
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
@@ -1985,7 +1968,7 @@ async def process_chat_response(
                     })
 
                     if data_uri:
-                        response_images.append({"type": "image", "url": data_uri})
+                        response_images.append({"type": "image", "url": data_uri, "name": f"{uuid.uuid4()}.png"})
 
                     form_data["messages"].append({
                         "role": "assistant",

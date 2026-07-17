@@ -1,6 +1,6 @@
 from open_webui.utils.task import prompt_template
 from open_webui.utils.misc import (
-    add_or_update_system_message,
+    prepend_system_message,
 )
 
 from typing import Callable, Optional
@@ -25,7 +25,7 @@ def apply_model_system_prompt_to_body(
 
     system = prompt_template(system, **template_params)
 
-    form_data["messages"] = add_or_update_system_message(
+    form_data["messages"] = prepend_system_message(
         system, form_data.get("messages", [])
     )
     return form_data

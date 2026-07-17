@@ -203,7 +203,7 @@
 			// Convert the canvas to a Base64 image URL
 			const imageUrl = canvas.toDataURL('image/png');
 			// Add the captured image to the files array to render it
-			files = [...files, { type: 'image', url: imageUrl }];
+			files = [...files, { type: 'image', url: imageUrl, name: `${uuidv4()}.png` }];
 			// Clean memory: Clear video srcObject
 			video.srcObject = null;
 		} catch (error) {
@@ -356,7 +356,8 @@
 						...files,
 						{
 							type: 'image',
-							url: `${imageUrl}`
+							url: `${imageUrl}`,
+							name: file.name
 						}
 					];
 				};
@@ -447,7 +448,8 @@
 					...files,
 					{
 						type: 'image',
-						url: imageUrl
+						url: imageUrl,
+						name: `${uuidv4()}.png`
 					}
 				];
 			}
@@ -766,6 +768,7 @@
 														<Image
 															src={file.url}
 															alt="input"
+															caption={file.name}
 															imageClassName=" size-14 rounded-xl object-cover"
 														/>
 														{#if selectedModelIds.length !== visionCapableModels.length}

@@ -862,6 +862,7 @@
 									<Image
 										src={file.url}
 										alt={message.content}
+										caption={file.name}
 										showDownload={true}
 										className="w-full outline-none focus:outline-none"
 									/>

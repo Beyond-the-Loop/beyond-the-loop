@@ -6,12 +6,13 @@
 	export let show = false;
 	export let src = '';
 	export let alt = '';
+	export let caption = '';
 
 	let mounted = false;
 
 	let previewElement = null;
 
-	type GalleryImage = { src: string; alt: string };
+	type GalleryImage = { src: string; alt: string; name: string };
 
 	let images: GalleryImage[] = [];
 	let currentIndex = 0;
@@ -21,7 +22,7 @@
 	let originX = 50;
 	let originY = 50;
 
-	$: current = images[currentIndex] ?? { src, alt };
+	$: current = images[currentIndex] ?? { src, alt, name: caption };
 
 	const collectImages = () => {
 		const scope = document.getElementById('messages-container') ?? document;
@@ -36,11 +37,15 @@
 			const s = el.getAttribute('src');
 			if (!s || seen.has(s)) continue;
 			seen.add(s);
-			collected.push({ src: s, alt: el.getAttribute('alt') ?? '' });
+			collected.push({
+				src: s,
+				alt: el.getAttribute('alt') ?? '',
+				name: el.getAttribute('title') ?? ''
+			});
 		}
 
 		if (collected.length === 0) {
-			collected.push({ src, alt });
+			collected.push({ src, alt, name: caption });
 		}
 
 		images = collected;
@@ -153,7 +158,7 @@
 						class="p-3 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors outline-none focus:outline-none"
 						aria-label="Download"
 						on:click={() => {
-							downloadImage(current.src);
+							downloadImage(current.src, current.name || undefined);
 						}}
 					>
 						<Download className="size-6" strokeWidth="2.0"/>
