@@ -22,6 +22,7 @@ from beyond_the_loop.models.auths import (
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import Companies, NO_COMPANY
 from beyond_the_loop.services.email_service import EmailService
+from beyond_the_loop.utils.petrofer_groups import assign_petrofer_groups_if_applicable
 from open_webui.constants import ERROR_MESSAGES, WEBHOOK_MESSAGES
 from open_webui.utils.misc import validate_email_format, is_business_email
 from open_webui.env import (
@@ -454,6 +455,11 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
             user = Users.update_user_by_id(user.id, {"info": {**existing_info, **utm_params}})
 
         Auths.insert_auth_for_existing_user(user, hashed_password)
+
+        try:
+            assign_petrofer_groups_if_applicable(user)
+        except Exception:
+            log.exception("Petrofer group auto-assignment failed for user %s", user.id)
     except Exception as err:
         raise HTTPException(500, detail=err)
 
@@ -564,6 +570,11 @@ async def signup_with_company_token(
 
     if not user:
         raise HTTPException(500, detail=ERROR_MESSAGES.CREATE_USER_ERROR)
+
+    try:
+        assign_petrofer_groups_if_applicable(user)
+    except Exception:
+        log.exception("Petrofer group auto-assignment failed for user %s", user.id)
 
     expires_delta = parse_duration(request.app.state.config.JWT_EXPIRES_IN)
     expires_at = None

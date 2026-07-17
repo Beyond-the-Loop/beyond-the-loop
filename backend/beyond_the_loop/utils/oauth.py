@@ -14,6 +14,7 @@ from beyond_the_loop.models.auths import Auths
 from beyond_the_loop.models.users import Users
 from beyond_the_loop.models.companies import NO_COMPANY, Companies
 from beyond_the_loop.models.groups import Groups, GroupModel, GroupUpdateForm
+from beyond_the_loop.utils.petrofer_groups import assign_petrofer_groups_if_applicable
 from beyond_the_loop.config import (
     ENABLE_OAUTH_SIGNUP,
     OAUTH_MERGE_ACCOUNTS_BY_EMAIL,
@@ -382,6 +383,11 @@ class OAuthManager:
                     role=role,
                     oauth_sub=provider_sub,
                 )
+
+                try:
+                    assign_petrofer_groups_if_applicable(user)
+                except Exception:
+                    log.exception("Petrofer group auto-assignment failed for user %s", user.id)
 
                 if auth_manager_config.WEBHOOK_URL:
                     post_webhook(
