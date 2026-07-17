@@ -174,7 +174,7 @@ class PaymentsService:
 
         self.stripe_price_id_user_seat = os.environ.get('STRIPE_PRICE_ID_USER_SEAT', 'price_1Sq9KwBBwyxb4MZj8okVXYiQ')
 
-        self.stripe_flex_credit_product_id = os.environ.get('STRIPE_FLEX_CREDIT_PRODUCT_ID', 'prod_UtEMspjY1uzr9k')
+        self.stripe_flex_credit_product_id = os.environ.get('STRIPE_FLEX_CREDIT_PRODUCT_ID', 'prod_UtEOmLVSWcbcI3')
 
         # Constants
         self.FLEX_CREDITS_DEFAULT_PRICE_IN_CENTS = 2000  # Amount in cents (20 euro)
