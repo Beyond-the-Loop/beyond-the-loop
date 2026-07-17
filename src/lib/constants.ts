@@ -115,10 +115,26 @@ export const POSITION_OPTIONS = [
 ] as const;
 
 export const BILLING_COUNTRY_OPTIONS = [
-	'Deutschland', 'Österreich', 'Schweiz', 'Belgien', 'Dänemark',
-	'Finnland', 'Frankreich', 'Griechenland', 'Irland', 'Italien',
-	'Luxemburg', 'Niederlande', 'Norwegen', 'Polen', 'Portugal',
-	'Schweden', 'Spanien', 'Tschechien', 'Vereinigtes Königreich'
+	{ value: 'Deutschland', label: 'Deutschland' },
+	{ value: 'Österreich', label: 'Österreich' },
+	{ value: 'Schweiz', label: 'Schweiz' },
+	{ value: 'Belgien', label: 'België' },
+	{ value: 'Dänemark', label: 'Danmark' },
+	{ value: 'Finnland', label: 'Suomi' },
+	{ value: 'Frankreich', label: 'France' },
+	{ value: 'Griechenland', label: 'Ελλάδα' },
+	{ value: 'Irland', label: 'Éire' },
+	{ value: 'Italien', label: 'Italia' },
+	{ value: 'Luxemburg', label: 'Lëtzebuerg' },
+	{ value: 'Niederlande', label: 'Nederland' },
+	{ value: 'Norwegen', label: 'Norge' },
+	{ value: 'Polen', label: 'Polska' },
+	{ value: 'Portugal', label: 'Portugal' },
+	{ value: 'Schweden', label: 'Sverige' },
+	{ value: 'Spanien', label: 'España' },
+	{ value: 'Tschechien', label: 'Česko' },
+	{ value: 'Ungarn', label: 'Magyarország' },
+	{ value: 'Vereinigtes Königreich', label: 'United Kingdom' }
 ] as const;
 
 // Source: https://kit.svelte.dev/docs/modules#$env-static-public

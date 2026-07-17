@@ -170,7 +170,7 @@
 			bind:value={billing_country}
 		>
 			{#each BILLING_COUNTRY_OPTIONS as country}
-				<option value={country}>{$i18n.t(country)}</option>
+				<option value={country.value}>{country.label}</option>
 			{/each}
 		</select>
 	</div>
