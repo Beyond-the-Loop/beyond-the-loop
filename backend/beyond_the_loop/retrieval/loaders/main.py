@@ -1,6 +1,8 @@
 import logging
 import ftfy
+import os
 import sys
+import tempfile
 
 from langchain_community.document_loaders import (
     BSHTMLLoader,
@@ -20,8 +22,14 @@ from langchain_core.documents import Document
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
 
 from pdf2image import convert_from_path
+from PIL import Image
 import pytesseract
 import pymupdf
+
+# DPI used to rasterize scanned PDFs before OCR. 200 is plenty for reliable
+# text recognition while using ~4x less memory/CPU per page than 300.
+PDF_OCR_DPI = int(os.environ.get("PDF_OCR_DPI", "200"))
+PDF_OCR_LANG = os.environ.get("PDF_OCR_LANG", "eng")
 
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
@@ -92,17 +100,33 @@ def _is_pdf_image_only(file_path: str) -> bool:
 
 
 def _extract_text_from_pdf_images(file_path: str) -> list[Document]:
-    """Extract text from scanned PDF using OCR."""
-    pages = convert_from_path(file_path, dpi=300)
+    """Extract text from a scanned PDF using OCR, one page at a time.
+
+    ``paths_only=True`` makes poppler write each rasterized page to disk
+    instead of returning every page as an in-memory PIL image at once. We then
+    open, OCR and release one page at a time, so peak memory stays bounded to a
+    single page regardless of the page count. Previously the whole document was
+    held in RAM (~26 MB/page at 300 DPI), which OOMKilled the pod on large
+    scanned PDFs.
+    """
     docs = []
-    for i, page in enumerate(pages):
-        text = pytesseract.image_to_string(page, lang="eng")
-        docs.append(
-            Document(
-                page_content=ftfy.fix_text(text),
-                metadata={"source": file_path, "page": i + 1},
-            )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        image_paths = convert_from_path(
+            file_path,
+            dpi=PDF_OCR_DPI,
+            output_folder=temp_dir,
+            paths_only=True,
+            fmt="png",
         )
+        for i, image_path in enumerate(image_paths):
+            with Image.open(image_path) as page:
+                text = pytesseract.image_to_string(page, lang=PDF_OCR_LANG)
+            docs.append(
+                Document(
+                    page_content=ftfy.fix_text(text),
+                    metadata={"source": file_path, "page": i + 1},
+                )
+            )
     return docs
 
 class Loader:
