@@ -627,6 +627,9 @@ S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", None)
 
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "bchat-uploads-dev")
 
+# Separate bucket for chat images, so they can carry their own lifecycle rules.
+GCS_IMAGE_BUCKET_NAME = os.environ.get("GCS_IMAGE_BUCKET_NAME", "bchat-images-dev")
+
 ####################################
 # File Upload DIR
 ####################################
