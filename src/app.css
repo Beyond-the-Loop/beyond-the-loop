@@ -161,6 +161,19 @@ select {
 	color: #a1a3a7; /* Darker fallback color for dark mode */
 }
 
+/* Gradient shimmer box for async-loading images. */
+.image-skeleton {
+	background: linear-gradient(90deg, #ededed 25%, #dcdcdc 50%, #ededed 75%);
+	background-size: 200% 100%;
+	animation: shimmer 4s linear infinite;
+}
+
+:global(.dark) .image-skeleton {
+	background: linear-gradient(90deg, #2a2929 25%, #3a3939 50%, #2a2929 75%);
+	background-size: 200% 100%;
+	animation: shimmer 4s linear infinite;
+}
+
 @keyframes smoothFadeIn {
 	0% {
 		opacity: 0;

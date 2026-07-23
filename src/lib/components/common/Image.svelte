@@ -27,6 +27,10 @@
 	let _src = '';
 	$: _src = src.startsWith('/') ? `${WEBUI_BASE_URL}${src}` : src;
 
+	// show a skeleton until the (possibly remote) image is fetched
+	let loaded = false;
+	$: src, (loaded = false);
+
 	let showImagePreview = false;
 </script>
 
@@ -38,13 +42,21 @@
 		}}
 		type="button"
 	>
+		{#if !loaded}
+			<div
+				class="image-skeleton w-full aspect-square not-prose {imageClassName}"
+				aria-hidden="true"
+			></div>
+		{/if}
 		<img
 			src={_src}
 			{alt}
 			title={caption || undefined}
-			class="w-full not-prose {imageClassName}"
+			class="w-full not-prose {imageClassName} {loaded ? '' : 'hidden'}"
 			draggable="false"
 			data-cy="image"
+			on:load={() => (loaded = true)}
+			on:error={() => (loaded = true)}
 		/>
 	</button>
 
