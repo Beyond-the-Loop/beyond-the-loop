@@ -52,6 +52,7 @@ from beyond_the_loop.socket.main import get_event_emitter
 from beyond_the_loop.utils.image_generation import (
     build_image_tool,
 )
+from beyond_the_loop.utils.image_refs import hydrate_image_refs_in_messages
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -497,6 +498,10 @@ async def generate_chat_completion(
     # Check model fair usage
     if not agent_or_task_prompt and (subscription.get("plan") == "free" or subscription.get("plan") == "premium"):
         fair_model_usage_service.check_for_fair_model_usage(user, payload["model"], subscription.get("plan"))
+
+    # providers can't fetch our file references, so inline them before forwarding
+    if isinstance(payload.get("messages"), list):
+        hydrate_image_refs_in_messages(payload["messages"])
 
     if use_responses_api:
         payload.pop("stream_options", None)

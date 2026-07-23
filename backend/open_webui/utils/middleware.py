@@ -55,7 +55,14 @@ from beyond_the_loop.storage.provider import Storage
 # only used on the RAG file upload path — regular chat completions never need it.
 from beyond_the_loop.retrieval.loaders.main import Loader
 from beyond_the_loop.routers.litellm import generate_chat_completion
-from beyond_the_loop.utils.image_generation import generate_image, resolve_image_urls
+from beyond_the_loop.utils.image_generation import (
+    generate_image,
+    resolve_image_urls,
+)
+from beyond_the_loop.utils.image_refs import (
+    persist_image_data_uri,
+    hydrate_image_ref_url,
+)
 from open_webui.utils.task import (
     rag_template,
 )
@@ -1639,7 +1646,9 @@ async def process_chat_response(
                                     for delta_image in delta_images:
                                         image_base64 = delta_image['image_url']["url"]
 
-                                        response_images.append({"type": "image", "url": image_base64, "name": f"{uuid.uuid4()}.png"})
+                                        # offload streamed image bytes to the bucket, keep a reference
+                                        image_url = persist_image_data_uri(image_base64, user.id)
+                                        response_images.append({"type": "image", "url": image_url, "name": f"{uuid.uuid4()}.png"})
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
@@ -1650,6 +1659,15 @@ async def process_chat_response(
                                             "id": dtc.get("id"),
                                             "args": "",
                                         }
+                                        # bridge the gap until generating_image fires in post-processing
+                                        await event_emitter({
+                                            "type": "status",
+                                            "data": {
+                                                "action": "generating_image",
+                                                "done": False,
+                                                "description": "Preparing image generation…",
+                                            },
+                                        })
 
                                     if (
                                         pending_image_call is not None
@@ -1946,6 +1964,8 @@ async def process_chat_response(
                         image_args.get("input_image_indices", []),
                         form_data["messages"],
                     )
+                    # resolve stored references back to raw bytes for editing
+                    input_urls = [hydrate_image_ref_url(u) for u in input_urls]
 
                     await event_emitter({
                         "type": "status",
@@ -1968,7 +1988,10 @@ async def process_chat_response(
                     })
 
                     if data_uri:
-                        response_images.append({"type": "image", "url": data_uri, "name": f"{uuid.uuid4()}.png"})
+                        image_url = persist_image_data_uri(data_uri, user.id)
+                        response_images.append(
+                            {"type": "image", "url": image_url, "name": f"{uuid.uuid4()}.png"}
+                        )
 
                     form_data["messages"].append({
                         "role": "assistant",
