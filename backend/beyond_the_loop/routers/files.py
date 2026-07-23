@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from urllib.parse import quote
 
 from beyond_the_loop.storage.provider import Storage
+from beyond_the_loop.config import GCS_IMAGE_BUCKET_NAME
 
 from beyond_the_loop.models.files import (
     FileForm,
@@ -47,11 +48,22 @@ def upload_file(
 
         FileValidator.validate_upload(file)
 
+        is_image = (file.content_type or "").startswith("image/")
+
         # replace filename with uuid
         id = str(uuid.uuid4())
         name = filename
         filename = f"{id}_{filename}"
-        contents, file_path = Storage.upload_file(file.file, filename)
+        # Images go to the dedicated image bucket, everything else to the default.
+        contents, file_path = Storage.upload_file(
+            file.file, filename, bucket_name=GCS_IMAGE_BUCKET_NAME
+        ) if is_image else Storage.upload_file(file.file, filename)
+
+        meta = {
+            "name": name,
+            "content_type": file.content_type,
+            "size": len(contents),
+        }
 
         file_item = Files.insert_new_file(
             user.id,
@@ -60,26 +72,24 @@ def upload_file(
                     "id": id,
                     "filename": name,
                     "path": file_path,
-                    "meta": {
-                        "name": name,
-                        "content_type": file.content_type,
-                        "size": len(contents),
-                    },
+                    "meta": meta,
                 }
             ),
         )
 
-        try:
-            process_file(request, ProcessFileForm(file_id=id), user=user)
-            file_item = Files.get_file_by_id(id=id)
-        except Exception as e:
-            log.error(f"Error processing file {file_item.id}: {e.detail if hasattr(e, 'detail') else e}")
-            file_item = FileModelResponse(
-                **{
-                    **file_item.model_dump(),
-                    "error": str(e.detail) if hasattr(e, "detail") else str(e),
-                }
-            )
+        # images are shown via <img>, not fed through RAG, so skip extraction
+        if not is_image:
+            try:
+                process_file(request, ProcessFileForm(file_id=id), user=user)
+                file_item = Files.get_file_by_id(id=id)
+            except Exception as e:
+                log.error(f"Error processing file {file_item.id}: {e.detail if hasattr(e, 'detail') else e}")
+                file_item = FileModelResponse(
+                    **{
+                        **file_item.model_dump(),
+                        "error": str(e.detail) if hasattr(e, "detail") else str(e),
+                    }
+                )
 
         if file_item:
             return file_item

@@ -200,10 +200,11 @@
 			// bring back focus to this current tab, so that the user can see the screen capture
 			window.focus();
 
-			// Convert the canvas to a Base64 image URL
-			const imageUrl = canvas.toDataURL('image/png');
-			// Add the captured image to the files array to render it
-			files = [...files, { type: 'image', url: imageUrl, name: `${uuidv4()}.png` }];
+			canvas.toBlob((blob) => {
+				if (blob) {
+					uploadImageFileHandler(blobToFile(blob, `${uuidv4()}.png`));
+				}
+			}, 'image/png');
 			// Clean memory: Clear video srcObject
 			video.srcObject = null;
 		} catch (error) {
@@ -289,6 +290,57 @@
 		}
 	};
 
+	// vision providers downscale above ~2048px; larger just wastes tokens
+	const IMAGE_MAX_DIMENSION = 2048;
+
+	// compress client-side, upload to the image bucket, keep only a reference
+	const uploadImageFileHandler = async (file) => {
+		if (visionCapableModels.length === 0) {
+			toast.error($i18n.t('Selected model does not support image inputs'));
+			return;
+		}
+
+		const tempItemId = uuidv4();
+		const fileItem = {
+			type: 'image',
+			url: '',
+			name: file.name || `${uuidv4()}.png`,
+			status: 'uploading',
+			itemId: tempItemId
+		};
+		files = [...files, fileItem];
+
+		try {
+			const dataUrl = await new Promise((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onload = (e) => resolve(e.target?.result);
+				reader.onerror = reject;
+				reader.readAsDataURL(file);
+			});
+
+			const compressedUrl = await compressImage(dataUrl, IMAGE_MAX_DIMENSION, IMAGE_MAX_DIMENSION);
+			const blob = await (await fetch(compressedUrl)).blob();
+			const ext = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png';
+			const baseName = (fileItem.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+			const imageFile = blobToFile(blob, `${baseName}.${ext}`);
+
+			const uploaded = await uploadFile(localStorage.token, imageFile);
+			if (uploaded?.id) {
+				fileItem.status = 'uploaded';
+				fileItem.id = uploaded.id;
+				fileItem.url = `/api/v1/files/${uploaded.id}/content`;
+				fileItem.width = uploaded.meta?.width;
+				fileItem.height = uploaded.meta?.height;
+				files = files;
+			} else {
+				files = files.filter((item) => item?.itemId !== tempItemId);
+			}
+		} catch (e) {
+			toast.error(`${e}`);
+			files = files.filter((item) => item?.itemId !== tempItemId);
+		}
+	};
+
 	const SUPPORTED_FILE_EXTENSIONS = new Set([
 		'c', 'cpp', 'css', 'csv', 'doc', 'docx', 'gif', 'go', 'html', 'java',
 		'jpeg', 'jpg', 'js', 'json', 'md', 'pdf', 'php', 'pkl', 'png', 'pptx',
@@ -340,28 +392,7 @@
 			}
 
 			if (['image/gif', 'image/webp', 'image/jpeg', 'image/png'].includes(file['type'])) {
-				if (visionCapableModels.length === 0) {
-					toast.error($i18n.t('Selected model does not support image inputs'));
-					return;
-				}
-				let reader = new FileReader();
-				reader.onload = async (event) => {
-					const maxWidth = 1568;
-					const maxHeight = 1568;
-					console.log(event.target?.result);
-					let imageUrl = await compressImage(event.target?.result, maxWidth, maxHeight);
-					console.log("IMAGEEEEEE URL", imageUrl);
-
-					files = [
-						...files,
-						{
-							type: 'image',
-							url: `${imageUrl}`,
-							name: file.name
-						}
-					];
-				};
-				reader.readAsDataURL(file);
+				uploadImageFileHandler(file);
 			} else {
 				uploadFileHandler(file);
 			}
@@ -432,26 +463,18 @@
 
 			const clipboardItems = await navigator.clipboard.read();
 
-			let imageUrl = null;
+			let imageBlob = null;
 			for (const item of clipboardItems) {
 				// Check for known image types
 				for (const type of item.types) {
 					if (type.startsWith('image/')) {
-						const blob = await item.getType(type);
-						imageUrl = URL.createObjectURL(blob);
+						imageBlob = await item.getType(type);
 					}
 				}
 			}
 
-			if (imageUrl) {
-				files = [
-					...files,
-					{
-						type: 'image',
-						url: imageUrl,
-						name: `${uuidv4()}.png`
-					}
-				];
+			if (imageBlob) {
+				uploadImageFileHandler(blobToFile(imageBlob, `${uuidv4()}.png`));
 			}
 
 			text = text.replaceAll('{{CLIPBOARD}}', clipboardText);
@@ -765,12 +788,16 @@
 											{#if file.type === 'image'}
 												<div class=" relative group">
 													<div class="relative flex items-center">
-														<Image
-															src={file.url}
-															alt="input"
-															caption={file.name}
-															imageClassName=" size-14 rounded-xl object-cover"
-														/>
+														{#if file.status === 'uploading'}
+															<div class="image-skeleton size-14 rounded-xl"></div>
+														{:else}
+															<Image
+																src={file.url}
+																alt="input"
+																caption={file.name}
+																imageClassName=" size-14 rounded-xl object-cover"
+															/>
+														{/if}
 														{#if selectedModelIds.length !== visionCapableModels.length}
 															<Tooltip
 																className=" absolute top-0 left-0"
@@ -983,19 +1010,9 @@
 													for (const item of clipboardData.items) {
 														if (item.type.indexOf('image') !== -1) {
 															const blob = item.getAsFile();
-															const reader = new FileReader();
-
-															reader.onload = function (e) {
-																files = [
-																	...files,
-																	{
-																		type: 'image',
-																		url: `${e.target.result}`
-																	}
-																];
-															};
-
-															reader.readAsDataURL(blob);
+															if (blob) {
+																uploadImageFileHandler(blob);
+															}
 														} else if (item.type === 'text/plain') {
 															if ($settings?.largeTextAsFile ?? false) {
 																const text = clipboardData.getData('text/plain');
