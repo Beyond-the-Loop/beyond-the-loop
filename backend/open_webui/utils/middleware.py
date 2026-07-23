@@ -1647,8 +1647,14 @@ async def process_chat_response(
                                         image_base64 = delta_image['image_url']["url"]
 
                                         # offload streamed image bytes to the bucket, keep a reference
-                                        image_url = persist_image_data_uri(image_base64, user.id)
-                                        response_images.append({"type": "image", "url": image_url, "name": f"{uuid.uuid4()}.png"})
+                                        img = persist_image_data_uri(image_base64, user.id)
+                                        response_images.append({
+                                            "type": "image",
+                                            "url": img["url"],
+                                            "name": f"{uuid.uuid4()}.png",
+                                            "width": img["width"],
+                                            "height": img["height"],
+                                        })
                                 for dtc in delta.get("tool_calls") or []:
                                     func = dtc.get("function", {})
                                     idx = dtc.get("index")
@@ -1988,9 +1994,15 @@ async def process_chat_response(
                     })
 
                     if data_uri:
-                        image_url = persist_image_data_uri(data_uri, user.id)
+                        img = persist_image_data_uri(data_uri, user.id)
                         response_images.append(
-                            {"type": "image", "url": image_url, "name": f"{uuid.uuid4()}.png"}
+                            {
+                                "type": "image",
+                                "url": img["url"],
+                                "name": f"{uuid.uuid4()}.png",
+                                "width": img["width"],
+                                "height": img["height"],
+                            }
                         )
 
                     form_data["messages"].append({

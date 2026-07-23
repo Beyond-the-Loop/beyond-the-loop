@@ -27,12 +27,26 @@ log = logging.getLogger(__name__)
 _FILE_REF_RE = re.compile(r"/files/([^/]+)/content")
 
 
-def persist_image_data_uri(data_uri: str, user_id: str) -> str:
+def image_dimensions(img_bytes: bytes):
+    """(width, height) of the image, or (None, None) if it can't be read."""
+    try:
+        from PIL import Image as PILImage
+
+        with PILImage.open(io.BytesIO(img_bytes)) as im:
+            return im.width, im.height
+    except Exception as e:
+        log.warning(f"Could not read image dimensions: {e}")
+        return None, None
+
+
+def persist_image_data_uri(data_uri: str, user_id: str) -> dict:
     """Decode a `data:` image URI, store it in the image bucket as a file
-    record, and return a backend content-reference URL. Falls back to the inline
-    data URI if persistence fails, so a storage hiccup never loses the image."""
+    record, and return {url, width, height}. `url` is a backend content
+    reference; on failure it falls back to the inline data URI (width/height
+    None) so a storage hiccup never loses the image."""
     try:
         img_bytes, content_type = decode_data_uri(data_uri)
+        width, height = image_dimensions(img_bytes)
         ext = content_type.split("/")[-1] or "png"
         file_id = str(uuid.uuid4())
         filename = f"{file_id}.{ext}"
@@ -49,13 +63,19 @@ def persist_image_data_uri(data_uri: str, user_id: str) -> str:
                     "name": filename,
                     "content_type": content_type,
                     "size": len(img_bytes),
+                    "width": width,
+                    "height": height,
                 },
             ),
         )
-        return f"/api/v1/files/{file_id}/content"
+        return {
+            "url": f"/api/v1/files/{file_id}/content",
+            "width": width,
+            "height": height,
+        }
     except Exception as e:
         log.error(f"Failed to persist image, keeping inline: {e}")
-        return data_uri
+        return {"url": data_uri, "width": None, "height": None}
 
 
 def hydrate_image_ref_url(url: str) -> str:

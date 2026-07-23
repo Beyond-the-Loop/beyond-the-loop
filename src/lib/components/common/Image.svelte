@@ -18,6 +18,11 @@
 	export let imageClassName = 'rounded-xl';
 	export let showDownload = false;
 
+	// dimensions let the skeleton reserve the aspect ratio (avoids layout shift)
+	export let width: number | undefined = undefined;
+	export let height: number | undefined = undefined;
+	$: aspectStyle = width && height ? `aspect-ratio: ${width} / ${height};` : '';
+
 	const copyCaption = async () => {
 		if (await copyToClipboard(caption)) {
 			toast.success($i18n.t('Copying to clipboard was successful!'));
@@ -44,7 +49,8 @@
 	>
 		{#if !loaded}
 			<div
-				class="image-skeleton w-full aspect-square not-prose {imageClassName}"
+				class="image-skeleton w-full not-prose {imageClassName} {aspectStyle ? '' : 'aspect-square'}"
+				style={aspectStyle}
 				aria-hidden="true"
 			></div>
 		{/if}

@@ -863,6 +863,8 @@
 										src={file.url}
 										alt={message.content}
 										caption={file.name}
+										width={file.width}
+										height={file.height}
 										showDownload={true}
 										className="w-full outline-none focus:outline-none"
 									/>

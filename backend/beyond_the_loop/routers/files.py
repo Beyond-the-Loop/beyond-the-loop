@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from beyond_the_loop.storage.provider import Storage
 from beyond_the_loop.config import GCS_IMAGE_BUCKET_NAME
+from beyond_the_loop.utils.image_refs import image_dimensions
 
 from beyond_the_loop.models.files import (
     FileForm,
@@ -64,6 +65,9 @@ def upload_file(
             "content_type": file.content_type,
             "size": len(contents),
         }
+        if is_image:
+            # dimensions let the frontend reserve the skeleton's aspect ratio
+            meta["width"], meta["height"] = image_dimensions(contents)
 
         file_item = Files.insert_new_file(
             user.id,
