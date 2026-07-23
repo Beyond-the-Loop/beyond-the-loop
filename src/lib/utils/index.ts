@@ -38,7 +38,8 @@ const imageExtensionFromBlob = (blob: Blob) => {
 };
 
 export const downloadImage = (url: string, filename?: string) => {
-	return fetch(url)
+	// images sit behind the auth-protected /files endpoint, so send the cookie
+	return fetch(url, { credentials: 'include' })
 		.then((response) => response.blob())
 		.then((blob) => {
 			const objectUrl = window.URL.createObjectURL(blob);
